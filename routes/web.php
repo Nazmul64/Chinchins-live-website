@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ProfileAdminController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,9 +14,14 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // Authenticated Admin Dashboard Routes
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/profile', [ProfileAdminController::class, 'index'])->name('profile');
 });
 
-// Shortcut alias for /dashboard
+// Shortcut aliases
 Route::middleware(['auth'])->get('/dashboard', function () {
     return redirect()->route('admin.dashboard');
+});
+
+Route::middleware(['auth'])->get('/profile', function () {
+    return redirect()->route('admin.profile');
 });

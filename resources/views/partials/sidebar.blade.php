@@ -280,15 +280,15 @@
                 <i class="fa-solid fa-chevron-right menu-arrow"></i>
             </button>
             <div class="submenu">
-                <a href="javascript:void(0)" class="submenu-item">
+                <a href="{{ route('admin.profile') }}" class="submenu-item {{ request()->routeIs('admin.profile') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
                     <span>Profile Overview</span>
                 </a>
-                <a href="javascript:void(0)" class="submenu-item">
+                <a href="{{ route('admin.profile') }}" class="submenu-item">
                     <span class="submenu-bullet"></span>
                     <span>Edit Profile</span>
                 </a>
-                <a href="javascript:void(0)" class="submenu-item">
+                <a href="{{ route('admin.profile') }}" class="submenu-item">
                     <span class="submenu-bullet"></span>
                     <span>Account Settings</span>
                 </a>
