@@ -171,22 +171,22 @@ Fetches active streamers directly from the database for the **Home / Hot / For Y
         "id": 15,
         "account_id": "602281635",
         "display_name": "Ayeena04",
-        "avatar_url": "https://your-domain.com/storage/profiles/15/avatar_xxx.jpg",
-        "cover_photo_url": "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
+        "avatar_url": "https://your-domain.com/uploads/profiles/15/avatar_xxx.jpg",
+        "cover_photo_url": "https://your-domain.com/uploads/profiles/15/gallery/img1.jpg",
         "gallery_image_urls": [
-          "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
-          "https://your-domain.com/storage/profiles/15/gallery/img2.jpg",
-          "https://your-domain.com/storage/profiles/15/gallery/img3.jpg",
-          "https://your-domain.com/storage/profiles/15/gallery/img4.jpg",
-          "https://your-domain.com/storage/profiles/15/gallery/img5.jpg"
+          "https://your-domain.com/uploads/profiles/15/gallery/img1.jpg",
+          "https://your-domain.com/uploads/profiles/15/gallery/img2.jpg",
+          "https://your-domain.com/uploads/profiles/15/gallery/img3.jpg",
+          "https://your-domain.com/uploads/profiles/15/gallery/img4.jpg",
+          "https://your-domain.com/uploads/profiles/15/gallery/img5.jpg"
         ],
-        "profile_picture": "https://your-domain.com/storage/profiles/15/avatar_xxx.jpg",
+        "profile_picture": "https://your-domain.com/uploads/profiles/15/avatar_xxx.jpg",
         "photos": [
-          "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
-          "https://your-domain.com/storage/profiles/15/gallery/img2.jpg",
-          "https://your-domain.com/storage/profiles/15/gallery/img3.jpg",
-          "https://your-domain.com/storage/profiles/15/gallery/img4.jpg",
-          "https://your-domain.com/storage/profiles/15/gallery/img5.jpg"
+          "https://your-domain.com/uploads/profiles/15/gallery/img1.jpg",
+          "https://your-domain.com/uploads/profiles/15/gallery/img2.jpg",
+          "https://your-domain.com/uploads/profiles/15/gallery/img3.jpg",
+          "https://your-domain.com/uploads/profiles/15/gallery/img4.jpg",
+          "https://your-domain.com/uploads/profiles/15/gallery/img5.jpg"
         ],
         "country": "Bangladesh",
         "age": 27,
@@ -231,14 +231,14 @@ Triggered when a user clicks on any card from the Home feed or opens the "Me" ta
       "id": 15,
       "account_id": "602281635",
       "display_name": "Ayeena04",
-      "avatar_url": "https://your-domain.com/storage/profiles/15/avatar_xxx.jpg",
-      "cover_photo_url": "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
+      "avatar_url": "https://your-domain.com/uploads/profiles/15/avatar_xxx.jpg",
+      "cover_photo_url": "https://your-domain.com/uploads/profiles/15/gallery/img1.jpg",
       "gallery_image_urls": [
-        "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
-        "https://your-domain.com/storage/profiles/15/gallery/img2.jpg",
-        "https://your-domain.com/storage/profiles/15/gallery/img3.jpg",
-        "https://your-domain.com/storage/profiles/15/gallery/img4.jpg",
-        "https://your-domain.com/storage/profiles/15/gallery/img5.jpg"
+        "https://your-domain.com/uploads/profiles/15/gallery/img1.jpg",
+        "https://your-domain.com/uploads/profiles/15/gallery/img2.jpg",
+        "https://your-domain.com/uploads/profiles/15/gallery/img3.jpg",
+        "https://your-domain.com/uploads/profiles/15/gallery/img4.jpg",
+        "https://your-domain.com/uploads/profiles/15/gallery/img5.jpg"
       ],
       "country": "Bangladesh",
       "city": "Dhaka",
@@ -275,7 +275,7 @@ Triggered when a user clicks on any card from the Home feed or opens the "Me" ta
 - **Body**:
 ```json
 {
-  "photo": "https://your-domain.com/storage/profiles/15/gallery/img3.jpg"
+  "photo": "https://your-domain.com/uploads/profiles/15/gallery/img3.jpg"
 }
 ```
 

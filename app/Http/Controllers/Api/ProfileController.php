@@ -255,13 +255,13 @@ class ProfileController extends Controller
     }
 
     /**
-     * Helper to store an image from either an UploadedFile or a Base64 string.
+     * Helper to store an image in public/uploads folder.
      *
-     * @param mixed $input
+     * @param mixed $input (UploadedFile or Base64 string)
      * @param int|string $userId
-     * @param string $folder
+     * @param string $folder ('avatar', 'cover', 'gallery')
      * @param string $prefix
-     * @return string|null Stored relative path in public storage
+     * @return string|null Relative path like 'uploads/profiles/4/avatar/avatar_xxx.jpg'
      */
     protected function storeImageInput($input, $userId, string $folder = 'gallery', string $prefix = 'img'): ?string
     {
@@ -269,14 +269,22 @@ class ProfileController extends Controller
             return null;
         }
 
-        // 1. If it's an uploaded file
+        $relativeDir = 'uploads/profiles/' . $userId . '/' . $folder;
+        $targetDir = public_path($relativeDir);
+
+        if (!file_exists($targetDir)) {
+            @mkdir($targetDir, 0755, true);
+        }
+
+        // 1. If it's an UploadedFile
         if ($input instanceof \Illuminate\Http\UploadedFile) {
             if (!$input->isValid()) {
                 return null;
             }
             $ext = $input->getClientOriginalExtension() ?: 'jpg';
             $filename = $prefix . '_' . Str::uuid() . '.' . $ext;
-            return $input->storeAs('profiles/' . $userId . '/' . $folder, $filename, 'public');
+            $input->move($targetDir, $filename);
+            return $relativeDir . '/' . $filename;
         }
 
         // 2. If it's a Base64 string
@@ -293,13 +301,52 @@ class ProfileController extends Controller
             $decoded = base64_decode($data);
             if ($decoded !== false) {
                 $filename = $prefix . '_' . Str::uuid() . '.' . $ext;
-                $relativePath = 'profiles/' . $userId . '/' . $folder . '/' . $filename;
-                Storage::disk('public')->put($relativePath, $decoded);
-                return $relativePath;
+                $fullPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
+                @file_put_contents($fullPath, $decoded);
+                return $relativeDir . '/' . $filename;
             }
         }
 
         return null;
+    }
+
+    /**
+     * Helper to safely delete an uploaded file from disk.
+     *
+     * @param string|null $path
+     */
+    protected function deleteUploadedFile(?string $path): void
+    {
+        if (empty($path)) {
+            return;
+        }
+
+        // Clean domain and protocol
+        $cleanPath = ltrim(str_replace([url('/'), asset('/')], '', $path), '/');
+
+        // Check if inside public/uploads
+        $publicFile = public_path($cleanPath);
+        if (file_exists($publicFile) && is_file($publicFile)) {
+            @unlink($publicFile);
+            return;
+        }
+
+        // Check public/uploads prefixed
+        if (!str_starts_with($cleanPath, 'uploads/')) {
+            $withUploads = public_path('uploads/' . $cleanPath);
+            if (file_exists($withUploads) && is_file($withUploads)) {
+                @unlink($withUploads);
+                return;
+            }
+        }
+
+        // Legacy storage check
+        if (str_starts_with($cleanPath, 'storage/')) {
+            $storageClean = substr($cleanPath, 8);
+            if (Storage::disk('public')->exists($storageClean)) {
+                Storage::disk('public')->delete($storageClean);
+            }
+        }
     }
 
     /**
@@ -439,9 +486,9 @@ class ProfileController extends Controller
         }
 
         try {
-            // Delete old avatar if existing
-            if (!empty($user->avatar) && Storage::disk('public')->exists($user->avatar)) {
-                Storage::disk('public')->delete($user->avatar);
+            // Delete old avatar from disk
+            if (!empty($user->avatar)) {
+                $this->deleteUploadedFile($user->avatar);
             }
 
             $path = $this->storeImageInput($input, $user->id, 'avatar', 'avatar');
@@ -499,10 +546,7 @@ class ProfileController extends Controller
 
         try {
             if (!empty($user->avatar)) {
-                $cleanPath = ltrim(str_replace(asset('storage') . '/', '', $user->avatar), '/');
-                if (Storage::disk('public')->exists($cleanPath)) {
-                    Storage::disk('public')->delete($cleanPath);
-                }
+                $this->deleteUploadedFile($user->avatar);
                 $user->update(['avatar' => null]);
             }
 
@@ -553,9 +597,9 @@ class ProfileController extends Controller
         }
 
         try {
-            // Delete old cover if custom
-            if (!empty($user->cover_photo) && Storage::disk('public')->exists($user->cover_photo)) {
-                Storage::disk('public')->delete($user->cover_photo);
+            // Delete old cover from disk
+            if (!empty($user->cover_photo)) {
+                $this->deleteUploadedFile($user->cover_photo);
             }
 
             $path = $this->storeImageInput($input, $user->id, 'cover', 'cover');
@@ -605,10 +649,7 @@ class ProfileController extends Controller
 
         try {
             if (!empty($user->cover_photo)) {
-                $cleanPath = ltrim(str_replace(asset('storage') . '/', '', $user->cover_photo), '/');
-                if (Storage::disk('public')->exists($cleanPath)) {
-                    Storage::disk('public')->delete($cleanPath);
-                }
+                $this->deleteUploadedFile($user->cover_photo);
                 $user->update(['cover_photo' => null]);
             }
 
@@ -658,22 +699,19 @@ class ProfileController extends Controller
 
         try {
             $photoTarget = trim($request->input('photo', $request->input('image', '')));
+            
             // Normalize target (strip base URL if full URL was sent)
-            $cleanTarget = str_replace(asset('storage') . '/', '', $photoTarget);
-            $cleanTarget = ltrim(str_replace(url('storage') . '/', '', $cleanTarget), '/');
+            $cleanTarget = ltrim(str_replace([url('/'), asset('/')], '', $photoTarget), '/');
 
             $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
             $updatedGallery = [];
 
             foreach ($currentGallery as $item) {
-                $cleanItem = ltrim(str_replace(asset('storage') . '/', '', $item), '/');
-                $cleanItem = ltrim(str_replace(url('storage') . '/', '', $cleanItem), '/');
+                $cleanItem = ltrim(str_replace([url('/'), asset('/')], '', $item), '/');
 
-                if ($cleanItem === $cleanTarget || $item === $photoTarget) {
-                    // Delete file from disk if stored locally
-                    if (Storage::disk('public')->exists($cleanItem)) {
-                        Storage::disk('public')->delete($cleanItem);
-                    }
+                if ($cleanItem === $cleanTarget || $item === $photoTarget || basename($cleanItem) === basename($cleanTarget)) {
+                    // Delete physical file from public/uploads
+                    $this->deleteUploadedFile($cleanItem);
                 } else {
                     $updatedGallery[] = $item;
                 }
@@ -684,7 +722,8 @@ class ProfileController extends Controller
             ];
 
             // If deleted cover photo, set to next available gallery image or null
-            if ($user->cover_photo === $cleanTarget || $user->cover_photo === $photoTarget) {
+            $cleanCover = ltrim(str_replace([url('/'), asset('/')], '', $user->cover_photo ?? ''), '/');
+            if ($cleanCover === $cleanTarget || $user->cover_photo === $photoTarget || basename($cleanCover) === basename($cleanTarget)) {
                 $updateData['cover_photo'] = count($updatedGallery) > 0 ? $updatedGallery[0] : null;
             }
 
@@ -735,8 +774,7 @@ class ProfileController extends Controller
 
             $cleanList = [];
             foreach ($photos as $p) {
-                $clean = str_replace(asset('storage') . '/', '', $p);
-                $clean = ltrim(str_replace(url('storage') . '/', '', $clean), '/');
+                $clean = ltrim(str_replace([url('/'), asset('/')], '', $p), '/');
                 $cleanList[] = $clean;
             }
 
@@ -778,10 +816,7 @@ class ProfileController extends Controller
         try {
             $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
             foreach ($currentGallery as $item) {
-                $cleanItem = ltrim(str_replace(asset('storage') . '/', '', $item), '/');
-                if (Storage::disk('public')->exists($cleanItem)) {
-                    Storage::disk('public')->delete($cleanItem);
-                }
+                $this->deleteUploadedFile($item);
             }
 
             $user->update([

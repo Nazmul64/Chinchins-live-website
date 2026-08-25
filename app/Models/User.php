@@ -181,6 +181,7 @@ class User extends Authenticatable
 
     /**
      * Helper to resolve full URL for any image path.
+     * Serves directly from public/uploads folder without requiring symlinks.
      */
     public static function resolveImageUrl(?string $path): ?string
     {
@@ -193,11 +194,21 @@ class User extends Authenticatable
         }
 
         $cleanPath = ltrim($path, '/');
-        if (str_starts_with($cleanPath, 'storage/')) {
-            $cleanPath = substr($cleanPath, 8);
+
+        if (str_starts_with($cleanPath, 'uploads/')) {
+            return asset($cleanPath);
         }
 
-        return asset('storage/' . $cleanPath);
+        if (str_starts_with($cleanPath, 'profiles/')) {
+            return asset('uploads/' . $cleanPath);
+        }
+
+        if (str_starts_with($cleanPath, 'storage/')) {
+            $withoutStorage = substr($cleanPath, 8);
+            return asset('uploads/' . $withoutStorage);
+        }
+
+        return asset($cleanPath);
     }
 
     /**
