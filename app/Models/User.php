@@ -68,6 +68,9 @@ class User extends Authenticatable
         'display_name',
         'is_online',
         'status_text',
+        'profile_picture',
+        'photos',
+        'gallery',
     ];
 
     /**
@@ -84,6 +87,30 @@ class User extends Authenticatable
     public function getStatusTextAttribute(): string
     {
         return $this->is_active ? 'Online' : 'Offline';
+    }
+
+    /**
+     * Helper alias for profile_picture.
+     */
+    public function getProfilePictureAttribute(): ?string
+    {
+        return $this->avatar_url;
+    }
+
+    /**
+     * Helper alias for photos.
+     */
+    public function getPhotosAttribute(): array
+    {
+        return $this->gallery_image_urls;
+    }
+
+    /**
+     * Helper alias for gallery.
+     */
+    public function getGalleryAttribute(): array
+    {
+        return $this->gallery_image_urls;
     }
 
     /**
@@ -153,43 +180,62 @@ class User extends Authenticatable
     }
 
     /**
+     * Helper to resolve full URL for any image path.
+     */
+    public static function resolveImageUrl(?string $path): ?string
+    {
+        if (empty($path)) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        $cleanPath = ltrim($path, '/');
+        if (str_starts_with($cleanPath, 'storage/')) {
+            $cleanPath = substr($cleanPath, 8);
+        }
+
+        return asset('storage/' . $cleanPath);
+    }
+
+    /**
      * Accessor for full Avatar URL.
      */
     public function getAvatarUrlAttribute(): ?string
     {
-        if (empty($this->avatar)) {
-            // Default avatar if none uploaded
-            return null;
+        if (!empty($this->avatar)) {
+            return static::resolveImageUrl($this->avatar);
         }
 
-        if (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://')) {
-            return $this->avatar;
+        // Fallback to first gallery image if avatar not set
+        if (!empty($this->gallery_images) && is_array($this->gallery_images) && count($this->gallery_images) > 0) {
+            return static::resolveImageUrl($this->gallery_images[0]);
         }
 
-        return asset('storage/' . ltrim($this->avatar, '/'));
+        return null;
     }
 
     /**
      * Accessor for full Cover Photo URL.
-     * Uses explicit cover_photo or falls back to first gallery image.
+     * Uses explicit cover_photo or falls back to first gallery image or avatar.
      */
     public function getCoverPhotoUrlAttribute(): ?string
     {
-        $cover = $this->cover_photo;
-
-        if (empty($cover) && !empty($this->gallery_images) && is_array($this->gallery_images) && count($this->gallery_images) > 0) {
-            $cover = $this->gallery_images[0];
+        if (!empty($this->cover_photo)) {
+            return static::resolveImageUrl($this->cover_photo);
         }
 
-        if (empty($cover)) {
-            return null;
+        if (!empty($this->gallery_images) && is_array($this->gallery_images) && count($this->gallery_images) > 0) {
+            return static::resolveImageUrl($this->gallery_images[0]);
         }
 
-        if (str_starts_with($cover, 'http://') || str_starts_with($cover, 'https://')) {
-            return $cover;
+        if (!empty($this->avatar)) {
+            return static::resolveImageUrl($this->avatar);
         }
 
-        return asset('storage/' . ltrim($cover, '/'));
+        return null;
     }
 
     /**
@@ -202,12 +248,9 @@ class User extends Authenticatable
             return [];
         }
 
-        return array_map(function ($img) {
-            if (str_starts_with($img, 'http://') || str_starts_with($img, 'https://')) {
-                return $img;
-            }
-            return asset('storage/' . ltrim($img, '/'));
-        }, $images);
+        return array_values(array_filter(array_map(function ($img) {
+            return static::resolveImageUrl($img);
+        }, $images)));
     }
 
     /**

@@ -218,29 +218,27 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        $validator = Validator::make($request->all(), [
-            'photos'   => ['nullable', 'array'],
-            'photos.*' => ['image', 'mimes:jpeg,png,jpg,webp,gif', 'max:10240'],
-            'photo'    => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:10240'],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status'  => false,
-                'message' => $validator->errors()->first(),
-                'errors'  => $validator->errors(),
-            ], 422);
-        }
-
         $uploadedFiles = [];
 
+        // Check various parameter aliases for single or multi upload
         if ($request->hasFile('photo')) {
             $uploadedFiles[] = $request->file('photo');
         }
-
+        if ($request->hasFile('image')) {
+            $uploadedFiles[] = $request->file('image');
+        }
         if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $file) {
-                if ($file->isValid()) {
+            $files = is_array($request->file('photos')) ? $request->file('photos') : [$request->file('photos')];
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
+                    $uploadedFiles[] = $file;
+                }
+            }
+        }
+        if ($request->hasFile('images')) {
+            $files = is_array($request->file('images')) ? $request->file('images') : [$request->file('images')];
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
                     $uploadedFiles[] = $file;
                 }
             }
@@ -249,7 +247,7 @@ class ProfileController extends Controller
         if (empty($uploadedFiles)) {
             return response()->json([
                 'status'  => false,
-                'message' => 'No image files were provided for upload',
+                'message' => 'No image files were provided for upload. Please send files via photos[], images[], photo, or image.',
             ], 422);
         }
 
@@ -272,7 +270,7 @@ class ProfileController extends Controller
             'gallery_images' => $currentGallery,
         ];
 
-        // If cover_photo is not set or requested to set, default to the first image
+        // If cover_photo is not set, default to the first image
         if (empty($user->cover_photo) && count($currentGallery) > 0) {
             $updateData['cover_photo'] = $currentGallery[0];
         }
@@ -295,7 +293,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Upload dedicated Avatar photo.
+     * Upload or edit dedicated Avatar photo.
      *
      * @param Request $request
      * @return JsonResponse
@@ -304,19 +302,23 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        $validator = Validator::make($request->all(), [
-            'avatar' => ['required', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:10240'],
-        ]);
+        $file = $request->file('avatar') 
+             ?? $request->file('photo') 
+             ?? $request->file('image') 
+             ?? $request->file('profile_picture');
 
-        if ($validator->fails()) {
+        if (!$file || !$file->isValid()) {
             return response()->json([
                 'status'  => false,
-                'message' => $validator->errors()->first(),
-                'errors'  => $validator->errors(),
+                'message' => 'No valid avatar image file provided. Field can be avatar, photo, image, or profile_picture.',
             ], 422);
         }
 
-        $file = $request->file('avatar');
+        // Delete old avatar if existing
+        if (!empty($user->avatar) && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
         $filename = 'avatar_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
         $path = $file->storeAs('profiles/' . $user->id, $filename, 'public');
 
@@ -335,14 +337,42 @@ class ProfileController extends Controller
             'status'  => true,
             'message' => 'Avatar updated successfully',
             'data'    => [
-                'avatar_url' => $user->avatar_url,
-                'user'       => $user->fresh(),
+                'avatar_url'      => $user->avatar_url,
+                'profile_picture' => $user->avatar_url,
+                'user'            => $user->fresh(),
             ],
         ]);
     }
 
     /**
-     * Upload dedicated Cover Photo.
+     * Delete Avatar photo.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function deleteAvatar(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!empty($user->avatar)) {
+            $cleanPath = ltrim(str_replace(asset('storage') . '/', '', $user->avatar), '/');
+            if (Storage::disk('public')->exists($cleanPath)) {
+                Storage::disk('public')->delete($cleanPath);
+            }
+            $user->update(['avatar' => null]);
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Avatar removed successfully',
+            'data'    => [
+                'user' => $user->fresh(),
+            ],
+        ]);
+    }
+
+    /**
+     * Upload or edit dedicated Cover Photo.
      *
      * @param Request $request
      * @return JsonResponse
@@ -351,19 +381,23 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        $validator = Validator::make($request->all(), [
-            'cover_photo' => ['required', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:10240'],
-        ]);
+        $file = $request->file('cover_photo') 
+             ?? $request->file('cover') 
+             ?? $request->file('photo') 
+             ?? $request->file('image');
 
-        if ($validator->fails()) {
+        if (!$file || !$file->isValid()) {
             return response()->json([
                 'status'  => false,
-                'message' => $validator->errors()->first(),
-                'errors'  => $validator->errors(),
+                'message' => 'No valid cover photo file provided. Field can be cover_photo, cover, photo, or image.',
             ], 422);
         }
 
-        $file = $request->file('cover_photo');
+        // Delete old cover if custom
+        if (!empty($user->cover_photo) && Storage::disk('public')->exists($user->cover_photo)) {
+            Storage::disk('public')->delete($user->cover_photo);
+        }
+
         $filename = 'cover_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
         $path = $file->storeAs('profiles/' . $user->id, $filename, 'public');
 
@@ -382,7 +416,34 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete a photo from gallery.
+     * Delete Cover Photo.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function deleteCover(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!empty($user->cover_photo)) {
+            $cleanPath = ltrim(str_replace(asset('storage') . '/', '', $user->cover_photo), '/');
+            if (Storage::disk('public')->exists($cleanPath)) {
+                Storage::disk('public')->delete($cleanPath);
+            }
+            $user->update(['cover_photo' => null]);
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Cover photo removed successfully',
+            'data'    => [
+                'user' => $user->fresh(),
+            ],
+        ]);
+    }
+
+    /**
+     * Delete a single photo from gallery.
      *
      * @param Request $request
      * @return JsonResponse
@@ -392,27 +453,30 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $validator = Validator::make($request->all(), [
-            'photo' => ['required', 'string'],
+            'photo' => ['required_without:image', 'string'],
+            'image' => ['required_without:photo', 'string'],
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status'  => false,
-                'message' => $validator->errors()->first(),
+                'message' => 'Please provide the photo path or URL to delete.',
                 'errors'  => $validator->errors(),
             ], 422);
         }
 
-        $photoTarget = trim($request->photo);
+        $photoTarget = trim($request->input('photo', $request->input('image', '')));
         // Normalize target (strip base URL if full URL was sent)
         $cleanTarget = str_replace(asset('storage') . '/', '', $photoTarget);
-        $cleanTarget = ltrim($cleanTarget, '/');
+        $cleanTarget = ltrim(str_replace(url('storage') . '/', '', $cleanTarget), '/');
 
         $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
         $updatedGallery = [];
 
         foreach ($currentGallery as $item) {
             $cleanItem = ltrim(str_replace(asset('storage') . '/', '', $item), '/');
+            $cleanItem = ltrim(str_replace(url('storage') . '/', '', $cleanItem), '/');
+
             if ($cleanItem === $cleanTarget || $item === $photoTarget) {
                 // Delete file from disk if stored locally
                 if (Storage::disk('public')->exists($cleanItem)) {
@@ -444,6 +508,79 @@ class ProfileController extends Controller
     }
 
     /**
+     * Update/Reorder Gallery array.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function updateGallery(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $photos = $request->input('photos', $request->input('gallery', []));
+
+        if (!is_array($photos)) {
+            if (is_string($photos)) {
+                $decoded = json_decode($photos, true);
+                $photos = is_array($decoded) ? $decoded : array_map('trim', explode(',', $photos));
+            } else {
+                $photos = [];
+            }
+        }
+
+        $cleanList = [];
+        foreach ($photos as $p) {
+            $clean = str_replace(asset('storage') . '/', '', $p);
+            $clean = ltrim(str_replace(url('storage') . '/', '', $clean), '/');
+            $cleanList[] = $clean;
+        }
+
+        $user->update([
+            'gallery_images' => array_values(array_unique($cleanList)),
+        ]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Gallery updated successfully',
+            'data'    => [
+                'user' => $user->fresh(),
+            ],
+        ]);
+    }
+
+    /**
+     * Clear all photos in gallery.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function clearGallery(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
+        foreach ($currentGallery as $item) {
+            $cleanItem = ltrim(str_replace(asset('storage') . '/', '', $item), '/');
+            if (Storage::disk('public')->exists($cleanItem)) {
+                Storage::disk('public')->delete($cleanItem);
+            }
+        }
+
+        $user->update([
+            'gallery_images' => [],
+            'cover_photo'    => null,
+        ]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'All gallery photos cleared',
+            'data'    => [
+                'user' => $user->fresh(),
+            ],
+        ]);
+    }
+
+    /**
      * Toggle or set active online status.
      *
      * @param Request $request
@@ -465,9 +602,11 @@ class ProfileController extends Controller
             'status'  => true,
             'message' => 'Status updated to ' . ($user->is_active ? 'Active' : 'Offline'),
             'data'    => [
-                'is_active' => $user->is_active,
-                'status'    => $user->is_active ? 'Active' : 'Offline',
-                'user'      => $user->fresh(),
+                'is_active'   => $user->is_active,
+                'is_online'   => $user->is_active,
+                'status_text' => $user->is_active ? 'Online' : 'Offline',
+                'status'      => $user->is_active ? 'Active' : 'Offline',
+                'user'        => $user->fresh(),
             ],
         ]);
     }

@@ -25,36 +25,26 @@ Accept: application/json
 
 ---
 
-## 📱 Core User & App Flow (End-to-End)
+## 📑 Complete API Endpoints Matrix
 
-```mermaid
-graph TD
-    A[1. User Registration POST /api/register] --> B[Auto-created 10-Digit ID & Status: Online]
-    B --> C[2. Upload Multi-Image Gallery POST /api/profile/upload-photos]
-    C --> D[1st Image becomes Top Cover Photo + Thumbnails in Gallery]
-    D --> E[3. User Appears Live on Home Feed GET /api/home]
-    E --> F[4. Clicking Card on Home Opens Profile & Gallery GET /api/profile/:id]
-    F --> G[5. Slides/Views 5 Gallery Photos, Avatar, Bio, Badges & Video Call]
-```
-
----
-
-## 📑 API Endpoints Summary
-
-| Method | Endpoint | Auth Required | Description |
-| :--- | :--- | :---: | :--- |
-| **POST** | `/api/register` | No | Register new host/user (First/Last Name, Phone, Age, Country, Password) |
-| **POST** | `/api/login` | No | Login with Phone, Email, or 10-digit Account ID |
-| **GET** | `/api/home` *(or `/api/users`)* | No | **Home Feed** (100% dynamic database list of live streamers) |
-| **GET** | `/api/profile/{id}` | No | View full Profile & Gallery by User ID or 10-digit Account ID |
-| **GET** | `/api/profile/me` *(or `/api/user`)* | **Yes** | Get current logged-in user profile ("Me" tab) |
-| **POST** | `/api/profile/update` | **Yes** | Update bio, age, country, nickname, level, rate, etc. |
-| **POST** | `/api/profile/upload-photos` | **Yes** | Upload multiple gallery photos (1st photo automatically becomes cover) |
-| **POST** | `/api/profile/upload-avatar` | **Yes** | Upload circular profile avatar |
-| **POST** | `/api/profile/upload-cover` | **Yes** | Upload background cover photo |
-| **POST** | `/api/profile/delete-photo` | **Yes** | Delete a photo from gallery |
-| **POST** | `/api/profile/status` | **Yes** | Toggle Online/Offline status (`Online` vs `Offline`) |
-| **POST** | `/api/logout` | **Yes** | Logout & revoke access token |
+| Category | Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :---: | :--- |
+| **Auth** | **POST** | `/api/register` | No | Register new user (Name, Phone, Age, Country, Password) |
+| **Auth** | **POST** | `/api/login` | No | Login with Phone, Email, or 10-digit Account ID |
+| **Auth** | **POST** | `/api/logout` | **Yes** | Logout & revoke access token |
+| **Feed** | **GET** | `/api/home` *(or `/api/users`)* | No | **Home Feed** (Live database list of streamers with full image URLs) |
+| **Profile** | **GET** | `/api/profile/{id}` | No | View full Profile & Gallery by User ID or 10-digit Account ID |
+| **Profile** | **GET** | `/api/profile/me` *(or `/api/user`)* | **Yes** | Get current logged-in user profile ("Me" tab) |
+| **Profile** | **POST** | `/api/profile/update` | **Yes** | Update bio, age, country, nickname, level, rate, etc. |
+| **Profile** | **POST** | `/api/profile/status` | **Yes** | Toggle Online/Offline status (`Online` vs `Offline`) |
+| **Avatar** | **POST** | `/api/profile/upload-avatar` | **Yes** | **Add / Edit / Replace** circular profile avatar |
+| **Avatar** | **POST** / **DEL** | `/api/profile/delete-avatar` | **Yes** | **Delete / Remove** profile avatar |
+| **Cover** | **POST** | `/api/profile/upload-cover` | **Yes** | **Add / Edit / Replace** background cover photo |
+| **Cover** | **POST** / **DEL** | `/api/profile/delete-cover` | **Yes** | **Delete / Remove** background cover photo |
+| **Gallery** | **POST** | `/api/profile/upload-photos` | **Yes** | **Add / Upload** multiple gallery photos (`photos[]`) |
+| **Gallery** | **POST** / **DEL** | `/api/profile/delete-photo` | **Yes** | **Delete / Remove** a single photo from gallery |
+| **Gallery** | **POST** | `/api/profile/update-gallery` | **Yes** | **Reorder / Update** entire gallery photo list |
+| **Gallery** | **POST** | `/api/profile/clear-gallery` | **Yes** | **Delete All** gallery photos |
 
 ---
 
@@ -136,6 +126,9 @@ Accept: application/json
       "avatar_url": null,
       "cover_photo_url": null,
       "gallery_image_urls": [],
+      "profile_picture": null,
+      "photos": [],
+      "gallery": [],
       "introduction": "Sweet girl looking for honest talk ❤️",
       "languages": ["English", "Bengali"],
       "tags": ["Live video", "Music"],
@@ -152,7 +145,7 @@ Accept: application/json
 
 ## 2. 🏠 Home Page Feed API (100% Live Database Data)
 
-Fetches active streamers directly from the database for the **Home / Hot / For You** screen.
+Fetches active streamers directly from the database for the **Home / Hot / For You** screen with full image URLs for instant rendering.
 
 ### **Endpoint**
 `GET /api/home` *(or `GET /api/users`)*
@@ -178,9 +171,17 @@ Fetches active streamers directly from the database for the **Home / Hot / For Y
         "id": 15,
         "account_id": "602281635",
         "display_name": "Ayeena04",
-        "avatar_url": "https://your-domain.com/storage/profiles/15/avatar.jpg",
+        "avatar_url": "https://your-domain.com/storage/profiles/15/avatar_xxx.jpg",
         "cover_photo_url": "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
         "gallery_image_urls": [
+          "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
+          "https://your-domain.com/storage/profiles/15/gallery/img2.jpg",
+          "https://your-domain.com/storage/profiles/15/gallery/img3.jpg",
+          "https://your-domain.com/storage/profiles/15/gallery/img4.jpg",
+          "https://your-domain.com/storage/profiles/15/gallery/img5.jpg"
+        ],
+        "profile_picture": "https://your-domain.com/storage/profiles/15/avatar_xxx.jpg",
+        "photos": [
           "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
           "https://your-domain.com/storage/profiles/15/gallery/img2.jpg",
           "https://your-domain.com/storage/profiles/15/gallery/img3.jpg",
@@ -230,7 +231,7 @@ Triggered when a user clicks on any card from the Home feed or opens the "Me" ta
       "id": 15,
       "account_id": "602281635",
       "display_name": "Ayeena04",
-      "avatar_url": "https://your-domain.com/storage/profiles/15/avatar.jpg",
+      "avatar_url": "https://your-domain.com/storage/profiles/15/avatar_xxx.jpg",
       "cover_photo_url": "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
       "gallery_image_urls": [
         "https://your-domain.com/storage/profiles/15/gallery/img1.jpg",
@@ -260,34 +261,71 @@ Triggered when a user clicks on any card from the Home feed or opens the "Me" ta
 
 ---
 
-## 4. 🖼️ Multi-Image Gallery & Photo Upload APIs
+## 4. 🖼️ Multi-Image Gallery APIs (Add, Edit, Reorder, Delete)
 
-### **A. Upload Multiple Gallery Photos**
+### **A. Upload Multiple Gallery Photos (Add / Edit)**
 - **Endpoint**: `POST /api/profile/upload-photos`
 - **Headers**: `Authorization: Bearer <TOKEN>`, `Content-Type: multipart/form-data`
-- **Body**: `photos[]` (Array of image files)
-- **Automatic Cover Behavior**: The first uploaded gallery photo is automatically set as the top background `cover_photo`!
+- **Body**: `photos[]` (Array of image files) or `photo` / `images[]` / `image`
+- **Automatic Behavior**: The first uploaded gallery photo is automatically set as the top background `cover_photo` if none is set!
 
-### **B. Upload Dedicated Avatar Photo**
-- **Endpoint**: `POST /api/profile/upload-avatar`
-- **Body**: `avatar` (Image file)
-
-### **C. Upload Dedicated Cover Photo**
-- **Endpoint**: `POST /api/profile/upload-cover`
-- **Body**: `cover_photo` (Image file)
-
-### **D. Delete a Photo from Gallery**
-- **Endpoint**: `POST /api/profile/delete-photo`
+### **B. Delete a Single Photo from Gallery (Delete)**
+- **Endpoint**: `POST /api/profile/delete-photo` *(or `DELETE /api/profile/photos`)*
+- **Headers**: `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
 - **Body**:
 ```json
 {
-  "photo": "profiles/15/gallery/img3.jpg"
+  "photo": "https://your-domain.com/storage/profiles/15/gallery/img3.jpg"
 }
 ```
 
+### **C. Reorder / Replace Gallery Array (Edit / Update)**
+- **Endpoint**: `POST /api/profile/update-gallery`
+- **Headers**: `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+- **Body**:
+```json
+{
+  "photos": [
+    "profiles/15/gallery/img2.jpg",
+    "profiles/15/gallery/img1.jpg",
+    "profiles/15/gallery/img4.jpg"
+  ]
+}
+```
+
+### **D. Clear All Gallery Photos (Delete All)**
+- **Endpoint**: `POST /api/profile/clear-gallery`
+- **Headers**: `Authorization: Bearer <TOKEN>`
+
 ---
 
-## 5. 🟢 Toggle Online / Offline Status API
+## 5. 📸 Profile Avatar APIs (Add, Edit, Delete)
+
+### **A. Upload or Replace Profile Avatar (Add / Edit)**
+- **Endpoint**: `POST /api/profile/upload-avatar`
+- **Headers**: `Authorization: Bearer <TOKEN>`, `Content-Type: multipart/form-data`
+- **Body**: `avatar` (Image file) *(or `photo` / `image` / `profile_picture`)*
+
+### **B. Delete Profile Avatar (Delete)**
+- **Endpoint**: `POST /api/profile/delete-avatar` *(or `DELETE /api/profile/avatar`)*
+- **Headers**: `Authorization: Bearer <TOKEN>`
+
+---
+
+## 6. 🌅 Cover Photo APIs (Add, Edit, Delete)
+
+### **A. Upload or Replace Background Cover Photo (Add / Edit)**
+- **Endpoint**: `POST /api/profile/upload-cover`
+- **Headers**: `Authorization: Bearer <TOKEN>`, `Content-Type: multipart/form-data`
+- **Body**: `cover_photo` (Image file) *(or `cover` / `photo` / `image`)*
+
+### **B. Delete Background Cover Photo (Delete)**
+- **Endpoint**: `POST /api/profile/delete-cover` *(or `DELETE /api/profile/cover`)*
+- **Headers**: `Authorization: Bearer <TOKEN>`
+
+---
+
+## 7. 🟢 Toggle Online / Offline Status API
 
 Changes the user's live status between `Online` and `Offline`.
 
@@ -309,14 +347,15 @@ Changes the user's live status between `Online` and `Offline`.
   "data": {
     "is_active": true,
     "is_online": true,
-    "status": "Active"
+    "status": "Active",
+    "status_text": "Online"
   }
 }
 ```
 
 ---
 
-## 6. 🔐 User Login API
+## 8. 🔐 User Login API
 
 Authenticate using Phone number, Email, or 10-digit Account ID along with Password.
 
@@ -346,7 +385,7 @@ Authenticate using Phone number, Email, or 10-digit Account ID along with Passwo
 
 ---
 
-## 📱 Complete Flutter / Dart Integration Service
+## 📱 Complete Flutter / Dart Service Implementation
 
 ```dart
 import 'dart:convert';
@@ -383,7 +422,7 @@ class ChinchinsApi {
     return jsonDecode(response.body);
   }
 
-  // 2. Fetch Home Feed (Real Database Live Hosts)
+  // 2. Fetch Home Feed (Real Database Live Hosts with full URLs)
   static Future<List<dynamic>> fetchHomeFeed({int page = 1}) async {
     final response = await http.get(
       Uri.parse('$baseUrl/home?page=$page&is_active=1'),
@@ -393,7 +432,7 @@ class ChinchinsApi {
     return data['data']['users'] ?? [];
   }
 
-  // 3. Fetch Host Profile & Gallery by ID
+  // 3. Fetch Host Profile & Gallery by ID or 10-digit Account ID
   static Future<Map<String, dynamic>> fetchProfile(dynamic idOrAccountId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/profile/$idOrAccountId'),
@@ -403,7 +442,7 @@ class ChinchinsApi {
     return data['data']['user'];
   }
 
-  // 4. Upload Multiple Gallery Photos
+  // 4. Upload Multiple Gallery Photos (Add / Edit Gallery)
   static Future<Map<String, dynamic>> uploadGalleryPhotos({
     required String token,
     required List<File> imageFiles,
@@ -421,7 +460,75 @@ class ChinchinsApi {
     return jsonDecode(response.body);
   }
 
-  // 5. Toggle Online / Offline Status
+  // 5. Delete Single Gallery Photo
+  static Future<bool> deleteGalleryPhoto({
+    required String token,
+    required String photoUrlOrPath,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/profile/delete-photo'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({'photo': photoUrlOrPath}),
+    );
+    final data = jsonDecode(response.body);
+    return data['status'] == true;
+  }
+
+  // 6. Upload / Replace Avatar (Profile Picture)
+  static Future<Map<String, dynamic>> uploadAvatar({
+    required String token,
+    required File avatarFile,
+  }) async {
+    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/profile/upload-avatar'));
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+    request.files.add(await http.MultipartFile.fromPath('avatar', avatarFile.path));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    return jsonDecode(response.body);
+  }
+
+  // 7. Delete Avatar
+  static Future<bool> deleteAvatar({required String token}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/profile/delete-avatar'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
+    final data = jsonDecode(response.body);
+    return data['status'] == true;
+  }
+
+  // 8. Upload / Replace Cover Photo
+  static Future<Map<String, dynamic>> uploadCover({
+    required String token,
+    required File coverFile,
+  }) async {
+    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/profile/upload-cover'));
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+    request.files.add(await http.MultipartFile.fromPath('cover_photo', coverFile.path));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    return jsonDecode(response.body);
+  }
+
+  // 9. Delete Cover Photo
+  static Future<bool> deleteCover({required String token}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/profile/delete-cover'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
+    final data = jsonDecode(response.body);
+    return data['status'] == true;
+  }
+
+  // 10. Toggle Online / Offline Status
   static Future<bool> setOnlineStatus({required String token, required bool isOnline}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/profile/status'),
