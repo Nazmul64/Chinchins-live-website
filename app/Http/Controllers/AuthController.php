@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -24,14 +26,23 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
+        $request->validate([
+            'email'    => ['required', 'string'],
+            'password' => ['required', 'string'],
         ]);
 
-        $remember = $request->boolean('remember');
+        $identifier = trim($request->input('email'));
+        $password   = $request->input('password');
+        $remember   = $request->boolean('remember');
 
-        if (Auth::attempt($credentials, $remember)) {
+        // Check if user exists by email, phone, or account_id
+        $user = User::where('email', $identifier)
+            ->orWhere('phone', $identifier)
+            ->orWhere('account_id', $identifier)
+            ->first();
+
+        if ($user && Hash::check($password, $user->password)) {
+            Auth::login($user, $remember);
             $request->session()->regenerate();
 
             return redirect()->intended(route('admin.dashboard'))
