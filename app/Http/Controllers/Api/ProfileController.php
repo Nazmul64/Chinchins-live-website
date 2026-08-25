@@ -255,6 +255,54 @@ class ProfileController extends Controller
     }
 
     /**
+     * Helper to store an image from either an UploadedFile or a Base64 string.
+     *
+     * @param mixed $input
+     * @param int|string $userId
+     * @param string $folder
+     * @param string $prefix
+     * @return string|null Stored relative path in public storage
+     */
+    protected function storeImageInput($input, $userId, string $folder = 'gallery', string $prefix = 'img'): ?string
+    {
+        if (empty($input)) {
+            return null;
+        }
+
+        // 1. If it's an uploaded file
+        if ($input instanceof \Illuminate\Http\UploadedFile) {
+            if (!$input->isValid()) {
+                return null;
+            }
+            $ext = $input->getClientOriginalExtension() ?: 'jpg';
+            $filename = $prefix . '_' . Str::uuid() . '.' . $ext;
+            return $input->storeAs('profiles/' . $userId . '/' . $folder, $filename, 'public');
+        }
+
+        // 2. If it's a Base64 string
+        if (is_string($input) && (str_starts_with($input, 'data:image') || strlen($input) > 200)) {
+            $data = $input;
+            $ext = 'jpg';
+
+            if (preg_match('/^data:image\/(\w+);base64,/', $data, $matches)) {
+                $ext = strtolower($matches[1]);
+                if ($ext === 'jpeg') $ext = 'jpg';
+                $data = substr($data, strpos($data, ',') + 1);
+            }
+
+            $decoded = base64_decode($data);
+            if ($decoded !== false) {
+                $filename = $prefix . '_' . Str::uuid() . '.' . $ext;
+                $relativePath = 'profiles/' . $userId . '/' . $folder . '/' . $filename;
+                Storage::disk('public')->put($relativePath, $decoded);
+                return $relativePath;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Upload single or multiple gallery photos.
      * The first uploaded image is automatically used as the cover photo if none is set.
      *
@@ -271,33 +319,40 @@ class ProfileController extends Controller
             ], 401);
         }
 
-        $uploadedFiles = [];
+        $rawInputs = [];
 
         // Check various parameter aliases for single or multi upload
         if ($request->hasFile('photo')) {
-            $uploadedFiles[] = $request->file('photo');
+            $rawInputs[] = $request->file('photo');
         }
         if ($request->hasFile('image')) {
-            $uploadedFiles[] = $request->file('image');
+            $rawInputs[] = $request->file('image');
         }
         if ($request->hasFile('photos')) {
             $files = is_array($request->file('photos')) ? $request->file('photos') : [$request->file('photos')];
             foreach ($files as $file) {
-                if ($file && $file->isValid()) {
-                    $uploadedFiles[] = $file;
-                }
+                if ($file && $file->isValid()) $rawInputs[] = $file;
             }
         }
         if ($request->hasFile('images')) {
             $files = is_array($request->file('images')) ? $request->file('images') : [$request->file('images')];
             foreach ($files as $file) {
-                if ($file && $file->isValid()) {
-                    $uploadedFiles[] = $file;
-                }
+                if ($file && $file->isValid()) $rawInputs[] = $file;
             }
         }
 
-        if (empty($uploadedFiles)) {
+        // Also check base64 or string inputs
+        if ($request->filled('photo_base64')) {
+            $rawInputs[] = $request->input('photo_base64');
+        }
+        if ($request->filled('images_base64')) {
+            $b64s = (array) $request->input('images_base64');
+            foreach ($b64s as $b) {
+                if ($b) $rawInputs[] = $b;
+            }
+        }
+
+        if (empty($rawInputs)) {
             return response()->json([
                 'status'  => false,
                 'message' => 'No image files were provided for upload. Please send files via photos[], images[], photo, or image.',
@@ -308,13 +363,12 @@ class ProfileController extends Controller
             $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
             $newStoredPaths = [];
 
-            $storageDirectory = 'profiles/' . $user->id . '/gallery';
-
-            foreach ($uploadedFiles as $file) {
-                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs($storageDirectory, $filename, 'public');
-                $newStoredPaths[] = $path;
-                $currentGallery[] = $path;
+            foreach ($rawInputs as $input) {
+                $path = $this->storeImageInput($input, $user->id, 'gallery', 'gallery');
+                if ($path) {
+                    $newStoredPaths[] = $path;
+                    $currentGallery[] = $path;
+                }
             }
 
             // Remove duplicates and keep clean array
@@ -338,7 +392,7 @@ class ProfileController extends Controller
 
             return response()->json([
                 'status'     => true,
-                'message'    => count($uploadedFiles) . ' photo(s) uploaded successfully',
+                'message'    => count($newStoredPaths) . ' photo(s) uploaded successfully',
                 'data'       => [
                     'uploaded_paths' => $newStoredPaths,
                     'user'           => $user->fresh(),
@@ -354,6 +408,7 @@ class ProfileController extends Controller
 
     /**
      * Upload or edit dedicated Avatar photo.
+     * Supports both multipart image files and base64 strings.
      *
      * @param Request $request
      * @return JsonResponse
@@ -368,15 +423,18 @@ class ProfileController extends Controller
             ], 401);
         }
 
-        $file = $request->file('avatar') 
-             ?? $request->file('photo') 
-             ?? $request->file('image') 
-             ?? $request->file('profile_picture');
+        $input = $request->file('avatar') 
+              ?? $request->file('photo') 
+              ?? $request->file('image') 
+              ?? $request->file('profile_picture')
+              ?? $request->input('avatar_base64')
+              ?? $request->input('image_base64')
+              ?? $request->input('avatar');
 
-        if (!$file || !$file->isValid()) {
+        if (empty($input)) {
             return response()->json([
                 'status'  => false,
-                'message' => 'No valid avatar image file provided. Field can be avatar, photo, image, or profile_picture.',
+                'message' => 'No valid avatar image file provided. Field can be avatar, photo, image, profile_picture, or avatar_base64.',
             ], 422);
         }
 
@@ -386,8 +444,14 @@ class ProfileController extends Controller
                 Storage::disk('public')->delete($user->avatar);
             }
 
-            $filename = 'avatar_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('profiles/' . $user->id, $filename, 'public');
+            $path = $this->storeImageInput($input, $user->id, 'avatar', 'avatar');
+
+            if (!$path) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Could not process the uploaded avatar image file.',
+                ], 422);
+            }
 
             $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
             if (!in_array($path, $currentGallery)) {
@@ -473,12 +537,15 @@ class ProfileController extends Controller
             ], 401);
         }
 
-        $file = $request->file('cover_photo') 
-             ?? $request->file('cover') 
-             ?? $request->file('photo') 
-             ?? $request->file('image');
+        $input = $request->file('cover_photo') 
+              ?? $request->file('cover') 
+              ?? $request->file('photo') 
+              ?? $request->file('image')
+              ?? $request->input('cover_base64')
+              ?? $request->input('cover_photo_base64')
+              ?? $request->input('cover');
 
-        if (!$file || !$file->isValid()) {
+        if (empty($input)) {
             return response()->json([
                 'status'  => false,
                 'message' => 'No valid cover photo file provided. Field can be cover_photo, cover, photo, or image.',
@@ -491,8 +558,14 @@ class ProfileController extends Controller
                 Storage::disk('public')->delete($user->cover_photo);
             }
 
-            $filename = 'cover_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('profiles/' . $user->id, $filename, 'public');
+            $path = $this->storeImageInput($input, $user->id, 'cover', 'cover');
+
+            if (!$path) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Could not process the uploaded cover photo file.',
+                ], 422);
+            }
 
             $user->update([
                 'cover_photo' => $path,
