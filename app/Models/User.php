@@ -66,7 +66,25 @@ class User extends Authenticatable
         'cover_photo_url',
         'gallery_image_urls',
         'display_name',
+        'is_online',
+        'status_text',
     ];
+
+    /**
+     * Accessor for online status boolean.
+     */
+    public function getIsOnlineAttribute(): bool
+    {
+        return (bool) $this->is_active;
+    }
+
+    /**
+     * Accessor for human-readable status text.
+     */
+    public function getStatusTextAttribute(): string
+    {
+        return $this->is_active ? 'Online' : 'Offline';
+    }
 
     /**
      * Get the attributes that should be cast.

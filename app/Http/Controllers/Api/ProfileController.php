@@ -13,6 +13,59 @@ use Illuminate\Support\Str;
 class ProfileController extends Controller
 {
     /**
+     * Get home feed / list of real users from database for Home Page.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $query = User::query();
+
+        // Optional filters
+        if ($request->has('is_active')) {
+            $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        if ($request->filled('country')) {
+            $query->where('country', 'LIKE', '%' . trim($request->country) . '%');
+        }
+
+        if ($request->filled('gender')) {
+            $query->where('gender', $request->gender);
+        }
+
+        if ($request->filled('search')) {
+            $s = trim($request->search);
+            $query->where(function ($q) use ($s) {
+                $q->where('name', 'LIKE', "%{$s}%")
+                  ->orWhere('nickname', 'LIKE', "%{$s}%")
+                  ->orWhere('account_id', 'LIKE', "%{$s}%")
+                  ->orWhere('country', 'LIKE', "%{$s}%")
+                  ->orWhere('city', 'LIKE', "%{$s}%");
+            });
+        }
+
+        // Order by latest active users
+        $query->orderByDesc('is_active')->latest();
+
+        $perPage = (int) $request->input('per_page', 20);
+        $users = $query->paginate($perPage);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Home feed loaded successfully from database',
+            'data'    => [
+                'users'        => $users->items(),
+                'total'        => $users->total(),
+                'current_page' => $users->currentPage(),
+                'last_page'    => $users->lastPage(),
+                'per_page'     => $users->perPage(),
+            ],
+        ]);
+    }
+
+    /**
      * Get profile by ID or Account ID, or current user.
      *
      * @param Request $request

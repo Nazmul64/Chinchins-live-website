@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// Public Home Feed & Users List (Live from Database)
+Route::get('/home', [ProfileController::class, 'index']);
+Route::get('/users', [ProfileController::class, 'index']);
+
 // Public User Profile Route (view any profile by ID or 10-12 digit Account ID)
 Route::get('/profile/{id}', [ProfileController::class, 'show']);
 
