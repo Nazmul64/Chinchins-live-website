@@ -66,6 +66,47 @@ class ProfileController extends Controller
     }
 
     /**
+     * Resolve the target user from Sanctum token, request user, or user_id/account_id fallback.
+     *
+     * @param Request $request
+     * @return User|null
+     */
+    protected function resolveUser(Request $request): ?User
+    {
+        // 1. Try Sanctum Bearer token
+        if ($request->user('sanctum')) {
+            return $request->user('sanctum');
+        }
+
+        // 2. Try default request user
+        if ($request->user()) {
+            return $request->user();
+        }
+
+        // 3. Try Authorization header Bearer token manually if needed
+        $token = $request->bearerToken();
+        if ($token) {
+            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+            if ($accessToken && $accessToken->tokenable) {
+                return $accessToken->tokenable;
+            }
+        }
+
+        // 4. Fallback: user_id, account_id, or phone in request body / query
+        if ($request->filled('user_id')) {
+            return User::find($request->user_id);
+        }
+        if ($request->filled('account_id')) {
+            return User::where('account_id', $request->account_id)->first();
+        }
+        if ($request->filled('phone')) {
+            return User::where('phone', $request->phone)->first();
+        }
+
+        return null;
+    }
+
+    /**
      * Get profile by ID or Account ID, or current user.
      *
      * @param Request $request
@@ -75,7 +116,7 @@ class ProfileController extends Controller
     public function show(Request $request, ?string $id = null): JsonResponse
     {
         if ($id === null || $id === 'me') {
-            $user = $request->user();
+            $user = $this->resolveUser($request);
         } else {
             $user = User::where('id', $id)
                 ->orWhere('account_id', $id)
@@ -105,7 +146,13 @@ class ProfileController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
+        }
 
         $validator = Validator::make($request->all(), [
             'first_name'          => ['nullable', 'string', 'max:100'],
@@ -216,7 +263,13 @@ class ProfileController extends Controller
      */
     public function uploadPhotos(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
+        }
 
         $uploadedFiles = [];
 
@@ -251,45 +304,52 @@ class ProfileController extends Controller
             ], 422);
         }
 
-        $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
-        $newStoredPaths = [];
+        try {
+            $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
+            $newStoredPaths = [];
 
-        $storageDirectory = 'profiles/' . $user->id . '/gallery';
+            $storageDirectory = 'profiles/' . $user->id . '/gallery';
 
-        foreach ($uploadedFiles as $file) {
-            $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs($storageDirectory, $filename, 'public');
-            $newStoredPaths[] = $path;
-            $currentGallery[] = $path;
+            foreach ($uploadedFiles as $file) {
+                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs($storageDirectory, $filename, 'public');
+                $newStoredPaths[] = $path;
+                $currentGallery[] = $path;
+            }
+
+            // Remove duplicates and keep clean array
+            $currentGallery = array_values(array_unique($currentGallery));
+
+            $updateData = [
+                'gallery_images' => $currentGallery,
+            ];
+
+            // If cover_photo is not set, default to the first image
+            if (empty($user->cover_photo) && count($currentGallery) > 0) {
+                $updateData['cover_photo'] = $currentGallery[0];
+            }
+
+            // If avatar is not set, set it to the first uploaded photo
+            if (empty($user->avatar) && count($currentGallery) > 0) {
+                $updateData['avatar'] = $currentGallery[0];
+            }
+
+            $user->update($updateData);
+
+            return response()->json([
+                'status'     => true,
+                'message'    => count($uploadedFiles) . ' photo(s) uploaded successfully',
+                'data'       => [
+                    'uploaded_paths' => $newStoredPaths,
+                    'user'           => $user->fresh(),
+                ],
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to upload photos: ' . $e->getMessage(),
+            ], 500);
         }
-
-        // Remove duplicates and keep clean array
-        $currentGallery = array_values(array_unique($currentGallery));
-
-        $updateData = [
-            'gallery_images' => $currentGallery,
-        ];
-
-        // If cover_photo is not set, default to the first image
-        if (empty($user->cover_photo) && count($currentGallery) > 0) {
-            $updateData['cover_photo'] = $currentGallery[0];
-        }
-
-        // If avatar is not set, set it to the first uploaded photo
-        if (empty($user->avatar) && count($currentGallery) > 0) {
-            $updateData['avatar'] = $currentGallery[0];
-        }
-
-        $user->update($updateData);
-
-        return response()->json([
-            'status'     => true,
-            'message'    => count($uploadedFiles) . ' photo(s) uploaded successfully',
-            'data'       => [
-                'uploaded_paths' => $newStoredPaths,
-                'user'           => $user->fresh(),
-            ],
-        ], 200);
     }
 
     /**
@@ -300,7 +360,13 @@ class ProfileController extends Controller
      */
     public function uploadAvatar(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
+        }
 
         $file = $request->file('avatar') 
              ?? $request->file('photo') 
@@ -314,34 +380,41 @@ class ProfileController extends Controller
             ], 422);
         }
 
-        // Delete old avatar if existing
-        if (!empty($user->avatar) && Storage::disk('public')->exists($user->avatar)) {
-            Storage::disk('public')->delete($user->avatar);
+        try {
+            // Delete old avatar if existing
+            if (!empty($user->avatar) && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            $filename = 'avatar_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('profiles/' . $user->id, $filename, 'public');
+
+            $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
+            if (!in_array($path, $currentGallery)) {
+                array_unshift($currentGallery, $path);
+            }
+
+            $user->update([
+                'avatar'         => $path,
+                'gallery_images' => $currentGallery,
+                'cover_photo'    => $user->cover_photo ?: $path,
+            ]);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Avatar updated successfully',
+                'data'    => [
+                    'avatar_url'      => $user->avatar_url,
+                    'profile_picture' => $user->avatar_url,
+                    'user'            => $user->fresh(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to upload avatar: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $filename = 'avatar_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('profiles/' . $user->id, $filename, 'public');
-
-        $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
-        if (!in_array($path, $currentGallery)) {
-            array_unshift($currentGallery, $path);
-        }
-
-        $user->update([
-            'avatar'         => $path,
-            'gallery_images' => $currentGallery,
-            'cover_photo'    => $user->cover_photo ?: $path,
-        ]);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'Avatar updated successfully',
-            'data'    => [
-                'avatar_url'      => $user->avatar_url,
-                'profile_picture' => $user->avatar_url,
-                'user'            => $user->fresh(),
-            ],
-        ]);
     }
 
     /**
@@ -352,23 +425,36 @@ class ProfileController extends Controller
      */
     public function deleteAvatar(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        if (!empty($user->avatar)) {
-            $cleanPath = ltrim(str_replace(asset('storage') . '/', '', $user->avatar), '/');
-            if (Storage::disk('public')->exists($cleanPath)) {
-                Storage::disk('public')->delete($cleanPath);
-            }
-            $user->update(['avatar' => null]);
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
         }
 
-        return response()->json([
-            'status'  => true,
-            'message' => 'Avatar removed successfully',
-            'data'    => [
-                'user' => $user->fresh(),
-            ],
-        ]);
+        try {
+            if (!empty($user->avatar)) {
+                $cleanPath = ltrim(str_replace(asset('storage') . '/', '', $user->avatar), '/');
+                if (Storage::disk('public')->exists($cleanPath)) {
+                    Storage::disk('public')->delete($cleanPath);
+                }
+                $user->update(['avatar' => null]);
+            }
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Avatar removed successfully',
+                'data'    => [
+                    'user' => $user->fresh(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to delete avatar: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -379,7 +465,13 @@ class ProfileController extends Controller
      */
     public function uploadCover(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
+        }
 
         $file = $request->file('cover_photo') 
              ?? $request->file('cover') 
@@ -393,26 +485,33 @@ class ProfileController extends Controller
             ], 422);
         }
 
-        // Delete old cover if custom
-        if (!empty($user->cover_photo) && Storage::disk('public')->exists($user->cover_photo)) {
-            Storage::disk('public')->delete($user->cover_photo);
+        try {
+            // Delete old cover if custom
+            if (!empty($user->cover_photo) && Storage::disk('public')->exists($user->cover_photo)) {
+                Storage::disk('public')->delete($user->cover_photo);
+            }
+
+            $filename = 'cover_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('profiles/' . $user->id, $filename, 'public');
+
+            $user->update([
+                'cover_photo' => $path,
+            ]);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Cover photo updated successfully',
+                'data'    => [
+                    'cover_photo_url' => $user->cover_photo_url,
+                    'user'            => $user->fresh(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to upload cover: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $filename = 'cover_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('profiles/' . $user->id, $filename, 'public');
-
-        $user->update([
-            'cover_photo' => $path,
-        ]);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'Cover photo updated successfully',
-            'data'    => [
-                'cover_photo_url' => $user->cover_photo_url,
-                'user'            => $user->fresh(),
-            ],
-        ]);
     }
 
     /**
@@ -423,23 +522,36 @@ class ProfileController extends Controller
      */
     public function deleteCover(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        if (!empty($user->cover_photo)) {
-            $cleanPath = ltrim(str_replace(asset('storage') . '/', '', $user->cover_photo), '/');
-            if (Storage::disk('public')->exists($cleanPath)) {
-                Storage::disk('public')->delete($cleanPath);
-            }
-            $user->update(['cover_photo' => null]);
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
         }
 
-        return response()->json([
-            'status'  => true,
-            'message' => 'Cover photo removed successfully',
-            'data'    => [
-                'user' => $user->fresh(),
-            ],
-        ]);
+        try {
+            if (!empty($user->cover_photo)) {
+                $cleanPath = ltrim(str_replace(asset('storage') . '/', '', $user->cover_photo), '/');
+                if (Storage::disk('public')->exists($cleanPath)) {
+                    Storage::disk('public')->delete($cleanPath);
+                }
+                $user->update(['cover_photo' => null]);
+            }
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Cover photo removed successfully',
+                'data'    => [
+                    'user' => $user->fresh(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to delete cover: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -450,7 +562,13 @@ class ProfileController extends Controller
      */
     public function deletePhoto(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
+        }
 
         $validator = Validator::make($request->all(), [
             'photo' => ['required_without:image', 'string'],
@@ -465,46 +583,53 @@ class ProfileController extends Controller
             ], 422);
         }
 
-        $photoTarget = trim($request->input('photo', $request->input('image', '')));
-        // Normalize target (strip base URL if full URL was sent)
-        $cleanTarget = str_replace(asset('storage') . '/', '', $photoTarget);
-        $cleanTarget = ltrim(str_replace(url('storage') . '/', '', $cleanTarget), '/');
+        try {
+            $photoTarget = trim($request->input('photo', $request->input('image', '')));
+            // Normalize target (strip base URL if full URL was sent)
+            $cleanTarget = str_replace(asset('storage') . '/', '', $photoTarget);
+            $cleanTarget = ltrim(str_replace(url('storage') . '/', '', $cleanTarget), '/');
 
-        $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
-        $updatedGallery = [];
+            $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
+            $updatedGallery = [];
 
-        foreach ($currentGallery as $item) {
-            $cleanItem = ltrim(str_replace(asset('storage') . '/', '', $item), '/');
-            $cleanItem = ltrim(str_replace(url('storage') . '/', '', $cleanItem), '/');
+            foreach ($currentGallery as $item) {
+                $cleanItem = ltrim(str_replace(asset('storage') . '/', '', $item), '/');
+                $cleanItem = ltrim(str_replace(url('storage') . '/', '', $cleanItem), '/');
 
-            if ($cleanItem === $cleanTarget || $item === $photoTarget) {
-                // Delete file from disk if stored locally
-                if (Storage::disk('public')->exists($cleanItem)) {
-                    Storage::disk('public')->delete($cleanItem);
+                if ($cleanItem === $cleanTarget || $item === $photoTarget) {
+                    // Delete file from disk if stored locally
+                    if (Storage::disk('public')->exists($cleanItem)) {
+                        Storage::disk('public')->delete($cleanItem);
+                    }
+                } else {
+                    $updatedGallery[] = $item;
                 }
-            } else {
-                $updatedGallery[] = $item;
             }
+
+            $updateData = [
+                'gallery_images' => array_values($updatedGallery),
+            ];
+
+            // If deleted cover photo, set to next available gallery image or null
+            if ($user->cover_photo === $cleanTarget || $user->cover_photo === $photoTarget) {
+                $updateData['cover_photo'] = count($updatedGallery) > 0 ? $updatedGallery[0] : null;
+            }
+
+            $user->update($updateData);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Photo deleted successfully',
+                'data'    => [
+                    'user' => $user->fresh(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to delete photo: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $updateData = [
-            'gallery_images' => array_values($updatedGallery),
-        ];
-
-        // If deleted cover photo, set to next available gallery image or null
-        if ($user->cover_photo === $cleanTarget || $user->cover_photo === $photoTarget) {
-            $updateData['cover_photo'] = count($updatedGallery) > 0 ? $updatedGallery[0] : null;
-        }
-
-        $user->update($updateData);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'Photo deleted successfully',
-            'data'    => [
-                'user' => $user->fresh(),
-            ],
-        ]);
     }
 
     /**
@@ -515,37 +640,50 @@ class ProfileController extends Controller
      */
     public function updateGallery(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
+        }
 
-        $photos = $request->input('photos', $request->input('gallery', []));
+        try {
+            $photos = $request->input('photos', $request->input('gallery', []));
 
-        if (!is_array($photos)) {
-            if (is_string($photos)) {
-                $decoded = json_decode($photos, true);
-                $photos = is_array($decoded) ? $decoded : array_map('trim', explode(',', $photos));
-            } else {
-                $photos = [];
+            if (!is_array($photos)) {
+                if (is_string($photos)) {
+                    $decoded = json_decode($photos, true);
+                    $photos = is_array($decoded) ? $decoded : array_map('trim', explode(',', $photos));
+                } else {
+                    $photos = [];
+                }
             }
+
+            $cleanList = [];
+            foreach ($photos as $p) {
+                $clean = str_replace(asset('storage') . '/', '', $p);
+                $clean = ltrim(str_replace(url('storage') . '/', '', $clean), '/');
+                $cleanList[] = $clean;
+            }
+
+            $user->update([
+                'gallery_images' => array_values(array_unique($cleanList)),
+            ]);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Gallery updated successfully',
+                'data'    => [
+                    'user' => $user->fresh(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to update gallery: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $cleanList = [];
-        foreach ($photos as $p) {
-            $clean = str_replace(asset('storage') . '/', '', $p);
-            $clean = ltrim(str_replace(url('storage') . '/', '', $clean), '/');
-            $cleanList[] = $clean;
-        }
-
-        $user->update([
-            'gallery_images' => array_values(array_unique($cleanList)),
-        ]);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'Gallery updated successfully',
-            'data'    => [
-                'user' => $user->fresh(),
-            ],
-        ]);
     }
 
     /**
@@ -556,28 +694,41 @@ class ProfileController extends Controller
      */
     public function clearGallery(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
-        foreach ($currentGallery as $item) {
-            $cleanItem = ltrim(str_replace(asset('storage') . '/', '', $item), '/');
-            if (Storage::disk('public')->exists($cleanItem)) {
-                Storage::disk('public')->delete($cleanItem);
-            }
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
         }
 
-        $user->update([
-            'gallery_images' => [],
-            'cover_photo'    => null,
-        ]);
+        try {
+            $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
+            foreach ($currentGallery as $item) {
+                $cleanItem = ltrim(str_replace(asset('storage') . '/', '', $item), '/');
+                if (Storage::disk('public')->exists($cleanItem)) {
+                    Storage::disk('public')->delete($cleanItem);
+                }
+            }
 
-        return response()->json([
-            'status'  => true,
-            'message' => 'All gallery photos cleared',
-            'data'    => [
-                'user' => $user->fresh(),
-            ],
-        ]);
+            $user->update([
+                'gallery_images' => [],
+                'cover_photo'    => null,
+            ]);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'All gallery photos cleared',
+                'data'    => [
+                    'user' => $user->fresh(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to clear gallery: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -588,26 +739,39 @@ class ProfileController extends Controller
      */
     public function toggleStatus(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        if ($request->has('is_active')) {
-            $user->is_active = filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN);
-        } else {
-            $user->is_active = !$user->is_active;
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide Bearer token in Authorization header or user_id.',
+            ], 401);
         }
 
-        $user->save();
+        try {
+            if ($request->has('is_active')) {
+                $user->is_active = filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN);
+            } else {
+                $user->is_active = !$user->is_active;
+            }
 
-        return response()->json([
-            'status'  => true,
-            'message' => 'Status updated to ' . ($user->is_active ? 'Active' : 'Offline'),
-            'data'    => [
-                'is_active'   => $user->is_active,
-                'is_online'   => $user->is_active,
-                'status_text' => $user->is_active ? 'Online' : 'Offline',
-                'status'      => $user->is_active ? 'Active' : 'Offline',
-                'user'        => $user->fresh(),
-            ],
-        ]);
+            $user->save();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Status updated to ' . ($user->is_active ? 'Active' : 'Offline'),
+                'data'    => [
+                    'is_active'   => $user->is_active,
+                    'is_online'   => $user->is_active,
+                    'status_text' => $user->is_active ? 'Online' : 'Offline',
+                    'status'      => $user->is_active ? 'Active' : 'Offline',
+                    'user'        => $user->fresh(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to update status: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
