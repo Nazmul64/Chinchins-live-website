@@ -57,11 +57,7 @@
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <div class="d-flex align-items-center gap-3">
                                 <div class="pm-logo-frame">
-                                    @if($method->icon_url)
-                                        <img src="{{ $method->icon_url }}" alt="{{ $method->name }}">
-                                    @else
-                                        <i class="fa-solid fa-wallet text-primary fa-lg"></i>
-                                    @endif
+                                    <img src="{{ $method->icon_url }}" alt="{{ $method->name }}" onerror="handlePmImageError(this, '{{ addslashes($method->name) }}')">
                                 </div>
                                 <div>
                                     <h5 class="fw-bold mb-1" style="font-size: 16px; color: var(--text-primary);">
@@ -242,6 +238,22 @@
 
 @push('scripts')
 <script>
+function handlePmImageError(img, name) {
+    img.onerror = null;
+    const lower = (name || '').toLowerCase();
+    if (lower.includes('bkash')) {
+        img.src = 'https://freelogopng.com/images/all_img/1656234745bkash-app-logo.png';
+    } else if (lower.includes('nagad')) {
+        img.src = 'https://freelogopng.com/images/all_img/1679248787Nagad-Logo.png';
+    } else if (lower.includes('rocket')) {
+        img.src = 'https://seeklogo.com/images/D/dutch-bangla-rocket-logo-B4D1CC458D-seeklogo.com.png';
+    } else if (lower.includes('upay')) {
+        img.src = 'https://play-lh.googleusercontent.com/O61_aF_n_wP508rC8v2y26Y92aM3u9z-m-B-f8x-y44';
+    } else {
+        img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=3b82f6&color=fff`;
+    }
+}
+
 function openCreatePaymentMethodModal() {
     const modalEl = document.getElementById('paymentMethodModal');
     const form = document.getElementById('pmForm');
