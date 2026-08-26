@@ -57,7 +57,11 @@
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <div class="d-flex align-items-center gap-3">
                                 <div class="pm-logo-frame">
-                                    <img src="{{ $method->icon_url }}" alt="{{ $method->name }}" onerror="handlePmImageError(this, '{{ addslashes($method->name) }}')">
+                                    @if($method->icon_url)
+                                        <img src="{{ $method->icon_url }}" alt="{{ $method->name }}" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name={{ urlencode($method->name) }}&background=3b82f6&color=fff';">
+                                    @else
+                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($method->name) }}&background=3b82f6&color=fff" alt="{{ $method->name }}">
+                                    @endif
                                 </div>
                                 <div>
                                     <h5 class="fw-bold mb-1" style="font-size: 16px; color: var(--text-primary);">
@@ -341,6 +345,10 @@ function openEditPaymentMethodModal(method) {
         preview.style.display = 'block';
         placeholder.style.display = 'none';
         clearBtn.style.display = 'none';
+        preview.onerror = function() {
+            this.style.display = 'none';
+            placeholder.style.display = 'block';
+        };
     } else {
         clearGatewayIconPreview();
     }

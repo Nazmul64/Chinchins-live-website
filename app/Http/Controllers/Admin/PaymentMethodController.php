@@ -40,7 +40,7 @@ class PaymentMethodController extends Controller
             $slug = strtolower(Str::slug($validated['name']));
             $validated['code'] = $slug ?: ('pm_' . time() . '_' . Str::random(4));
 
-            // Handle icon upload with multi-tier fallback to uploads/payment_gateways
+            // Handle icon upload directly to public/uploads/payment_gateways
             if ($request->hasFile('icon')) {
                 try {
                     $file = $request->file('icon');
@@ -52,16 +52,12 @@ class PaymentMethodController extends Controller
                     }
                     @chmod($uploadDir, 0777);
 
-                    if (is_writable($uploadDir)) {
-                        $file->move($uploadDir, $filename);
-                        $validated['icon'] = 'payment_gateways/' . $filename;
-                    } else {
-                        // Fallback to Storage disk
-                        $path = \Illuminate\Support\Facades\Storage::disk('public')->putFileAs('payment_gateways', $file, $filename);
-                        $validated['icon'] = 'storage/' . $path;
+                    $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+                    if (@copy($file->getRealPath(), $destination) || @move_uploaded_file($file->getPathname(), $destination) || $file->move($uploadDir, $filename)) {
+                        $validated['icon'] = 'uploads/payment_gateways/' . $filename;
                     }
                 } catch (\Throwable $fileEx) {
-                    \Illuminate\Support\Facades\Log::warning('Icon upload fallback: ' . $fileEx->getMessage());
+                    \Illuminate\Support\Facades\Log::warning('Icon upload error: ' . $fileEx->getMessage());
                 }
             }
 
@@ -110,16 +106,12 @@ class PaymentMethodController extends Controller
                     }
                     @chmod($uploadDir, 0777);
 
-                    if (is_writable($uploadDir)) {
-                        $file->move($uploadDir, $filename);
-                        $validated['icon'] = 'payment_gateways/' . $filename;
-                    } else {
-                        // Fallback to Storage disk
-                        $path = \Illuminate\Support\Facades\Storage::disk('public')->putFileAs('payment_gateways', $file, $filename);
-                        $validated['icon'] = 'storage/' . $path;
+                    $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+                    if (@copy($file->getRealPath(), $destination) || @move_uploaded_file($file->getPathname(), $destination) || $file->move($uploadDir, $filename)) {
+                        $validated['icon'] = 'uploads/payment_gateways/' . $filename;
                     }
                 } catch (\Throwable $fileEx) {
-                    \Illuminate\Support\Facades\Log::warning('Icon upload fallback: ' . $fileEx->getMessage());
+                    \Illuminate\Support\Facades\Log::warning('Icon upload error: ' . $fileEx->getMessage());
                 }
             }
 
