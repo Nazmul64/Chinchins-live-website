@@ -259,7 +259,7 @@ class User extends Authenticatable
             return asset($cleanPath);
         }
 
-        if (str_starts_with($cleanPath, 'profiles/')) {
+        if (str_starts_with($cleanPath, 'profile/') || str_starts_with($cleanPath, 'profiles/') || str_starts_with($cleanPath, 'payment_gateways/')) {
             return asset('uploads/' . $cleanPath);
         }
 

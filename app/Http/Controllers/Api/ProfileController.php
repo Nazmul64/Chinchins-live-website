@@ -297,12 +297,11 @@ class ProfileController extends Controller
             return null;
         }
 
-        $relativeDir = 'uploads/profiles/' . $userId . '/' . $folder;
-        $targetDir = public_path($relativeDir);
-
-        if (!file_exists($targetDir)) {
-            @mkdir($targetDir, 0755, true);
+        $uploadDir = public_path('uploads/profile');
+        if (!file_exists($uploadDir)) {
+            @mkdir($uploadDir, 0777, true);
         }
+        @chmod($uploadDir, 0777);
 
         // 1. If it's an UploadedFile
         if ($input instanceof \Illuminate\Http\UploadedFile) {
@@ -311,9 +310,13 @@ class ProfileController extends Controller
             }
             $ext = strtolower($input->getClientOriginalExtension() ?: 'jpg');
             if ($ext === 'jpeg') $ext = 'jpg';
-            $filename = $prefix . '_' . Str::uuid() . '.' . $ext;
-            $input->move($targetDir, $filename);
-            return $relativeDir . '/' . $filename;
+            $filename = $prefix . '_' . $userId . '_' . time() . '_' . Str::random(6) . '.' . $ext;
+            $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+            
+            if (@copy($input->getRealPath(), $destination) || @move_uploaded_file($input->getPathname(), $destination) || $input->move($uploadDir, $filename)) {
+                return 'uploads/profile/' . $filename;
+            }
+            return 'uploads/profile/' . $filename;
         }
 
         // 2. If it's a Base64 string
@@ -329,10 +332,10 @@ class ProfileController extends Controller
 
             $decoded = base64_decode(str_replace(' ', '+', $data));
             if ($decoded !== false && strlen($decoded) > 0) {
-                $filename = $prefix . '_' . Str::uuid() . '.' . $ext;
-                $fullPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
-                @file_put_contents($fullPath, $decoded);
-                return $relativeDir . '/' . $filename;
+                $filename = $prefix . '_' . $userId . '_' . time() . '_' . Str::random(6) . '.' . $ext;
+                $destination = $uploadDir . DIRECTORY_SEPARATOR . $filename;
+                @file_put_contents($destination, $decoded);
+                return 'uploads/profile/' . $filename;
             }
         }
 
@@ -351,24 +354,20 @@ class ProfileController extends Controller
         }
 
         $path = str_replace('\\', '/', trim($path));
-
-        // If it's a full URL, strip host and query
         $pathOnly = parse_url($path, PHP_URL_PATH) ?? $path;
         $cleanPath = ltrim($pathOnly, '/');
+        $filename = basename($cleanPath);
 
-        // Check direct public path
-        $publicFile = public_path($cleanPath);
-        if (file_exists($publicFile) && is_file($publicFile)) {
-            @unlink($publicFile);
-            return;
-        }
+        $candidates = [
+            public_path($cleanPath),
+            public_path('uploads/' . str_replace('uploads/', '', $cleanPath)),
+            public_path('uploads/profile/' . $filename),
+            public_path('uploads/profiles/' . $filename),
+        ];
 
-        // Check public/uploads prefixed
-        if (!str_starts_with($cleanPath, 'uploads/')) {
-            $withUploads = public_path('uploads/' . $cleanPath);
-            if (file_exists($withUploads) && is_file($withUploads)) {
-                @unlink($withUploads);
-                return;
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate) && is_file($candidate)) {
+                @unlink($candidate);
             }
         }
 

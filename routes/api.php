@@ -50,6 +50,16 @@ Route::prefix('profile')->group(function () {
     Route::match(['post', 'delete'], '/clear-gallery', [ProfileController::class, 'clearGallery']);
 });
 
+// Gallery Aliases for Mobile Clients
+Route::prefix('gallery')->group(function () {
+    Route::post('/upload', [ProfileController::class, 'uploadPhotos']);
+    Route::post('/add', [ProfileController::class, 'uploadPhotos']);
+    Route::match(['post', 'delete'], '/delete', [ProfileController::class, 'deletePhoto']);
+    Route::match(['post', 'delete'], '/photo', [ProfileController::class, 'deletePhoto']);
+    Route::post('/update', [ProfileController::class, 'updateGallery']);
+    Route::match(['post', 'delete'], '/clear', [ProfileController::class, 'clearGallery']);
+});
+
 // Root-level Aliases for Mobile Clients
 Route::post('/upload-avatar', [ProfileController::class, 'uploadAvatar']);
 Route::match(['post', 'delete'], '/delete-avatar', [ProfileController::class, 'deleteAvatar']);
