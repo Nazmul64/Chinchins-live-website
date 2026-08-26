@@ -3,224 +3,293 @@
 @section('title', 'Manual Deposit Requests')
 
 @section('content')
-<div class="deposits-container">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+<div class="container-fluid px-0">
+    <!-- Premium Header Banner -->
+    <div class="premium-page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
-            <h1 class="page-title mb-1" style="font-size: 24px; font-weight: 700; color: var(--text-primary);">Deposit Requests</h1>
-            <p class="text-muted mb-0" style="font-size: 14px;">Review manual deposit requests submitted via bKash, Nagad, etc., verify TrxIDs, and approve coin crediting.</p>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <a href="{{ route('admin.dashboard') }}" class="text-muted text-decoration-none" style="font-size: 13px;">Dashboard</a>
+                <i class="fa-solid fa-chevron-right text-muted" style="font-size: 10px;"></i>
+                <span class="text-primary fw-bold" style="font-size: 13px;">Deposit Requests</span>
+            </div>
+            <h1 class="page-title">
+                <i class="fa-solid fa-money-bill-transfer text-warning"></i>
+                <span>Manual Deposit Requests</span>
+            </h1>
+            <p class="page-subtitle">Verify user payments sent via bKash, Nagad, and Rocket. Approve requests to instantly credit coins.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ route('admin.payment-methods.index') }}" class="btn btn-outline-secondary" style="border-radius: 10px; font-weight: 600; font-size: 13px; padding: 10px 16px;">
+                <i class="fa-solid fa-credit-card text-success me-1"></i> Payment Gateways
+            </a>
+            <a href="{{ route('admin.transactions.index') }}" class="btn-ch-primary">
+                <i class="fa-solid fa-receipt"></i> Transactions Ledger
+            </a>
         </div>
     </div>
 
-    <!-- Alerts -->
+    <!-- Feedback Alerts -->
     @if(session('success'))
-        <div class="custom-alert alert-success mb-4">
-            <i class="fa-solid fa-circle-check"></i>
-            <span>{{ session('success') }}</span>
+        <div class="alert alert-success d-flex align-items-center gap-3 p-3 mb-4 rounded-4 shadow-sm border-0" style="background: rgba(16, 185, 129, 0.12); color: #047857;">
+            <i class="fa-solid fa-circle-check fa-lg"></i>
+            <div class="fw-semibold">{{ session('success') }}</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
         </div>
     @endif
     @if(session('error'))
-        <div class="custom-alert alert-danger mb-4">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <span>{{ session('error') }}</span>
+        <div class="alert alert-danger d-flex align-items-center gap-3 p-3 mb-4 rounded-4 shadow-sm border-0" style="background: rgba(239, 68, 68, 0.12); color: #b91c1c;">
+            <i class="fa-solid fa-triangle-exclamation fa-lg"></i>
+            <div class="fw-semibold">{{ session('error') }}</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
     <!-- Metric Stat Cards -->
     <div class="row g-3 mb-4">
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon-wrapper" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+            <div class="premium-stat-card" style="border-left: 4px solid #f59e0b;">
+                <div class="stat-icon-box stat-icon-gold">
                     <i class="fa-solid fa-clock-rotate-left"></i>
                 </div>
-                <div class="stat-info">
-                    <span class="stat-label">Pending Approval</span>
-                    <h3 class="stat-number" style="color: #f59e0b;">{{ number_format($stats['pending']) }}</h3>
+                <div class="stat-content">
+                    <span class="stat-title-label">Pending Approval</span>
+                    <h3 class="stat-count-value" style="color: #d97706;">{{ number_format($stats['pending']) }}</h3>
+                    @if($stats['pending'] > 0)
+                        <span class="stat-badge-chip" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                            <span class="status-pulsing-dot"></span> Needs Review
+                        </span>
+                    @else
+                        <span class="stat-badge-chip" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                            <i class="fa-solid fa-check"></i> All Clear
+                        </span>
+                    @endif
                 </div>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.12); color: #10b981;">
+            <div class="premium-stat-card">
+                <div class="stat-icon-box stat-icon-green">
                     <i class="fa-solid fa-circle-check"></i>
                 </div>
-                <div class="stat-info">
-                    <span class="stat-label">Approved Deposits</span>
-                    <h3 class="stat-number" style="color: #10b981;">{{ number_format($stats['approved']) }}</h3>
+                <div class="stat-content">
+                    <span class="stat-title-label">Approved Deposits</span>
+                    <h3 class="stat-count-value" style="color: #10b981;">{{ number_format($stats['approved']) }}</h3>
+                    <span class="stat-badge-chip" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                        <i class="fa-solid fa-check-double"></i> Completed
+                    </span>
                 </div>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon-wrapper" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6;">
+            <div class="premium-stat-card">
+                <div class="stat-icon-box stat-icon-blue">
                     <i class="fa-solid fa-money-bill-wave"></i>
                 </div>
-                <div class="stat-info">
-                    <span class="stat-label">Total Deposited Amount</span>
-                    <h3 class="stat-number">৳ {{ number_format($stats['total_amount'], 2) }}</h3>
+                <div class="stat-content">
+                    <span class="stat-title-label">Deposited Volume</span>
+                    <h3 class="stat-count-value">৳ {{ number_format($stats['total_amount'], 2) }}</h3>
+                    <span class="stat-badge-chip" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                        <i class="fa-solid fa-vault"></i> BDT Collected
+                    </span>
                 </div>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon-wrapper" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">
+            <div class="premium-stat-card">
+                <div class="stat-icon-box stat-icon-purple">
                     <i class="fa-solid fa-coins"></i>
                 </div>
-                <div class="stat-info">
-                    <span class="stat-label">Total Coins Credited</span>
-                    <h3 class="stat-number">{{ number_format($stats['total_coins']) }}</h3>
+                <div class="stat-content">
+                    <span class="stat-title-label">Coins Credited</span>
+                    <h3 class="stat-count-value" style="color: #8b5cf6;">{{ number_format($stats['total_coins']) }}</h3>
+                    <span class="stat-badge-chip" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+                        <i class="fa-solid fa-coins"></i> Total Granted
+                    </span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Status Tabs & Search -->
-    <div class="card mb-4" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-card);">
-        <div class="card-body p-3">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <!-- Status Filter Pills -->
-                <div class="d-flex gap-2 flex-wrap">
-                    <a href="{{ route('admin.deposits.index', ['status' => 'all']) }}" class="btn-filter-pill {{ $status === 'all' ? 'active' : '' }}">
-                        All ({{ $stats['total'] }})
-                    </a>
-                    <a href="{{ route('admin.deposits.index', ['status' => 'pending']) }}" class="btn-filter-pill {{ $status === 'pending' ? 'active' : '' }}" style="position: relative;">
-                        Pending ({{ $stats['pending'] }})
-                        @if($stats['pending'] > 0)
-                            <span class="badge bg-danger rounded-pill ms-1">{{ $stats['pending'] }}</span>
-                        @endif
-                    </a>
-                    <a href="{{ route('admin.deposits.index', ['status' => 'approved']) }}" class="btn-filter-pill {{ $status === 'approved' ? 'active' : '' }}">
-                        Approved ({{ $stats['approved'] }})
-                    </a>
-                    <a href="{{ route('admin.deposits.index', ['status' => 'rejected']) }}" class="btn-filter-pill {{ $status === 'rejected' ? 'active' : '' }}">
-                        Rejected ({{ $stats['rejected'] }})
-                    </a>
-                </div>
-
-                <!-- Search form -->
-                <form action="{{ route('admin.deposits.index') }}" method="GET" class="d-flex gap-2" style="min-width: 280px;">
-                    <input type="hidden" name="status" value="{{ $status }}">
-                    <div class="search-input-group w-100">
-                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <input type="text" name="search" class="form-control-custom" placeholder="Search TrxID, sender number or user..." value="{{ request('search') }}">
-                    </div>
-                    <button type="submit" class="btn-primary-custom"><i class="fa-solid fa-search"></i></button>
-                </form>
+    <!-- Filter Navigation Tabs & Search -->
+    <div class="filter-card-wrapper">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <!-- Filter Tabs -->
+            <div class="filter-nav-tabs">
+                <a href="{{ route('admin.deposits.index', ['status' => 'all']) }}" class="filter-tab-btn {{ $status === 'all' ? 'active' : '' }}">
+                    All Requests ({{ $stats['total'] }})
+                </a>
+                <a href="{{ route('admin.deposits.index', ['status' => 'pending']) }}" class="filter-tab-btn {{ $status === 'pending' ? 'active' : '' }}">
+                    Pending
+                    @if($stats['pending'] > 0)
+                        <span class="badge bg-danger rounded-pill">{{ $stats['pending'] }}</span>
+                    @else
+                        <span class="badge bg-secondary rounded-pill">0</span>
+                    @endif
+                </a>
+                <a href="{{ route('admin.deposits.index', ['status' => 'approved']) }}" class="filter-tab-btn {{ $status === 'approved' ? 'active' : '' }}">
+                    Approved ({{ $stats['approved'] }})
+                </a>
+                <a href="{{ route('admin.deposits.index', ['status' => 'rejected']) }}" class="filter-tab-btn {{ $status === 'rejected' ? 'active' : '' }}">
+                    Rejected ({{ $stats['rejected'] }})
+                </a>
             </div>
+
+            <!-- Search Field -->
+            <form action="{{ route('admin.deposits.index') }}" method="GET" class="d-flex gap-2" style="min-width: 320px;">
+                <input type="hidden" name="status" value="{{ $status }}">
+                <div class="search-pill-box w-100">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" class="search-pill-input" placeholder="Search by TrxID, sender number or user..." value="{{ request('search') }}">
+                </div>
+                <button type="submit" class="btn-ch-primary" style="padding: 10px 16px;">
+                    <i class="fa-solid fa-search"></i>
+                </button>
+            </form>
         </div>
     </div>
 
-    <!-- Deposits Table -->
-    <div class="card" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-card); overflow: hidden;">
+    <!-- Deposits Datatable Card -->
+    <div class="premium-table-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <h5 class="mb-0 fw-bold" style="font-size: 16px; color: var(--text-primary);">
+                    Deposit Requests Registry
+                </h5>
+                <span class="badge bg-primary rounded-pill px-2 py-1">{{ $deposits->total() }}</span>
+            </div>
+            <small class="text-muted">Showing {{ $deposits->firstItem() ?? 0 }}-{{ $deposits->lastItem() ?? 0 }} of {{ $deposits->total() }}</small>
+        </div>
         <div class="table-responsive">
-            <table class="table-custom">
+            <table class="premium-datatable">
                 <thead>
                     <tr>
                         <th>Req #</th>
-                        <th>User</th>
-                        <th>Method</th>
+                        <th>User Profile</th>
+                        <th>Gateway</th>
                         <th>Sender Number</th>
                         <th>Transaction ID (TrxID)</th>
-                        <th>Amount & Coins</th>
-                        <th>Screenshot</th>
+                        <th>Deposit & Coins</th>
+                        <th>Receipt Proof</th>
                         <th>Status</th>
                         <th>Submitted At</th>
-                        <th style="text-align: right;">Action</th>
+                        <th style="text-align: right;">Review Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($deposits as $deposit)
+                        @php
+                            $brandCode = strtolower(trim($deposit->payment_method_name));
+                            if (str_contains($brandCode, 'bkash')) $brandClass = 'bkash';
+                            elseif (str_contains($brandCode, 'nagad')) $brandClass = 'nagad';
+                            elseif (str_contains($brandCode, 'rocket')) $brandClass = 'rocket';
+                            elseif (str_contains($brandCode, 'upay')) $brandClass = 'upay';
+                            else $brandClass = 'general';
+                        @endphp
                         <tr>
                             <td>
-                                <strong style="font-size: 13px; color: var(--text-primary);">#{{ $deposit->id }}</strong>
+                                <strong class="font-monospace text-muted" style="font-size: 13px;">#{{ $deposit->id }}</strong>
                             </td>
                             <td>
                                 @if($deposit->user)
-                                    <div class="d-flex align-items-center gap-2">
+                                    <div class="user-avatar-group">
                                         <img src="{{ $deposit->user->avatar_url ?: 'https://ui-avatars.com/api/?name=' . urlencode($deposit->user->display_name) . '&background=3b82f6&color=fff' }}" 
                                              alt="" 
-                                             class="rounded-circle" 
-                                             style="width: 36px; height: 36px; object-fit: cover;">
+                                             class="user-avatar-img" style="width: 40px; height: 40px;">
                                         <div>
-                                            <a href="{{ route('admin.users.show', $deposit->user_id) }}" class="fw-bold text-decoration-none" style="color: var(--text-primary); font-size: 13px;">
+                                            <a href="{{ route('admin.users.show', $deposit->user_id) }}" class="text-decoration-none fw-bold" style="color: var(--text-primary); font-size: 13px;">
                                                 {{ $deposit->user->display_name }}
                                             </a>
-                                            <small class="text-muted d-block" style="font-size: 11px;">ID: {{ $deposit->user->account_id }} &bull; {{ $deposit->user->phone }}</small>
+                                            <div class="user-sub-info">
+                                                ID: {{ $deposit->user->account_id }} &bull; {{ $deposit->user->phone }}
+                                            </div>
                                         </div>
                                     </div>
                                 @else
-                                    <span class="text-muted">User deleted</span>
+                                    <span class="text-muted fst-italic">User deleted</span>
                                 @endif
                             </td>
                             <td>
-                                <span class="badge bg-primary" style="font-size: 12px;">{{ $deposit->payment_method_name }}</span>
+                                <span class="gateway-badge {{ $brandClass }}">
+                                    {{ $deposit->payment_method_name }}
+                                </span>
                             </td>
                             <td>
-                                <span class="font-monospace fw-bold" style="font-size: 13px;">{{ $deposit->sender_number }}</span>
+                                <div class="copyable-chip" onclick="copyToClipboard('{{ $deposit->sender_number }}', 'Sender number copied!')" title="Click to copy">
+                                    <span>{{ $deposit->sender_number }}</span>
+                                    <i class="fa-regular fa-copy"></i>
+                                </div>
                             </td>
                             <td>
-                                <div class="d-inline-flex align-items-center gap-1">
-                                    <code class="badge-account-id">{{ $deposit->transaction_id }}</code>
-                                    <button type="button" class="btn btn-sm btn-link text-muted p-0" title="Copy TrxID" onclick="navigator.clipboard.writeText('{{ $deposit->transaction_id }}'); alert('TrxID copied!');">
-                                        <i class="fa-regular fa-copy"></i>
-                                    </button>
+                                <div class="copyable-chip" onclick="copyToClipboard('{{ $deposit->transaction_id }}', 'TrxID copied!')" title="Click to copy">
+                                    <span class="fw-bold">{{ $deposit->transaction_id }}</span>
+                                    <i class="fa-regular fa-copy"></i>
                                 </div>
                             </td>
                             <td>
                                 <div>
-                                    <strong style="color: var(--text-primary);">৳ {{ number_format($deposit->amount, 2) }}</strong>
-                                    <small class="d-block text-warning fw-bold"><i class="fa-solid fa-coins me-1"></i>{{ number_format($deposit->coins) }} Coins</small>
+                                    <strong class="d-block" style="color: var(--text-primary); font-size: 14px;">৳ {{ number_format($deposit->amount, 2) }}</strong>
+                                    <div class="coin-badge-3d mt-1" style="padding: 2px 8px;">
+                                        <i class="fa-solid fa-coins coin-icon-glow" style="font-size: 11px;"></i>
+                                        <span class="coin-amount-text" style="font-size: 12px;">{{ number_format($deposit->coins) }}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td>
                                 @if($deposit->screenshot_url)
-                                    <a href="javascript:void(0)" onclick="previewScreenshot('{{ $deposit->screenshot_url }}')" title="Click to enlarge">
-                                        <img src="{{ $deposit->screenshot_url }}" alt="Receipt" style="width: 42px; height: 42px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color);">
-                                    </a>
+                                    <div class="position-relative d-inline-block" style="cursor: pointer;" onclick="previewScreenshot('{{ $deposit->screenshot_url }}')">
+                                        <img src="{{ $deposit->screenshot_url }}" alt="Receipt" style="width: 48px; height: 48px; object-fit: cover; border-radius: 10px; border: 2px solid var(--border-color); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                        <span class="position-absolute bottom-0 end-0 bg-dark text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 18px; height: 18px; font-size: 9px; opacity: 0.8;">
+                                            <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                        </span>
+                                    </div>
                                 @else
-                                    <span class="text-muted" style="font-size: 12px;">No screenshot</span>
+                                    <span class="badge bg-light text-muted border">No receipt</span>
                                 @endif
                             </td>
                             <td>
-                                <span class="status-badge {{ $deposit->status === 'approved' ? 'badge-active' : ($deposit->status === 'rejected' ? 'badge-inactive' : 'badge-warning') }}">
-                                    <span class="status-dot"></span>
+                                <span class="status-pill-modern {{ $deposit->status }}">
+                                    <span class="status-pulsing-dot"></span>
                                     {{ ucfirst($deposit->status) }}
                                 </span>
                             </td>
                             <td>
-                                <small class="text-muted">{{ $deposit->created_at->format('M d, Y') }}<br>{{ $deposit->created_at->format('h:i A') }}</small>
+                                <span class="text-muted" style="font-size: 13px;">
+                                    {{ $deposit->created_at->format('M d, Y') }}<br>
+                                    <small>{{ $deposit->created_at->format('h:i A') }}</small>
+                                </span>
                             </td>
                             <td style="text-align: right;">
                                 @if($deposit->status === 'pending')
-                                    <div class="d-inline-flex gap-1">
+                                    <div class="d-inline-flex gap-2">
                                         <button type="button" 
-                                                class="btn-action" 
-                                                style="background: #10b981; color: #fff; border-color: #10b981;" 
-                                                title="Approve & Credit Coins"
-                                                onclick="openApproveModal('{{ $deposit->id }}', '{{ $deposit->coins }}', '{{ addslashes($deposit->user?->display_name) }}', '{{ $deposit->amount }}')">
-                                            <i class="fa-solid fa-check me-1"></i> Approve
+                                                class="btn-ch-success" 
+                                                title="Approve and Credit Coins"
+                                                onclick="openApproveModal('{{ $deposit->id }}', '{{ $deposit->coins }}', '{{ addslashes($deposit->user?->display_name ?? 'User') }}', '{{ $deposit->amount }}', '{{ $deposit->payment_method_name }}', '{{ $deposit->transaction_id }}')">
+                                            <i class="fa-solid fa-check"></i> Approve
                                         </button>
                                         <button type="button" 
-                                                class="btn-action" 
-                                                style="background: #ef4444; color: #fff; border-color: #ef4444;" 
+                                                class="btn-ch-danger" 
                                                 title="Reject Request"
-                                                onclick="openRejectModal('{{ $deposit->id }}', '{{ addslashes($deposit->user?->display_name) }}')">
-                                            <i class="fa-solid fa-xmark me-1"></i> Reject
+                                                onclick="openRejectModal('{{ $deposit->id }}', '{{ addslashes($deposit->user?->display_name ?? 'User') }}')">
+                                            <i class="fa-solid fa-xmark"></i> Reject
                                         </button>
                                     </div>
                                 @else
-                                    <small class="text-muted">
-                                        {{ $deposit->status === 'approved' ? 'Credited' : 'Rejected' }}<br>
-                                        {{ $deposit->approved_at ? $deposit->approved_at->format('M d, h:i A') : '' }}
-                                    </small>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">
+                                        <span class="fw-bold d-block">{{ $deposit->status === 'approved' ? 'Credited' : 'Rejected' }}</span>
+                                        <small>{{ $deposit->approved_at ? $deposit->approved_at->format('M d, h:i A') : '' }}</small>
+                                    </div>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
                             <td colspan="10" class="text-center py-5 text-muted">
-                                <i class="fa-solid fa-inbox fa-3x mb-3 text-muted"></i>
-                                <p class="mb-0">No deposit requests found in this view.</p>
+                                <div class="py-4">
+                                    <i class="fa-solid fa-inbox fa-3x mb-3 text-muted" style="opacity: 0.4;"></i>
+                                    <h5 class="fw-bold">No Deposit Requests Found</h5>
+                                    <p class="text-muted mb-0">There are no deposit requests matching this filter status.</p>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -228,54 +297,67 @@
             </table>
         </div>
         @if($deposits->hasPages())
-            <div class="p-3 d-flex justify-content-end" style="border-top: 1px solid var(--border-color);">
-                {{ $deposits->links() }}
+            <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-top: 1px solid var(--card-border-light);">
+                <span class="text-muted" style="font-size: 13px;">Showing page {{ $deposits->currentPage() }} of {{ $deposits->lastPage() }}</span>
+                <div>{{ $deposits->links() }}</div>
             </div>
         @endif
     </div>
 </div>
 
 <!-- Modal for Approve Deposit -->
-<div class="custom-modal-backdrop" id="approveModal" style="display: none;">
-    <div class="custom-modal-dialog">
-        <div class="custom-modal-content">
-            <div class="custom-modal-header" style="background: rgba(16, 185, 129, 0.1);">
-                <h5 class="modal-title text-success d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-circle-check"></i>
-                    <span>Approve Deposit & Credit Coins</span>
-                </h5>
-                <button type="button" class="btn-close-modal" onclick="closeApproveModal()">&times;</button>
+<div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-modern-dialog">
+        <div class="modal-content modal-modern-content">
+            <div class="modal-modern-header" style="background: rgba(16, 185, 129, 0.08);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon-box stat-icon-green" style="width: 44px; height: 44px; font-size: 18px;">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-success">Approve Deposit & Credit Coins</h5>
+                        <small class="text-muted">User will receive coins instantly upon approval</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="approveForm" method="POST" action="">
                 @csrf
-                <div class="custom-modal-body">
-                    <p style="font-size: 14px; color: var(--text-primary);">
-                        Are you sure you want to approve this deposit?
-                    </p>
-                    <div class="p-3 mb-3 rounded" style="background: var(--bg-main); border: 1px solid var(--border-color);">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted">User:</span>
-                            <strong id="approveUserName"></strong>
+                <div class="modal-modern-body">
+                    <!-- Deposit Details Summary -->
+                    <div class="p-3 rounded-4 mb-3" style="background: var(--bg-main); border: 1px solid var(--border-color);">
+                        <div class="d-flex justify-content-between py-1 border-bottom" style="border-color: var(--border-color) !important;">
+                            <span class="text-muted">Recipient User:</span>
+                            <strong id="approveUserName" class="text-primary"></strong>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted">Deposit Amount:</span>
-                            <strong id="approveAmount"></strong>
+                        <div class="d-flex justify-content-between py-1 border-bottom" style="border-color: var(--border-color) !important;">
+                            <span class="text-muted">Gateway & TrxID:</span>
+                            <span class="font-monospace fw-bold" id="approveGatewayTrx"></span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">Coins to Credit:</span>
-                            <span class="badge bg-warning text-dark font-monospace" style="font-size: 14px;">
-                                <i class="fa-solid fa-coins me-1"></i> <span id="approveCoins"></span> Coins
-                            </span>
+                        <div class="d-flex justify-content-between py-1 border-bottom" style="border-color: var(--border-color) !important;">
+                            <span class="text-muted">Amount Received:</span>
+                            <strong id="approveAmount" class="text-dark"></strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2">
+                            <span class="text-muted fw-bold">Coins to Credit:</span>
+                            <div class="coin-badge-3d">
+                                <i class="fa-solid fa-coins coin-icon-glow"></i>
+                                <span id="approveCoins" class="coin-amount-text"></span>
+                                <span class="coin-label-text">Coins</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label-custom">Admin Note / Remarks (Optional)</label>
-                        <input type="text" name="admin_note" class="form-control-custom" placeholder="e.g. Verified TrxID successfully">
+
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" style="font-size: 13px;">Admin Remarks / Note (Optional)</label>
+                        <input type="text" name="admin_note" class="form-control rounded-3" placeholder="e.g. TrxID verified in merchant portal">
                     </div>
                 </div>
-                <div class="custom-modal-footer">
-                    <button type="button" class="btn-secondary-custom" onclick="closeApproveModal()">Cancel</button>
-                    <button type="submit" class="btn-primary-custom" style="background: #10b981;"><i class="fa-solid fa-check me-1"></i> Confirm & Credit</button>
+                <div class="modal-modern-footer">
+                    <button type="button" class="btn btn-secondary rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-ch-success">
+                        <i class="fa-solid fa-check-double"></i> Confirm & Credit Balance
+                    </button>
                 </div>
             </form>
         </div>
@@ -283,99 +365,108 @@
 </div>
 
 <!-- Modal for Reject Deposit -->
-<div class="custom-modal-backdrop" id="rejectModal" style="display: none;">
-    <div class="custom-modal-dialog">
-        <div class="custom-modal-content">
-            <div class="custom-modal-header" style="background: rgba(239, 68, 68, 0.1);">
-                <h5 class="modal-title text-danger d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <span>Reject Deposit Request</span>
-                </h5>
-                <button type="button" class="btn-close-modal" onclick="closeRejectModal()">&times;</button>
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-modern-dialog">
+        <div class="modal-content modal-modern-content">
+            <div class="modal-modern-header" style="background: rgba(239, 68, 68, 0.08);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon-box stat-icon-red" style="width: 44px; height: 44px; font-size: 18px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-danger">Reject Deposit Request</h5>
+                        <small class="text-muted">State the reason for rejecting this deposit</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="rejectForm" method="POST" action="">
                 @csrf
-                <div class="custom-modal-body">
-                    <p style="font-size: 14px;">
-                        Rejecting deposit request for <strong id="rejectUserName"></strong>. No coins will be credited.
+                <div class="modal-modern-body">
+                    <p style="font-size: 14px; color: var(--text-primary);">
+                        You are about to reject the deposit request for <strong id="rejectUserName" class="text-danger"></strong>. No coins will be credited.
                     </p>
-                    <div class="mb-3">
-                        <label class="form-label-custom">Reason for Rejection <span class="text-danger">*</span></label>
-                        <textarea name="admin_note" class="form-control-custom" rows="3" placeholder="e.g. Invalid TrxID / Amount not received / Duplicate submission" required></textarea>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" style="font-size: 13px;">Reason for Rejection <span class="text-danger">*</span></label>
+                        <textarea name="admin_note" class="form-control rounded-3" rows="3" placeholder="e.g. Invalid TrxID / Amount not received in bKash account / Duplicate submission" required></textarea>
                     </div>
                 </div>
-                <div class="custom-modal-footer">
-                    <button type="button" class="btn-secondary-custom" onclick="closeRejectModal()">Cancel</button>
-                    <button type="submit" class="btn-primary-custom" style="background: #ef4444;"><i class="fa-solid fa-xmark me-1"></i> Reject Request</button>
+                <div class="modal-modern-footer">
+                    <button type="button" class="btn btn-secondary rounded-3 px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-ch-danger">
+                        <i class="fa-solid fa-xmark"></i> Reject Request
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Lightbox Modal for Screenshot Preview -->
-<div class="custom-modal-backdrop" id="screenshotLightboxModal" style="display: none;" onclick="closeScreenshotLightbox()">
-    <div style="max-width: 90%; max-height: 90%; text-align: center;">
-        <img id="lightboxImg" src="" alt="Receipt Proof" style="max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-        <p class="text-white mt-2" style="font-size: 13px;">Click anywhere to close</p>
+<!-- Fullscreen Lightbox Modal for Receipt Screenshot Preview -->
+<div class="modal fade" id="screenshotLightboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-transparent border-0 text-center">
+            <div class="position-relative d-inline-block mx-auto">
+                <button type="button" class="btn btn-light rounded-circle position-absolute top-0 end-0 m-3 shadow" data-bs-dismiss="modal" aria-label="Close" style="z-index: 10;">
+                    <i class="fa-solid fa-xmark fa-lg"></i>
+                </button>
+                <img id="lightboxImg" src="" alt="Payment Receipt" style="max-height: 80vh; max-width: 100%; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); object-fit: contain;">
+            </div>
+        </div>
     </div>
 </div>
 
-@push('styles')
-<style>
-.btn-filter-pill {
-    padding: 7px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    border-radius: 20px;
-    background: var(--bg-main);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    transition: var(--transition);
-}
-.btn-filter-pill:hover, .btn-filter-pill.active {
-    background: var(--primary);
-    color: #fff;
-    border-color: var(--primary);
-}
-</style>
-@endpush
+<div class="ch-toast-container" id="toastContainer"></div>
 
 @push('scripts')
 <script>
-function openApproveModal(depositId, coins, userName, amount) {
-    const modal = document.getElementById('approveModal');
+function openApproveModal(depositId, coins, userName, amount, method, trx) {
+    const modalEl = document.getElementById('approveModal');
     const form = document.getElementById('approveForm');
     form.action = `/admin/deposits/${depositId}/approve`;
     document.getElementById('approveUserName').innerText = userName;
+    document.getElementById('approveGatewayTrx').innerText = `${method} (${trx})`;
     document.getElementById('approveAmount').innerText = '৳ ' + Number(amount).toLocaleString();
     document.getElementById('approveCoins').innerText = Number(coins).toLocaleString();
-    modal.style.display = 'flex';
-}
-function closeApproveModal() {
-    document.getElementById('approveModal').style.display = 'none';
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
 }
 
 function openRejectModal(depositId, userName) {
-    const modal = document.getElementById('rejectModal');
+    const modalEl = document.getElementById('rejectModal');
     const form = document.getElementById('rejectForm');
     form.action = `/admin/deposits/${depositId}/reject`;
     document.getElementById('rejectUserName').innerText = userName;
-    modal.style.display = 'flex';
-}
-function closeRejectModal() {
-    document.getElementById('rejectModal').style.display = 'none';
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
 }
 
 function previewScreenshot(url) {
     document.getElementById('lightboxImg').src = url;
-    document.getElementById('screenshotLightboxModal').style.display = 'flex';
+    const modalEl = document.getElementById('screenshotLightboxModal');
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
 }
-function closeScreenshotLightbox() {
-    document.getElementById('screenshotLightboxModal').style.display = 'none';
+
+function copyToClipboard(text, msg) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast(msg || 'Copied to clipboard!');
+    });
+}
+
+function showToast(message) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'ch-toast';
+    toast.innerHTML = `<i class="fa-solid fa-circle-check text-success"></i> <span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
 }
 </script>
 @endpush
