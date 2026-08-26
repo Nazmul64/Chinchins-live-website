@@ -64,11 +64,15 @@ class PaymentController extends Controller
                     'bonus_coins' => $bonusCoins,
                     'total_coins' => $totalCoins,
                     'rate_bdt' => $rateBdt,
+                    'price' => $rateBdt,
+                    'price_bdt' => $rateBdt,
+                    'formatted_price' => '৳' . number_format($rateBdt, (floor($rateBdt) == $rateBdt ? 0 : 2)),
                     'rate_per_bdt' => $ratePerBdt, // Base Coins per 1 BDT
                     'offer_tag' => $pm->offer_tag ?: null,
                     'badge' => $pm->offer_tag ?: null,
                     'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
                     'bonus_percentage' => $bonusPercent,
+                    'button_text' => "Recharge {$totalCoins} Gems (৳" . number_format($rateBdt, (floor($rateBdt) == $rateBdt ? 0 : 2)) . ")",
                     'rate_text' => $bonusCoins > 0 ? "{$rateCoins} + {$bonusCoins} Bonus = ৳{$rateBdt} BDT" : "{$rateCoins} Coins = ৳{$rateBdt} BDT",
                     'example' => $bonusCoins > 0 ? "{$rateCoins} + {$bonusCoins} Bonus ({$totalCoins} Total) = ৳{$rateBdt} BDT" : "{$rateCoins} Coins = ৳{$rateBdt} BDT (1 BDT = {$ratePerBdt} Coins)",
                 ];
