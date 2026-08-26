@@ -36,6 +36,14 @@
             </div>
         </a>
 
+        <!-- Coin Packages / Gems Store -->
+        <a href="{{ route('admin.coin-packages.index') }}" class="menu-item {{ request()->routeIs('admin.coin-packages.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-gem" style="color: #ec4899;"></i>
+                <span>Coin Packages</span>
+            </div>
+        </a>
+
         <!-- Deposit Requests -->
         @php
             $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count();

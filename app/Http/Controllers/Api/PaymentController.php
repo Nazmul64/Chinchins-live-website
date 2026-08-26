@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CoinPackage;
 use App\Models\CoinTransaction;
 use App\Models\DepositRequest;
 use App\Models\PaymentMethod;
@@ -72,19 +73,79 @@ class PaymentController extends Controller
     }
 
     /**
-     * Get pre-configured coin packages (e.g. 500 Coins = 50 BDT, 1000 Coins = 100 BDT, etc.)
-     * GET /api/coin-packages
+     * Get pre-configured coin packages with bonus gems (e.g. 32000 + 8000 Bonus = ৳550)
+     * GET /api/coin-packages (or GET /api/packages)
      */
     public function getCoinPackages(): JsonResponse
     {
-        $packages = [
-            ['id' => 1, 'bdt' => 50, 'coins' => 500, 'popular' => false, 'title' => 'Starter Pack'],
-            ['id' => 2, 'bdt' => 100, 'coins' => 1000, 'popular' => true, 'title' => 'Basic Pack'],
-            ['id' => 3, 'bdt' => 200, 'coins' => 2100, 'popular' => false, 'bonus' => '100 Extra Coins', 'title' => 'Standard Pack'],
-            ['id' => 4, 'bdt' => 500, 'coins' => 5500, 'popular' => true, 'bonus' => '500 Extra Coins', 'title' => 'Popular Pack'],
-            ['id' => 5, 'bdt' => 1000, 'coins' => 11500, 'popular' => false, 'bonus' => '1,500 Extra Coins', 'title' => 'VIP Pack'],
-            ['id' => 6, 'bdt' => 2000, 'coins' => 24000, 'popular' => false, 'bonus' => '4,000 Extra Coins', 'title' => 'Ultimate Pack'],
-        ];
+        try {
+            $dbPackages = CoinPackage::where('is_active', true)
+                ->orderBy('sort_order')
+                ->get();
+        } catch (\Throwable $e) {
+            $dbPackages = collect();
+        }
+
+        if ($dbPackages->isNotEmpty()) {
+            $packages = $dbPackages->map(function ($pkg) {
+                $coins = (int) $pkg->coins;
+                $bonus = (int) ($pkg->bonus_coins ?: 0);
+                $total = $coins + $bonus;
+                $price = (float) $pkg->price;
+                $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
+
+                return [
+                    'id' => $pkg->id,
+                    'coins' => $coins,
+                    'bonus_coins' => $bonus,
+                    'total_coins' => $total,
+                    'price' => $price,
+                    'price_bdt' => $price,
+                    'formatted_price' => $formattedPrice,
+                    'badge' => $pkg->badge ?: null,
+                    'badge_color' => $pkg->badge_color ?: 'pink',
+                    'bonus_text' => $bonus > 0 ? "+{$bonus} Bonus" : null,
+                    'bonus_percentage' => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
+                    'is_popular' => (bool) $pkg->is_popular,
+                    'popular' => (bool) $pkg->is_popular,
+                    'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
+                    'currency' => 'BDT',
+                    'currency_symbol' => '৳',
+                ];
+            });
+        } else {
+            // Default fallback if database table is not yet seeded
+            $defaultData = [
+                ['id' => 1, 'coins' => 6000, 'bonus_coins' => 1000, 'price' => 120, 'badge' => null, 'is_popular' => false],
+                ['id' => 2, 'coins' => 32000, 'bonus_coins' => 8000, 'price' => 550, 'badge' => '🔥 50% OFF', 'is_popular' => true],
+                ['id' => 3, 'coins' => 70000, 'bonus_coins' => 20000, 'price' => 1150, 'badge' => 'Best Value', 'is_popular' => false],
+                ['id' => 4, 'coins' => 150000, 'bonus_coins' => 50000, 'price' => 2400, 'badge' => '+30% Free', 'is_popular' => false],
+                ['id' => 5, 'coins' => 350000, 'bonus_coins' => 120000, 'price' => 5500, 'badge' => 'VIP Bonus', 'is_popular' => false],
+            ];
+
+            $packages = collect($defaultData)->map(function ($item) {
+                $total = $item['coins'] + $item['bonus_coins'];
+                $formattedPrice = '৳' . number_format($item['price']);
+                return [
+                    'id' => $item['id'],
+                    'coins' => $item['coins'],
+                    'bonus_coins' => $item['bonus_coins'],
+                    'total_coins' => $total,
+                    'price' => (float) $item['price'],
+                    'price_bdt' => (float) $item['price'],
+                    'formatted_price' => $formattedPrice,
+                    'badge' => $item['badge'],
+                    'badge_color' => 'pink',
+                    'bonus_text' => "+{$item['bonus_coins']} Bonus",
+                    'bonus_percentage' => (int) round(($item['bonus_coins'] / $item['coins']) * 100),
+                    'is_popular' => $item['is_popular'],
+                    'popular' => $item['is_popular'],
+                    'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
+                    'currency' => 'BDT',
+                    'currency_symbol' => '৳',
+                ];
+            });
+        }
 
         return response()->json([
             'status' => true,

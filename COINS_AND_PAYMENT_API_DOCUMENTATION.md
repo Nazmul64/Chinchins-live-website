@@ -141,12 +141,12 @@ Returns all active payment accounts configured by the Admin, including numbers, 
 
 ---
 
-## 3. 📦 Coin Packages API
+## 3. 📦 Coin & Gems Packages API (Mobile Store Offers)
 
-Returns recommended deposit tiers for the app's coin store.
+Returns all configured coin store tiers with base coins, promotional bonus gems, discount tags (e.g. `🔥 50% OFF`, `Best Value`), prices in BDT, and total coins.
 
 ### **Endpoint**
-`GET /api/coin-packages`
+`GET /api/coin-packages` *(or alias `GET /api/packages`)*
 
 ### **Success Response (200 OK)**
 ```json
@@ -154,14 +154,117 @@ Returns recommended deposit tiers for the app's coin store.
   "status": true,
   "message": "Coin packages retrieved successfully.",
   "data": [
-    { "id": 1, "bdt": 50, "coins": 500, "popular": false, "title": "Starter Pack" },
-    { "id": 2, "bdt": 100, "coins": 1000, "popular": true, "title": "Basic Pack" },
-    { "id": 3, "bdt": 200, "coins": 2100, "popular": false, "bonus": "100 Extra Coins", "title": "Standard Pack" },
-    { "id": 4, "bdt": 500, "coins": 5500, "popular": true, "bonus": "500 Extra Coins", "title": "Popular Pack" },
-    { "id": 5, "bdt": 1000, "coins": 11500, "popular": false, "bonus": "1,500 Extra Coins", "title": "VIP Pack" }
+    {
+      "id": 1,
+      "coins": 6000,
+      "bonus_coins": 1000,
+      "total_coins": 7000,
+      "price": 120.0,
+      "price_bdt": 120.0,
+      "formatted_price": "৳120",
+      "badge": null,
+      "badge_color": "pink",
+      "bonus_text": "+1000 Bonus",
+      "bonus_percentage": 17,
+      "is_popular": false,
+      "popular": false,
+      "button_text": "Recharge 7000 Gems (৳120)",
+      "currency": "BDT",
+      "currency_symbol": "৳"
+    },
+    {
+      "id": 2,
+      "coins": 32000,
+      "bonus_coins": 8000,
+      "total_coins": 40000,
+      "price": 550.0,
+      "price_bdt": 550.0,
+      "formatted_price": "৳550",
+      "badge": "🔥 50% OFF",
+      "badge_color": "pink",
+      "bonus_text": "+8000 Bonus",
+      "bonus_percentage": 25,
+      "is_popular": true,
+      "popular": true,
+      "button_text": "Recharge 40000 Gems (৳550)",
+      "currency": "BDT",
+      "currency_symbol": "৳"
+    },
+    {
+      "id": 3,
+      "coins": 70000,
+      "bonus_coins": 20000,
+      "total_coins": 90000,
+      "price": 1150.0,
+      "price_bdt": 1150.0,
+      "formatted_price": "৳1,150",
+      "badge": "Best Value",
+      "badge_color": "pink",
+      "bonus_text": "+20000 Bonus",
+      "bonus_percentage": 29,
+      "is_popular": false,
+      "popular": false,
+      "button_text": "Recharge 90000 Gems (৳1,150)",
+      "currency": "BDT",
+      "currency_symbol": "৳"
+    },
+    {
+      "id": 4,
+      "coins": 150000,
+      "bonus_coins": 50000,
+      "total_coins": 200000,
+      "price": 2400.0,
+      "price_bdt": 2400.0,
+      "formatted_price": "৳2,400",
+      "badge": "+30% Free",
+      "badge_color": "pink",
+      "bonus_text": "+50000 Bonus",
+      "bonus_percentage": 33,
+      "is_popular": false,
+      "popular": false,
+      "button_text": "Recharge 200000 Gems (৳2,400)",
+      "currency": "BDT",
+      "currency_symbol": "৳"
+    },
+    {
+      "id": 5,
+      "coins": 350000,
+      "bonus_coins": 120000,
+      "total_coins": 470000,
+      "price": 5500.0,
+      "price_bdt": 5500.0,
+      "formatted_price": "৳5,500",
+      "badge": "VIP Bonus",
+      "badge_color": "pink",
+      "bonus_text": "+120000 Bonus",
+      "bonus_percentage": 34,
+      "is_popular": false,
+      "popular": false,
+      "button_text": "Recharge 470000 Gems (৳5,500)",
+      "currency": "BDT",
+      "currency_symbol": "৳"
+    }
   ]
 }
 ```
+
+### **Coin Package Object Fields**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `integer` | Unique ID of package |
+| `coins` | `integer` | Base coins/gems included (e.g. `32000`) |
+| `bonus_coins` | `integer` | Extra bonus coins given (e.g. `8000`) |
+| `total_coins` | `integer` | Total coins received (`coins + bonus_coins`, e.g. `40000`) |
+| `price` / `price_bdt` | `float` | Price in BDT (e.g. `550.00`) |
+| `formatted_price` | `string` | Display formatted price (e.g. `"৳550"`) |
+| `badge` | `string|null` | Promotional badge text (e.g. `"🔥 50% OFF"`, `"Best Value"`) |
+| `bonus_text` | `string|null` | Ready-to-display bonus label (e.g. `"+8000 Bonus"`) |
+| `bonus_percentage` | `integer` | Calculated bonus percentage (e.g. `25`%) |
+| `is_popular` / `popular` | `boolean` | `true` if featured/highlighted card in UI |
+| `button_text` | `string` | Ready-to-display bottom button label (e.g. `"Recharge 40000 Gems (৳550)"`) |
+| `currency` | `string` | `"BDT"` |
+| `currency_symbol` | `string` | `"৳"` |
+
 
 ---
 

@@ -75,6 +75,7 @@ Route::match(['post', 'delete'], '/clear-gallery', [ProfileController::class, 'c
 // Payment methods list (bKash, Nagad, etc.) & Coin Packages
 Route::get('/payment-methods', [PaymentController::class, 'getPaymentMethods']);
 Route::get('/coin-packages', [PaymentController::class, 'getCoinPackages']);
+Route::get('/packages', [PaymentController::class, 'getCoinPackages']);
 
 // Wallet balance & transactions
 Route::get('/wallet/balance', [PaymentController::class, 'getWalletBalance']);

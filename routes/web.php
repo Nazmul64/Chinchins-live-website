@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\CoinPackageController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepositRequestController;
 use App\Http\Controllers\Admin\PaymentMethodController;
@@ -32,6 +33,13 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::put('/payment-methods/{id}', [PaymentMethodController::class, 'update'])->name('payment-methods.update');
     Route::delete('/payment-methods/{id}', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy');
     Route::post('/payment-methods/{id}/toggle-status', [PaymentMethodController::class, 'toggleStatus'])->name('payment-methods.toggle-status');
+
+    // Coin Packages Management
+    Route::get('/coin-packages', [CoinPackageController::class, 'index'])->name('coin-packages.index');
+    Route::post('/coin-packages', [CoinPackageController::class, 'store'])->name('coin-packages.store');
+    Route::put('/coin-packages/{id}', [CoinPackageController::class, 'update'])->name('coin-packages.update');
+    Route::delete('/coin-packages/{id}', [CoinPackageController::class, 'destroy'])->name('coin-packages.destroy');
+    Route::post('/coin-packages/{id}/toggle-status', [CoinPackageController::class, 'toggleStatus'])->name('coin-packages.toggle-status');
 
     // Manual Deposit Requests
     Route::get('/deposits', [DepositRequestController::class, 'index'])->name('deposits.index');
