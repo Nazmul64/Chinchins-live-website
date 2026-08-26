@@ -134,12 +134,16 @@ class PaymentController extends Controller
         $rate = $paymentMethod ? $paymentMethod->rate_per_bdt : 10;
         $coins = $request->filled('coins') ? (int) $request->input('coins') : (int) ($amount * $rate);
 
-        // Upload screenshot
+        // Upload screenshot safely
         $screenshotPath = null;
         if ($request->hasFile('screenshot')) {
             $file = $request->file('screenshot');
+            $uploadDir = public_path('uploads/deposits');
+            if (!file_exists($uploadDir)) {
+                @mkdir($uploadDir, 0777, true);
+            }
             $filename = 'deposit_' . $user->id . '_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/deposits'), $filename);
+            $file->move($uploadDir, $filename);
             $screenshotPath = 'deposits/' . $filename;
         }
 

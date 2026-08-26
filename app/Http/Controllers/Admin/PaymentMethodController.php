@@ -23,32 +23,43 @@ class PaymentMethodController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'account_type' => 'required|string|max:50',
-            'account_number' => 'required|string|max:100',
-            'instructions' => 'nullable|string',
-            'min_deposit' => 'required|numeric|min:1',
-            'max_deposit' => 'required|numeric|gte:min_deposit',
-            'rate_per_bdt' => 'required|integer|min:1',
-            'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:2048',
-            'is_active' => 'nullable|boolean',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:100',
+                'account_type' => 'required|string|max:50',
+                'account_number' => 'required|string|max:100',
+                'instructions' => 'nullable|string',
+                'min_deposit' => 'required|numeric|min:1',
+                'max_deposit' => 'required|numeric|gte:min_deposit',
+                'rate_per_bdt' => 'required|integer|min:1',
+                'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
+                'is_active' => 'nullable|boolean',
+            ]);
 
-        $validated['is_active'] = $request->has('is_active');
-        $validated['code'] = strtolower(Str::slug($validated['name']));
+            $validated['is_active'] = $request->has('is_active');
+            $slug = strtolower(Str::slug($validated['name']));
+            $validated['code'] = $slug ?: ('pm_' . time() . '_' . Str::random(4));
 
-        // Handle icon upload
-        if ($request->hasFile('icon')) {
-            $file = $request->file('icon');
-            $filename = 'pm_icon_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/payment_methods'), $filename);
-            $validated['icon'] = 'payment_methods/' . $filename;
+            // Handle icon upload safely
+            if ($request->hasFile('icon')) {
+                $file = $request->file('icon');
+                $uploadDir = public_path('uploads/payment_methods');
+                if (!file_exists($uploadDir)) {
+                    @mkdir($uploadDir, 0777, true);
+                }
+                $filename = 'pm_icon_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
+                $file->move($uploadDir, $filename);
+                $validated['icon'] = 'payment_methods/' . $filename;
+            }
+
+            PaymentMethod::create($validated);
+
+            return redirect()->route('admin.payment-methods.index')->with('success', 'Payment Method added successfully!');
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return back()->withErrors($ve->validator)->withInput();
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Could not save payment method: ' . $e->getMessage())->withInput();
         }
-
-        PaymentMethod::create($validated);
-
-        return redirect()->route('admin.payment-methods.index')->with('success', 'Payment Method added successfully!');
     }
 
     /**
@@ -56,33 +67,44 @@ class PaymentMethodController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $method = PaymentMethod::findOrFail($id);
+        try {
+            $method = PaymentMethod::findOrFail($id);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'account_type' => 'required|string|max:50',
-            'account_number' => 'required|string|max:100',
-            'instructions' => 'nullable|string',
-            'min_deposit' => 'required|numeric|min:1',
-            'max_deposit' => 'required|numeric|gte:min_deposit',
-            'rate_per_bdt' => 'required|integer|min:1',
-            'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:2048',
-            'is_active' => 'nullable|boolean',
-        ]);
+            $validated = $request->validate([
+                'name' => 'required|string|max:100',
+                'account_type' => 'required|string|max:50',
+                'account_number' => 'required|string|max:100',
+                'instructions' => 'nullable|string',
+                'min_deposit' => 'required|numeric|min:1',
+                'max_deposit' => 'required|numeric|gte:min_deposit',
+                'rate_per_bdt' => 'required|integer|min:1',
+                'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
+                'is_active' => 'nullable|boolean',
+            ]);
 
-        $validated['is_active'] = $request->has('is_active');
-        $validated['code'] = strtolower(Str::slug($validated['name']));
+            $validated['is_active'] = $request->has('is_active');
+            $slug = strtolower(Str::slug($validated['name']));
+            $validated['code'] = $slug ?: ('pm_' . time() . '_' . Str::random(4));
 
-        if ($request->hasFile('icon')) {
-            $file = $request->file('icon');
-            $filename = 'pm_icon_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/payment_methods'), $filename);
-            $validated['icon'] = 'payment_methods/' . $filename;
+            if ($request->hasFile('icon')) {
+                $file = $request->file('icon');
+                $uploadDir = public_path('uploads/payment_methods');
+                if (!file_exists($uploadDir)) {
+                    @mkdir($uploadDir, 0777, true);
+                }
+                $filename = 'pm_icon_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
+                $file->move($uploadDir, $filename);
+                $validated['icon'] = 'payment_methods/' . $filename;
+            }
+
+            $method->update($validated);
+
+            return redirect()->route('admin.payment-methods.index')->with('success', 'Payment Method updated successfully!');
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return back()->withErrors($ve->validator)->withInput();
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Could not update payment method: ' . $e->getMessage())->withInput();
         }
-
-        $method->update($validated);
-
-        return redirect()->route('admin.payment-methods.index')->with('success', 'Payment Method updated successfully!');
     }
 
     /**
