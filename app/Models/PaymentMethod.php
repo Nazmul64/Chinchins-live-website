@@ -22,6 +22,8 @@ class PaymentMethod extends Model
         'rate_coins',
         'rate_bdt',
         'rate_per_bdt',
+        'bonus_coins',
+        'offer_tag',
         'is_active',
         'sort_order',
     ];
@@ -32,6 +34,7 @@ class PaymentMethod extends Model
         'rate_coins' => 'integer',
         'rate_bdt' => 'decimal:2',
         'rate_per_bdt' => 'float',
+        'bonus_coins' => 'integer',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
@@ -40,6 +43,9 @@ class PaymentMethod extends Model
         'icon_url',
         'qr_code_url',
         'exchange_rate_text',
+        'total_rate_coins',
+        'bonus_text',
+        'bonus_percentage',
     ];
 
     public function depositRequests()
@@ -78,6 +84,32 @@ class PaymentMethod extends Model
     {
         $coins = $this->rate_coins ?: (($this->rate_per_bdt ?: 10) * 10);
         $bdt = $this->rate_bdt ?: 10;
+        $bonus = $this->bonus_coins ?: 0;
+        if ($bonus > 0) {
+            return "{$coins} + {$bonus} Bonus = ৳{$bdt} BDT";
+        }
         return "{$coins} Coins = ৳{$bdt} BDT";
+    }
+
+    public function getTotalRateCoinsAttribute(): int
+    {
+        return (int) (($this->rate_coins ?: (($this->rate_per_bdt ?: 10) * 10)) + ($this->bonus_coins ?: 0));
+    }
+
+    public function getBonusTextAttribute(): ?string
+    {
+        if (!empty($this->bonus_coins) && $this->bonus_coins > 0) {
+            return "+{$this->bonus_coins} Bonus";
+        }
+        return null;
+    }
+
+    public function getBonusPercentageAttribute(): int
+    {
+        $base = $this->rate_coins ?: (($this->rate_per_bdt ?: 10) * 10);
+        if ($base > 0 && $this->bonus_coins > 0) {
+            return (int) round(($this->bonus_coins / $base) * 100);
+        }
+        return 0;
     }
 }

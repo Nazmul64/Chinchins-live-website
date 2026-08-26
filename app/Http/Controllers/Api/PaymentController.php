@@ -43,8 +43,11 @@ class PaymentController extends Controller
             ->get()
             ->map(function ($pm) {
                 $rateCoins = (int) ($pm->rate_coins ?: (($pm->rate_per_bdt ?: 10) * 10));
+                $bonusCoins = (int) ($pm->bonus_coins ?: 0);
+                $totalCoins = $rateCoins + $bonusCoins;
                 $rateBdt = (float) ($pm->rate_bdt ?: 10.00);
                 $ratePerBdt = (float) ($pm->rate_per_bdt ?: ($rateBdt > 0 ? round($rateCoins / $rateBdt, 2) : 10));
+                $bonusPercent = ($rateCoins > 0 && $bonusCoins > 0) ? (int) round(($bonusCoins / $rateCoins) * 100) : 0;
 
                 return [
                     'id' => $pm->id,
@@ -58,10 +61,16 @@ class PaymentController extends Controller
                     'min_deposit' => (float) $pm->min_deposit,
                     'max_deposit' => (float) $pm->max_deposit,
                     'rate_coins' => $rateCoins,
+                    'bonus_coins' => $bonusCoins,
+                    'total_coins' => $totalCoins,
                     'rate_bdt' => $rateBdt,
-                    'rate_per_bdt' => $ratePerBdt, // Coins per 1 BDT
-                    'rate_text' => "{$rateCoins} Coins = ৳{$rateBdt} BDT",
-                    'example' => "{$rateCoins} Coins = ৳{$rateBdt} BDT (1 BDT = {$ratePerBdt} Coins)",
+                    'rate_per_bdt' => $ratePerBdt, // Base Coins per 1 BDT
+                    'offer_tag' => $pm->offer_tag ?: null,
+                    'badge' => $pm->offer_tag ?: null,
+                    'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
+                    'bonus_percentage' => $bonusPercent,
+                    'rate_text' => $bonusCoins > 0 ? "{$rateCoins} + {$bonusCoins} Bonus = ৳{$rateBdt} BDT" : "{$rateCoins} Coins = ৳{$rateBdt} BDT",
+                    'example' => $bonusCoins > 0 ? "{$rateCoins} + {$bonusCoins} Bonus ({$totalCoins} Total) = ৳{$rateBdt} BDT" : "{$rateCoins} Coins = ৳{$rateBdt} BDT (1 BDT = {$ratePerBdt} Coins)",
                 ];
             });
 
@@ -200,7 +209,14 @@ class PaymentController extends Controller
 
         $amount = (float) $request->input('amount');
         if ($paymentMethod && $paymentMethod->rate_bdt > 0 && $paymentMethod->rate_coins > 0) {
-            $defaultCoins = (int) round(($amount / $paymentMethod->rate_bdt) * $paymentMethod->rate_coins);
+            $baseCoins = (int) round(($amount / $paymentMethod->rate_bdt) * $paymentMethod->rate_coins);
+            $bonusCoins = (int) ($paymentMethod->bonus_coins ?: 0);
+            if ($amount >= $paymentMethod->rate_bdt && $bonusCoins > 0) {
+                $multiplier = floor($amount / $paymentMethod->rate_bdt);
+                $defaultCoins = $baseCoins + (int) ($bonusCoins * $multiplier);
+            } else {
+                $defaultCoins = $baseCoins;
+            }
         } elseif ($paymentMethod && $paymentMethod->rate_per_bdt > 0) {
             $defaultCoins = (int) round($amount * $paymentMethod->rate_per_bdt);
         } else {

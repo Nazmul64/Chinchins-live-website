@@ -83,9 +83,23 @@
                                 <span class="text-muted">Exchange Rate:</span>
                                 <div class="coin-badge-3d" style="padding: 3px 10px;">
                                     <i class="fa-solid fa-coins coin-icon-glow" style="font-size: 11px;"></i>
-                                    <span class="coin-amount-text" style="font-size: 12px;">{{ number_format($method->rate_coins ?? ($method->rate_per_bdt * 10)) }} Coins = ৳{{ number_format($method->rate_bdt ?? 10) }}</span>
+                                    <span class="coin-amount-text" style="font-size: 12px;">
+                                        {{ number_format($method->rate_coins ?? ($method->rate_per_bdt * 10)) }} Coins
+                                        @if(($method->bonus_coins ?? 0) > 0)
+                                            <span class="text-success fw-bold">(+{{ number_format($method->bonus_coins) }} Bonus)</span>
+                                        @endif
+                                        = ৳{{ number_format($method->rate_bdt ?? 10) }}
+                                    </span>
                                 </div>
                             </div>
+                            @if($method->offer_tag)
+                                <div class="d-flex justify-content-between align-items-center py-1 border-bottom" style="border-color: var(--border-color) !important;">
+                                    <span class="text-muted">Offer / Discount:</span>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold" style="font-size: 11px; padding: 3px 8px;">
+                                        {{ $method->offer_tag }}
+                                    </span>
+                                </div>
+                            @endif
                             <div class="d-flex justify-content-between align-items-center py-1 border-bottom" style="border-color: var(--border-color) !important;">
                                 <span class="text-muted">Deposit Limits:</span>
                                 <strong>৳{{ number_format($method->min_deposit) }} - ৳{{ number_format($method->max_deposit) }}</strong>
@@ -140,7 +154,7 @@
 
 <!-- Modal for Create / Edit Payment Method -->
 <div class="modal fade" id="paymentMethodModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-modern-dialog" style="max-width: 620px;">
+    <div class="modal-dialog modal-dialog-centered modal-modern-dialog" style="max-width: 650px;">
         <div class="modal-content modal-modern-content">
             <div class="modal-modern-header">
                 <div class="d-flex align-items-center gap-3">
@@ -185,25 +199,29 @@
                             <input type="number" name="max_deposit" id="pmMaxDeposit" class="form-control rounded-3" value="25000" min="1" required>
                         </div>
 
-                        <!-- Dual Input: Coin Amount and BDT Amount -->
+                        <!-- Quad Setup: Coin Amount, Bonus Coins, BDT Amount & Offer Tag -->
                         <div class="col-12">
                             <label class="form-label fw-bold d-flex justify-content-between align-items-center" style="font-size: 13px;">
-                                <span><i class="fa-solid fa-scale-balanced text-primary me-1"></i> Coin Exchange Rate Setup <span class="text-danger">*</span></span>
-                                <span class="badge bg-light text-muted border fw-normal" style="font-size: 11px;">কত কয়েনে কত টাকা</span>
+                                <span><i class="fa-solid fa-scale-balanced text-primary me-1"></i> Coin Exchange Rate & Bonus Offer Setup <span class="text-danger">*</span></span>
+                                <span class="badge bg-light text-muted border fw-normal" style="font-size: 11px;">কয়েন, বোনাস ও অফার ট্যাগ</span>
                             </label>
                             <div class="p-3 rounded-3" style="background: var(--bg-main, #f8fafc); border: 1.5px solid var(--border-color, #e2e8f0);">
                                 <div class="row g-2 align-items-center">
-                                    <div class="col-12 col-sm-5">
+                                    <div class="col-12 col-sm-4">
                                         <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px; text-transform: uppercase;">Coin Quantity (কয়েন)</label>
                                         <div class="input-group">
                                             <input type="number" name="rate_coins" id="pmRateCoins" class="form-control fw-bold" placeholder="500" value="500" min="1" required oninput="calculateExchangeRateLive()">
                                             <span class="input-group-text bg-warning-subtle text-warning fw-bold"><i class="fa-solid fa-coins me-1"></i> Coins</span>
                                         </div>
                                     </div>
-                                    <div class="col-12 col-sm-2 text-center d-none d-sm-block">
-                                        <div class="fw-bolder fs-4 text-muted">=</div>
+                                    <div class="col-12 col-sm-4">
+                                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px; text-transform: uppercase;">Bonus Coins (বোনাস কয়েন)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-success-subtle text-success fw-bold"><i class="fa-solid fa-gift me-1"></i> +</span>
+                                            <input type="number" name="bonus_coins" id="pmBonusCoins" class="form-control fw-bold text-success" placeholder="0" value="0" min="0" oninput="calculateExchangeRateLive()">
+                                        </div>
                                     </div>
-                                    <div class="col-12 col-sm-5">
+                                    <div class="col-12 col-sm-4">
                                         <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px; text-transform: uppercase;">BDT Amount (টাকা)</label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-light fw-bold text-success">৳ BDT</span>
@@ -212,6 +230,18 @@
                                     </div>
                                 </div>
                                 <input type="hidden" name="rate_per_bdt" id="pmRatePerBdt" value="10">
+
+                                <div class="mt-3">
+                                    <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px; text-transform: uppercase;">Offer / Discount Badge (অফার ট্যাগ - যেমন: 🔥 50% OFF, 30% OFF)</label>
+                                    <input type="text" name="offer_tag" id="pmOfferTag" class="form-control rounded-3" placeholder="e.g. 🔥 50% OFF, 30% OFF, Best Value" oninput="calculateExchangeRateLive()">
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                        <span class="quick-chip-btn" onclick="selectPmOfferTag('🔥 50% OFF')">🔥 50% OFF</span>
+                                        <span class="quick-chip-btn" onclick="selectPmOfferTag('30% OFF')">30% OFF</span>
+                                        <span class="quick-chip-btn" onclick="selectPmOfferTag('Best Value')">Best Value</span>
+                                        <span class="quick-chip-btn" onclick="selectPmOfferTag('VIP Bonus')">VIP Bonus</span>
+                                        <span class="quick-chip-btn text-danger" onclick="selectPmOfferTag('')">Clear</span>
+                                    </div>
+                                </div>
                                 
                                 <div class="mt-2 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2" style="font-size: 12px;">
                                     <div class="d-flex align-items-center gap-1 text-muted">
@@ -225,7 +255,7 @@
                                 </div>
                             </div>
                             <small class="text-muted mt-1 d-block" style="font-size: 11px;">
-                                উদাহরণ: ৫০০ কয়েন ৫০ টাকা দিলে ব্যবহারকারী ১০০ টাকায় ১,০০০ কয়েন পাবে।
+                                ডিপোজিট অ্যাপ্রুভ হলে ব্যবহারকারীর মেইন অ্যাকাউন্টে মূল কয়েন এবং বোনাস কয়েন একসাথে যোগ হয়ে যাবে।
                             </small>
                         </div>
 
@@ -290,21 +320,37 @@ function handlePmImageError(img, name) {
     }
 }
 
+function selectPmOfferTag(tag) {
+    document.getElementById('pmOfferTag').value = tag;
+    calculateExchangeRateLive();
+}
+
 function calculateExchangeRateLive() {
     const coinsInput = document.getElementById('pmRateCoins');
+    const bonusInput = document.getElementById('pmBonusCoins');
     const bdtInput = document.getElementById('pmRateBdt');
     const ratePerBdtHidden = document.getElementById('pmRatePerBdt');
     const multiplierDisplay = document.getElementById('pmRateMultiplierDisplay');
     const summaryPreview = document.getElementById('pmRateSummaryPreview');
 
     const coins = parseFloat(coinsInput ? coinsInput.value : 0) || 0;
+    const bonus = parseFloat(bonusInput ? bonusInput.value : 0) || 0;
     const bdt = parseFloat(bdtInput ? bdtInput.value : 0) || 0;
+    const totalCoins = coins + bonus;
+
     const ratePerBdt = bdt > 0 ? (coins / bdt) : 0;
-    
     const formattedRate = (Number.isInteger(ratePerBdt) ? ratePerBdt : ratePerBdt.toFixed(2));
+
     if (ratePerBdtHidden) ratePerBdtHidden.value = formattedRate;
     if (multiplierDisplay) multiplierDisplay.innerText = `1 BDT = ${formattedRate} Coins`;
-    if (summaryPreview) summaryPreview.innerText = `${coins.toLocaleString()} Coins = ৳${bdt.toLocaleString()} BDT`;
+    
+    if (summaryPreview) {
+        if (bonus > 0) {
+            summaryPreview.innerHTML = `${coins.toLocaleString()} + <span class="text-success fw-bold">${bonus.toLocaleString()} Bonus</span> = <strong>${totalCoins.toLocaleString()} Coins</strong> for ৳${bdt.toLocaleString()} BDT`;
+        } else {
+            summaryPreview.innerText = `${coins.toLocaleString()} Coins = ৳${bdt.toLocaleString()} BDT`;
+        }
+    }
 }
 
 function previewGatewayIcon(event) {
@@ -349,7 +395,9 @@ function openCreatePaymentMethodModal() {
     document.getElementById('pmMinDeposit').value = '50';
     document.getElementById('pmMaxDeposit').value = '25000';
     document.getElementById('pmRateCoins').value = '500';
+    document.getElementById('pmBonusCoins').value = '0';
     document.getElementById('pmRateBdt').value = '50';
+    document.getElementById('pmOfferTag').value = '';
     calculateExchangeRateLive();
     document.getElementById('pmInstructions').value = '';
     document.getElementById('pmIsActive').checked = true;
@@ -371,11 +419,13 @@ function openEditPaymentMethodModal(method) {
     document.getElementById('pmMinDeposit').value = method.min_deposit || 50;
     document.getElementById('pmMaxDeposit').value = method.max_deposit || 25000;
     
-    // Set Coins and BDT
+    // Set Coins, Bonus, BDT & Offer Tag
     const rateCoins = method.rate_coins || (method.rate_per_bdt ? (method.rate_per_bdt * 10) : 500);
     const rateBdt = method.rate_bdt || 50;
     document.getElementById('pmRateCoins').value = rateCoins;
+    document.getElementById('pmBonusCoins').value = method.bonus_coins || 0;
     document.getElementById('pmRateBdt').value = rateBdt;
+    document.getElementById('pmOfferTag').value = method.offer_tag || '';
     calculateExchangeRateLive();
 
     document.getElementById('pmInstructions').value = method.instructions || '';

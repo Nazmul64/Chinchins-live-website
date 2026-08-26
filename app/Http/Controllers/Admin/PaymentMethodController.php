@@ -34,6 +34,8 @@ class PaymentMethodController extends Controller
                 'rate_coins' => 'nullable|integer|min:1',
                 'rate_bdt' => 'nullable|numeric|min:0.01',
                 'rate_per_bdt' => 'nullable|numeric|min:0.01',
+                'bonus_coins' => 'nullable|integer|min:0',
+                'offer_tag' => 'nullable|string|max:50',
                 'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
                 'is_active' => 'nullable|boolean',
             ]);
@@ -46,6 +48,8 @@ class PaymentMethodController extends Controller
             $validated['rate_coins'] = $rateCoins;
             $validated['rate_bdt'] = $rateBdt;
             $validated['rate_per_bdt'] = round($rateCoins / $rateBdt, 4);
+            $validated['bonus_coins'] = (int) ($request->input('bonus_coins') ?: 0);
+            $validated['offer_tag'] = $request->input('offer_tag') ?: null;
 
             $validated['is_active'] = $request->has('is_active');
             $slug = strtolower(Str::slug($validated['name']));
@@ -100,6 +104,8 @@ class PaymentMethodController extends Controller
                 'rate_coins' => 'nullable|integer|min:1',
                 'rate_bdt' => 'nullable|numeric|min:0.01',
                 'rate_per_bdt' => 'nullable|numeric|min:0.01',
+                'bonus_coins' => 'nullable|integer|min:0',
+                'offer_tag' => 'nullable|string|max:50',
                 'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
                 'is_active' => 'nullable|boolean',
             ]);
@@ -111,6 +117,8 @@ class PaymentMethodController extends Controller
             $validated['rate_coins'] = $rateCoins;
             $validated['rate_bdt'] = $rateBdt;
             $validated['rate_per_bdt'] = round($rateCoins / $rateBdt, 4);
+            $validated['bonus_coins'] = (int) ($request->input('bonus_coins') !== null ? $request->input('bonus_coins') : ($method->bonus_coins ?: 0));
+            $validated['offer_tag'] = $request->input('offer_tag') ?: null;
 
             $validated['is_active'] = $request->has('is_active');
             $slug = strtolower(Str::slug($validated['name']));

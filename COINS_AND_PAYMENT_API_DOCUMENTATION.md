@@ -92,11 +92,17 @@ Returns all active payment accounts configured by the Admin, including numbers, 
       "qr_code": null,
       "min_deposit": 50,
       "max_deposit": 25000,
-      "rate_coins": 500,
-      "rate_bdt": 50,
-      "rate_per_bdt": 10,
-      "rate_text": "500 Coins = ৳50 BDT",
-      "example": "500 Coins = ৳50 BDT (1 BDT = 10 Coins)"
+      "rate_coins": 70000,
+      "bonus_coins": 20000,
+      "total_coins": 90000,
+      "rate_bdt": 1150,
+      "rate_per_bdt": 60.87,
+      "offer_tag": "🔥 50% OFF",
+      "badge": "🔥 50% OFF",
+      "bonus_text": "+20000 Bonus",
+      "bonus_percentage": 29,
+      "rate_text": "70000 + 20000 Bonus = ৳1150 BDT",
+      "example": "70000 + 20000 Bonus (90000 Total) = ৳1150 BDT"
     },
     {
       "id": 2,
@@ -109,11 +115,17 @@ Returns all active payment accounts configured by the Admin, including numbers, 
       "qr_code": null,
       "min_deposit": 50,
       "max_deposit": 25000,
-      "rate_coins": 500,
-      "rate_bdt": 50,
-      "rate_per_bdt": 10,
-      "rate_text": "500 Coins = ৳50 BDT",
-      "example": "500 Coins = ৳50 BDT (1 BDT = 10 Coins)"
+      "rate_coins": 32000,
+      "bonus_coins": 8000,
+      "total_coins": 40000,
+      "rate_bdt": 550,
+      "rate_per_bdt": 58.18,
+      "offer_tag": "Best Value",
+      "badge": "Best Value",
+      "bonus_text": "+8000 Bonus",
+      "bonus_percentage": 25,
+      "rate_text": "32000 + 8000 Bonus = ৳550 BDT",
+      "example": "32000 + 8000 Bonus (40000 Total) = ৳550 BDT"
     }
   ]
 }
@@ -132,11 +144,17 @@ Returns all active payment accounts configured by the Admin, including numbers, 
 | `qr_code` | `string|null` | Image URL of QR code (if applicable) |
 | `min_deposit` | `float` | Minimum deposit amount in BDT (e.g. `50.00`) |
 | `max_deposit` | `float` | Maximum deposit amount in BDT (e.g. `25000.00`) |
-| `rate_coins` | `integer` | Configured Coin quantity (e.g. `500`) |
-| `rate_bdt` | `float` | Configured BDT cost for the coin quantity (e.g. `50.00`) |
-| `rate_per_bdt` | `float` | Multiplier coins received per 1 BDT (`rate_coins / rate_bdt`, e.g. `10`) |
-| `rate_text` | `string` | Formatted summary (e.g. `"500 Coins = ৳50 BDT"`) |
+| `rate_coins` | `integer` | Configured base Coin quantity (e.g. `32000`) |
+| `bonus_coins` | `integer` | Extra bonus coins given with this tier (e.g. `8000`) |
+| `total_coins` | `integer` | Total coins received (`rate_coins + bonus_coins`, e.g. `40000`) |
+| `rate_bdt` | `float` | Configured BDT cost for the coin quantity (e.g. `550.00`) |
+| `rate_per_bdt` | `float` | Multiplier base coins per 1 BDT |
+| `offer_tag` / `badge` | `string|null` | Promotional offer tag (e.g. `"🔥 50% OFF"`, `"Best Value"`) |
+| `bonus_text` | `string|null` | Display formatted bonus text (e.g. `"+8000 Bonus"`) |
+| `bonus_percentage` | `integer` | Calculated bonus percentage (e.g. `25`%) |
+| `rate_text` | `string` | Formatted summary (e.g. `"32000 + 8000 Bonus = ৳550 BDT"`) |
 | `example` | `string` | Readable conversion example for UI display |
+
 
 
 ---
