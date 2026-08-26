@@ -123,7 +123,7 @@
 
                     <!-- Card Actions -->
                     <div class="d-flex justify-content-between align-items-center pt-3 border-top" style="border-color: var(--card-border-light) !important;">
-                        <small class="text-muted font-monospace">code: {{ $method->code }}</small>
+                        <small class="text-muted"><i class="fa-solid fa-shield-check text-success me-1"></i> Enabled for Users</small>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn-ch-icon" title="Edit Gateway" onclick='openEditPaymentMethodModal(@json($method))'>
                                 <i class="fa-solid fa-pen-to-square text-primary"></i>
@@ -180,10 +180,6 @@
                             <input type="text" name="name" id="pmName" class="form-control rounded-3" placeholder="e.g. bKash Personal" required>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Gateway Code <span class="text-danger">*</span></label>
-                            <input type="text" name="code" id="pmCode" class="form-control rounded-3" placeholder="e.g. bkash / nagad / rocket" required>
-                        </div>
-                        <div class="col-12 col-md-6">
                             <label class="form-label fw-bold" style="font-size: 13px;">Account Type <span class="text-danger">*</span></label>
                             <select name="account_type" id="pmAccountType" class="form-select rounded-3" required>
                                 <option value="Personal">Personal Account</option>
@@ -192,7 +188,7 @@
                                 <option value="Bank Account">Bank Transfer Account</option>
                             </select>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12">
                             <label class="form-label fw-bold" style="font-size: 13px;">Account / Phone Number <span class="text-danger">*</span></label>
                             <input type="text" name="account_number" id="pmAccountNumber" class="form-control font-monospace rounded-3" placeholder="e.g. 01700000000" required>
                         </div>
@@ -217,13 +213,9 @@
                             <label class="form-label fw-bold" style="font-size: 13px;">User Instructions (Shown on Mobile Deposit Screen)</label>
                             <textarea name="instructions" id="pmInstructions" class="form-control rounded-3" rows="3" placeholder="1. Go to your bKash/Nagad app&#10;2. Select 'Send Money'&#10;3. Enter the number and copy the TrxID..."></textarea>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12">
                             <label class="form-label fw-bold" style="font-size: 13px;">Gateway Icon / Logo (Optional)</label>
                             <input type="file" name="icon" class="form-control rounded-3" accept="image/*">
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold" style="font-size: 13px;">QR Code Image (Optional)</label>
-                            <input type="file" name="qr_code" class="form-control rounded-3" accept="image/*">
                         </div>
                         <div class="col-12">
                             <div class="form-check form-switch p-0 d-flex align-items-center gap-3">
@@ -257,7 +249,6 @@ function openCreatePaymentMethodModal() {
     form.action = "{{ route('admin.payment-methods.store') }}";
     document.getElementById('pmMethodSpoof').innerHTML = '';
     document.getElementById('pmName').value = '';
-    document.getElementById('pmCode').value = '';
     document.getElementById('pmAccountNumber').value = '';
     document.getElementById('pmMinDeposit').value = '50';
     document.getElementById('pmMaxDeposit').value = '25000';
@@ -276,7 +267,6 @@ function openEditPaymentMethodModal(method) {
     form.action = `/admin/payment-methods/${method.id}`;
     document.getElementById('pmMethodSpoof').innerHTML = '<input type="hidden" name="_method" value="PUT">';
     document.getElementById('pmName').value = method.name || '';
-    document.getElementById('pmCode').value = method.code || '';
     document.getElementById('pmAccountType').value = method.account_type || 'Personal';
     document.getElementById('pmAccountNumber').value = method.account_number || '';
     document.getElementById('pmMinDeposit').value = method.min_deposit || 50;

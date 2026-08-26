@@ -25,7 +25,6 @@ class PaymentMethodController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'code' => 'required|string|max:50',
             'account_type' => 'required|string|max:50',
             'account_number' => 'required|string|max:100',
             'instructions' => 'nullable|string',
@@ -33,12 +32,11 @@ class PaymentMethodController extends Controller
             'max_deposit' => 'required|numeric|gte:min_deposit',
             'rate_per_bdt' => 'required|integer|min:1',
             'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:2048',
-            'qr_code' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:2048',
             'is_active' => 'nullable|boolean',
         ]);
 
         $validated['is_active'] = $request->has('is_active');
-        $validated['code'] = strtolower(Str::slug($validated['code']));
+        $validated['code'] = strtolower(Str::slug($validated['name']));
 
         // Handle icon upload
         if ($request->hasFile('icon')) {
@@ -46,14 +44,6 @@ class PaymentMethodController extends Controller
             $filename = 'pm_icon_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads/payment_methods'), $filename);
             $validated['icon'] = 'payment_methods/' . $filename;
-        }
-
-        // Handle QR code upload
-        if ($request->hasFile('qr_code')) {
-            $file = $request->file('qr_code');
-            $filename = 'pm_qr_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/payment_methods'), $filename);
-            $validated['qr_code'] = 'payment_methods/' . $filename;
         }
 
         PaymentMethod::create($validated);
@@ -70,7 +60,6 @@ class PaymentMethodController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'code' => 'required|string|max:50',
             'account_type' => 'required|string|max:50',
             'account_number' => 'required|string|max:100',
             'instructions' => 'nullable|string',
@@ -78,25 +67,17 @@ class PaymentMethodController extends Controller
             'max_deposit' => 'required|numeric|gte:min_deposit',
             'rate_per_bdt' => 'required|integer|min:1',
             'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:2048',
-            'qr_code' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:2048',
             'is_active' => 'nullable|boolean',
         ]);
 
         $validated['is_active'] = $request->has('is_active');
-        $validated['code'] = strtolower(Str::slug($validated['code']));
+        $validated['code'] = strtolower(Str::slug($validated['name']));
 
         if ($request->hasFile('icon')) {
             $file = $request->file('icon');
             $filename = 'pm_icon_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads/payment_methods'), $filename);
             $validated['icon'] = 'payment_methods/' . $filename;
-        }
-
-        if ($request->hasFile('qr_code')) {
-            $file = $request->file('qr_code');
-            $filename = 'pm_qr_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/payment_methods'), $filename);
-            $validated['qr_code'] = 'payment_methods/' . $filename;
         }
 
         $method->update($validated);
