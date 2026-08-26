@@ -1,7 +1,11 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DepositRequestController;
+use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\ProfileAdminController;
+use App\Http\Controllers\Admin\TransactionController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +19,27 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profile', [ProfileAdminController::class, 'index'])->name('profile');
+
+    // Users & Balance Management
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::get('/users/{id}', [UserController::class, 'show'])->name('users.show');
+    Route::post('/users/{id}/adjust-coins', [UserController::class, 'adjustCoins'])->name('users.adjust-coins');
+    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+
+    // Payment Methods Management
+    Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');
+    Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store');
+    Route::put('/payment-methods/{id}', [PaymentMethodController::class, 'update'])->name('payment-methods.update');
+    Route::delete('/payment-methods/{id}', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy');
+    Route::post('/payment-methods/{id}/toggle-status', [PaymentMethodController::class, 'toggleStatus'])->name('payment-methods.toggle-status');
+
+    // Manual Deposit Requests
+    Route::get('/deposits', [DepositRequestController::class, 'index'])->name('deposits.index');
+    Route::post('/deposits/{id}/approve', [DepositRequestController::class, 'approve'])->name('deposits.approve');
+    Route::post('/deposits/{id}/reject', [DepositRequestController::class, 'reject'])->name('deposits.reject');
+
+    // Coin Transaction Ledger
+    Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
 });
 
 // Shortcut aliases
@@ -25,3 +50,4 @@ Route::middleware(['auth'])->get('/dashboard', function () {
 Route::middleware(['auth'])->get('/profile', function () {
     return redirect()->route('admin.profile');
 });
+

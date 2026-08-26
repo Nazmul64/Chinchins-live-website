@@ -12,46 +12,66 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        $totalUsers = \App\Models\User::count();
+        $totalCoins = \App\Models\User::sum('coins');
+        $pendingDeposits = \App\Models\DepositRequest::where('status', 'pending')->count();
+        $approvedDepositsSum = \App\Models\DepositRequest::where('status', 'approved')->sum('amount');
+        $activeMethodsCount = \App\Models\PaymentMethod::where('is_active', true)->count();
+
         $metrics = [
             'total_orders' => [
-                'value' => '8,542',
-                'change' => '+ 16%',
+                'value' => number_format($totalUsers),
+                'change' => '+ Active',
                 'trend' => 'up',
-                'chart_type' => 'sparkline-line',
-                'color' => '#f43f5e'
-            ],
-            'total_views' => [
-                'value' => '12.5M',
-                'change' => '- 3.4%',
-                'trend' => 'down',
                 'chart_type' => 'sparkline-bar',
                 'color' => '#3b82f6'
             ],
+            'total_views' => [
+                'value' => number_format($totalCoins),
+                'change' => 'Circulating',
+                'trend' => 'up',
+                'chart_type' => 'sparkline-line',
+                'color' => '#f59e0b'
+            ],
             'revenue' => [
-                'value' => '$64.5K',
-                'change' => '+ 24%',
+                'value' => '৳ ' . number_format($approvedDepositsSum, 2),
+                'change' => '+ Deposited',
                 'trend' => 'up',
                 'chart_type' => 'sparkline-line',
                 'color' => '#10b981'
             ],
             'customers' => [
-                'value' => '25.8K',
-                'change' => '+ 8.2%',
-                'trend' => 'up',
+                'value' => number_format($pendingDeposits),
+                'change' => $pendingDeposits > 0 ? 'Action Needed' : 'All Clear',
+                'trend' => $pendingDeposits > 0 ? 'down' : 'up',
                 'chart_type' => 'sparkline-bar',
-                'color' => '#f97316'
+                'color' => '#f43f5e'
             ],
-            'messages_count' => '289',
-            'posts_count' => '489',
-            'traffic_percentage' => 78,
+            'messages_count' => (string) \App\Models\CallSession::count(),
+            'posts_count' => (string) \App\Models\DepositRequest::count(),
+            'traffic_percentage' => 88,
             'device_stats' => [
                 'desktop' => 15.2,
-                'mobile' => 62.3,
-                'tablet' => 22.5,
+                'mobile' => 65.5,
+                'tablet' => 19.3,
                 'total_visitors_percentage' => 85,
             ]
         ];
 
-        return view('admin.dashboard', compact('metrics'));
+        $recentDeposits = \App\Models\DepositRequest::with(['user', 'paymentMethod'])->latest()->limit(5)->get();
+        $recentUsers = \App\Models\User::latest()->limit(5)->get();
+        $recentTransactions = \App\Models\CoinTransaction::with('user')->latest()->limit(6)->get();
+
+        return view('admin.dashboard', compact(
+            'metrics',
+            'recentDeposits',
+            'recentUsers',
+            'recentTransactions',
+            'totalUsers',
+            'totalCoins',
+            'pendingDeposits',
+            'approvedDepositsSum',
+            'activeMethodsCount'
+        ));
     }
 }

@@ -9,11 +9,52 @@
     </div>
 
     <div class="sidebar-menu">
-        <!-- Dashboard Section (Single Top-level active menu) -->
+        <!-- Dashboard Section -->
         <a href="{{ route('admin.dashboard') }}" class="menu-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-house" style="color: #3b82f6;"></i>
                 <span>Dashboard</span>
+            </div>
+        </a>
+
+        <!-- Live Platform & Coin Management -->
+        <div class="menu-category-title">Management</div>
+
+        <!-- Users & Coins -->
+        <a href="{{ route('admin.users.index') }}" class="menu-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-users" style="color: #3b82f6;"></i>
+                <span>Users & Balance</span>
+            </div>
+        </a>
+
+        <!-- Payment Methods -->
+        <a href="{{ route('admin.payment-methods.index') }}" class="menu-item {{ request()->routeIs('admin.payment-methods.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-credit-card" style="color: #10b981;"></i>
+                <span>Payment Methods</span>
+            </div>
+        </a>
+
+        <!-- Deposit Requests -->
+        @php
+            $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count();
+        @endphp
+        <a href="{{ route('admin.deposits.index') }}" class="menu-item {{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-money-bill-transfer" style="color: #f59e0b;"></i>
+                <span>Deposit Requests</span>
+            </div>
+            @if($pendingDepCount > 0)
+                <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingDepCount }}</span>
+            @endif
+        </a>
+
+        <!-- Coin Transactions -->
+        <a href="{{ route('admin.transactions.index') }}" class="menu-item {{ request()->routeIs('admin.transactions.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-coins" style="color: #8b5cf6;"></i>
+                <span>Coin Ledger</span>
             </div>
         </a>
 

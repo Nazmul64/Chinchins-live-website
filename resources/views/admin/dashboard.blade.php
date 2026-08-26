@@ -5,61 +5,61 @@
 @section('content')
 <!-- Top Metric Cards Grid -->
 <div class="stats-grid">
-    <!-- Card 1: Total Orders -->
-    <div class="stat-card">
+    <!-- Card 1: Total Users -->
+    <a href="{{ route('admin.users.index') }}" class="stat-card text-decoration-none">
         <div class="stat-card-header">
-            <span class="stat-title">Total Orders</span>
-            <span class="stat-badge trend-up">+ 16% &uarr;</span>
+            <span class="stat-title">Total Users</span>
+            <span class="stat-badge trend-up">{{ $metrics['total_orders']['change'] ?? '+ Active' }} &uarr;</span>
         </div>
         <div class="stat-card-body">
-            <span class="stat-value">{{ $metrics['total_orders']['value'] ?? '8,542' }}</span>
+            <span class="stat-value">{{ $metrics['total_orders']['value'] ?? '0' }}</span>
             <div class="stat-sparkline">
                 <canvas id="ordersSparkline"></canvas>
             </div>
         </div>
-    </div>
+    </a>
 
-    <!-- Card 2: Total Views -->
-    <div class="stat-card">
+    <!-- Card 2: Total Coins -->
+    <a href="{{ route('admin.users.index', ['sort' => 'coins_high']) }}" class="stat-card text-decoration-none">
         <div class="stat-card-header">
-            <span class="stat-title">Total Views</span>
-            <span class="stat-badge trend-down">- 3.4% &darr;</span>
+            <span class="stat-title">Coins in System</span>
+            <span class="stat-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">{{ $metrics['total_views']['change'] ?? 'Coins' }}</span>
         </div>
         <div class="stat-card-body">
-            <span class="stat-value">{{ $metrics['total_views']['value'] ?? '12.5M' }}</span>
+            <span class="stat-value" style="color: #f59e0b;">{{ $metrics['total_views']['value'] ?? '0' }}</span>
             <div class="stat-sparkline">
                 <canvas id="viewsSparkline"></canvas>
             </div>
         </div>
-    </div>
+    </a>
 
-    <!-- Card 3: Revenue -->
-    <div class="stat-card">
+    <!-- Card 3: Total Deposit Revenue -->
+    <a href="{{ route('admin.deposits.index', ['status' => 'approved']) }}" class="stat-card text-decoration-none">
         <div class="stat-card-header">
-            <span class="stat-title">Revenue</span>
-            <span class="stat-badge trend-up">+ 24% &uarr;</span>
+            <span class="stat-title">Deposit Revenue</span>
+            <span class="stat-badge trend-up">{{ $metrics['revenue']['change'] ?? '+ Deposited' }} &uarr;</span>
         </div>
         <div class="stat-card-body">
-            <span class="stat-value">{{ $metrics['revenue']['value'] ?? '$64.5K' }}</span>
+            <span class="stat-value">{{ $metrics['revenue']['value'] ?? '৳ 0.00' }}</span>
             <div class="stat-sparkline">
                 <canvas id="revenueSparkline"></canvas>
             </div>
         </div>
-    </div>
+    </a>
 
-    <!-- Card 4: Customers -->
-    <div class="stat-card">
+    <!-- Card 4: Pending Deposits -->
+    <a href="{{ route('admin.deposits.index', ['status' => 'pending']) }}" class="stat-card text-decoration-none">
         <div class="stat-card-header">
-            <span class="stat-title">Customers</span>
-            <span class="stat-badge trend-up">+ 8.2% &uarr;</span>
+            <span class="stat-title">Pending Deposits</span>
+            <span class="stat-badge {{ ($pendingDeposits ?? 0) > 0 ? 'trend-down' : 'trend-up' }}">{{ $metrics['customers']['change'] ?? 'Action Needed' }}</span>
         </div>
         <div class="stat-card-body">
-            <span class="stat-value">{{ $metrics['customers']['value'] ?? '25.8K' }}</span>
+            <span class="stat-value" style="color: {{ ($pendingDeposits ?? 0) > 0 ? '#ef4444' : '#10b981' }};">{{ $metrics['customers']['value'] ?? '0' }}</span>
             <div class="stat-sparkline">
                 <canvas id="customersSparkline"></canvas>
             </div>
         </div>
-    </div>
+    </a>
 </div>
 
 <!-- Middle Row: Revenue Main Chart & By Device Donut -->
@@ -189,6 +189,107 @@
         </div>
         <div style="height: 250px; width: 100%; position: relative;">
             <canvas id="visitorsStackedBarChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Deposits & Platform Management Grid -->
+<div class="row g-4 mt-1 mb-4">
+    <!-- Recent Deposit Requests -->
+    <div class="col-12 col-xl-7">
+        <div class="card p-3" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-card);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0" style="font-size: 16px; font-weight: 600; color: var(--text-primary);">
+                    <i class="fa-solid fa-money-bill-transfer text-warning me-2"></i> Recent Deposit Requests
+                </h5>
+                <a href="{{ route('admin.deposits.index') }}" class="text-primary fw-bold text-decoration-none" style="font-size: 13px;">
+                    View All &rarr;
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 13px;">
+                    <thead>
+                        <tr class="text-muted" style="border-bottom: 1px solid var(--border-color);">
+                            <th>User</th>
+                            <th>Method</th>
+                            <th>Amount & Coins</th>
+                            <th>TrxID</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($recentDeposits as $dep)
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <img src="{{ $dep->user?->avatar_url ?: 'https://ui-avatars.com/api/?name=' . urlencode($dep->user?->display_name ?? 'User') . '&background=3b82f6&color=fff' }}" 
+                                             class="rounded-circle" style="width: 30px; height: 30px; object-fit: cover;">
+                                        <span>{{ $dep->user?->display_name ?? 'User' }}</span>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-primary">{{ $dep->payment_method_name }}</span></td>
+                                <td>
+                                    <strong>৳ {{ number_format($dep->amount, 2) }}</strong>
+                                    <small class="text-muted d-block">{{ number_format($dep->coins) }} Coins</small>
+                                </td>
+                                <td><code>{{ $dep->transaction_id }}</code></td>
+                                <td>
+                                    <span class="badge {{ $dep->status === 'approved' ? 'bg-success' : ($dep->status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark') }}">
+                                        {{ ucfirst($dep->status) }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center py-3 text-muted">No recent deposit requests.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Navigation Shortcuts -->
+    <div class="col-12 col-xl-5">
+        <div class="card p-3" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-card); height: 100%;">
+            <h5 class="mb-3" style="font-size: 16px; font-weight: 600; color: var(--text-primary);">
+                <i class="fa-solid fa-bolt text-primary me-2"></i> Quick Actions
+            </h5>
+            <div class="d-flex flex-column gap-2">
+                <a href="{{ route('admin.users.index') }}" class="p-3 rounded d-flex justify-content-between align-items-center text-decoration-none" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); transition: var(--transition);">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="fa-solid fa-users text-primary fa-lg"></i>
+                        <div>
+                            <strong style="font-size: 14px;">Manage Users & Coins</strong>
+                            <small class="text-muted d-block">Search users, add/deduct coins balance</small>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-muted"></i>
+                </a>
+
+                <a href="{{ route('admin.deposits.index') }}" class="p-3 rounded d-flex justify-content-between align-items-center text-decoration-none" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); transition: var(--transition);">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="fa-solid fa-money-bill-transfer text-warning fa-lg"></i>
+                        <div>
+                            <strong style="font-size: 14px;">Approve Deposits</strong>
+                            <small class="text-muted d-block">{{ $pendingDeposits ?? 0 }} pending requests waiting</small>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-muted"></i>
+                </a>
+
+                <a href="{{ route('admin.payment-methods.index') }}" class="p-3 rounded d-flex justify-content-between align-items-center text-decoration-none" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); transition: var(--transition);">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="fa-solid fa-credit-card text-success fa-lg"></i>
+                        <div>
+                            <strong style="font-size: 14px;">bKash & Nagad Gateways</strong>
+                            <small class="text-muted d-block">{{ $activeMethodsCount ?? 0 }} active payment accounts</small>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-muted"></i>
+                </a>
+            </div>
         </div>
     </div>
 </div>

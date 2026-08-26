@@ -43,6 +43,7 @@ class User extends Authenticatable
         'languages',
         'tags',
         'video_call_rate',
+        'coins',
         'close_friends_count',
     ];
 
@@ -130,8 +131,67 @@ class User extends Authenticatable
             'is_active'           => 'boolean',
             'age'                 => 'integer',
             'video_call_rate'     => 'integer',
+            'coins'               => 'integer',
             'close_friends_count' => 'integer',
         ];
+    }
+
+    /**
+     * User's deposit requests.
+     */
+    public function depositRequests()
+    {
+        return $this->hasMany(DepositRequest::class);
+    }
+
+    /**
+     * User's coin transaction history.
+     */
+    public function coinTransactions()
+    {
+        return $this->hasMany(CoinTransaction::class)->latest();
+    }
+
+    /**
+     * Add coins to user balance and log transaction.
+     */
+    public function addCoins(int $amount, string $type = 'admin_add', ?string $description = null, ?string $referenceId = null): self
+    {
+        $this->increment('coins', $amount);
+        $this->refresh();
+
+        $this->coinTransactions()->create([
+            'type' => $type,
+            'amount' => $amount,
+            'balance_after' => $this->coins,
+            'description' => $description ?: "Added {$amount} coins",
+            'reference_id' => $referenceId,
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Deduct coins from user balance and log transaction.
+     */
+    public function deductCoins(int $amount, string $type = 'admin_deduct', ?string $description = null, ?string $referenceId = null): bool
+    {
+        if ($this->coins < $amount) {
+            return false;
+        }
+
+        $this->decrement('coins', $amount);
+        $this->refresh();
+
+        $this->coinTransactions()->create([
+            'type' => $type,
+            'amount' => -$amount,
+            'balance_after' => $this->coins,
+            'description' => $description ?: "Deducted {$amount} coins",
+            'reference_id' => $referenceId,
+        ]);
+
+        return true;
     }
 
     /**
