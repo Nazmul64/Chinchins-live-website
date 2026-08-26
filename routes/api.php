@@ -30,21 +30,32 @@ Route::prefix('profile')->group(function () {
 
     // Profile Avatar (Upload, Replace, Delete)
     Route::post('/upload-avatar', [ProfileController::class, 'uploadAvatar']);
-    Route::post('/delete-avatar', [ProfileController::class, 'deleteAvatar']);
-    Route::delete('/avatar', [ProfileController::class, 'deleteAvatar']);
+    Route::match(['post', 'delete'], '/delete-avatar', [ProfileController::class, 'deleteAvatar']);
+    Route::match(['post', 'delete'], '/avatar', [ProfileController::class, 'deleteAvatar']);
 
     // Cover Photo (Upload, Replace, Delete)
     Route::post('/upload-cover', [ProfileController::class, 'uploadCover']);
-    Route::post('/delete-cover', [ProfileController::class, 'deleteCover']);
-    Route::delete('/cover', [ProfileController::class, 'deleteCover']);
+    Route::match(['post', 'delete'], '/delete-cover', [ProfileController::class, 'deleteCover']);
+    Route::match(['post', 'delete'], '/cover', [ProfileController::class, 'deleteCover']);
 
     // Multi-image Gallery (Upload, Delete, Update/Reorder, Clear)
     Route::post('/upload-photos', [ProfileController::class, 'uploadPhotos']);
-    Route::post('/delete-photo', [ProfileController::class, 'deletePhoto']);
-    Route::delete('/photos', [ProfileController::class, 'deletePhoto']);
+    Route::match(['post', 'delete'], '/delete-photo', [ProfileController::class, 'deletePhoto']);
+    Route::match(['post', 'delete'], '/photo', [ProfileController::class, 'deletePhoto']);
+    Route::match(['post', 'delete'], '/photos', [ProfileController::class, 'deletePhoto']);
+    Route::match(['post', 'delete'], '/gallery/delete', [ProfileController::class, 'deletePhoto']);
     Route::post('/update-gallery', [ProfileController::class, 'updateGallery']);
-    Route::post('/clear-gallery', [ProfileController::class, 'clearGallery']);
+    Route::match(['post', 'delete'], '/clear-gallery', [ProfileController::class, 'clearGallery']);
 });
+
+// Root-level Aliases for Mobile Clients
+Route::post('/upload-avatar', [ProfileController::class, 'uploadAvatar']);
+Route::match(['post', 'delete'], '/delete-avatar', [ProfileController::class, 'deleteAvatar']);
+Route::post('/upload-cover', [ProfileController::class, 'uploadCover']);
+Route::match(['post', 'delete'], '/delete-cover', [ProfileController::class, 'deleteCover']);
+Route::post('/upload-photos', [ProfileController::class, 'uploadPhotos']);
+Route::match(['post', 'delete'], '/delete-photo', [ProfileController::class, 'deletePhoto']);
+Route::match(['post', 'delete'], '/clear-gallery', [ProfileController::class, 'clearGallery']);
 
 // Authenticated Routes (Sanctum)
 Route::middleware('auth:sanctum')->group(function () {

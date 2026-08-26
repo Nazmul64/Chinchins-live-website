@@ -66,41 +66,69 @@ class ProfileController extends Controller
     }
 
     /**
-     * Resolve the target user from Sanctum token, request user, or user_id/account_id fallback.
+     * Resolve the target user from Sanctum token, request user, headers, or user_id/account_id fallback.
      *
      * @param Request $request
      * @return User|null
      */
     protected function resolveUser(Request $request): ?User
     {
-        // 1. Try Sanctum Bearer token
-        if ($request->user('sanctum')) {
-            return $request->user('sanctum');
-        }
+        // 1. Check Authorization Bearer token from header / input first
+        $token = $request->bearerToken() 
+              ?: $request->header('Authorization') 
+              ?: $request->input('token') 
+              ?: $request->input('auth_token');
 
-        // 2. Try default request user
-        if ($request->user()) {
-            return $request->user();
-        }
-
-        // 3. Try Authorization header Bearer token manually if needed
-        $token = $request->bearerToken();
         if ($token) {
-            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+            $tokenClean = trim(str_replace(['Bearer', 'bearer'], '', $token));
+            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($tokenClean);
             if ($accessToken && $accessToken->tokenable) {
                 return $accessToken->tokenable;
             }
         }
 
-        // 4. Fallback: user_id, account_id, or phone in request body / query
-        if ($request->filled('user_id')) {
-            return User::find($request->user_id);
+        // 2. Try Sanctum Bearer token guard
+        if ($request->user('sanctum')) {
+            return $request->user('sanctum');
         }
-        if ($request->filled('account_id')) {
-            return User::where('account_id', $request->account_id)->first();
+
+        // 3. Try default request user
+        if ($request->user()) {
+            return $request->user();
         }
+
+        // 4. Check custom user identifier headers
+        $headerUserId = $request->header('X-User-Id') 
+                     ?? $request->header('User-Id') 
+                     ?? $request->header('user-id') 
+                     ?? $request->header('userId')
+                     ?? $request->header('X-Account-Id')
+                     ?? $request->header('Account-Id');
+
+        if ($headerUserId) {
+            $u = User::find($headerUserId) ?? User::where('account_id', $headerUserId)->first();
+            if ($u) return $u;
+        }
+
+        // 5. Fallback: user_id, userId, account_id, accountId, id, phone, email in request body / query
+        $idParam = $request->input('user_id') ?? $request->input('userId') ?? $request->input('id');
+        if ($idParam) {
+            $u = User::find($idParam);
+            if ($u) return $u;
+        }
+
+        $accParam = $request->input('account_id') ?? $request->input('accountId');
+        if ($accParam) {
+            $u = User::where('account_id', $accParam)->first();
+            if ($u) return $u;
+        }
+
         if ($request->filled('phone')) {
             return User::where('phone', $request->phone)->first();
+        }
+
+        if ($request->filled('email')) {
+            return User::where('email', $request->email)->first();
         }
 
         return null;
@@ -126,7 +154,7 @@ class ProfileController extends Controller
         if (!$user) {
             return response()->json([
                 'status'  => false,
-                'message' => 'User profile not found',
+                'message' => 'User profile not found. Please provide user_id or Authorization Bearer token.',
             ], 404);
         }
 
@@ -281,14 +309,15 @@ class ProfileController extends Controller
             if (!$input->isValid()) {
                 return null;
             }
-            $ext = $input->getClientOriginalExtension() ?: 'jpg';
+            $ext = strtolower($input->getClientOriginalExtension() ?: 'jpg');
+            if ($ext === 'jpeg') $ext = 'jpg';
             $filename = $prefix . '_' . Str::uuid() . '.' . $ext;
             $input->move($targetDir, $filename);
             return $relativeDir . '/' . $filename;
         }
 
         // 2. If it's a Base64 string
-        if (is_string($input) && (str_starts_with($input, 'data:image') || strlen($input) > 200)) {
+        if (is_string($input) && (str_starts_with($input, 'data:image') || strlen($input) > 100)) {
             $data = $input;
             $ext = 'jpg';
 
@@ -298,8 +327,8 @@ class ProfileController extends Controller
                 $data = substr($data, strpos($data, ',') + 1);
             }
 
-            $decoded = base64_decode($data);
-            if ($decoded !== false) {
+            $decoded = base64_decode(str_replace(' ', '+', $data));
+            if ($decoded !== false && strlen($decoded) > 0) {
                 $filename = $prefix . '_' . Str::uuid() . '.' . $ext;
                 $fullPath = $targetDir . DIRECTORY_SEPARATOR . $filename;
                 @file_put_contents($fullPath, $decoded);
@@ -321,10 +350,13 @@ class ProfileController extends Controller
             return;
         }
 
-        // Clean domain and protocol
-        $cleanPath = ltrim(str_replace([url('/'), asset('/')], '', $path), '/');
+        $path = str_replace('\\', '/', trim($path));
 
-        // Check if inside public/uploads
+        // If it's a full URL, strip host and query
+        $pathOnly = parse_url($path, PHP_URL_PATH) ?? $path;
+        $cleanPath = ltrim($pathOnly, '/');
+
+        // Check direct public path
         $publicFile = public_path($cleanPath);
         if (file_exists($publicFile) && is_file($publicFile)) {
             @unlink($publicFile);
@@ -351,7 +383,7 @@ class ProfileController extends Controller
 
     /**
      * Upload single or multiple gallery photos.
-     * The first uploaded image is automatically used as the cover photo if none is set.
+     * Keeps gallery photos isolated to gallery_images.
      *
      * @param Request $request
      * @return JsonResponse
@@ -375,6 +407,9 @@ class ProfileController extends Controller
         if ($request->hasFile('image')) {
             $rawInputs[] = $request->file('image');
         }
+        if ($request->hasFile('file')) {
+            $rawInputs[] = $request->file('file');
+        }
         if ($request->hasFile('photos')) {
             $files = is_array($request->file('photos')) ? $request->file('photos') : [$request->file('photos')];
             foreach ($files as $file) {
@@ -387,13 +422,28 @@ class ProfileController extends Controller
                 if ($file && $file->isValid()) $rawInputs[] = $file;
             }
         }
+        if ($request->hasFile('gallery')) {
+            $files = is_array($request->file('gallery')) ? $request->file('gallery') : [$request->file('gallery')];
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) $rawInputs[] = $file;
+            }
+        }
 
-        // Also check base64 or string inputs
+        // Base64 inputs
         if ($request->filled('photo_base64')) {
             $rawInputs[] = $request->input('photo_base64');
         }
+        if ($request->filled('image_base64')) {
+            $rawInputs[] = $request->input('image_base64');
+        }
         if ($request->filled('images_base64')) {
             $b64s = (array) $request->input('images_base64');
+            foreach ($b64s as $b) {
+                if ($b) $rawInputs[] = $b;
+            }
+        }
+        if ($request->filled('photos_base64')) {
+            $b64s = (array) $request->input('photos_base64');
             foreach ($b64s as $b) {
                 if ($b) $rawInputs[] = $b;
             }
@@ -421,28 +471,21 @@ class ProfileController extends Controller
             // Remove duplicates and keep clean array
             $currentGallery = array_values(array_unique($currentGallery));
 
-            $updateData = [
+            $user->update([
                 'gallery_images' => $currentGallery,
-            ];
+            ]);
 
-            // If cover_photo is not set, default to the first image
-            if (empty($user->cover_photo) && count($currentGallery) > 0) {
-                $updateData['cover_photo'] = $currentGallery[0];
-            }
-
-            // If avatar is not set, set it to the first uploaded photo
-            if (empty($user->avatar) && count($currentGallery) > 0) {
-                $updateData['avatar'] = $currentGallery[0];
-            }
-
-            $user->update($updateData);
+            $freshUser = $user->fresh();
 
             return response()->json([
                 'status'     => true,
                 'message'    => count($newStoredPaths) . ' photo(s) uploaded successfully',
                 'data'       => [
-                    'uploaded_paths' => $newStoredPaths,
-                    'user'           => $user->fresh(),
+                    'uploaded_paths'     => $newStoredPaths,
+                    'gallery_images'     => $freshUser->gallery_images,
+                    'gallery_image_urls' => $freshUser->gallery_image_urls,
+                    'photos'             => $freshUser->gallery_image_urls,
+                    'user'               => $freshUser,
                 ],
             ], 200);
         } catch (\Throwable $e) {
@@ -455,7 +498,7 @@ class ProfileController extends Controller
 
     /**
      * Upload or edit dedicated Avatar photo.
-     * Supports both multipart image files and base64 strings.
+     * Keeps Avatar strictly isolated to the user's avatar.
      *
      * @param Request $request
      * @return JsonResponse
@@ -474,8 +517,10 @@ class ProfileController extends Controller
               ?? $request->file('photo') 
               ?? $request->file('image') 
               ?? $request->file('profile_picture')
+              ?? $request->file('file')
               ?? $request->input('avatar_base64')
               ?? $request->input('image_base64')
+              ?? $request->input('photo_base64')
               ?? $request->input('avatar');
 
         if (empty($input)) {
@@ -500,24 +545,20 @@ class ProfileController extends Controller
                 ], 422);
             }
 
-            $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
-            if (!in_array($path, $currentGallery)) {
-                array_unshift($currentGallery, $path);
-            }
-
             $user->update([
-                'avatar'         => $path,
-                'gallery_images' => $currentGallery,
-                'cover_photo'    => $user->cover_photo ?: $path,
+                'avatar' => $path,
             ]);
+
+            $freshUser = $user->fresh();
 
             return response()->json([
                 'status'  => true,
                 'message' => 'Avatar updated successfully',
                 'data'    => [
-                    'avatar_url'      => $user->avatar_url,
-                    'profile_picture' => $user->avatar_url,
-                    'user'            => $user->fresh(),
+                    'avatar'          => $freshUser->avatar,
+                    'avatar_url'      => $freshUser->avatar_url,
+                    'profile_picture' => $freshUser->avatar_url,
+                    'user'            => $freshUser,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -529,7 +570,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete Avatar photo.
+     * Delete Avatar photo cleanly.
      *
      * @param Request $request
      * @return JsonResponse
@@ -547,14 +588,19 @@ class ProfileController extends Controller
         try {
             if (!empty($user->avatar)) {
                 $this->deleteUploadedFile($user->avatar);
-                $user->update(['avatar' => null]);
             }
+            $user->update(['avatar' => null]);
+
+            $freshUser = $user->fresh();
 
             return response()->json([
                 'status'  => true,
                 'message' => 'Avatar removed successfully',
                 'data'    => [
-                    'user' => $user->fresh(),
+                    'avatar'          => null,
+                    'avatar_url'      => null,
+                    'profile_picture' => null,
+                    'user'            => $freshUser,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -567,6 +613,7 @@ class ProfileController extends Controller
 
     /**
      * Upload or edit dedicated Cover Photo.
+     * Keeps Cover Photo strictly isolated.
      *
      * @param Request $request
      * @return JsonResponse
@@ -585,6 +632,7 @@ class ProfileController extends Controller
               ?? $request->file('cover') 
               ?? $request->file('photo') 
               ?? $request->file('image')
+              ?? $request->file('file')
               ?? $request->input('cover_base64')
               ?? $request->input('cover_photo_base64')
               ?? $request->input('cover');
@@ -615,12 +663,15 @@ class ProfileController extends Controller
                 'cover_photo' => $path,
             ]);
 
+            $freshUser = $user->fresh();
+
             return response()->json([
                 'status'  => true,
                 'message' => 'Cover photo updated successfully',
                 'data'    => [
-                    'cover_photo_url' => $user->cover_photo_url,
-                    'user'            => $user->fresh(),
+                    'cover_photo'     => $freshUser->cover_photo,
+                    'cover_photo_url' => $freshUser->cover_photo_url,
+                    'user'            => $freshUser,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -632,7 +683,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete Cover Photo.
+     * Delete Cover Photo cleanly.
      *
      * @param Request $request
      * @return JsonResponse
@@ -650,14 +701,18 @@ class ProfileController extends Controller
         try {
             if (!empty($user->cover_photo)) {
                 $this->deleteUploadedFile($user->cover_photo);
-                $user->update(['cover_photo' => null]);
             }
+            $user->update(['cover_photo' => null]);
+
+            $freshUser = $user->fresh();
 
             return response()->json([
                 'status'  => true,
                 'message' => 'Cover photo removed successfully',
                 'data'    => [
-                    'user' => $user->fresh(),
+                    'cover_photo'     => null,
+                    'cover_photo_url' => null,
+                    'user'            => $freshUser,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -669,7 +724,8 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete a single photo from gallery.
+     * Delete a single photo from gallery with flexible matching.
+     * Accepts photo, image, url, photo_url, image_url, path, filename, src, id, or index.
      *
      * @param Request $request
      * @return JsonResponse
@@ -684,56 +740,82 @@ class ProfileController extends Controller
             ], 401);
         }
 
-        $validator = Validator::make($request->all(), [
-            'photo' => ['required_without:image', 'string'],
-            'image' => ['required_without:photo', 'string'],
-        ]);
+        $target = $request->input('photo') 
+               ?? $request->input('image') 
+               ?? $request->input('url') 
+               ?? $request->input('photo_url') 
+               ?? $request->input('image_url') 
+               ?? $request->input('path') 
+               ?? $request->input('filename') 
+               ?? $request->input('src')
+               ?? $request->input('id');
 
-        if ($validator->fails()) {
+        $index = $request->input('index');
+
+        if ($target === null && $index === null) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Please provide the photo path or URL to delete.',
-                'errors'  => $validator->errors(),
+                'message' => 'Please provide the photo path, URL, filename, or index to delete.',
             ], 422);
         }
 
         try {
-            $photoTarget = trim($request->input('photo', $request->input('image', '')));
-            
-            // Normalize target (strip base URL if full URL was sent)
-            $cleanTarget = ltrim(str_replace([url('/'), asset('/')], '', $photoTarget), '/');
-
             $currentGallery = is_array($user->gallery_images) ? $user->gallery_images : [];
             $updatedGallery = [];
+            $deletedCount = 0;
 
-            foreach ($currentGallery as $item) {
-                $cleanItem = ltrim(str_replace([url('/'), asset('/')], '', $item), '/');
+            // 1. If index is provided (e.g. index = 0, 1, 2...)
+            if ($index !== null && is_numeric($index) && isset($currentGallery[(int)$index])) {
+                $idx = (int) $index;
+                foreach ($currentGallery as $i => $item) {
+                    if ($i === $idx) {
+                        $this->deleteUploadedFile($item);
+                        $deletedCount++;
+                    } else {
+                        $updatedGallery[] = $item;
+                    }
+                }
+            } else {
+                // 2. Target string matching
+                $targetStr = str_replace('\\', '/', trim((string) $target));
+                $targetPathOnly = ltrim(parse_url($targetStr, PHP_URL_PATH) ?? $targetStr, '/');
+                $targetFilename = basename($targetPathOnly);
 
-                if ($cleanItem === $cleanTarget || $item === $photoTarget || basename($cleanItem) === basename($cleanTarget)) {
-                    // Delete physical file from public/uploads
-                    $this->deleteUploadedFile($cleanItem);
-                } else {
-                    $updatedGallery[] = $item;
+                foreach ($currentGallery as $item) {
+                    $itemStr = str_replace('\\', '/', trim((string) $item));
+                    $itemPathOnly = ltrim(parse_url($itemStr, PHP_URL_PATH) ?? $itemStr, '/');
+                    $itemFilename = basename($itemPathOnly);
+
+                    $isMatch = ($itemStr === $targetStr)
+                            || ($itemPathOnly === $targetPathOnly)
+                            || ($itemFilename === $targetFilename)
+                            || (str_ends_with($targetPathOnly, $itemPathOnly))
+                            || (str_ends_with($itemPathOnly, $targetPathOnly));
+
+                    if ($isMatch && $deletedCount === 0) {
+                        $this->deleteUploadedFile($item);
+                        $deletedCount++;
+                    } else {
+                        $updatedGallery[] = $item;
+                    }
                 }
             }
 
-            $updateData = [
+            $user->update([
                 'gallery_images' => array_values($updatedGallery),
-            ];
+            ]);
 
-            // If deleted cover photo, set to next available gallery image or null
-            $cleanCover = ltrim(str_replace([url('/'), asset('/')], '', $user->cover_photo ?? ''), '/');
-            if ($cleanCover === $cleanTarget || $user->cover_photo === $photoTarget || basename($cleanCover) === basename($cleanTarget)) {
-                $updateData['cover_photo'] = count($updatedGallery) > 0 ? $updatedGallery[0] : null;
-            }
-
-            $user->update($updateData);
+            $freshUser = $user->fresh();
 
             return response()->json([
                 'status'  => true,
                 'message' => 'Photo deleted successfully',
                 'data'    => [
-                    'user' => $user->fresh(),
+                    'deleted'            => $deletedCount > 0,
+                    'gallery_images'     => $freshUser->gallery_images,
+                    'gallery_image_urls' => $freshUser->gallery_image_urls,
+                    'photos'             => $freshUser->gallery_image_urls,
+                    'user'               => $freshUser,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -774,19 +856,25 @@ class ProfileController extends Controller
 
             $cleanList = [];
             foreach ($photos as $p) {
-                $clean = ltrim(str_replace([url('/'), asset('/')], '', $p), '/');
-                $cleanList[] = $clean;
+                $pStr = str_replace('\\', '/', trim((string) $p));
+                $pathOnly = ltrim(parse_url($pStr, PHP_URL_PATH) ?? $pStr, '/');
+                $cleanList[] = $pathOnly;
             }
 
             $user->update([
                 'gallery_images' => array_values(array_unique($cleanList)),
             ]);
 
+            $freshUser = $user->fresh();
+
             return response()->json([
                 'status'  => true,
                 'message' => 'Gallery updated successfully',
                 'data'    => [
-                    'user' => $user->fresh(),
+                    'gallery_images'     => $freshUser->gallery_images,
+                    'gallery_image_urls' => $freshUser->gallery_image_urls,
+                    'photos'             => $freshUser->gallery_image_urls,
+                    'user'               => $freshUser,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -821,14 +909,18 @@ class ProfileController extends Controller
 
             $user->update([
                 'gallery_images' => [],
-                'cover_photo'    => null,
             ]);
+
+            $freshUser = $user->fresh();
 
             return response()->json([
                 'status'  => true,
                 'message' => 'All gallery photos cleared',
                 'data'    => [
-                    'user' => $user->fresh(),
+                    'gallery_images'     => [],
+                    'gallery_image_urls' => [],
+                    'photos'             => [],
+                    'user'               => $freshUser,
                 ],
             ]);
         } catch (\Throwable $e) {

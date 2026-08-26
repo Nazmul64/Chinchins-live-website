@@ -220,30 +220,16 @@ class User extends Authenticatable
             return static::resolveImageUrl($this->avatar);
         }
 
-        // Fallback to first gallery image if avatar not set
-        if (!empty($this->gallery_images) && is_array($this->gallery_images) && count($this->gallery_images) > 0) {
-            return static::resolveImageUrl($this->gallery_images[0]);
-        }
-
         return null;
     }
 
     /**
      * Accessor for full Cover Photo URL.
-     * Uses explicit cover_photo or falls back to first gallery image or avatar.
      */
     public function getCoverPhotoUrlAttribute(): ?string
     {
         if (!empty($this->cover_photo)) {
             return static::resolveImageUrl($this->cover_photo);
-        }
-
-        if (!empty($this->gallery_images) && is_array($this->gallery_images) && count($this->gallery_images) > 0) {
-            return static::resolveImageUrl($this->gallery_images[0]);
-        }
-
-        if (!empty($this->avatar)) {
-            return static::resolveImageUrl($this->avatar);
         }
 
         return null;
