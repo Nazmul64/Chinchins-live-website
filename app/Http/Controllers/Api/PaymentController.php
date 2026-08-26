@@ -138,6 +138,221 @@ class PaymentController extends Controller
     }
 
     /**
+     * Get single coin package details.
+     * GET /api/coin-packages/{id}
+     */
+    public function showCoinPackage($id): JsonResponse
+    {
+        $pkg = CoinPackage::find($id);
+
+        if (!$pkg) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Coin package not found.',
+            ], 404);
+        }
+
+        $coins = (int) $pkg->coins;
+        $bonus = (int) ($pkg->bonus_coins ?: 0);
+        $total = $coins + $bonus;
+        $price = (float) $pkg->price;
+        $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Coin package details retrieved successfully.',
+            'data' => [
+                'id' => $pkg->id,
+                'coins' => $coins,
+                'bonus_coins' => $bonus,
+                'total_coins' => $total,
+                'price' => $price,
+                'price_bdt' => $price,
+                'formatted_price' => $formattedPrice,
+                'badge' => $pkg->badge ?: null,
+                'badge_color' => $pkg->badge_color ?: 'pink',
+                'bonus_text' => $bonus > 0 ? "+{$bonus} Bonus" : null,
+                'bonus_percentage' => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
+                'is_popular' => (bool) $pkg->is_popular,
+                'popular' => (bool) $pkg->is_popular,
+                'is_active' => (bool) $pkg->is_active,
+                'sort_order' => (int) ($pkg->sort_order ?: 0),
+                'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
+                'currency' => 'BDT',
+                'currency_symbol' => '৳',
+            ],
+        ], 200);
+    }
+
+    /**
+     * Add / Create a new Coin Package via API.
+     * POST /api/coin-packages
+     */
+    public function storeCoinPackage(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'coins' => 'required|integer|min:1',
+            'bonus_coins' => 'nullable|integer|min:0',
+            'price' => 'required|numeric|min:1',
+            'badge' => 'nullable|string|max:50',
+            'badge_color' => 'nullable|string|max:30',
+            'is_popular' => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
+            'sort_order' => 'nullable|integer|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation error.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $package = CoinPackage::create([
+            'coins' => (int) $request->input('coins'),
+            'bonus_coins' => (int) ($request->input('bonus_coins') ?: 0),
+            'price' => (float) $request->input('price'),
+            'badge' => $request->input('badge') ?: null,
+            'badge_color' => $request->input('badge_color') ?: 'pink',
+            'is_popular' => $request->boolean('is_popular', false),
+            'is_active' => $request->boolean('is_active', true),
+            'sort_order' => (int) ($request->input('sort_order') ?: 0),
+        ]);
+
+        $coins = (int) $package->coins;
+        $bonus = (int) ($package->bonus_coins ?: 0);
+        $total = $coins + $bonus;
+        $price = (float) $package->price;
+        $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Coin package created successfully.',
+            'data' => [
+                'id' => $package->id,
+                'coins' => $coins,
+                'bonus_coins' => $bonus,
+                'total_coins' => $total,
+                'price' => $price,
+                'price_bdt' => $price,
+                'formatted_price' => $formattedPrice,
+                'badge' => $package->badge ?: null,
+                'badge_color' => $package->badge_color ?: 'pink',
+                'bonus_text' => $bonus > 0 ? "+{$bonus} Bonus" : null,
+                'bonus_percentage' => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
+                'is_popular' => (bool) $package->is_popular,
+                'popular' => (bool) $package->is_popular,
+                'is_active' => (bool) $package->is_active,
+                'sort_order' => (int) ($package->sort_order ?: 0),
+                'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
+                'currency' => 'BDT',
+                'currency_symbol' => '৳',
+            ],
+        ], 201);
+    }
+
+    /**
+     * Update an existing Coin Package via API.
+     * PUT /api/coin-packages/{id} (or POST /api/coin-packages/{id}/update)
+     */
+    public function updateCoinPackage(Request $request, $id): JsonResponse
+    {
+        $package = CoinPackage::find($id);
+
+        if (!$package) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Coin package not found.',
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'coins' => 'sometimes|required|integer|min:1',
+            'bonus_coins' => 'nullable|integer|min:0',
+            'price' => 'sometimes|required|numeric|min:1',
+            'badge' => 'nullable|string|max:50',
+            'badge_color' => 'nullable|string|max:30',
+            'is_popular' => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
+            'sort_order' => 'nullable|integer|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation error.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        if ($request->has('coins')) $package->coins = (int) $request->input('coins');
+        if ($request->has('bonus_coins')) $package->bonus_coins = (int) ($request->input('bonus_coins') ?: 0);
+        if ($request->has('price')) $package->price = (float) $request->input('price');
+        if ($request->has('badge')) $package->badge = $request->input('badge') ?: null;
+        if ($request->has('badge_color')) $package->badge_color = $request->input('badge_color') ?: 'pink';
+        if ($request->has('is_popular')) $package->is_popular = $request->boolean('is_popular');
+        if ($request->has('is_active')) $package->is_active = $request->boolean('is_active');
+        if ($request->has('sort_order')) $package->sort_order = (int) ($request->input('sort_order') ?: 0);
+
+        $package->save();
+
+        $coins = (int) $package->coins;
+        $bonus = (int) ($package->bonus_coins ?: 0);
+        $total = $coins + $bonus;
+        $price = (float) $package->price;
+        $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Coin package updated successfully.',
+            'data' => [
+                'id' => $package->id,
+                'coins' => $coins,
+                'bonus_coins' => $bonus,
+                'total_coins' => $total,
+                'price' => $price,
+                'price_bdt' => $price,
+                'formatted_price' => $formattedPrice,
+                'badge' => $package->badge ?: null,
+                'badge_color' => $package->badge_color ?: 'pink',
+                'bonus_text' => $bonus > 0 ? "+{$bonus} Bonus" : null,
+                'bonus_percentage' => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
+                'is_popular' => (bool) $package->is_popular,
+                'popular' => (bool) $package->is_popular,
+                'is_active' => (bool) $package->is_active,
+                'sort_order' => (int) ($package->sort_order ?: 0),
+                'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
+                'currency' => 'BDT',
+                'currency_symbol' => '৳',
+            ],
+        ], 200);
+    }
+
+    /**
+     * Delete a Coin Package via API.
+     * DELETE /api/coin-packages/{id}
+     */
+    public function deleteCoinPackage($id): JsonResponse
+    {
+        $package = CoinPackage::find($id);
+
+        if (!$package) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Coin package not found.',
+            ], 404);
+        }
+
+        $package->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Coin package deleted successfully.',
+        ], 200);
+    }
+
+    /**
      * Submit a manual deposit request with screenshot proof.
      * POST /api/deposit/request
      */

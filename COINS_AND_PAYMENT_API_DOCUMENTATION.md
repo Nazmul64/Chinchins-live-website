@@ -264,6 +264,75 @@ Returns all configured coin store tiers with base coins, promotional bonus gems,
 | `currency` | `string` | `"BDT"` |
 | `currency_symbol` | `string` | `"৳"` |
 
+---
+
+### **➕ Create / Add New Coin Package API**
+**Endpoint**: `POST /api/coin-packages` *(or `POST /api/coin-packages/store`)*  
+**Content-Type**: `application/json`
+
+#### **Request Body Parameters**:
+| Field | Type | Required | Description | Example |
+| :--- | :---: | :---: | :--- | :--- |
+| `coins` | `integer` | **Yes** | Base Coins / Gems quantity | `32000` |
+| `bonus_coins` | `integer` | No | Bonus Coins (default: `0`) | `8000` |
+| `price` | `numeric` | **Yes** | Price in BDT | `550.00` |
+| `badge` | `string` | No | Offer / Discount Badge | `"🔥 50% OFF"` |
+| `badge_color` | `string` | No | Color theme (e.g. `pink`, `blue`, `amber`) | `"pink"` |
+| `is_popular` | `boolean` | No | Highlight as Most Popular / Selected | `true` |
+| `is_active` | `boolean` | No | Active & visible in mobile app (default: `true`) | `true` |
+| `sort_order` | `integer` | No | Display sorting index (default: `0`) | `1` |
+
+#### **Example Request JSON**:
+```json
+{
+  "coins": 32000,
+  "bonus_coins": 8000,
+  "price": 550,
+  "badge": "🔥 50% OFF",
+  "badge_color": "pink",
+  "is_popular": true,
+  "is_active": true,
+  "sort_order": 1
+}
+```
+
+#### **Success Response (201 Created)**:
+```json
+{
+  "status": true,
+  "message": "Coin package created successfully.",
+  "data": {
+    "id": 6,
+    "coins": 32000,
+    "bonus_coins": 8000,
+    "total_coins": 40000,
+    "price": 550.0,
+    "price_bdt": 550.0,
+    "formatted_price": "৳550",
+    "badge": "🔥 50% OFF",
+    "badge_color": "pink",
+    "bonus_text": "+8000 Bonus",
+    "bonus_percentage": 25,
+    "is_popular": true,
+    "popular": true,
+    "is_active": true,
+    "sort_order": 1,
+    "button_text": "Recharge 40000 Gems (৳550)",
+    "currency": "BDT",
+    "currency_symbol": "৳"
+  }
+}
+```
+
+---
+
+### **✏️ Update Coin Package API**
+**Endpoint**: `PUT /api/coin-packages/{id}` *(or `POST /api/coin-packages/{id}/update`)*
+
+---
+
+### **🗑️ Delete Coin Package API**
+**Endpoint**: `DELETE /api/coin-packages/{id}`
 
 ---
 

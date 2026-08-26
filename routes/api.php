@@ -74,8 +74,18 @@ Route::match(['post', 'delete'], '/clear-gallery', [ProfileController::class, 'c
 // ==========================================
 // Payment methods list (bKash, Nagad, etc.) & Coin Packages
 Route::get('/payment-methods', [PaymentController::class, 'getPaymentMethods']);
+
+// Coin Packages RESTful CRUD APIs
 Route::get('/coin-packages', [PaymentController::class, 'getCoinPackages']);
 Route::get('/packages', [PaymentController::class, 'getCoinPackages']);
+Route::get('/coin-packages/{id}', [PaymentController::class, 'showCoinPackage']);
+Route::post('/coin-packages', [PaymentController::class, 'storeCoinPackage']);
+Route::post('/coin-packages/store', [PaymentController::class, 'storeCoinPackage']);
+Route::post('/coin-packages/create', [PaymentController::class, 'storeCoinPackage']);
+Route::match(['put', 'post'], '/coin-packages/{id}', [PaymentController::class, 'updateCoinPackage']);
+Route::post('/coin-packages/{id}/update', [PaymentController::class, 'updateCoinPackage']);
+Route::delete('/coin-packages/{id}', [PaymentController::class, 'deleteCoinPackage']);
+Route::post('/coin-packages/{id}/delete', [PaymentController::class, 'deleteCoinPackage']);
 
 // Wallet balance & transactions
 Route::get('/wallet/balance', [PaymentController::class, 'getWalletBalance']);
