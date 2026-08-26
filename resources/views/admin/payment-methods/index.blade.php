@@ -210,8 +210,20 @@
                             <textarea name="instructions" id="pmInstructions" class="form-control rounded-3" rows="3" placeholder="1. Go to your bKash/Nagad app&#10;2. Select 'Send Money'&#10;3. Enter the number and copy the TrxID..."></textarea>
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Gateway Icon / Logo (Optional)</label>
-                            <input type="file" name="icon" class="form-control rounded-3" accept="image/*">
+                            <label class="form-label fw-bold" style="font-size: 13px;">Gateway Icon / Logo (Picture)</label>
+                            <div class="d-flex align-items-center gap-3 p-3 rounded-3" style="background: var(--bg-main); border: 1px dashed var(--border-color);">
+                                <div class="position-relative" style="width: 64px; height: 64px; border-radius: 12px; background: #fff; border: 2px solid var(--border-color); display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-shrink: 0;">
+                                    <img id="pmModalIconPreview" src="" alt="Icon Preview" style="width: 100%; height: 100%; object-fit: contain; display: none;">
+                                    <i id="pmModalIconPlaceholder" class="fa-solid fa-image text-muted fa-2x" style="opacity: 0.4;"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <input type="file" name="icon" id="pmIconInput" class="form-control rounded-3" accept="image/*" onchange="previewGatewayIcon(event)">
+                                    <small class="text-muted mt-1 d-block" style="font-size: 11px;">Select PNG, JPG, or SVG to preview and save in <code>uploads/payment_gateways/</code></small>
+                                </div>
+                                <button type="button" class="btn btn-outline-danger btn-sm rounded-3" id="pmClearIconBtn" onclick="clearGatewayIconPreview()" style="display: none;" title="Remove chosen image">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-12">
                             <div class="form-check form-switch p-0 d-flex align-items-center gap-3">
@@ -254,6 +266,37 @@ function handlePmImageError(img, name) {
     }
 }
 
+function previewGatewayIcon(event) {
+    const input = event.target;
+    const preview = document.getElementById('pmModalIconPreview');
+    const placeholder = document.getElementById('pmModalIconPlaceholder');
+    const clearBtn = document.getElementById('pmClearIconBtn');
+
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+            clearBtn.style.display = 'inline-block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function clearGatewayIconPreview() {
+    const input = document.getElementById('pmIconInput');
+    const preview = document.getElementById('pmModalIconPreview');
+    const placeholder = document.getElementById('pmModalIconPlaceholder');
+    const clearBtn = document.getElementById('pmClearIconBtn');
+
+    input.value = '';
+    preview.src = '';
+    preview.style.display = 'none';
+    placeholder.style.display = 'block';
+    clearBtn.style.display = 'none';
+}
+
 function openCreatePaymentMethodModal() {
     const modalEl = document.getElementById('paymentMethodModal');
     const form = document.getElementById('pmForm');
@@ -267,6 +310,7 @@ function openCreatePaymentMethodModal() {
     document.getElementById('pmRatePerBdt').value = '10';
     document.getElementById('pmInstructions').value = '';
     document.getElementById('pmIsActive').checked = true;
+    clearGatewayIconPreview();
 
     const bsModal = new bootstrap.Modal(modalEl);
     bsModal.show();
@@ -286,6 +330,20 @@ function openEditPaymentMethodModal(method) {
     document.getElementById('pmRatePerBdt').value = method.rate_per_bdt || 10;
     document.getElementById('pmInstructions').value = method.instructions || '';
     document.getElementById('pmIsActive').checked = Boolean(method.is_active);
+
+    const preview = document.getElementById('pmModalIconPreview');
+    const placeholder = document.getElementById('pmModalIconPlaceholder');
+    const clearBtn = document.getElementById('pmClearIconBtn');
+    document.getElementById('pmIconInput').value = '';
+
+    if (method.icon_url) {
+        preview.src = method.icon_url;
+        preview.style.display = 'block';
+        placeholder.style.display = 'none';
+        clearBtn.style.display = 'none';
+    } else {
+        clearGatewayIconPreview();
+    }
 
     const bsModal = new bootstrap.Modal(modalEl);
     bsModal.show();
