@@ -298,14 +298,15 @@ Allows users to submit their payment details after sending money via bKash, Naga
 
 | Field | Type | Required | Description | Example |
 | :--- | :---: | :---: | :--- | :--- |
+| `package_id` | `integer` | No | ID from `/api/coin-packages` (auto-applies exact coins + bonus) | `2` |
 | `payment_method_id` | `integer` | No | ID from `/api/payment-methods` | `1` |
 | `payment_method` | `string` | No | Method name/code fallback | `"bkash"` |
-| `amount` | `numeric` | **Yes** | Deposited amount in BDT | `500` |
-| `coins` | `integer` | No | Expected coins (auto-calculated if omitted) | `5000` |
-| `sender_number` | `string` | **Yes** | Phone number money was sent from | `"01712345678"` |
-| `transaction_id` | `string` | **Yes** | TrxID / Transaction Reference | `"9G28KLA9"` |
-| `screenshot` | `file` | No | Receipt image (jpg, png, webp, max 5MB) | `receipt.jpg` |
-| `user_note` | `string` | No | Optional note from user | `"Sent via bKash App"` |
+| `amount` | `numeric` | **Yes** | Deposited amount in BDT | `550` |
+| `coins` | `integer` | No | Expected coins (auto-calculated if omitted) | `40000` |
+| `sender_number` | `string` | **Yes** | Customer's phone number money was sent from | `"01712345678"` |
+| `transaction_id` | `string` | **Yes** | TrxID / Transaction Reference ID from bKash/Nagad | `"9G28KLA9"` |
+| `screenshot` | `file` | No | Payment receipt screenshot image (JPG, PNG, WebP) | `receipt.jpg` |
+| `user_note` | `string` | No | Optional remark from customer | `"Sent via bKash App"` |
 
 ### **Success Response (201 Created)**
 ```json
@@ -314,16 +315,15 @@ Allows users to submit their payment details after sending money via bKash, Naga
   "message": "Deposit request submitted successfully! Your coins will be credited once verified by admin.",
   "data": {
     "deposit_id": 14,
-    "amount": 500.00,
-    "coins": 5000,
+    "amount": 550.00,
+    "coins": 40000,
     "payment_method": "bKash Personal",
     "sender_number": "01712345678",
     "transaction_id": "9G28KLA9",
-    "screenshot_url": "http://127.0.0.1:8000/uploads/deposits/deposit_1_1724660000.jpg",
+    "screenshot_url": "http://127.0.0.1:8000/uploads/deposits/deposit_1_1724700000_abc123.jpg",
     "status": "pending",
-    "created_at": "2026-08-26T15:30:00+06:00"
+    "created_at": "2026-08-26T22:25:00+06:00"
   }
-}
 ```
 
 ---

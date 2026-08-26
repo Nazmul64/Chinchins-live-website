@@ -179,9 +179,10 @@ class PaymentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'package_id' => 'nullable|exists:coin_packages,id',
             'payment_method_id' => 'nullable|exists:payment_methods,id',
             'payment_method' => 'nullable|string', // e.g. 'bkash', 'nagad'
-            'amount' => 'required|numeric|min:10',
+            'amount' => 'required|numeric|min:1',
             'coins' => 'nullable|integer|min:1',
             'sender_number' => 'required|string|max:30',
             'transaction_id' => 'required|string|max:100',
@@ -197,6 +198,12 @@ class PaymentController extends Controller
             ], 422);
         }
 
+        // Check if a specific package was chosen
+        $package = null;
+        if ($request->filled('package_id')) {
+            $package = CoinPackage::find($request->package_id);
+        }
+
         // Find payment method
         $paymentMethod = null;
         if ($request->filled('payment_method_id')) {
@@ -208,7 +215,10 @@ class PaymentController extends Controller
         }
 
         $amount = (float) $request->input('amount');
-        if ($paymentMethod && $paymentMethod->rate_bdt > 0 && $paymentMethod->rate_coins > 0) {
+
+        if ($package) {
+            $defaultCoins = (int) $package->total_coins;
+        } elseif ($paymentMethod && $paymentMethod->rate_bdt > 0 && $paymentMethod->rate_coins > 0) {
             $baseCoins = (int) round(($amount / $paymentMethod->rate_bdt) * $paymentMethod->rate_coins);
             $bonusCoins = (int) ($paymentMethod->bonus_coins ?: 0);
             if ($amount >= $paymentMethod->rate_bdt && $bonusCoins > 0) {
