@@ -96,10 +96,10 @@
                         <!-- Exchange Rate & Limits -->
                         <div class="d-flex flex-column gap-2 mb-3" style="font-size: 13px;">
                             <div class="d-flex justify-content-between align-items-center py-1 border-bottom" style="border-color: var(--border-color) !important;">
-                                <span class="text-muted">Rate Multiplier:</span>
-                                <div class="coin-badge-3d" style="padding: 2px 8px;">
+                                <span class="text-muted">Exchange Rate:</span>
+                                <div class="coin-badge-3d" style="padding: 3px 10px;">
                                     <i class="fa-solid fa-coins coin-icon-glow" style="font-size: 11px;"></i>
-                                    <span class="coin-amount-text" style="font-size: 12px;">1 BDT = {{ $method->rate_per_bdt }} Coins</span>
+                                    <span class="coin-amount-text" style="font-size: 12px;">{{ number_format($method->rate_coins ?? ($method->rate_per_bdt * 10)) }} Coins = ৳{{ number_format($method->rate_bdt ?? 10) }}</span>
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center py-1 border-bottom" style="border-color: var(--border-color) !important;">
@@ -156,7 +156,7 @@
 
 <!-- Modal for Create / Edit Payment Method -->
 <div class="modal fade" id="paymentMethodModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-modern-dialog" style="max-width: 600px;">
+    <div class="modal-dialog modal-dialog-centered modal-modern-dialog" style="max-width: 620px;">
         <div class="modal-content modal-modern-content">
             <div class="modal-modern-header">
                 <div class="d-flex align-items-center gap-3">
@@ -200,15 +200,51 @@
                             <label class="form-label fw-bold" style="font-size: 13px;">Max Deposit (BDT) <span class="text-danger">*</span></label>
                             <input type="number" name="max_deposit" id="pmMaxDeposit" class="form-control rounded-3" value="25000" min="1" required>
                         </div>
+
+                        <!-- Dual Input: Coin Amount and BDT Amount -->
                         <div class="col-12">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Exchange Rate (Coins per 1 BDT) <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light fw-bold">1 BDT =</span>
-                                <input type="number" name="rate_per_bdt" id="pmRatePerBdt" class="form-control fw-bold" value="10" min="1" required>
-                                <span class="input-group-text bg-light text-warning fw-bold"><i class="fa-solid fa-coins me-1"></i> Coins</span>
+                            <label class="form-label fw-bold d-flex justify-content-between align-items-center" style="font-size: 13px;">
+                                <span><i class="fa-solid fa-scale-balanced text-primary me-1"></i> Coin Exchange Rate Setup <span class="text-danger">*</span></span>
+                                <span class="badge bg-light text-muted border fw-normal" style="font-size: 11px;">কত কয়েনে কত টাকা</span>
+                            </label>
+                            <div class="p-3 rounded-3" style="background: var(--bg-main, #f8fafc); border: 1.5px solid var(--border-color, #e2e8f0);">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-12 col-sm-5">
+                                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px; text-transform: uppercase;">Coin Quantity (কয়েন)</label>
+                                        <div class="input-group">
+                                            <input type="number" name="rate_coins" id="pmRateCoins" class="form-control fw-bold" placeholder="500" value="500" min="1" required oninput="calculateExchangeRateLive()">
+                                            <span class="input-group-text bg-warning-subtle text-warning fw-bold"><i class="fa-solid fa-coins me-1"></i> Coins</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-sm-2 text-center d-none d-sm-block">
+                                        <div class="fw-bolder fs-4 text-muted">=</div>
+                                    </div>
+                                    <div class="col-12 col-sm-5">
+                                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 11px; text-transform: uppercase;">BDT Amount (টাকা)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light fw-bold text-success">৳ BDT</span>
+                                            <input type="number" step="any" name="rate_bdt" id="pmRateBdt" class="form-control fw-bold" placeholder="50" value="50" min="0.1" required oninput="calculateExchangeRateLive()">
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="rate_per_bdt" id="pmRatePerBdt" value="10">
+                                
+                                <div class="mt-2 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2" style="font-size: 12px;">
+                                    <div class="d-flex align-items-center gap-1 text-muted">
+                                        <i class="fa-solid fa-circle-check text-success"></i>
+                                        <span>Effective Multiplier:</span>
+                                        <strong id="pmRateMultiplierDisplay" class="text-primary">1 BDT = 10 Coins</strong>
+                                    </div>
+                                    <div class="text-success fw-bold" id="pmRateSummaryPreview">
+                                        500 Coins = ৳50 BDT
+                                    </div>
+                                </div>
                             </div>
-                            <small class="text-muted mt-1 d-block">Example: 10 means 100 BDT = 1,000 Coins credited to user.</small>
+                            <small class="text-muted mt-1 d-block" style="font-size: 11px;">
+                                উদাহরণ: ৫০০ কয়েন ৫০ টাকা দিলে ব্যবহারকারী ১০০ টাকায় ১,০০০ কয়েন পাবে।
+                            </small>
                         </div>
+
                         <div class="col-12">
                             <label class="form-label fw-bold" style="font-size: 13px;">User Instructions (Shown on Mobile Deposit Screen)</label>
                             <textarea name="instructions" id="pmInstructions" class="form-control rounded-3" rows="3" placeholder="1. Go to your bKash/Nagad app&#10;2. Select 'Send Money'&#10;3. Enter the number and copy the TrxID..."></textarea>
@@ -270,6 +306,23 @@ function handlePmImageError(img, name) {
     }
 }
 
+function calculateExchangeRateLive() {
+    const coinsInput = document.getElementById('pmRateCoins');
+    const bdtInput = document.getElementById('pmRateBdt');
+    const ratePerBdtHidden = document.getElementById('pmRatePerBdt');
+    const multiplierDisplay = document.getElementById('pmRateMultiplierDisplay');
+    const summaryPreview = document.getElementById('pmRateSummaryPreview');
+
+    const coins = parseFloat(coinsInput ? coinsInput.value : 0) || 0;
+    const bdt = parseFloat(bdtInput ? bdtInput.value : 0) || 0;
+    const ratePerBdt = bdt > 0 ? (coins / bdt) : 0;
+    
+    const formattedRate = (Number.isInteger(ratePerBdt) ? ratePerBdt : ratePerBdt.toFixed(2));
+    if (ratePerBdtHidden) ratePerBdtHidden.value = formattedRate;
+    if (multiplierDisplay) multiplierDisplay.innerText = `1 BDT = ${formattedRate} Coins`;
+    if (summaryPreview) summaryPreview.innerText = `${coins.toLocaleString()} Coins = ৳${bdt.toLocaleString()} BDT`;
+}
+
 function previewGatewayIcon(event) {
     const input = event.target;
     const preview = document.getElementById('pmModalIconPreview');
@@ -311,7 +364,9 @@ function openCreatePaymentMethodModal() {
     document.getElementById('pmAccountNumber').value = '';
     document.getElementById('pmMinDeposit').value = '50';
     document.getElementById('pmMaxDeposit').value = '25000';
-    document.getElementById('pmRatePerBdt').value = '10';
+    document.getElementById('pmRateCoins').value = '500';
+    document.getElementById('pmRateBdt').value = '50';
+    calculateExchangeRateLive();
     document.getElementById('pmInstructions').value = '';
     document.getElementById('pmIsActive').checked = true;
     clearGatewayIconPreview();
@@ -331,7 +386,14 @@ function openEditPaymentMethodModal(method) {
     document.getElementById('pmAccountNumber').value = method.account_number || '';
     document.getElementById('pmMinDeposit').value = method.min_deposit || 50;
     document.getElementById('pmMaxDeposit').value = method.max_deposit || 25000;
-    document.getElementById('pmRatePerBdt').value = method.rate_per_bdt || 10;
+    
+    // Set Coins and BDT
+    const rateCoins = method.rate_coins || (method.rate_per_bdt ? (method.rate_per_bdt * 10) : 500);
+    const rateBdt = method.rate_bdt || 50;
+    document.getElementById('pmRateCoins').value = rateCoins;
+    document.getElementById('pmRateBdt').value = rateBdt;
+    calculateExchangeRateLive();
+
     document.getElementById('pmInstructions').value = method.instructions || '';
     document.getElementById('pmIsActive').checked = Boolean(method.is_active);
 

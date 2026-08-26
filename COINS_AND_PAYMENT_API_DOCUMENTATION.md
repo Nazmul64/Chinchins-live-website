@@ -70,7 +70,7 @@ Returns the authenticated user's current coin balance and calculated maximum vid
 
 ## 2. 💳 Payment Methods API (bKash, Nagad, Rocket, Bank)
 
-Returns all active payment accounts configured by the Admin, including numbers, instructions, and limits.
+Returns all active payment accounts configured by the Admin, including numbers, instructions, limits, and dynamic Coin-to-BDT conversion ratios.
 
 ### **Endpoint**
 `GET /api/payment-methods`
@@ -92,8 +92,11 @@ Returns all active payment accounts configured by the Admin, including numbers, 
       "qr_code": null,
       "min_deposit": 50,
       "max_deposit": 25000,
+      "rate_coins": 500,
+      "rate_bdt": 50,
       "rate_per_bdt": 10,
-      "example": "100 BDT = 1000 Coins"
+      "rate_text": "500 Coins = ৳50 BDT",
+      "example": "500 Coins = ৳50 BDT (1 BDT = 10 Coins)"
     },
     {
       "id": 2,
@@ -106,12 +109,35 @@ Returns all active payment accounts configured by the Admin, including numbers, 
       "qr_code": null,
       "min_deposit": 50,
       "max_deposit": 25000,
+      "rate_coins": 500,
+      "rate_bdt": 50,
       "rate_per_bdt": 10,
-      "example": "100 BDT = 1000 Coins"
+      "rate_text": "500 Coins = ৳50 BDT",
+      "example": "500 Coins = ৳50 BDT (1 BDT = 10 Coins)"
     }
   ]
 }
 ```
+
+### **Payment Method Object Fields**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `integer` | Unique ID of payment method |
+| `name` | `string` | Method name (e.g. `bKash Personal`, `Nagad Merchant`) |
+| `code` | `string` | Identifier code (e.g. `bkash`, `nagad`, `rocket`) |
+| `account_type` | `string` | `Personal`, `Agent`, `Merchant`, or `Bank Account` |
+| `account_number` | `string` | Phone number / Account number to send money to |
+| `instructions` | `string` | Step-by-step instructions displayed to the mobile user |
+| `icon` | `string|null` | Image URL of the gateway logo |
+| `qr_code` | `string|null` | Image URL of QR code (if applicable) |
+| `min_deposit` | `float` | Minimum deposit amount in BDT (e.g. `50.00`) |
+| `max_deposit` | `float` | Maximum deposit amount in BDT (e.g. `25000.00`) |
+| `rate_coins` | `integer` | Configured Coin quantity (e.g. `500`) |
+| `rate_bdt` | `float` | Configured BDT cost for the coin quantity (e.g. `50.00`) |
+| `rate_per_bdt` | `float` | Multiplier coins received per 1 BDT (`rate_coins / rate_bdt`, e.g. `10`) |
+| `rate_text` | `string` | Formatted summary (e.g. `"500 Coins = ৳50 BDT"`) |
+| `example` | `string` | Readable conversion example for UI display |
+
 
 ---
 

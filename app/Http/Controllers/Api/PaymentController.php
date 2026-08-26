@@ -41,6 +41,10 @@ class PaymentController extends Controller
             ->orderBy('sort_order')
             ->get()
             ->map(function ($pm) {
+                $rateCoins = (int) ($pm->rate_coins ?: (($pm->rate_per_bdt ?: 10) * 10));
+                $rateBdt = (float) ($pm->rate_bdt ?: 10.00);
+                $ratePerBdt = (float) ($pm->rate_per_bdt ?: ($rateBdt > 0 ? round($rateCoins / $rateBdt, 2) : 10));
+
                 return [
                     'id' => $pm->id,
                     'name' => $pm->name,
@@ -52,8 +56,11 @@ class PaymentController extends Controller
                     'qr_code' => $pm->qr_code_url ?: $pm->qr_code,
                     'min_deposit' => (float) $pm->min_deposit,
                     'max_deposit' => (float) $pm->max_deposit,
-                    'rate_per_bdt' => $pm->rate_per_bdt, // e.g. 1 BDT = 10 Coins
-                    'example' => "100 BDT = " . (100 * $pm->rate_per_bdt) . " Coins",
+                    'rate_coins' => $rateCoins,
+                    'rate_bdt' => $rateBdt,
+                    'rate_per_bdt' => $ratePerBdt, // Coins per 1 BDT
+                    'rate_text' => "{$rateCoins} Coins = ৳{$rateBdt} BDT",
+                    'example' => "{$rateCoins} Coins = ৳{$rateBdt} BDT (1 BDT = {$ratePerBdt} Coins)",
                 ];
             });
 
@@ -131,8 +138,14 @@ class PaymentController extends Controller
         }
 
         $amount = (float) $request->input('amount');
-        $rate = $paymentMethod ? $paymentMethod->rate_per_bdt : 10;
-        $coins = $request->filled('coins') ? (int) $request->input('coins') : (int) ($amount * $rate);
+        if ($paymentMethod && $paymentMethod->rate_bdt > 0 && $paymentMethod->rate_coins > 0) {
+            $defaultCoins = (int) round(($amount / $paymentMethod->rate_bdt) * $paymentMethod->rate_coins);
+        } elseif ($paymentMethod && $paymentMethod->rate_per_bdt > 0) {
+            $defaultCoins = (int) round($amount * $paymentMethod->rate_per_bdt);
+        } else {
+            $defaultCoins = (int) round($amount * 10);
+        }
+        $coins = $request->filled('coins') ? (int) $request->input('coins') : $defaultCoins;
 
         // Upload screenshot safely
         $screenshotPath = null;

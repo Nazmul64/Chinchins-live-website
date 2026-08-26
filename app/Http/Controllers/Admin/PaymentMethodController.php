@@ -31,10 +31,21 @@ class PaymentMethodController extends Controller
                 'instructions' => 'nullable|string',
                 'min_deposit' => 'required|numeric|min:1',
                 'max_deposit' => 'required|numeric|gte:min_deposit',
-                'rate_per_bdt' => 'required|integer|min:1',
+                'rate_coins' => 'nullable|integer|min:1',
+                'rate_bdt' => 'nullable|numeric|min:0.01',
+                'rate_per_bdt' => 'nullable|numeric|min:0.01',
                 'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
                 'is_active' => 'nullable|boolean',
             ]);
+
+            // Calculate coin exchange rate properly
+            $rateCoins = (int) ($request->input('rate_coins') ?: 500);
+            $rateBdt = (float) ($request->input('rate_bdt') ?: 50);
+            if ($rateBdt <= 0) $rateBdt = 1;
+            
+            $validated['rate_coins'] = $rateCoins;
+            $validated['rate_bdt'] = $rateBdt;
+            $validated['rate_per_bdt'] = round($rateCoins / $rateBdt, 4);
 
             $validated['is_active'] = $request->has('is_active');
             $slug = strtolower(Str::slug($validated['name']));
@@ -86,14 +97,24 @@ class PaymentMethodController extends Controller
                 'instructions' => 'nullable|string',
                 'min_deposit' => 'required|numeric|min:1',
                 'max_deposit' => 'required|numeric|gte:min_deposit',
-                'rate_per_bdt' => 'required|integer|min:1',
+                'rate_coins' => 'nullable|integer|min:1',
+                'rate_bdt' => 'nullable|numeric|min:0.01',
+                'rate_per_bdt' => 'nullable|numeric|min:0.01',
                 'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
                 'is_active' => 'nullable|boolean',
             ]);
 
+            $rateCoins = (int) ($request->input('rate_coins') ?: ($method->rate_coins ?: 500));
+            $rateBdt = (float) ($request->input('rate_bdt') ?: ($method->rate_bdt ?: 50));
+            if ($rateBdt <= 0) $rateBdt = 1;
+
+            $validated['rate_coins'] = $rateCoins;
+            $validated['rate_bdt'] = $rateBdt;
+            $validated['rate_per_bdt'] = round($rateCoins / $rateBdt, 4);
+
             $validated['is_active'] = $request->has('is_active');
             $slug = strtolower(Str::slug($validated['name']));
-            $validated['code'] = $slug ?: ('pm_' . time() . '_' . Str::random(4));
+            $validated['code'] = $slug ?: ($method->code ?: ('pm_' . time() . '_' . Str::random(4)));
 
             if ($request->hasFile('icon')) {
                 try {
