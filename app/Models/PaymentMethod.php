@@ -45,11 +45,28 @@ class PaymentMethod extends Model
     public function getIconUrlAttribute(): ?string
     {
         if (empty($this->icon)) {
+            $code = strtolower(($this->code ?? '') . ' ' . ($this->name ?? ''));
+            if (str_contains($code, 'bkash')) {
+                return 'https://freelogopng.com/images/all_img/1656234745bkash-app-logo.png';
+            }
+            if (str_contains($code, 'nagad')) {
+                return 'https://freelogopng.com/images/all_img/1679248787Nagad-Logo.png';
+            }
+            if (str_contains($code, 'rocket')) {
+                return 'https://seeklogo.com/images/D/dutch-bangla-rocket-logo-B4D1CC458D-seeklogo.com.png';
+            }
+            if (str_contains($code, 'upay')) {
+                return 'https://play-lh.googleusercontent.com/O61_aF_n_wP508rC8v2y26Y92aM3u9z-m-B-f8x-y44';
+            }
             return null;
         }
 
         if (str_starts_with($this->icon, 'http://') || str_starts_with($this->icon, 'https://')) {
             return $this->icon;
+        }
+
+        if (str_starts_with($this->icon, 'storage/')) {
+            return asset($this->icon);
         }
 
         return asset('uploads/' . ltrim($this->icon, '/'));
