@@ -23,22 +23,6 @@
         </button>
     </div>
 
-    <!-- Feedback Alerts -->
-    @if(session('success'))
-        <div class="alert alert-success d-flex align-items-center gap-3 p-3 mb-4 rounded-4 shadow-sm border-0" style="background: rgba(16, 185, 129, 0.12); color: #047857;">
-            <i class="fa-solid fa-circle-check fa-lg"></i>
-            <div class="fw-semibold">{{ session('success') }}</div>
-            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger d-flex align-items-center gap-3 p-3 mb-4 rounded-4 shadow-sm border-0" style="background: rgba(239, 68, 68, 0.12); color: #b91c1c;">
-            <i class="fa-solid fa-triangle-exclamation fa-lg"></i>
-            <div class="fw-semibold">{{ session('error') }}</div>
-            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     <!-- Payment Gateways Grid -->
     <div class="row g-4 mb-4">
         @forelse($methods as $method)
@@ -421,21 +405,8 @@ function openEditPaymentMethodModal(method) {
 
 function copyToClipboard(text, msg) {
     navigator.clipboard.writeText(text).then(() => {
-        showToast(msg || 'Copied to clipboard!');
+        window.showToast(msg || 'Copied to clipboard!', 'success');
     });
-}
-
-function showToast(message) {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = 'ch-toast';
-    toast.innerHTML = `<i class="fa-solid fa-circle-check text-success"></i> <span>${message}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 2500);
 }
 </script>
 @endpush
