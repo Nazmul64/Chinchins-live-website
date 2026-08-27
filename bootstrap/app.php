@@ -12,13 +12,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+            'kyc/*',
+            'profile/*',
+            'wallet/*',
+            'call/*',
+            'coin-packages/*',
+            'deposit/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(function (\Illuminate\Http\Request $request, \Throwable $e) {
-            if ($request->is('api/*') || $request->is('api')) {
+            if ($request->is('api/*') || $request->is('api') || $request->is('kyc/*') || $request->is('profile/*') || $request->is('wallet/*') || $request->is('call/*')) {
                 return true;
             }
-            return $request->expectsJson();
+            return $request->expectsJson() || $request->wantsJson();
         });
     })->create();

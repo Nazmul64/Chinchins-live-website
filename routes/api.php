@@ -121,6 +121,9 @@ Route::prefix('kyc')->group(function () {
     Route::get('/instructions', [\App\Http\Controllers\Api\KycApiController::class, 'instructions']);
     Route::get('/guidelines', [\App\Http\Controllers\Api\KycApiController::class, 'instructions']);
     Route::post('/ai-detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+    Route::post('/detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+    Route::post('/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
+    Route::post('/face-liveness', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
 });
 
 // KYC Aliases for Profile
@@ -128,6 +131,8 @@ Route::prefix('profile/kyc')->group(function () {
     Route::post('/submit', [\App\Http\Controllers\Api\KycApiController::class, 'submit']);
     Route::get('/', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
     Route::get('/status', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
+    Route::post('/ai-detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+    Route::post('/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
 });
 
 // Admin REST APIs for KYC

@@ -308,7 +308,53 @@ Inspects image quality, face centering, liveness, and document readability prior
 
 ---
 
-## 5. 🛡️ Admin Verification Workflow & Endpoints
+## 5. 🤖 Python AI Real-Time Face Step Verification API
+
+Performs real-time pose and liveness detection for each step of the camera flow:
+- **Center**: Face positioned straight at eye level.
+- **Turn Left**: User turns head to the left.
+- **Turn Right**: User turns head to the right.
+- **Blink**: Eye blink or natural motion detected.
+
+### **Endpoint**
+`POST /api/kyc/face/verify-step` *(or `POST /kyc/face/verify-step`, `POST /api/kyc/face-liveness`)*
+
+### **Request Parameters (Multipart or JSON)**
+- `step`: string (`center`, `turn_left`, `turn_right`, `blink`, `auto`)
+- `image`: file or base64 (frame capture from camera)
+- `user_id`: optional fallback ID
+
+### **Success Response (200 OK)**
+```json
+{
+  "status": true,
+  "message": "Left profile verified! Now slowly turn your head to the RIGHT.",
+  "data": {
+    "status": "success",
+    "face_detected": true,
+    "current_step": "turn_left",
+    "step_completed": true,
+    "detected_pose": "turn_left",
+    "yaw_angle": -25.0,
+    "confidence_score": 0.98,
+    "is_clear": true,
+    "lighting_ok": true,
+    "next_step": "turn_right",
+    "instruction_en": "Left profile verified! Now slowly turn your head to the RIGHT.",
+    "instruction_bn": "বাম পাশের মুখমণ্ডল সফল! এবার ধীরে ধীরে মুখ ডান দিকে ঘোরান।",
+    "all_steps_progress": {
+      "center": true,
+      "turn_left": true,
+      "turn_right": false,
+      "blink": false
+    }
+  }
+}
+```
+
+---
+
+## 6. 🛡️ Admin Verification Workflow & Endpoints
 
 ### **A. Web Admin Dashboard**
 - URL: `https://your-domain.com/admin/kyc`

@@ -66,3 +66,14 @@ Route::middleware(['auth'])->get('/profile', function () {
     return redirect()->route('admin.profile');
 });
 
+// Mobile App KYC Fallback Routes (Direct without /api prefix)
+Route::post('/kyc/submit', [\App\Http\Controllers\Api\KycApiController::class, 'submit']);
+Route::post('/kyc/verification/submit', [\App\Http\Controllers\Api\KycApiController::class, 'submit']);
+Route::get('/kyc/status', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
+Route::get('/kyc/instructions', [\App\Http\Controllers\Api\KycApiController::class, 'instructions']);
+Route::post('/kyc/ai-detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+Route::post('/kyc/detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+Route::post('/kyc/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
+Route::post('/kyc/face-liveness', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
+
+
