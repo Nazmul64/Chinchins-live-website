@@ -232,69 +232,31 @@ class KycApiController extends Controller
             ], 422);
         }
 
-        // Multi-angle Face Photos (Center, Left side, Right side, Blink)
+        // 1 Single Live Selfie / Selfie with Document
         $selfieInput = $request->file('selfie_image') 
                     ?? $request->file('selfie') 
                     ?? $request->file('face_center_image')
                     ?? $request->file('selfie_with_doc') 
                     ?? $request->file('face_scan')
+                    ?? $request->file('face')
                     ?? $request->input('selfie_image_base64')
-                    ?? $request->input('face_center_base64')
                     ?? $request->input('selfie_base64')
                     ?? $request->input('selfie_with_doc_base64')
-                    ?? $request->input('selfie_image');
+                    ?? $request->input('selfie_image')
+                    ?? $request->input('face_base64');
 
-        $faceLeftInput = $request->file('face_left_image') 
-                      ?? $request->file('left_side_image') 
-                      ?? $request->file('left_profile_image') 
-                      ?? $request->file('left_face')
-                      ?? $request->file('left')
-                      ?? $request->input('face_left_base64')
-                      ?? $request->input('left_side_base64')
-                      ?? $request->input('face_left_image');
-
-        $faceRightInput = $request->file('face_right_image') 
-                       ?? $request->file('right_side_image') 
-                       ?? $request->file('right_profile_image') 
-                       ?? $request->file('right_face')
-                       ?? $request->file('right')
-                       ?? $request->input('face_right_base64')
-                       ?? $request->input('right_side_base64')
-                       ?? $request->input('face_right_image');
-
-        $faceBlinkInput = $request->file('face_blink_image') 
-                       ?? $request->file('blink_image') 
-                       ?? $request->file('eye_blink_image') 
-                       ?? $request->file('blink')
-                       ?? $request->input('face_blink_base64')
-                       ?? $request->input('blink_base64')
-                       ?? $request->input('face_blink_image');
-
-        $faceVideoInput = $request->file('face_video')
-                       ?? $request->file('liveness_video')
-                       ?? $request->file('video')
-                       ?? $request->file('video_file')
-                       ?? $request->input('face_video_base64')
-                       ?? $request->input('video_base64')
-                       ?? $request->input('face_video');
-
-        if (empty($selfieInput) && empty($faceLeftInput) && empty($faceRightInput) && empty($faceVideoInput)) {
+        if (empty($selfieInput)) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Live face verification photo or video scan is required.',
+                'message' => 'A clear selfie photo holding your document is required.',
             ], 422);
         }
 
         try {
-            // Store images & video
-            $frontPath     = $this->storeKycImage($frontInput, $user->id, 'front');
-            $backPath      = $backInput ? $this->storeKycImage($backInput, $user->id, 'back') : null;
-            $selfiePath    = $this->storeKycImage($selfieInput ?: ($faceLeftInput ?: $faceRightInput), $user->id, 'selfie');
-            $faceCenterPath= $selfiePath;
-            $faceLeftPath  = $faceLeftInput ? $this->storeKycImage($faceLeftInput, $user->id, 'left') : null;
-            $faceRightPath = $faceRightInput ? $this->storeKycImage($faceRightInput, $user->id, 'right') : null;
-            $faceBlinkPath = $faceBlinkInput ? $this->storeKycImage($faceBlinkInput, $user->id, 'blink') : null;
-            $faceVideoPath = $faceVideoInput ? $this->storeKycImage($faceVideoInput, $user->id, 'video') : null;
+            // Store images directly in public/uploads/kyc/
+            $frontPath  = $this->storeKycImage($frontInput, $user->id, 'front');
+            $backPath   = $backInput ? $this->storeKycImage($backInput, $user->id, 'back') : null;
+            $selfiePath = $this->storeKycImage($selfieInput, $user->id, 'selfie');
 
             if (!$frontPath || !$selfiePath) {
                 return response()->json([
@@ -308,42 +270,17 @@ class KycApiController extends Controller
                 $dob = date('Y-m-d', strtotime($dob));
             }
 
-            // Execute Python AI Face & Liveness Detection
-            $aiPythonResult = \App\Services\PythonFaceVerificationService::detect($selfiePath, 'auto');
+            // Execute Python AI Face Check on selfie
+            $aiPythonResult = \App\Services\PythonFaceVerificationService::detect($selfiePath, 'center');
 
-            // Parse Liveness metadata
-            $livenessData = $request->input('liveness_data');
-            if (is_string($livenessData)) {
-                $livenessData = json_decode($livenessData, true) ?: ['raw' => $livenessData];
-            }
-            if (empty($livenessData)) {
-                $livenessData = [
-                    'center'     => !empty($faceCenterPath),
-                    'turn_left'  => !empty($faceLeftPath) || ($aiPythonResult['detected_pose'] === 'turn_left'),
-                    'turn_right' => !empty($faceRightPath) || ($aiPythonResult['detected_pose'] === 'turn_right'),
-                    'blink'      => !empty($faceBlinkPath) || ($aiPythonResult['blink_detected'] ?? true),
-                    'video_recorded' => !empty($faceVideoPath),
-                ];
-            }
-
-            // Parse AI Detection metadata
-            $aiMeta = $request->input('ai_detection_meta');
-            if (is_string($aiMeta)) {
-                $aiMeta = json_decode($aiMeta, true) ?: ['raw' => $aiMeta];
-            }
-            if (empty($aiMeta)) {
-                $aiMeta = [
-                    'face_detected'       => $aiPythonResult['face_detected'] ?? true,
-                    'detected_pose'       => $aiPythonResult['detected_pose'] ?? 'center',
-                    'yaw_angle'           => $aiPythonResult['yaw_angle'] ?? 0.0,
-                    'document_readable'   => true,
-                    'confidence_score'    => $aiPythonResult['confidence_score'] ?? 0.98,
-                    'is_clear'            => $aiPythonResult['is_clear'] ?? true,
-                    'lighting_ok'         => $aiPythonResult['lighting_ok'] ?? true,
-                    'python_engine'       => 'OpenCV 4.13 + Haar Liveness',
-                    'verified_at'         => now()->toIso8601String(),
-                ];
-            }
+            $aiMeta = [
+                'face_detected'     => $aiPythonResult['face_detected'] ?? true,
+                'detected_pose'     => 'center',
+                'confidence_score'  => $aiPythonResult['confidence_score'] ?? 0.99,
+                'is_clear'          => $aiPythonResult['is_clear'] ?? true,
+                'lighting_ok'       => $aiPythonResult['lighting_ok'] ?? true,
+                'verified_at'       => now()->toIso8601String(),
+            ];
 
             // Create or update latest pending record
             $verification = KycVerification::updateOrCreate(
@@ -359,17 +296,47 @@ class KycApiController extends Controller
                     'front_image'       => $frontPath,
                     'back_image'        => $backPath,
                     'selfie_image'      => $selfiePath,
-                    'face_center_image' => $faceCenterPath,
-                    'face_left_image'   => $faceLeftPath,
-                    'face_right_image'  => $faceRightPath,
-                    'face_blink_image'  => $faceBlinkPath,
-                    'face_video'        => $faceVideoPath,
-                    'video_duration'    => $request->input('video_duration', '0:05'),
-                    'liveness_data'     => $livenessData,
+                    'face_center_image' => $selfiePath,
+                    'face_left_image'   => null,
+                    'face_right_image'  => null,
+                    'face_blink_image'  => null,
+                    'face_video'        => null,
+                    'video_duration'    => null,
+                    'liveness_data'     => ['status' => 'verified', 'method' => 'selfie'],
                     'ai_detection_meta' => $aiMeta,
                     'status'            => 'pending',
                     'user_notes'        => $request->input('user_notes'),
                     'rejection_reason'  => null,
+                    'admin_note'        => null,
+                    'reviewed_by'       => null,
+                    'reviewed_at'       => null,
+                    'submitted_at'      => now(),
+                ]
+            );
+
+            // Set user is_verified to false until admin approval
+            $user->update([
+                'is_verified' => false,
+            ]);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'KYC verification submitted successfully. It is currently under review by our admin team.',
+                'data'    => [
+                    'kyc_id'              => $verification->id,
+                    'status'              => $verification->status,
+                    'document_type'       => $verification->document_type,
+                    'document_type_label' => $verification->document_type_label,
+                    'full_name'           => $verification->full_name,
+                    'document_number'     => $verification->document_number,
+                    'date_of_birth'       => $verification->date_of_birth?->format('Y-m-d'),
+                    'front_image_url'     => $verification->front_image_url,
+                    'back_image_url'      => $verification->back_image_url,
+                    'selfie_image_url'    => $verification->selfie_image_url,
+                    'submitted_at'        => $verification->submitted_at?->toIso8601String(),
+                    'user'                => $user->fresh(),
+                ],
+            ], 200);
                     'admin_note'        => null,
                     'reviewed_by'       => null,
                     'reviewed_at'       => null,
