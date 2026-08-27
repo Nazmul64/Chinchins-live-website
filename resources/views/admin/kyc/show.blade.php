@@ -123,12 +123,45 @@
                     @endif
                     <div class="col-12">
                         <div class="p-2 border rounded text-center bg-dark">
-                            <span class="badge bg-danger mb-2">Selfie with Document</span>
+                            <span class="badge bg-danger mb-2">1. Live Selfie / Center Face</span>
                             <a href="{{ $kyc->selfie_image_url }}" target="_blank">
-                                <img src="{{ $kyc->selfie_image_url }}" alt="Selfie" class="img-fluid rounded" style="max-height: 320px; object-fit: contain;">
+                                <img src="{{ $kyc->selfie_image_url }}" alt="Selfie" class="img-fluid rounded" style="max-height: 280px; object-fit: contain;">
                             </a>
                         </div>
                     </div>
+
+                    @if($kyc->face_left_image_url)
+                        <div class="col-md-4">
+                            <div class="p-2 border rounded text-center bg-dark">
+                                <span class="badge bg-info mb-2">2. Left Side Face (Turn Left)</span>
+                                <a href="{{ $kyc->face_left_image_url }}" target="_blank">
+                                    <img src="{{ $kyc->face_left_image_url }}" alt="Left Face" class="img-fluid rounded" style="max-height: 200px; object-fit: contain;">
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($kyc->face_right_image_url)
+                        <div class="col-md-4">
+                            <div class="p-2 border rounded text-center bg-dark">
+                                <span class="badge bg-warning text-dark mb-2">3. Right Side Face (Turn Right)</span>
+                                <a href="{{ $kyc->face_right_image_url }}" target="_blank">
+                                    <img src="{{ $kyc->face_right_image_url }}" alt="Right Face" class="img-fluid rounded" style="max-height: 200px; object-fit: contain;">
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if($kyc->face_blink_image_url)
+                        <div class="col-md-4">
+                            <div class="p-2 border rounded text-center bg-dark">
+                                <span class="badge bg-success mb-2">4. Eye Blink / Liveness Scan</span>
+                                <a href="{{ $kyc->face_blink_image_url }}" target="_blank">
+                                    <img src="{{ $kyc->face_blink_image_url }}" alt="Blink Face" class="img-fluid rounded" style="max-height: 200px; object-fit: contain;">
+                                </a>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

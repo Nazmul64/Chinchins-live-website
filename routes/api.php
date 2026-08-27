@@ -124,7 +124,12 @@ Route::prefix('kyc')->group(function () {
     Route::post('/detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
     Route::post('/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
     Route::post('/face-liveness', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
+    Route::post('/face/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
+    Route::post('/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
 });
+
+// Direct Face Re-Unlock Authentication Route
+Route::post('/auth/face-unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
 
 // KYC Aliases for Profile
 Route::prefix('profile/kyc')->group(function () {
@@ -133,6 +138,7 @@ Route::prefix('profile/kyc')->group(function () {
     Route::get('/status', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
     Route::post('/ai-detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
     Route::post('/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
+    Route::post('/face/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
 });
 
 // Admin REST APIs for KYC

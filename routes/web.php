@@ -21,11 +21,12 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profile', [ProfileAdminController::class, 'index'])->name('profile');
 
-    // Users & Balance Management
+    // Users Management
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/users/{id}', [UserController::class, 'show'])->name('users.show');
-    Route::post('/users/{id}/adjust-coins', [UserController::class, 'adjustCoins'])->name('users.adjust-coins');
+    Route::post('/users/{id}/coins', [UserController::class, 'adjustCoins'])->name('users.adjust-coins');
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+    Route::post('/users/{id}/toggle-lock', [UserController::class, 'toggleLock'])->name('users.toggle-lock');
 
     // Payment Methods Management
     Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');
@@ -75,5 +76,6 @@ Route::post('/kyc/ai-detect', [\App\Http\Controllers\Api\KycApiController::class
 Route::post('/kyc/detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
 Route::post('/kyc/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
 Route::post('/kyc/face-liveness', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
-
-
+Route::post('/kyc/face/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
+Route::post('/kyc/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
+Route::post('/auth/face-unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);

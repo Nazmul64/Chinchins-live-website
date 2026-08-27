@@ -232,28 +232,60 @@ class KycApiController extends Controller
             ], 422);
         }
 
-        // Selfie with Document / Live Face photo input
+        // Multi-angle Face Photos (Center, Left side, Right side, Blink)
         $selfieInput = $request->file('selfie_image') 
                     ?? $request->file('selfie') 
+                    ?? $request->file('face_center_image')
                     ?? $request->file('selfie_with_doc') 
                     ?? $request->file('face_scan')
                     ?? $request->input('selfie_image_base64')
+                    ?? $request->input('face_center_base64')
                     ?? $request->input('selfie_base64')
                     ?? $request->input('selfie_with_doc_base64')
                     ?? $request->input('selfie_image');
 
-        if (empty($selfieInput)) {
+        $faceLeftInput = $request->file('face_left_image') 
+                      ?? $request->file('left_side_image') 
+                      ?? $request->file('left_profile_image') 
+                      ?? $request->file('left_face')
+                      ?? $request->file('left')
+                      ?? $request->input('face_left_base64')
+                      ?? $request->input('left_side_base64')
+                      ?? $request->input('face_left_image');
+
+        $faceRightInput = $request->file('face_right_image') 
+                       ?? $request->file('right_side_image') 
+                       ?? $request->file('right_profile_image') 
+                       ?? $request->file('right_face')
+                       ?? $request->file('right')
+                       ?? $request->input('face_right_base64')
+                       ?? $request->input('right_side_base64')
+                       ?? $request->input('face_right_image');
+
+        $faceBlinkInput = $request->file('face_blink_image') 
+                       ?? $request->file('blink_image') 
+                       ?? $request->file('eye_blink_image') 
+                       ?? $request->file('blink')
+                       ?? $request->input('face_blink_base64')
+                       ?? $request->input('blink_base64')
+                       ?? $request->input('face_blink_image');
+
+        if (empty($selfieInput) && empty($faceLeftInput) && empty($faceRightInput)) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Selfie photo holding the document or live facial verification image is required.',
+                'message' => 'Live face verification photo (Center, Left side, Right side) is required.',
             ], 422);
         }
 
         try {
             // Store images
-            $frontPath  = $this->storeKycImage($frontInput, $user->id, 'front');
-            $backPath   = $backInput ? $this->storeKycImage($backInput, $user->id, 'back') : null;
-            $selfiePath = $this->storeKycImage($selfieInput, $user->id, 'selfie');
+            $frontPath     = $this->storeKycImage($frontInput, $user->id, 'front');
+            $backPath      = $backInput ? $this->storeKycImage($backInput, $user->id, 'back') : null;
+            $selfiePath    = $this->storeKycImage($selfieInput ?: ($faceLeftInput ?: $faceRightInput), $user->id, 'selfie');
+            $faceCenterPath= $selfiePath;
+            $faceLeftPath  = $faceLeftInput ? $this->storeKycImage($faceLeftInput, $user->id, 'left') : null;
+            $faceRightPath = $faceRightInput ? $this->storeKycImage($faceRightInput, $user->id, 'right') : null;
+            $faceBlinkPath = $faceBlinkInput ? $this->storeKycImage($faceBlinkInput, $user->id, 'blink') : null;
 
             if (!$frontPath || !$selfiePath) {
                 return response()->json([
@@ -270,17 +302,17 @@ class KycApiController extends Controller
             // Execute Python AI Face & Liveness Detection
             $aiPythonResult = \App\Services\PythonFaceVerificationService::detect($selfiePath, 'auto');
 
-            // Parse Liveness metadata if provided
+            // Parse Liveness metadata
             $livenessData = $request->input('liveness_data');
             if (is_string($livenessData)) {
                 $livenessData = json_decode($livenessData, true) ?: ['raw' => $livenessData];
             }
             if (empty($livenessData)) {
-                $livenessData = $aiPythonResult['all_steps_progress'] ?? [
-                    'center'     => true,
-                    'turn_left'  => true,
-                    'turn_right' => true,
-                    'blink'      => true,
+                $livenessData = [
+                    'center'     => !empty($faceCenterPath),
+                    'turn_left'  => !empty($faceLeftPath) || ($aiPythonResult['detected_pose'] === 'turn_left'),
+                    'turn_right' => !empty($faceRightPath) || ($aiPythonResult['detected_pose'] === 'turn_right'),
+                    'blink'      => !empty($faceBlinkPath) || ($aiPythonResult['blink_detected'] ?? true),
                 ];
             }
 
@@ -317,6 +349,10 @@ class KycApiController extends Controller
                     'front_image'       => $frontPath,
                     'back_image'        => $backPath,
                     'selfie_image'      => $selfiePath,
+                    'face_center_image' => $faceCenterPath,
+                    'face_left_image'   => $faceLeftPath,
+                    'face_right_image'  => $faceRightPath,
+                    'face_blink_image'  => $faceBlinkPath,
                     'liveness_data'     => $livenessData,
                     'ai_detection_meta' => $aiMeta,
                     'status'            => 'pending',
@@ -348,6 +384,10 @@ class KycApiController extends Controller
                     'front_image_url'     => $verification->front_image_url,
                     'back_image_url'      => $verification->back_image_url,
                     'selfie_image_url'    => $verification->selfie_image_url,
+                    'face_center_image_url'=> $verification->face_center_image_url,
+                    'face_left_image_url'  => $verification->face_left_image_url,
+                    'face_right_image_url' => $verification->face_right_image_url,
+                    'face_blink_image_url' => $verification->face_blink_image_url,
                     'ai_detection_meta'   => $verification->ai_detection_meta,
                     'submitted_at'        => $verification->submitted_at?->toIso8601String(),
                     'user'                => $user->fresh(),
@@ -560,6 +600,92 @@ class KycApiController extends Controller
             'status'             => true,
             'message'            => $aiResult['instruction_en'] ?? 'Step processed successfully.',
             'data'               => $aiResult,
+        ], 200);
+    }
+
+    /**
+     * Unlock a locked/blocked account directly via AI Face Verification.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function unlockAccountWithFace(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        // Fallback user resolution by phone, email, or account_id
+        if (!$user) {
+            if ($request->filled('phone')) {
+                $user = User::where('phone', trim($request->phone))->first();
+            } elseif ($request->filled('email')) {
+                $user = User::where('email', trim($request->email))->first();
+            } elseif ($request->filled('account_id')) {
+                $user = User::where('account_id', trim($request->account_id))->first();
+            }
+        }
+
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'User account not found. Please provide user_id, phone, email, or account_id.',
+            ], 404);
+        }
+
+        $input = $request->file('image') 
+              ?? $request->file('face') 
+              ?? $request->file('selfie') 
+              ?? $request->file('frame')
+              ?? $request->input('image_base64')
+              ?? $request->input('face_base64')
+              ?? $request->input('selfie_base64')
+              ?? $request->input('image');
+
+        if (empty($input)) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Face verification photo is required to unlock your account.',
+            ], 422);
+        }
+
+        $tempPath = $this->storeKycImage($input, $user->id, 'unlock_face');
+
+        // Run Python AI face detection
+        $aiResult = \App\Services\PythonFaceVerificationService::detect($tempPath, 'center');
+
+        if (!$aiResult['face_detected']) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'No valid human face detected. Please ensure good lighting and look straight into the camera.',
+                'data'    => [
+                    'face_detected'  => false,
+                    'instruction_en' => 'Position your face clearly in the camera frame.',
+                    'instruction_bn' => 'ক্যামেরার ফ্রেমে মুখমণ্ডল পরিষ্কারভাবে রাখুন।',
+                ],
+            ], 400);
+        }
+
+        // Unlock user account
+        $user->update([
+            'is_locked'   => false,
+            'is_active'   => true,
+            'unlocked_at' => now(),
+        ]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Face verification matched! Your account has been successfully unlocked.',
+            'data'    => [
+                'user_id'        => $user->id,
+                'account_id'     => $user->account_id,
+                'display_name'   => $user->display_name,
+                'is_locked'      => false,
+                'is_active'      => true,
+                'is_verified'    => (bool) $user->is_verified,
+                'confidence'     => $aiResult['confidence_score'] ?? 0.99,
+                'instruction_en' => 'Account unlocked successfully! Welcome back.',
+                'instruction_bn' => 'ফেস ভেরিফিকেশন সফল! আপনার একাউন্ট আনলক করা হয়েছে।',
+                'user'           => $user->fresh(),
+            ],
         ], 200);
     }
 }

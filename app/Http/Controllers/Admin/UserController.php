@@ -131,4 +131,26 @@ class UserController extends Controller
         $statusStr = $user->is_active ? 'Activated' : 'Deactivated';
         return back()->with('success', "User {$user->display_name} has been {$statusStr}.");
     }
+
+    /**
+     * Toggle lock/unlock status of user.
+     */
+    public function toggleLock(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $user->is_locked = !$user->is_locked;
+        if ($user->is_locked) {
+            $user->locked_reason = $request->input('reason') ?: 'Locked by Admin';
+            $user->locked_at = now();
+            $user->is_active = false;
+        } else {
+            $user->locked_reason = null;
+            $user->unlocked_at = now();
+            $user->is_active = true;
+        }
+        $user->save();
+
+        $lockStr = $user->is_locked ? 'Locked' : 'Unlocked';
+        return back()->with('success', "User {$user->display_name} account has been {$lockStr}.");
+    }
 }

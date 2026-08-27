@@ -475,17 +475,62 @@
                                 </div>
                             </div>
 
-                            <!-- Selfie with Document Card -->
+                            <!-- Selfie with Document / Center Face Card -->
                             <div class="col-12" id="modalSelfieWrapper">
                                 <div class="doc-preview-card" style="border-color: rgba(236,72,153,0.4);">
                                     <div class="doc-preview-header" style="background: linear-gradient(135deg, #ec4899, #f43f5e);">
-                                        <span class="badge bg-white text-dark fw-bold">3. Live Selfie with Document</span>
+                                        <span class="badge bg-white text-dark fw-bold">3. Live Selfie & Center Face</span>
                                         <a href="#" target="_blank" id="modalSelfieLink" class="text-white" title="Open Full Resolution">
                                             <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                         </a>
                                     </div>
-                                    <div class="doc-preview-img-box" style="max-height: 320px;">
+                                    <div class="doc-preview-img-box" style="max-height: 280px;">
                                         <img src="" id="modalSelfieImg" alt="Selfie with Document" class="img-fluid">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Left Turn Face Card -->
+                            <div class="col-md-4" id="modalFaceLeftWrapper" style="display: none;">
+                                <div class="doc-preview-card" style="border-color: rgba(6,182,212,0.4);">
+                                    <div class="doc-preview-header" style="background: #0891b2;">
+                                        <span class="badge bg-white text-dark fw-bold">4. Turn Left</span>
+                                        <a href="#" target="_blank" id="modalFaceLeftLink" class="text-white" title="Open Full Resolution">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        </a>
+                                    </div>
+                                    <div class="doc-preview-img-box" style="max-height: 200px;">
+                                        <img src="" id="modalFaceLeftImg" alt="Left Face" class="img-fluid">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Turn Face Card -->
+                            <div class="col-md-4" id="modalFaceRightWrapper" style="display: none;">
+                                <div class="doc-preview-card" style="border-color: rgba(245,158,11,0.4);">
+                                    <div class="doc-preview-header" style="background: #d97706;">
+                                        <span class="badge bg-white text-dark fw-bold">5. Turn Right</span>
+                                        <a href="#" target="_blank" id="modalFaceRightLink" class="text-white" title="Open Full Resolution">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        </a>
+                                    </div>
+                                    <div class="doc-preview-img-box" style="max-height: 200px;">
+                                        <img src="" id="modalFaceRightImg" alt="Right Face" class="img-fluid">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Blink / Liveness Face Card -->
+                            <div class="col-md-4" id="modalFaceBlinkWrapper" style="display: none;">
+                                <div class="doc-preview-card" style="border-color: rgba(16,185,129,0.4);">
+                                    <div class="doc-preview-header" style="background: #059669;">
+                                        <span class="badge bg-white text-dark fw-bold">6. Eye Blink</span>
+                                        <a href="#" target="_blank" id="modalFaceBlinkLink" class="text-white" title="Open Full Resolution">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        </a>
+                                    </div>
+                                    <div class="doc-preview-img-box" style="max-height: 200px;">
+                                        <img src="" id="modalFaceBlinkImg" alt="Blink Face" class="img-fluid">
                                     </div>
                                 </div>
                             </div>
@@ -681,8 +726,35 @@
             document.getElementById('modalBackWrapper').style.display = 'none';
         }
 
-        document.getElementById('modalSelfieImg').src = item.selfie_image_url;
-        document.getElementById('modalSelfieLink').href = item.selfie_image_url;
+        document.getElementById('modalSelfieImg').src = item.selfie_image_url || item.face_center_image_url;
+        document.getElementById('modalSelfieLink').href = item.selfie_image_url || item.face_center_image_url;
+
+        // Turn Left Image
+        if (item.face_left_image_url) {
+            document.getElementById('modalFaceLeftWrapper').style.display = 'block';
+            document.getElementById('modalFaceLeftImg').src = item.face_left_image_url;
+            document.getElementById('modalFaceLeftLink').href = item.face_left_image_url;
+        } else {
+            document.getElementById('modalFaceLeftWrapper').style.display = 'none';
+        }
+
+        // Turn Right Image
+        if (item.face_right_image_url) {
+            document.getElementById('modalFaceRightWrapper').style.display = 'block';
+            document.getElementById('modalFaceRightImg').src = item.face_right_image_url;
+            document.getElementById('modalFaceRightLink').href = item.face_right_image_url;
+        } else {
+            document.getElementById('modalFaceRightWrapper').style.display = 'none';
+        }
+
+        // Eye Blink Image
+        if (item.face_blink_image_url) {
+            document.getElementById('modalFaceBlinkWrapper').style.display = 'block';
+            document.getElementById('modalFaceBlinkImg').src = item.face_blink_image_url;
+            document.getElementById('modalFaceBlinkLink').href = item.face_blink_image_url;
+        } else {
+            document.getElementById('modalFaceBlinkWrapper').style.display = 'none';
+        }
 
         // Modal Action buttons
         const actionBtnContainer = document.getElementById('modalActionButtons');

@@ -34,6 +34,10 @@ class User extends Authenticatable
         'gallery_images',
         'is_verified',
         'is_active',
+        'is_locked',
+        'locked_reason',
+        'locked_at',
+        'unlocked_at',
         'level',
         'country',
         'city',
@@ -122,6 +126,9 @@ class User extends Authenticatable
      */
     public function getStatusTextAttribute(): string
     {
+        if ($this->is_locked) {
+            return 'Locked';
+        }
         return $this->is_active ? 'Online' : 'Offline';
     }
 
@@ -164,6 +171,9 @@ class User extends Authenticatable
             'tags'                => 'array',
             'is_verified'         => 'boolean',
             'is_active'           => 'boolean',
+            'is_locked'           => 'boolean',
+            'locked_at'           => 'datetime',
+            'unlocked_at'         => 'datetime',
             'age'                 => 'integer',
             'video_call_rate'     => 'integer',
             'coins'               => 'integer',

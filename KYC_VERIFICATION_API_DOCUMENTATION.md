@@ -294,85 +294,35 @@ Inspects image quality, face centering, liveness, and document readability prior
   "data": {
     "face_detected": true,
     "face_centered": true,
-    "eyes_open": true,
-    "lighting_score": 0.95,
-    "blur_score": 0.08,
-    "glare_detected": false,
-    "document_corners": 4,
-    "text_legibility": "excellent",
-    "liveness_confidence": 0.99,
-    "status": "PASSED"
+    "confidence": 0.99,
+    "instruction_en": "Account unlocked successfully! Welcome back.",
+    "instruction_bn": "ফেস ভেরিফিকেশন সফল! আপনার একাউন্ট আনলক করা হয়েছে।"
   }
 }
 ```
 
 ---
 
-## 5. 🤖 Python AI Real-Time Face Step Verification API
-
-Performs real-time pose and liveness detection for each step of the camera flow:
-- **Center**: Face positioned straight at eye level.
-- **Turn Left**: User turns head to the left.
-- **Turn Right**: User turns head to the right.
-- **Blink**: Eye blink or natural motion detected.
-
-### **Endpoint**
-`POST /api/kyc/face/verify-step` *(or `POST /kyc/face/verify-step`, `POST /api/kyc/face-liveness`)*
-
-### **Request Parameters (Multipart or JSON)**
-- `step`: string (`center`, `turn_left`, `turn_right`, `blink`, `auto`)
-- `image`: file or base64 (frame capture from camera)
-- `user_id`: optional fallback ID
-
-### **Success Response (200 OK)**
-```json
-{
-  "status": true,
-  "message": "Left profile verified! Now slowly turn your head to the RIGHT.",
-  "data": {
-    "status": "success",
-    "face_detected": true,
-    "current_step": "turn_left",
-    "step_completed": true,
-    "detected_pose": "turn_left",
-    "yaw_angle": -25.0,
-    "confidence_score": 0.98,
-    "is_clear": true,
-    "lighting_ok": true,
-    "next_step": "turn_right",
-    "instruction_en": "Left profile verified! Now slowly turn your head to the RIGHT.",
-    "instruction_bn": "বাম পাশের মুখমণ্ডল সফল! এবার ধীরে ধীরে মুখ ডান দিকে ঘোরান।",
-    "all_steps_progress": {
-      "center": true,
-      "turn_left": true,
-      "turn_right": false,
-      "blink": false
-    }
-  }
-}
-```
-
----
-
-## 6. 🛡️ Admin Verification Workflow & Endpoints
+## 7. 🛡️ Admin Verification & Account Lock Workflow
 
 ### **A. Web Admin Dashboard**
-- URL: `https://your-domain.com/admin/kyc`
-- Features:
-  - **Metrics**: Pending Reviews, Verified Streamers, Total Submissions, Rejected Submissions.
-  - **Filter Tabs**: All, Pending, Approved, Rejected, and Document Type filter (NID, Passport, Birth Cert).
-  - **High-Resolution Inspection Modal**: Zoomable front image, back image, and selfie with document.
-  - **Approve Button**: Marks KYC as `approved`, activates `is_verified = true` on the user account, and displays the blue Verified badge next to Online on the homepage and profile.
-  - **Reject Button**: Opens rejection modal to supply custom feedback reason.
+- **KYC Dashboard**: `https://your-domain.com/admin/kyc`
+- **Users Management & Lock Toggle**: `https://your-domain.com/admin/users`
+- **Features**:
+  - View all 4 Face Angles side-by-side (Center Selfie, Left Side Profile, Right Side Profile, Eye Blink) with high-resolution lightbox zoom.
+  - Approve & Grant Verified Badge button.
+  - Reject with custom reason modal.
+  - **Manual Lock / Unlock Button**: Admins can lock or unlock any user account with one click.
 
 ### **B. Admin REST APIs**
 - **List KYC Submissions**: `GET /api/admin/kyc-verifications?status=pending`
 - **Approve Submission**: `POST /api/admin/kyc-verifications/{id}/approve`
 - **Reject Submission**: `POST /api/admin/kyc-verifications/{id}/reject` (Body: `{"rejection_reason": "Image was blurred"}`)
+- **Toggle User Lock**: `POST /admin/users/{id}/toggle-lock`
 
 ---
 
-## 📱 Flutter / Dart Integration Example
+## 📱 Complete Flutter / Dart Integration SDK
 
 ```dart
 import 'dart:convert';
@@ -382,15 +332,19 @@ import 'package:http/http.dart' as http;
 class KycService {
   final String baseUrl = "https://your-domain.com/api";
 
-  /// Submit NID Verification with Images
-  Future<Map<String, dynamic>> submitNidKyc({
+  /// 1. Submit Full KYC with Multi-Angle Face Verification (Center, Left, Right, Blink)
+  Future<Map<String, dynamic>> submitFullKyc({
     required String token,
     required String fullName,
-    required String nidNumber,
+    required String documentNumber,
     required String dob,
+    required String documentType, // 'nid', 'passport', 'birth_certificate'
     required File frontImage,
-    required File backImage,
-    required File selfieImage,
+    File? backImage,
+    required File faceCenterImage,
+    required File faceLeftImage,
+    required File faceRightImage,
+    required File faceBlinkImage,
   }) async {
     var uri = Uri.parse('$baseUrl/kyc/submit');
     var request = http.MultipartRequest('POST', uri);
@@ -398,14 +352,19 @@ class KycService {
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['Accept'] = 'application/json';
 
-    request.fields['document_type'] = 'nid';
+    request.fields['document_type'] = documentType;
     request.fields['full_name'] = fullName;
-    request.fields['document_number'] = nidNumber;
+    request.fields['document_number'] = documentNumber;
     request.fields['date_of_birth'] = dob;
 
     request.files.add(await http.MultipartFile.fromPath('front_image', frontImage.path));
-    request.files.add(await http.MultipartFile.fromPath('back_image', backImage.path));
-    request.files.add(await http.MultipartFile.fromPath('selfie_image', selfieImage.path));
+    if (backImage != null) {
+      request.files.add(await http.MultipartFile.fromPath('back_image', backImage.path));
+    }
+    request.files.add(await http.MultipartFile.fromPath('selfie_image', faceCenterImage.path));
+    request.files.add(await http.MultipartFile.fromPath('face_left_image', faceLeftImage.path));
+    request.files.add(await http.MultipartFile.fromPath('face_right_image', faceRightImage.path));
+    request.files.add(await http.MultipartFile.fromPath('face_blink_image', faceBlinkImage.path));
 
     var streamedResponse = await request.send();
     var response = await http.Response.fromStream(streamedResponse);
@@ -413,7 +372,46 @@ class KycService {
     return jsonDecode(response.body);
   }
 
-  /// Get current KYC Status & Verified state
+  /// 2. Real-Time AI Face Step Verification (Center -> Turn Left -> Turn Right -> Blink)
+  Future<Map<String, dynamic>> verifyFaceStep({
+    required String token,
+    required String step, // 'center' | 'turn_left' | 'turn_right' | 'blink'
+    required File frameImage,
+  }) async {
+    var uri = Uri.parse('$baseUrl/kyc/face/verify-step');
+    var request = http.MultipartRequest('POST', uri);
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+
+    request.fields['step'] = step;
+    request.files.add(await http.MultipartFile.fromPath('image', frameImage.path));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    return jsonDecode(response.body);
+  }
+
+  /// 3. Biometric AI Face Re-Unlock for Blocked / Suspended Accounts
+  Future<Map<String, dynamic>> unlockAccountWithFace({
+    required String accountIdentifier, // phone, email, or account_id
+    required File liveFaceImage,
+  }) async {
+    var uri = Uri.parse('$baseUrl/kyc/face/unlock');
+    var request = http.MultipartRequest('POST', uri);
+
+    request.headers['Accept'] = 'application/json';
+    request.fields['phone'] = accountIdentifier;
+    request.files.add(await http.MultipartFile.fromPath('image', liveFaceImage.path));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    return jsonDecode(response.body);
+  }
+
+  /// 4. Get current KYC Status & Verified state
   Future<Map<String, dynamic>> getKycStatus(String token) async {
     var response = await http.get(
       Uri.parse('$baseUrl/kyc/status'),
@@ -426,3 +424,4 @@ class KycService {
   }
 }
 ```
+

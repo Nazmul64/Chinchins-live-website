@@ -20,6 +20,10 @@ class KycVerification extends Model
         'front_image',
         'back_image',
         'selfie_image',
+        'face_center_image',
+        'face_left_image',
+        'face_right_image',
+        'face_blink_image',
         'liveness_data',
         'ai_detection_meta',
         'status',
@@ -43,6 +47,10 @@ class KycVerification extends Model
         'front_image_url',
         'back_image_url',
         'selfie_image_url',
+        'face_center_image_url',
+        'face_left_image_url',
+        'face_right_image_url',
+        'face_blink_image_url',
         'document_type_label',
         'status_badge_class',
     ];
@@ -107,6 +115,38 @@ class KycVerification extends Model
     public function getSelfieImageUrlAttribute(): ?string
     {
         return static::resolveImageUrl($this->selfie_image);
+    }
+
+    /**
+     * Full URL of Center face image.
+     */
+    public function getFaceCenterImageUrlAttribute(): ?string
+    {
+        return static::resolveImageUrl($this->face_center_image ?: $this->selfie_image);
+    }
+
+    /**
+     * Full URL of Left side face image.
+     */
+    public function getFaceLeftImageUrlAttribute(): ?string
+    {
+        return static::resolveImageUrl($this->face_left_image);
+    }
+
+    /**
+     * Full URL of Right side face image.
+     */
+    public function getFaceRightImageUrlAttribute(): ?string
+    {
+        return static::resolveImageUrl($this->face_right_image);
+    }
+
+    /**
+     * Full URL of Eye Blink face image.
+     */
+    public function getFaceBlinkImageUrlAttribute(): ?string
+    {
+        return static::resolveImageUrl($this->face_blink_image);
     }
 
     /**
