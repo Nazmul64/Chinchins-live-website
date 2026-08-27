@@ -74,10 +74,12 @@ Route::match(['post', 'delete'], '/clear-gallery', [ProfileController::class, 'c
 // ==========================================
 // Payment methods list (bKash, Nagad, etc.) & Coin Packages
 Route::get('/payment-methods', [PaymentController::class, 'getPaymentMethods']);
+Route::get('/deposit/methods', [PaymentController::class, 'getPaymentMethods']);
 
 // Coin Packages RESTful CRUD APIs
 Route::get('/coin-packages', [PaymentController::class, 'getCoinPackages']);
 Route::get('/packages', [PaymentController::class, 'getCoinPackages']);
+Route::get('/deposit/packages', [PaymentController::class, 'getCoinPackages']);
 Route::get('/coin-packages/{id}', [PaymentController::class, 'showCoinPackage']);
 Route::post('/coin-packages', [PaymentController::class, 'storeCoinPackage']);
 Route::post('/coin-packages/store', [PaymentController::class, 'storeCoinPackage']);
@@ -87,16 +89,21 @@ Route::post('/coin-packages/{id}/update', [PaymentController::class, 'updateCoin
 Route::delete('/coin-packages/{id}', [PaymentController::class, 'deleteCoinPackage']);
 Route::post('/coin-packages/{id}/delete', [PaymentController::class, 'deleteCoinPackage']);
 
-// Wallet balance & transactions
+// Wallet balance, Total Deposited Coins & Summary
+Route::get('/wallet', [PaymentController::class, 'getWalletBalance']);
 Route::get('/wallet/balance', [PaymentController::class, 'getWalletBalance']);
+Route::get('/wallet/summary', [PaymentController::class, 'getWalletBalance']);
 Route::get('/coins/balance', [PaymentController::class, 'getWalletBalance']);
 Route::get('/wallet/transactions', [PaymentController::class, 'getTransactions']);
 Route::get('/coins/transactions', [PaymentController::class, 'getTransactions']);
 
-// Submit Deposit request & view history
+// Submit Deposit request & view history (bKash, Nagad, Rocket, etc.)
+Route::post('/deposit/submit', [PaymentController::class, 'submitDeposit']);
 Route::post('/deposit/request', [PaymentController::class, 'submitDeposit']);
+Route::post('/deposit/create', [PaymentController::class, 'submitDeposit']);
 Route::post('/wallet/deposit', [PaymentController::class, 'submitDeposit']);
 Route::get('/deposit/history', [PaymentController::class, 'getDepositHistory']);
+Route::get('/wallet/history', [PaymentController::class, 'getDepositHistory']);
 Route::get('/wallet/deposits', [PaymentController::class, 'getDepositHistory']);
 
 // ==========================================

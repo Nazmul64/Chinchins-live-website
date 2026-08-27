@@ -81,7 +81,15 @@ Route::post('/kyc/video-scan', [\App\Http\Controllers\Api\KycApiController::clas
 Route::post('/kyc/video', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
 Route::post('/kyc/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
 Route::post('/kyc/face-liveness', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
-Route::post('/kyc/face/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
-Route::post('/kyc/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
-Route::post('/auth/face-unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
+// Mobile App Wallet & Deposit Fallback Routes (Direct without /api prefix)
+Route::get('/wallet', [\App\Http\Controllers\Api\PaymentController::class, 'getWalletBalance']);
+Route::get('/wallet/balance', [\App\Http\Controllers\Api\PaymentController::class, 'getWalletBalance']);
+Route::get('/wallet/summary', [\App\Http\Controllers\Api\PaymentController::class, 'getWalletBalance']);
+Route::get('/payment-methods', [\App\Http\Controllers\Api\PaymentController::class, 'getPaymentMethods']);
+Route::get('/coin-packages', [\App\Http\Controllers\Api\PaymentController::class, 'getCoinPackages']);
+Route::post('/deposit/submit', [\App\Http\Controllers\Api\PaymentController::class, 'submitDeposit']);
+Route::post('/deposit/request', [\App\Http\Controllers\Api\PaymentController::class, 'submitDeposit']);
+Route::get('/deposit/history', [\App\Http\Controllers\Api\PaymentController::class, 'getDepositHistory']);
+Route::get('/wallet/history', [\App\Http\Controllers\Api\PaymentController::class, 'getDepositHistory']);
+
 
