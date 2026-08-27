@@ -1,20 +1,24 @@
-# Chinchins Live — KYC Identity Verification & Streamer Badge API Documentation
+# 🪪 Chinchins Live — Binance-Style AI KYC & Streamer Verification API Documentation
 
-This documentation provides comprehensive specifications for the **KYC Identity Verification System (NID Card, Passport, Birth Certificate)**, **AI-Guided Face Liveness / Selfie Verification**, and **Admin Approval Flow with Verified Badge Integration** for Mobile App Developers (Flutter / Android / iOS / Web).
+This documentation provides the complete technical specification for the **Binance-Style KYC Identity Verification System** (NID Card, Passport, Birth Certificate), **Real-Time AI Video Face Scanner & Voice Prompts**, and **Account Face Re-Unlock System** for Flutter mobile app developers and backend administrators.
 
 ---
 
-## 🌐 Base URL
+## 🌐 Base URL & Endpoints
+
 ```http
 Production:  https://your-domain.com/api
 Development: http://127.0.0.1:8000/api
 ```
 
+> **Note**: For mobile app flexibility, all routes work both **with** `/api/` (e.g. `/api/kyc/submit`) and **without** `/api/` (e.g. `/kyc/submit`). All endpoints strictly return pure JSON `application/json` responses.
+
 ---
 
 ## 🔑 Authentication Architecture
-- **Bearer Token**: `Authorization: Bearer <AUTH_TOKEN>`
-- **Fallback Support**: `X-User-Id: <USER_ID_OR_ACCOUNT_ID>` or request parameter `user_id=<USER_ID>`
+
+- **Primary**: `Authorization: Bearer <SANCTUM_TOKEN>`
+- **Fallback**: `X-User-Id: <USER_ID_OR_ACCOUNT_ID>` or request parameter `user_id=<USER_ID>`
 - **Headers**:
 ```http
 Accept: application/json
@@ -24,67 +28,63 @@ Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
-## 📑 Endpoints Matrix
+## 📑 Complete RESTful API Matrix
 
-| Category | Method | Endpoint | Description |
-| :--- | :---: | :--- | :--- |
-| **Guidelines** | `GET` | `/api/kyc/instructions` | Get supported document types, field requirements & AI face guidance |
-| **Verification** | `POST` | `/api/kyc/submit` | Submit KYC verification (NID / Passport / Birth Certificate + Selfie) |
-| **Verification** | `GET` | `/api/kyc/status` | Get current KYC status (`pending`, `approved`, `rejected`), submission details & badges |
-| **AI Pre-check** | `POST` | `/api/kyc/ai-detect` | AI face landmark, liveness & document legibility pre-check |
-| **Admin API** | `GET` | `/api/admin/kyc-verifications` | List all KYC submissions with filters (`status`, `document_type`, `search`) |
-| **Admin API** | `POST` | `/api/admin/kyc-verifications/{id}/approve` | Approve KYC and activate Verified badge on profile |
-| **Admin API** | `POST` | `/api/admin/kyc-verifications/{id}/reject` | Reject KYC with custom reason |
-
----
-
-## 🪪 Supported Document Types & Requirements
-
-### 1. 🪪 National ID Card (`nid` or `national_id`)
-- **Full Legal Name** (`full_name`): Name exactly as printed on the NID.
-- **NID Number** (`document_number`): 10, 13, or 17-digit National ID number.
-- **Date of Birth** (`date_of_birth` / `dob`): `YYYY-MM-DD`.
-- **Front Part Photo** (`front_image` / `front_part`): Clear photo of the front side of NID card (**Required**).
-- **Back Part Photo** (`back_image` / `back_part`): Clear photo of the back side of NID card (**Required**).
-- **Live Selfie with Document** (`selfie_image` / `selfie_with_doc`): Clear selfie holding the NID card (**Required**).
-
-### 2. 🛂 International Passport (`passport`)
-- **Full Legal Name** (`full_name`): Passport holder's official name.
-- **Passport Number** (`document_number`): Valid passport number (e.g. `A01234567`).
-- **Date of Birth** (`date_of_birth` / `dob`): `YYYY-MM-DD`.
-- **Bio-data Page Photo** (`front_image` / `document_image`): Photo or screenshot of the main bio-data page (**Required**).
-- **Back Page Photo** (`back_image`): Optional.
-- **Live Selfie with Passport** (`selfie_image` / `selfie_with_doc`): Selfie holding the open passport (**Required**).
-
-### 3. 📜 Birth Certificate (`birth_certificate` or `dob_certificate`)
-- **Full Legal Name** (`full_name`): Registered legal name on birth certificate.
-- **Certificate Number** (`document_number`): 17-digit online birth registration number.
-- **Date of Birth** (`date_of_birth` / `dob`): `YYYY-MM-DD`.
-- **Certificate Photo** (`front_image` / `document_image`): Clear photo or digital screenshot of the certificate (**Required**).
-- **Live Selfie with Document** (`selfie_image` / `selfie_with_doc`): Selfie holding the birth certificate (**Required**).
+| # | Method | Endpoint | Description |
+| :---: | :---: | :--- | :--- |
+| **1** | `GET` | `/api/kyc/instructions` | Get document requirements, field lists, and AI face scan guidelines |
+| **2** | `POST` | `/api/kyc/ai-detect` | Fast AI quality pre-check for document edges, lighting, and face clarity |
+| **3** | `POST` | `/api/kyc/video-verify` | **Binance-Style Live Video Face Scan** with voice prompts & circular progress (0-100%) |
+| **4** | `POST` | `/api/kyc/submit` | Submit full KYC with document front/back and live face video/selfie |
+| **5** | `GET` | `/api/kyc/status` | Get user's KYC verification status (`pending`, `approved`, `rejected`) and badge info |
+| **6** | `POST` | `/api/kyc/face/unlock` | **Direct Biometric Face Re-Unlock** to automatically reactivate blocked/locked accounts |
+| **7** | `GET` | `/api/admin/kyc-verifications` | Admin: List submissions with status filters and search |
+| **8** | `POST` | `/api/admin/kyc-verifications/{id}/approve` | Admin: Approve submission and grant blue **Verified** badge |
+| **9** | `POST` | `/api/admin/kyc-verifications/{id}/reject` | Admin: Reject submission with custom reason |
+| **10**| `POST` | `/admin/users/{id}/toggle-lock` | Admin: Manually Lock or Unlock user account |
 
 ---
 
-## 🤖 AI Face Liveness & Camera Instructions
+## 🎥 1. Binance-Style Live AI Face Scanner Architecture
 
-When capturing the live selfie or video verification in the mobile app, follow these steps:
-1. **Lighting**: Ensure face and document are well-lit without glare or heavy shadows.
-2. **Step 1 (Center)**: Look directly into the camera at eye level.
-3. **Step 2 (Left Pose)**: Turn head slightly to the left (15°–30°).
-4. **Step 3 (Right Pose)**: Turn head slightly to the right (15°–30°).
-5. **Step 4 (Blink / Smile)**: Blink naturally to ensure live human detection.
-6. **No Filters / Obstructions**: Do not wear sunglasses, caps, or face masks.
+Unlike traditional apps that ask for 4 static photo uploads, Chinchins Live uses a **single continuous AI face scan** inside a circular camera frame with real-time prompts:
+
+```
+                      ┌─────────────────────────────────┐
+                      │    [ AI Circular Camera UI ]    │
+                      │                                 │
+                      │   Step 1: Look Center     (25%) │
+                      │   Step 2: Turn Left       (50%) │
+                      │   Step 3: Turn Right      (75%) │
+                      │   Step 4: Blink / Smile  (100%) │
+                      └────────────────┬────────────────┘
+                                       │
+                         [ Live Video Stream / Frame ]
+                                       │
+                                       ▼
+                   ┌───────────────────────────────────────┐
+                   │  Laravel Python AI Engine (OpenCV)    │
+                   │  - Face Orientation & Yaw Angle       │
+                   │  - Eye Aspect Ratio (EAR) Blink       │
+                   │  - Liveness & Anti-Spoofing Score     │
+                   └───────────────────┬───────────────────┘
+                                       │
+                     [ Stored in public/uploads/kyc/ ]
+                                       │
+                                       ▼
+                    ┌─────────────────────────────────────┐
+                    │  Admin Dashboard HTML5 Video Player │
+                    └─────────────────────────────────────┘
+```
 
 ---
 
-## 1. 📖 KYC Instructions & Guidelines API
+## 📖 2. API Specifications
 
-Returns the complete specifications, required fields for each document, and liveness instructions.
+### **A. KYC Guidelines & Requirements**
+`GET /api/kyc/instructions`
 
-### **Endpoint**
-`GET /api/kyc/instructions` *(or `GET /api/kyc/guidelines`)*
-
-### **Success Response (200 OK)**
+**Response (200 OK):**
 ```json
 {
   "status": true,
@@ -94,200 +94,34 @@ Returns the complete specifications, required fields for each document, and live
       {
         "type": "nid",
         "title": "National ID Card (NID)",
-        "description": "Official Government National Identity Card.",
-        "required_fields": [
-          "full_name",
-          "document_number",
-          "date_of_birth",
-          "front_image",
-          "back_image",
-          "selfie_image"
-        ],
-        "front_part_guide": "Clear, glare-free photo of the front side of your NID Card with photo and name visible.",
-        "back_part_guide": "Clear photo of the back side of your NID Card with address and barcode visible.",
-        "selfie_guide": "Take a clear selfie holding your NID card close to your chest/face without blocking your face."
+        "required_fields": ["full_name", "document_number", "date_of_birth", "front_image", "back_image", "face_video"]
       },
       {
         "type": "passport",
         "title": "International Passport",
-        "description": "Valid government-issued international travel passport.",
-        "required_fields": [
-          "full_name",
-          "document_number",
-          "date_of_birth",
-          "front_image",
-          "selfie_image"
-        ],
-        "front_part_guide": "High-resolution photo or screenshot of the main bio-data page (with photo, MRZ code and passport number).",
-        "back_part_guide": "Optional for passport.",
-        "selfie_guide": "Take a selfie holding your open passport bio-data page clearly visible."
+        "required_fields": ["full_name", "document_number", "date_of_birth", "front_image", "face_video"]
       },
       {
         "type": "birth_certificate",
         "title": "Birth Certificate (জন্ম নিবন্ধন)",
-        "description": "Official 17-digit Online Birth Registration Certificate.",
-        "required_fields": [
-          "full_name",
-          "document_number",
-          "date_of_birth",
-          "front_image",
-          "selfie_image"
-        ],
-        "front_part_guide": "Clear photo or digital screenshot of the full birth certificate document.",
-        "back_part_guide": "Optional.",
-        "selfie_guide": "Take a selfie holding the birth certificate document clearly."
+        "required_fields": ["full_name", "document_number", "date_of_birth", "front_image", "face_video"]
       }
-    ],
-    "ai_liveness_guidelines": {
-      "lighting": "Ensure your room is well-lit without direct glare or shadows on your face or document.",
-      "face_orientation": {
-        "step_1": "Look straight into the camera at eye level.",
-        "step_2": "Turn your head slightly to the left when prompted.",
-        "step_3": "Turn your head slightly to the right when prompted.",
-        "step_4": "Blink naturally or smile to verify live human presence."
-      },
-      "rules": [
-        "No sunglasses, hats, masks, or filters allowed.",
-        "All four corners of the identity card/document must be visible.",
-        "Text and dates on the document must be sharp, legible, and unblurred.",
-        "Selfie face must match the face on the identity document."
-      ]
-    }
+    ]
   }
 }
 ```
 
 ---
 
-## 2. 📤 Submit KYC Verification API
+### **B. AI Quality Pre-Check API**
+`POST /api/kyc/ai-detect` *(Aliases: `/api/kyc/pre-check`, `/kyc/ai-detect`)*
 
-Allows users to upload their official documents and selfie for admin review. Once submitted, status becomes `pending`.
+**Request Parameters (Multipart or JSON):**
+- `front_image`: file or base64 (optional)
+- `selfie_image`: file or base64 (optional)
+- `user_id`: optional
 
-### **Endpoint**
-`POST /api/kyc/submit` *(or `POST /api/profile/kyc/submit`, `POST /api/kyc/verification/submit`)*
-
-### **Request Parameters (Multipart Form-data or JSON)**
-
-| Parameter | Type | Required | Description |
-| :--- | :---: | :---: | :--- |
-| `document_type` | string | Optional | `nid` (default), `passport`, `birth_certificate` |
-| `full_name` | string | **Yes** | Full legal name as printed on the document |
-| `document_number` | string | **Yes** | NID number, Passport number, or Birth Certificate number |
-| `date_of_birth` | string | Optional | Date of birth format `YYYY-MM-DD` (alias: `dob`) |
-| `front_image` | file / base64 | **Yes** | Front photo / bio-data page of document |
-| `back_image` | file / base64 | **Yes (NID)** | Back photo of NID Card (optional for passport/birth cert) |
-| `selfie_image` | file / base64 | **Yes** | Selfie holding the document or live facial scan |
-| `liveness_data` | json / array | Optional | Camera orientation metadata (`center`, `left`, `right`) |
-| `user_notes` | string | Optional | Any optional note from the user |
-
-### **Example Request (cURL Multipart)**
-```bash
-curl -X POST "http://127.0.0.1:8000/api/kyc/submit" \
-  -H "Authorization: Bearer 1|xxxxxxxxxxxxxxxxxxxxxxx" \
-  -H "Accept: application/json" \
-  -F "document_type=nid" \
-  -F "full_name=Ayeena Khan" \
-  -F "document_number=5523910291" \
-  -F "date_of_birth=1998-05-15" \
-  -F "front_image=@/path/to/nid_front.jpg" \
-  -F "back_image=@/path/to/nid_back.jpg" \
-  -F "selfie_image=@/path/to/selfie_with_nid.jpg"
-```
-
-### **Success Response (201 Created)**
-```json
-{
-  "status": true,
-  "message": "KYC verification submitted successfully. It is currently under review by our admin team.",
-  "data": {
-    "kyc_id": 4,
-    "status": "pending",
-    "document_type": "nid",
-    "document_type_label": "National ID Card (NID)",
-    "full_name": "Ayeena Khan",
-    "document_number": "5523910291",
-    "date_of_birth": "1998-05-15",
-    "front_image_url": "https://your-domain.com/uploads/kyc/kyc_front_2_1787818013_OPsDxR.jpg",
-    "back_image_url": "https://your-domain.com/uploads/kyc/kyc_back_2_1787818013_NrQ7Ew.jpg",
-    "selfie_image_url": "https://your-domain.com/uploads/kyc/kyc_selfie_2_1787818013_dfpckX.jpg",
-    "submitted_at": "2026-08-27T08:06:53Z",
-    "user": {
-      "id": 2,
-      "account_id": "6022816358",
-      "display_name": "Ayeena Khan",
-      "is_verified": false,
-      "kyc_status": "pending"
-    }
-  }
-}
-```
-
----
-
-## 3. 🔍 KYC Verification Status & Badge API
-
-Retrieves the authenticated user's current identity verification status, submission history, and UI badge attributes.
-
-### **Endpoint**
-`GET /api/kyc/status` *(or `GET /api/profile/kyc`, `GET /api/kyc/verification/status`)*
-
-### **Success Response (200 OK)**
-```json
-{
-  "status": true,
-  "message": "KYC verification status retrieved successfully.",
-  "data": {
-    "user_id": 2,
-    "account_id": "6022816358",
-    "display_name": "Ayeena Khan",
-    "is_verified": true,
-    "kyc_status": "approved",
-    "latest_submission": {
-      "id": 4,
-      "user_id": 2,
-      "document_type": "nid",
-      "full_name": "Ayeena Khan",
-      "document_number": "5523910291",
-      "date_of_birth": "1998-05-15",
-      "front_image_url": "https://your-domain.com/uploads/kyc/kyc_front_2_1787818013_OPsDxR.jpg",
-      "back_image_url": "https://your-domain.com/uploads/kyc/kyc_back_2_1787818013_NrQ7Ew.jpg",
-      "selfie_image_url": "https://your-domain.com/uploads/kyc/kyc_selfie_2_1787818013_dfpckX.jpg",
-      "status": "approved",
-      "reviewed_at": "2026-08-27T08:15:00Z"
-    },
-    "submission_history": [
-      {
-        "id": 4,
-        "document_type": "nid",
-        "status": "approved",
-        "submitted_at": "2026-08-27T08:06:53Z"
-      }
-    ],
-    "badge": {
-      "text": "Verified",
-      "verified": true,
-      "icon": "check-circle",
-      "color": "#3b82f6"
-    }
-  }
-}
-```
-
----
-
-## 4. 🤖 AI Pre-Detection Inspection Endpoint
-
-Inspects image quality, face centering, liveness, and document readability prior to final submission.
-
-### **Endpoint**
-`POST /api/kyc/ai-detect` *(or `POST /api/kyc/pre-check`, `POST /kyc/ai-detect`)*
-
-### **Request Parameters**
-- `front_image` (file or base64)
-- `selfie_image` (file or base64)
-- `user_id` (optional fallback)
-
-### **Success Response (200 OK)**
+**Response (200 OK):**
 ```json
 {
   "status": true,
@@ -318,36 +152,27 @@ Inspects image quality, face centering, liveness, and document readability prior
 
 ---
 
-## 5. 🎥 Video-Based Real-Time Face Scan & Circular Progress API
+### **C. Binance-Style Live Video Face Scan API**
+`POST /api/kyc/video-verify` *(Aliases: `/api/kyc/video-scan`, `/kyc/video-verify`)*
 
-Performs live video scanning with voice/visual guidance and circular progress tracking (0% -> 25% -> 50% -> 75% -> 100%):
-1. **Center**: "Look straight into the camera" (25%)
-2. **Turn Left**: "Turn your head slowly to the Left" (50%)
-3. **Turn Right**: "Turn your head slowly to the Right" (75%)
-4. **Blink**: "Blink your eyes naturally" (100% Done)
+**Request Parameters (Multipart):**
+- `video` or `face_video`: file (MP4/WebM recorded live face scan) or Base64
 
-### **Endpoint**
-`POST /api/kyc/video-verify` *(or `POST /api/kyc/video-scan`, `POST /kyc/video-verify`)*
-
-### **Request Parameters**
-- `video`: file (MP4/WebM recorded video stream) or base64
-- `user_id`: optional
-
-### **Success Response (200 OK)**
+**Response (200 OK):**
 ```json
 {
   "status": true,
   "message": "Live video face scan processed successfully.",
   "data": {
-    "video_url": "https://your-domain.com/uploads/kyc/kyc_video_scan_2_1787820112_abc.mp4",
+    "video_url": "https://your-domain.com/uploads/kyc/kyc_video_2_1787821000_abc.mp4",
     "progress_percentage": 100,
     "is_completed": true,
     "face_detected": true,
     "detected_pose": "center",
     "yaw_angle": 0.0,
     "confidence_score": 0.99,
-    "audio_prompt_en": "Look directly at the camera, turn left, turn right, and blink.",
-    "audio_prompt_bn": "সোজা তাকান, বামে ও ডানে ঘুরুন এবং চোখের পলক ফেলুন।",
+    "audio_prompt_en": "Live face scan verified successfully!",
+    "audio_prompt_bn": "লাইভ ফেস স্ক্যান সফলভাবে সম্পন্ন হয়েছে!",
     "all_steps_progress": {
       "center": true,
       "turn_left": true,
@@ -360,24 +185,92 @@ Performs live video scanning with voice/visual guidance and circular progress tr
 
 ---
 
-## 6. 🔓 AI Face Re-Unlock Verification API (For Blocked/Locked Accounts)
+### **D. Submit Full KYC Verification API**
+`POST /api/kyc/submit` *(Aliases: `/api/profile/kyc/submit`, `/kyc/submit`)*
 
-If an account is suspended, blocked or locked by admin, the user can verify their live face to automatically unblock and re-activate their account.
+**Request Parameters (Multipart):**
+| Field | Type | Required | Description |
+| :--- | :---: | :---: | :--- |
+| `document_type` | string | **Yes** | `nid` (default), `passport`, `birth_certificate` |
+| `full_name` | string | **Yes** | Full legal name matching document |
+| `document_number` | string | **Yes** | NID / Passport / Certificate number |
+| `date_of_birth` | string | Optional | `YYYY-MM-DD` (alias: `dob`) |
+| `front_image` | file | **Yes** | Clear front photo of document |
+| `back_image` | file | **Yes (NID)** | Clear back photo of NID card |
+| `selfie_image` | file | **Yes** | Selfie / face snapshot |
+| `face_video` | file | Optional | Recorded Live AI video scan (`.mp4`) |
+| `user_notes` | string | Optional | Optional user note |
 
-### **Endpoint**
-`POST /api/kyc/face/unlock` *(or `POST /api/auth/face-unlock`, `POST /kyc/face/unlock`)*
+**Response (200 OK):**
+```json
+{
+  "status": true,
+  "message": "KYC verification submitted successfully. It is currently under review by our admin team.",
+  "data": {
+    "kyc_id": 12,
+    "status": "pending",
+    "document_type": "nid",
+    "document_type_label": "National ID Card (NID)",
+    "full_name": "Ayeena Khan",
+    "document_number": "5523910291",
+    "date_of_birth": "1998-05-15",
+    "front_image_url": "https://your-domain.com/uploads/kyc/kyc_front_2_1787821000_abc.jpg",
+    "back_image_url": "https://your-domain.com/uploads/kyc/kyc_back_2_1787821000_def.jpg",
+    "selfie_image_url": "https://your-domain.com/uploads/kyc/kyc_selfie_2_1787821000_ghi.jpg",
+    "face_video_url": "https://your-domain.com/uploads/kyc/kyc_video_2_1787821000_jkl.mp4",
+    "submitted_at": "2026-08-27T10:00:00Z"
+  }
+}
+```
 
-### **Request Parameters**
-- `image` / `face` / `selfie`: file or Base64 live face capture
-- `phone` / `email` / `account_id` / `user_id`: identifier of the user (or Bearer Token)
+---
 
-### **Success Response (200 OK)**
+### **E. Check Verification Status & Verified Badge API**
+`GET /api/kyc/status` *(Aliases: `/api/profile/kyc`, `/kyc/status`)*
+
+**Response (200 OK):**
+```json
+{
+  "status": true,
+  "message": "KYC verification status retrieved successfully.",
+  "data": {
+    "user_id": 2,
+    "account_id": "CHIN1082",
+    "display_name": "Ayeena Khan",
+    "is_verified": true,
+    "kyc_status": "approved",
+    "latest_submission": {
+      "id": 12,
+      "status": "approved",
+      "front_image_url": "https://your-domain.com/uploads/kyc/kyc_front_2_1787821000_abc.jpg",
+      "face_video_url": "https://your-domain.com/uploads/kyc/kyc_video_2_1787821000_jkl.mp4"
+    },
+    "badge": {
+      "text": "Verified",
+      "verified": true,
+      "icon": "check-circle",
+      "color": "#3b82f6"
+    }
+  }
+}
+```
+
+---
+
+### **F. Biometric Face Re-Unlock for Blocked Accounts**
+`POST /api/kyc/face/unlock` *(Aliases: `/api/auth/face-unlock`, `/kyc/face/unlock`)*
+
+**Request Parameters:**
+- `image` / `face` / `video`: live face capture
+- `phone` / `email` / `account_id` / `user_id`: user identifier
+
+**Response (200 OK):**
 ```json
 {
   "status": true,
   "message": "Face verification matched! Your account has been successfully unlocked.",
   "data": {
-    "user_id": 12,
+    "user_id": 2,
     "account_id": "CHIN1082",
     "display_name": "Ayeena Khan",
     "is_locked": false,
@@ -392,36 +285,61 @@ If an account is suspended, blocked or locked by admin, the user can verify thei
 
 ---
 
-## 7. 🛡️ Admin Verification & Account Lock Workflow
+## 📱 Complete Flutter / Dart Integration Code
 
-### **A. Web Admin Dashboard**
-- **KYC Dashboard**: `https://your-domain.com/admin/kyc`
-- **Users Management & Lock Toggle**: `https://your-domain.com/admin/users`
-- **Features**:
-  - View all 4 Face Angles side-by-side (Center Selfie, Left Side Profile, Right Side Profile, Eye Blink) with high-resolution lightbox zoom.
-  - Approve & Grant Verified Badge button.
-  - Reject with custom reason modal.
-  - **Manual Lock / Unlock Button**: Admins can lock or unlock any user account with one click.
-
-### **B. Admin REST APIs**
-- **List KYC Submissions**: `GET /api/admin/kyc-verifications?status=pending`
-- **Approve Submission**: `POST /api/admin/kyc-verifications/{id}/approve`
-- **Reject Submission**: `POST /api/admin/kyc-verifications/{id}/reject` (Body: `{"rejection_reason": "Image was blurred"}`)
-- **Toggle User Lock**: `POST /admin/users/{id}/toggle-lock`
-
----
-
-## 📱 Complete Flutter / Dart Integration SDK
+You can directly use this `KycApiService` in your Flutter app:
 
 ```dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
-class KycService {
+class KycApiService {
   final String baseUrl = "https://your-domain.com/api";
 
-  /// 1. Submit Full KYC with Multi-Angle Face Verification (Center, Left, Right, Blink)
+  /// 1. Run AI Quality & Face Pre-check
+  Future<Map<String, dynamic>> runAiQualityPreCheck({
+    required String token,
+    File? frontImage,
+    File? selfieImage,
+  }) async {
+    var uri = Uri.parse('$baseUrl/kyc/ai-detect');
+    var request = http.MultipartRequest('POST', uri);
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+
+    if (frontImage != null) {
+      request.files.add(await http.MultipartFile.fromPath('front_image', frontImage.path));
+    }
+    if (selfieImage != null) {
+      request.files.add(await http.MultipartFile.fromPath('selfie_image', selfieImage.path));
+    }
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    return jsonDecode(response.body);
+  }
+
+  /// 2. Binance-Style Live Video Face Scan Upload
+  Future<Map<String, dynamic>> uploadLiveFaceVideoScan({
+    required String token,
+    required File videoFile,
+  }) async {
+    var uri = Uri.parse('$baseUrl/kyc/video-verify');
+    var request = http.MultipartRequest('POST', uri);
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+
+    request.files.add(await http.MultipartFile.fromPath('video', videoFile.path));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    return jsonDecode(response.body);
+  }
+
+  /// 3. Submit Full KYC with Document & Face Video/Selfie
   Future<Map<String, dynamic>> submitFullKyc({
     required String token,
     required String fullName,
@@ -430,10 +348,9 @@ class KycService {
     required String documentType, // 'nid', 'passport', 'birth_certificate'
     required File frontImage,
     File? backImage,
-    required File faceCenterImage,
-    required File faceLeftImage,
-    required File faceRightImage,
-    required File faceBlinkImage,
+    required File selfieImage,
+    File? faceVideoFile,
+    String? userNotes,
   }) async {
     var uri = Uri.parse('$baseUrl/kyc/submit');
     var request = http.MultipartRequest('POST', uri);
@@ -445,62 +362,42 @@ class KycService {
     request.fields['full_name'] = fullName;
     request.fields['document_number'] = documentNumber;
     request.fields['date_of_birth'] = dob;
+    if (userNotes != null) {
+      request.fields['user_notes'] = userNotes;
+    }
 
     request.files.add(await http.MultipartFile.fromPath('front_image', frontImage.path));
     if (backImage != null) {
       request.files.add(await http.MultipartFile.fromPath('back_image', backImage.path));
     }
-    request.files.add(await http.MultipartFile.fromPath('selfie_image', faceCenterImage.path));
-    request.files.add(await http.MultipartFile.fromPath('face_left_image', faceLeftImage.path));
-    request.files.add(await http.MultipartFile.fromPath('face_right_image', faceRightImage.path));
-    request.files.add(await http.MultipartFile.fromPath('face_blink_image', faceBlinkImage.path));
+    request.files.add(await http.MultipartFile.fromPath('selfie_image', selfieImage.path));
+    if (faceVideoFile != null) {
+      request.files.add(await http.MultipartFile.fromPath('face_video', faceVideoFile.path));
+    }
 
     var streamedResponse = await request.send();
     var response = await http.Response.fromStream(streamedResponse);
-
     return jsonDecode(response.body);
   }
 
-  /// 2. Real-Time AI Face Step Verification (Center -> Turn Left -> Turn Right -> Blink)
-  Future<Map<String, dynamic>> verifyFaceStep({
-    required String token,
-    required String step, // 'center' | 'turn_left' | 'turn_right' | 'blink'
-    required File frameImage,
-  }) async {
-    var uri = Uri.parse('$baseUrl/kyc/face/verify-step');
-    var request = http.MultipartRequest('POST', uri);
-
-    request.headers['Authorization'] = 'Bearer $token';
-    request.headers['Accept'] = 'application/json';
-
-    request.fields['step'] = step;
-    request.files.add(await http.MultipartFile.fromPath('image', frameImage.path));
-
-    var streamedResponse = await request.send();
-    var response = await http.Response.fromStream(streamedResponse);
-
-    return jsonDecode(response.body);
-  }
-
-  /// 3. Biometric AI Face Re-Unlock for Blocked / Suspended Accounts
+  /// 4. Biometric Face Re-Unlock for Blocked Account
   Future<Map<String, dynamic>> unlockAccountWithFace({
     required String accountIdentifier, // phone, email, or account_id
-    required File liveFaceImage,
+    required File liveFaceFile,
   }) async {
     var uri = Uri.parse('$baseUrl/kyc/face/unlock');
     var request = http.MultipartRequest('POST', uri);
 
     request.headers['Accept'] = 'application/json';
     request.fields['phone'] = accountIdentifier;
-    request.files.add(await http.MultipartFile.fromPath('image', liveFaceImage.path));
+    request.files.add(await http.MultipartFile.fromPath('image', liveFaceFile.path));
 
     var streamedResponse = await request.send();
     var response = await http.Response.fromStream(streamedResponse);
-
     return jsonDecode(response.body);
   }
 
-  /// 4. Get current KYC Status & Verified state
+  /// 5. Get current KYC Status & Verified state
   Future<Map<String, dynamic>> getKycStatus(String token) async {
     var response = await http.get(
       Uri.parse('$baseUrl/kyc/status'),
@@ -514,3 +411,14 @@ class KycService {
 }
 ```
 
+---
+
+## 🛡️ 3. Admin Verification Workflow
+
+- **Admin KYC Dashboard**: `https://your-domain.com/admin/kyc`
+- **Features**:
+  - Live HTML5 Video Player with controls to watch the recorded face scan.
+  - High-resolution zoom inspection for Document Front and Back.
+  - One-click **Approve & Grant Verified Badge** button (activates blue checkmark on profile and live feed).
+  - One-click **Reject with custom feedback** modal.
+  - User Account Lock/Unlock toggle.
