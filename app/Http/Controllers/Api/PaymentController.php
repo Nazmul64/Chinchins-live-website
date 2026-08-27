@@ -444,14 +444,15 @@ class PaymentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'package_id' => 'nullable|exists:coin_packages,id',
-            'payment_method_id' => 'nullable|exists:payment_methods,id',
+            'package_id' => 'nullable',
+            'payment_method_id' => 'nullable',
             'payment_method' => 'nullable|string', // e.g. 'bkash', 'nagad'
             'amount' => 'required|numeric|min:1',
             'coins' => 'nullable|integer|min:1',
-            'sender_number' => 'required|string|max:30',
+            'sender_number' => 'required|string|max:50',
             'transaction_id' => 'required|string|max:100',
-            'screenshot' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'screenshot' => 'nullable',
+            'screenshot_base64' => 'nullable|string',
             'user_note' => 'nullable|string|max:500',
         ]);
 
@@ -499,7 +500,7 @@ class PaymentController extends Controller
         }
         $coins = $request->filled('coins') ? (int) $request->input('coins') : $defaultCoins;
 
-        // Upload screenshot safely
+        // Upload screenshot safely (Multipart file or Base64 string)
         $screenshotPath = null;
         if ($request->hasFile('screenshot')) {
             $file = $request->file('screenshot');
@@ -510,6 +511,19 @@ class PaymentController extends Controller
             $filename = 'deposit_' . $user->id . '_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
             $file->move($uploadDir, $filename);
             $screenshotPath = 'deposits/' . $filename;
+        } elseif ($request->filled('screenshot_base64') || ($request->filled('screenshot') && str_starts_with($request->input('screenshot'), 'data:image'))) {
+            $raw = $request->input('screenshot_base64') ?: $request->input('screenshot');
+            $uploadDir = public_path('uploads/deposits');
+            if (!file_exists($uploadDir)) {
+                @mkdir($uploadDir, 0777, true);
+            }
+            $cleanBase64 = preg_replace('/^data:image\/\w+;base64,/', '', $raw);
+            $binary = base64_decode($cleanBase64);
+            if ($binary !== false) {
+                $filename = 'deposit_' . $user->id . '_' . time() . '_' . Str::random(6) . '.jpg';
+                file_put_contents($uploadDir . DIRECTORY_SEPARATOR . $filename, $binary);
+                $screenshotPath = 'deposits/' . $filename;
+            }
         }
 
         $deposit = DepositRequest::create([

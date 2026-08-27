@@ -55,16 +55,31 @@ class PaymentMethod extends Model
 
     public function getIconUrlAttribute(): ?string
     {
-        if (empty($this->icon)) {
-            return null;
+        if (!empty($this->icon)) {
+            if (str_starts_with($this->icon, 'http://') || str_starts_with($this->icon, 'https://') || str_starts_with($this->icon, 'data:')) {
+                return $this->icon;
+            }
+
+            $clean = ltrim(str_replace('public/', '', $this->icon), '/');
+            return asset($clean);
         }
 
-        if (str_starts_with($this->icon, 'http://') || str_starts_with($this->icon, 'https://') || str_starts_with($this->icon, 'data:')) {
-            return $this->icon;
+        // Fallback standard CDN / local icons based on payment method code
+        $code = strtolower($this->code ?: $this->name);
+        if (str_contains($code, 'bkash')) {
+            return asset('assets/images/bkash.png');
+        }
+        if (str_contains($code, 'nagad')) {
+            return asset('assets/images/nagad.png');
+        }
+        if (str_contains($code, 'rocket')) {
+            return asset('assets/images/rocket.png');
+        }
+        if (str_contains($code, 'upay')) {
+            return asset('assets/images/upay.png');
         }
 
-        $clean = ltrim(str_replace('public/', '', $this->icon), '/');
-        return asset($clean);
+        return null;
     }
 
     public function getQrCodeUrlAttribute(): ?string
