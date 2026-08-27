@@ -24,6 +24,8 @@ class KycVerification extends Model
         'face_left_image',
         'face_right_image',
         'face_blink_image',
+        'face_video',
+        'video_duration',
         'liveness_data',
         'ai_detection_meta',
         'status',
@@ -51,6 +53,7 @@ class KycVerification extends Model
         'face_left_image_url',
         'face_right_image_url',
         'face_blink_image_url',
+        'face_video_url',
         'document_type_label',
         'status_badge_class',
     ];
@@ -147,6 +150,14 @@ class KycVerification extends Model
     public function getFaceBlinkImageUrlAttribute(): ?string
     {
         return static::resolveImageUrl($this->face_blink_image);
+    }
+
+    /**
+     * Full URL of Recorded Face Liveness Video.
+     */
+    public function getFaceVideoUrlAttribute(): ?string
+    {
+        return static::resolveImageUrl($this->face_video);
     }
 
     /**

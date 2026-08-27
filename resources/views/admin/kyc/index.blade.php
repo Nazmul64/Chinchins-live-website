@@ -445,6 +445,26 @@
                         </h6>
                         
                         <div class="row g-3">
+                            <!-- Live Video Face Scan Player Card -->
+                            <div class="col-12" id="modalVideoWrapper" style="display: none;">
+                                <div class="doc-preview-card" style="border-color: rgba(139, 92, 246, 0.5);">
+                                    <div class="doc-preview-header" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">
+                                        <span class="badge bg-white text-dark fw-bold">
+                                            <i class="fa-solid fa-video me-1 text-danger"></i> Live Face Scan Video Recording
+                                        </span>
+                                        <a href="#" target="_blank" id="modalVideoLink" class="text-white" title="Open / Download Video">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        </a>
+                                    </div>
+                                    <div class="p-2 text-center bg-dark" style="border-radius: 0 0 12px 12px;">
+                                        <video id="modalVideoPlayer" controls playsinline style="max-height: 280px; width: 100%; border-radius: 8px;">
+                                            <source src="" id="modalVideoSource" type="video/mp4">
+                                            Your browser does not support HTML5 video.
+                                        </video>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Front Image Card -->
                             <div class="col-md-6" id="modalFrontWrapper">
                                 <div class="doc-preview-card">
@@ -713,6 +733,22 @@
         }
         document.getElementById('modalStatusBadge').innerHTML = statusHtml;
         document.getElementById('modalSubmittedAt').innerText = item.submitted_at ? new Date(item.submitted_at).toLocaleString() : new Date(item.created_at).toLocaleDateString();
+
+        // Video preview
+        const videoWrapper = document.getElementById('modalVideoWrapper');
+        const videoPlayer = document.getElementById('modalVideoPlayer');
+        const videoSource = document.getElementById('modalVideoSource');
+        const videoLink = document.getElementById('modalVideoLink');
+
+        if (item.face_video_url) {
+            videoWrapper.style.display = 'block';
+            videoSource.src = item.face_video_url;
+            videoLink.href = item.face_video_url;
+            videoPlayer.load();
+        } else {
+            videoWrapper.style.display = 'none';
+            videoSource.src = '';
+        }
 
         // Image previews
         document.getElementById('modalFrontImg').src = item.front_image_url;

@@ -101,8 +101,27 @@
 
         <div class="col-lg-8">
             <div class="custom-card p-4 mb-4">
-                <h5 class="fw-bold mb-3" style="color: var(--text-primary);">Document Images</h5>
+                <h5 class="fw-bold mb-3" style="color: var(--text-primary);">Document Images & Face Video Recording</h5>
                 <div class="row g-3">
+                    @if($kyc->face_video_url)
+                        <div class="col-12">
+                            <div class="p-3 border rounded text-center" style="background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.4) !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge bg-purple text-white fw-bold" style="background: #8b5cf6;">
+                                        <i class="fa-solid fa-video me-1"></i> Live Face Scan Video Recording
+                                    </span>
+                                    <a href="{{ $kyc->face_video_url }}" target="_blank" class="btn btn-sm btn-outline-light">
+                                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Open Video
+                                    </a>
+                                </div>
+                                <video controls playsinline class="rounded w-100" style="max-height: 320px; background: #000;">
+                                    <source src="{{ $kyc->face_video_url }}" type="video/mp4">
+                                    Your browser does not support HTML5 video.
+                                </video>
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="col-md-6">
                         <div class="p-2 border rounded text-center bg-dark">
                             <span class="badge bg-primary mb-2">Front Side</span>

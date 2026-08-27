@@ -120,8 +120,18 @@ Route::prefix('kyc')->group(function () {
     Route::get('/verification/status', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
     Route::get('/instructions', [\App\Http\Controllers\Api\KycApiController::class, 'instructions']);
     Route::get('/guidelines', [\App\Http\Controllers\Api\KycApiController::class, 'instructions']);
+    
+    // AI Pre-check & Quality Detection
     Route::post('/ai-detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
     Route::post('/detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+    Route::post('/pre-check', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+    Route::post('/check', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+    Route::post('/face-check', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+
+    // Video & Face Liveness Verification
+    Route::post('/video-verify', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
+    Route::post('/video-scan', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
+    Route::post('/video', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
     Route::post('/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
     Route::post('/face-liveness', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
     Route::post('/face/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
@@ -137,6 +147,8 @@ Route::prefix('profile/kyc')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
     Route::get('/status', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
     Route::post('/ai-detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+    Route::post('/pre-check', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+    Route::post('/video-verify', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
     Route::post('/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
     Route::post('/face/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
 });

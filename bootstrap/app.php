@@ -18,15 +18,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'profile/*',
             'wallet/*',
             'call/*',
+            'auth/*',
             'coin-packages/*',
             'deposit/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(function (\Illuminate\Http\Request $request, \Throwable $e) {
-            if ($request->is('api/*') || $request->is('api') || $request->is('kyc/*') || $request->is('profile/*') || $request->is('wallet/*') || $request->is('call/*')) {
-                return true;
+            if ($request->is('admin/*') && !$request->expectsJson() && !$request->wantsJson()) {
+                return false;
             }
-            return $request->expectsJson() || $request->wantsJson();
+            return true;
         });
     })->create();

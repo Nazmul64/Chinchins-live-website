@@ -74,8 +74,14 @@ Route::get('/kyc/status', [\App\Http\Controllers\Api\KycApiController::class, 's
 Route::get('/kyc/instructions', [\App\Http\Controllers\Api\KycApiController::class, 'instructions']);
 Route::post('/kyc/ai-detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
 Route::post('/kyc/detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+Route::post('/kyc/pre-check', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+Route::post('/kyc/check', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+Route::post('/kyc/video-verify', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
+Route::post('/kyc/video-scan', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
+Route::post('/kyc/video', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
 Route::post('/kyc/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
 Route::post('/kyc/face-liveness', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
 Route::post('/kyc/face/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
 Route::post('/kyc/unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
 Route::post('/auth/face-unlock', [\App\Http\Controllers\Api\KycApiController::class, 'unlockAccountWithFace']);
+

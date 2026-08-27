@@ -280,20 +280,109 @@ Retrieves the authenticated user's current identity verification status, submiss
 Inspects image quality, face centering, liveness, and document readability prior to final submission.
 
 ### **Endpoint**
-`POST /api/kyc/ai-detect`
+`POST /api/kyc/ai-detect` *(or `POST /api/kyc/pre-check`, `POST /kyc/ai-detect`)*
 
 ### **Request Parameters**
 - `front_image` (file or base64)
 - `selfie_image` (file or base64)
+- `user_id` (optional fallback)
 
 ### **Success Response (200 OK)**
 ```json
 {
   "status": true,
-  "message": "AI face and document detection check passed successfully.",
+  "message": "AI face and document quality check completed successfully.",
   "data": {
     "face_detected": true,
+    "detected_pose": "center",
     "face_centered": true,
+    "eyes_open": true,
+    "lighting_score": 0.96,
+    "blur_score": 0.05,
+    "glare_detected": false,
+    "document_corners": 4,
+    "text_legibility": "excellent",
+    "liveness_confidence": 0.99,
+    "instruction_en": "Look directly at the camera at eye level.",
+    "instruction_bn": "চোখের সমান্তরালে সরাসরি ক্যামেরার দিকে তাকান।",
+    "all_steps_progress": {
+      "center": true,
+      "turn_left": true,
+      "turn_right": true,
+      "blink": true
+    },
+    "status": "PASSED"
+  }
+}
+```
+
+---
+
+## 5. 🎥 Video-Based Real-Time Face Scan & Circular Progress API
+
+Performs live video scanning with voice/visual guidance and circular progress tracking (0% -> 25% -> 50% -> 75% -> 100%):
+1. **Center**: "Look straight into the camera" (25%)
+2. **Turn Left**: "Turn your head slowly to the Left" (50%)
+3. **Turn Right**: "Turn your head slowly to the Right" (75%)
+4. **Blink**: "Blink your eyes naturally" (100% Done)
+
+### **Endpoint**
+`POST /api/kyc/video-verify` *(or `POST /api/kyc/video-scan`, `POST /kyc/video-verify`)*
+
+### **Request Parameters**
+- `video`: file (MP4/WebM recorded video stream) or base64
+- `user_id`: optional
+
+### **Success Response (200 OK)**
+```json
+{
+  "status": true,
+  "message": "Live video face scan processed successfully.",
+  "data": {
+    "video_url": "https://your-domain.com/uploads/kyc/kyc_video_scan_2_1787820112_abc.mp4",
+    "progress_percentage": 100,
+    "is_completed": true,
+    "face_detected": true,
+    "detected_pose": "center",
+    "yaw_angle": 0.0,
+    "confidence_score": 0.99,
+    "audio_prompt_en": "Look directly at the camera, turn left, turn right, and blink.",
+    "audio_prompt_bn": "সোজা তাকান, বামে ও ডানে ঘুরুন এবং চোখের পলক ফেলুন।",
+    "all_steps_progress": {
+      "center": true,
+      "turn_left": true,
+      "turn_right": true,
+      "blink": true
+    }
+  }
+}
+```
+
+---
+
+## 6. 🔓 AI Face Re-Unlock Verification API (For Blocked/Locked Accounts)
+
+If an account is suspended, blocked or locked by admin, the user can verify their live face to automatically unblock and re-activate their account.
+
+### **Endpoint**
+`POST /api/kyc/face/unlock` *(or `POST /api/auth/face-unlock`, `POST /kyc/face/unlock`)*
+
+### **Request Parameters**
+- `image` / `face` / `selfie`: file or Base64 live face capture
+- `phone` / `email` / `account_id` / `user_id`: identifier of the user (or Bearer Token)
+
+### **Success Response (200 OK)**
+```json
+{
+  "status": true,
+  "message": "Face verification matched! Your account has been successfully unlocked.",
+  "data": {
+    "user_id": 12,
+    "account_id": "CHIN1082",
+    "display_name": "Ayeena Khan",
+    "is_locked": false,
+    "is_active": true,
+    "is_verified": true,
     "confidence": 0.99,
     "instruction_en": "Account unlocked successfully! Welcome back.",
     "instruction_bn": "ফেস ভেরিফিকেশন সফল! আপনার একাউন্ট আনলক করা হয়েছে।"
