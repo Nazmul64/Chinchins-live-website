@@ -337,43 +337,6 @@ class KycApiController extends Controller
                     'user'                => $user->fresh(),
                 ],
             ], 200);
-                    'admin_note'        => null,
-                    'reviewed_by'       => null,
-                    'reviewed_at'       => null,
-                    'submitted_at'      => now(),
-                ]
-            );
-
-            // Set user is_verified to false until admin approval
-            $user->update([
-                'is_verified' => false,
-            ]);
-
-            return response()->json([
-                'status'  => true,
-                'message' => 'KYC verification submitted successfully. It is currently under review by our admin team.',
-                'data'    => [
-                    'kyc_id'              => $verification->id,
-                    'status'              => $verification->status,
-                    'document_type'       => $verification->document_type,
-                    'document_type_label' => $verification->document_type_label,
-                    'full_name'           => $verification->full_name,
-                    'document_number'     => $verification->document_number,
-                    'date_of_birth'       => $verification->date_of_birth?->format('Y-m-d'),
-                    'front_image_url'     => $verification->front_image_url,
-                    'back_image_url'      => $verification->back_image_url,
-                    'selfie_image_url'    => $verification->selfie_image_url,
-                    'face_center_image_url'=> $verification->face_center_image_url,
-                    'face_left_image_url'  => $verification->face_left_image_url,
-                    'face_right_image_url' => $verification->face_right_image_url,
-                    'face_blink_image_url' => $verification->face_blink_image_url,
-                    'face_video_url'      => $verification->face_video_url,
-                    'video_duration'      => $verification->video_duration,
-                    'ai_detection_meta'   => $verification->ai_detection_meta,
-                    'submitted_at'        => $verification->submitted_at?->toIso8601String(),
-                    'user'                => $user->fresh(),
-                ],
-            ], 200);
 
         } catch (\Throwable $e) {
             return response()->json([
