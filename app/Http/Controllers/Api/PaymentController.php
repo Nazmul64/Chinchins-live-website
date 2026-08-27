@@ -146,7 +146,7 @@ class PaymentController extends Controller
     }
 
     /**
-     * Get pre-configured coin packages with bonus gems (e.g. 32000 + 8000 Bonus = ৳550)
+     * Get pre-configured coin packages with bonus gems (e.g. 32000 Base + 8000 Bonus = ৳550)
      * GET /api/coin-packages (or GET /api/packages)
      */
     public function getCoinPackages(): JsonResponse
@@ -157,27 +157,35 @@ class PaymentController extends Controller
                 ->orderBy('id', 'asc')
                 ->get()
                 ->map(function ($pkg) {
-                    $coins = (int) $pkg->coins;
-                    $bonus = (int) ($pkg->bonus_coins ?: 0);
-                    $total = $coins + $bonus;
+                    $baseCoins = (int) $pkg->coins;
+                    $bonusCoins = (int) ($pkg->bonus_coins ?: 0);
+                    $totalCoins = $baseCoins + $bonusCoins;
                     $price = (float) $pkg->price;
                     $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
 
                     return [
                         'id' => $pkg->id,
-                        'coins' => $coins,
-                        'bonus_coins' => $bonus,
-                        'total_coins' => $total,
+                        'coins' => $baseCoins, // Base Coins (e.g. 32000)
+                        'base_coins' => $baseCoins, // Base Coins (e.g. 32000)
+                        'bonus_coins' => $bonusCoins, // Bonus Coins (e.g. 8000)
+                        'total_coins' => $totalCoins, // Total Coins (32000 + 8000 = 40000)
+                        'formatted_coins' => number_format($baseCoins), // "32,000"
+                        'formatted_base_coins' => number_format($baseCoins), // "32,000"
+                        'formatted_bonus_coins' => $bonusCoins > 0 ? ('+' . number_format($bonusCoins) . ' Bonus') : null,
+                        'formatted_total_coins' => number_format($totalCoins), // "40,000"
+                        'coins_title' => (string) $baseCoins, // "32000"
+                        'display_coins' => (string) $baseCoins, // "32000"
+                        'display_bonus' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus Gems" : null,
                         'price' => $price,
                         'price_bdt' => $price,
                         'formatted_price' => $formattedPrice,
                         'badge' => $pkg->badge ?: null,
                         'badge_color' => $pkg->badge_color ?: 'pink',
-                        'bonus_text' => $bonus > 0 ? "+{$bonus} Bonus" : null,
-                        'bonus_percentage' => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
+                        'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
+                        'bonus_percentage' => $baseCoins > 0 && $bonusCoins > 0 ? (int) round(($bonusCoins / $baseCoins) * 100) : 0,
                         'is_popular' => (bool) $pkg->is_popular,
                         'popular' => (bool) $pkg->is_popular,
-                        'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
+                        'button_text' => "Recharge {$baseCoins} Gems ({$formattedPrice})",
                         'currency' => 'BDT',
                         'currency_symbol' => '৳',
                     ];
@@ -212,9 +220,9 @@ class PaymentController extends Controller
             ], 404);
         }
 
-        $coins = (int) $pkg->coins;
-        $bonus = (int) ($pkg->bonus_coins ?: 0);
-        $total = $coins + $bonus;
+        $baseCoins = (int) $pkg->coins;
+        $bonusCoins = (int) ($pkg->bonus_coins ?: 0);
+        $totalCoins = $baseCoins + $bonusCoins;
         $price = (float) $pkg->price;
         $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
 
@@ -223,21 +231,29 @@ class PaymentController extends Controller
             'message' => 'Coin package details retrieved successfully.',
             'data' => [
                 'id' => $pkg->id,
-                'coins' => $coins,
-                'bonus_coins' => $bonus,
-                'total_coins' => $total,
+                'coins' => $baseCoins,
+                'base_coins' => $baseCoins,
+                'bonus_coins' => $bonusCoins,
+                'total_coins' => $totalCoins,
+                'formatted_coins' => number_format($baseCoins),
+                'formatted_base_coins' => number_format($baseCoins),
+                'formatted_bonus_coins' => $bonusCoins > 0 ? ('+' . number_format($bonusCoins) . ' Bonus') : null,
+                'formatted_total_coins' => number_format($totalCoins),
+                'coins_title' => (string) $baseCoins,
+                'display_coins' => (string) $baseCoins,
+                'display_bonus' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus Gems" : null,
                 'price' => $price,
                 'price_bdt' => $price,
                 'formatted_price' => $formattedPrice,
                 'badge' => $pkg->badge ?: null,
                 'badge_color' => $pkg->badge_color ?: 'pink',
-                'bonus_text' => $bonus > 0 ? "+{$bonus} Bonus" : null,
-                'bonus_percentage' => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
+                'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
+                'bonus_percentage' => $baseCoins > 0 && $bonusCoins > 0 ? (int) round(($bonusCoins / $baseCoins) * 100) : 0,
                 'is_popular' => (bool) $pkg->is_popular,
                 'popular' => (bool) $pkg->is_popular,
                 'is_active' => (bool) $pkg->is_active,
                 'sort_order' => (int) ($pkg->sort_order ?: 0),
-                'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
+                'button_text' => "Recharge {$baseCoins} Gems ({$formattedPrice})",
                 'currency' => 'BDT',
                 'currency_symbol' => '৳',
             ],

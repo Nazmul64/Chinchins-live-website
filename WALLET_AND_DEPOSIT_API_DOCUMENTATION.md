@@ -149,7 +149,7 @@ Returns active mobile banking and payment gateway accounts for depositing money.
 
 ## 📦 3. Get Coin Packages / Recharge Plans API
 
-Returns pre-configured coin packages with bonus gems (e.g. 32,000 + 8,000 Bonus = ৳550).
+Returns pre-configured coin packages with base coins, bonus gems, and BDT prices.
 
 ### **Endpoint**
 `GET /api/coin-packages` *(Aliases: `/api/deposit/packages`, `/api/packages`, `/coin-packages`)*
@@ -162,26 +162,43 @@ Returns pre-configured coin packages with bonus gems (e.g. 32,000 + 8,000 Bonus 
   "data": [
     {
       "id": 1,
-      "coins": 6000,
-      "bonus_coins": 1000,
-      "total_coins": 7000,
-      "price": 120.0,
-      "price_bdt": 120.0,
-      "formatted_price": "৳120",
-      "badge": "Starter",
-      "badge_color": "purple",
-      "bonus_text": "+1000 Bonus",
-      "bonus_percentage": 17,
+      "coins": 32000,
+      "base_coins": 32000,
+      "bonus_coins": 700,
+      "total_coins": 32700,
+      "formatted_coins": "32,000",
+      "formatted_base_coins": "32,000",
+      "formatted_bonus_coins": "+700 Bonus",
+      "formatted_total_coins": "32,700",
+      "coins_title": "32000",
+      "display_coins": "32000",
+      "display_bonus": "+700 Bonus Gems",
+      "price": 150.0,
+      "price_bdt": 150.0,
+      "formatted_price": "৳150",
+      "badge": "🔥 50% OFF",
+      "badge_color": "pink",
+      "bonus_text": "+700 Bonus",
+      "bonus_percentage": 2,
       "is_popular": false,
-      "button_text": "Recharge 7000 Gems (৳120)",
+      "popular": false,
+      "button_text": "Recharge 32000 Gems (৳150)",
       "currency": "BDT",
       "currency_symbol": "৳"
     },
     {
       "id": 2,
       "coins": 32000,
+      "base_coins": 32000,
       "bonus_coins": 8000,
       "total_coins": 40000,
+      "formatted_coins": "32,000",
+      "formatted_base_coins": "32,000",
+      "formatted_bonus_coins": "+8,000 Bonus",
+      "formatted_total_coins": "40,000",
+      "coins_title": "32000",
+      "display_coins": "32000",
+      "display_bonus": "+8000 Bonus Gems",
       "price": 550.0,
       "price_bdt": 550.0,
       "formatted_price": "৳550",
@@ -190,13 +207,20 @@ Returns pre-configured coin packages with bonus gems (e.g. 32,000 + 8,000 Bonus 
       "bonus_text": "+8000 Bonus",
       "bonus_percentage": 25,
       "is_popular": true,
-      "button_text": "Recharge 40000 Gems (৳550)",
+      "popular": true,
+      "button_text": "Recharge 32000 Gems (৳550)",
       "currency": "BDT",
       "currency_symbol": "৳"
     }
   ]
 }
 ```
+
+> **📌 Mobile App Card UI Field Binding Guide**:
+> - **Main Large Number**: Bind to `pkg['coins']` or `pkg['display_coins']` (e.g. **`32000`**).
+> - **Bonus Badge Pill**: Bind to `pkg['display_bonus']` or `pkg['bonus_text']` (e.g. **`+8000 Bonus Gems`**).
+> - **Price Button**: Bind to `pkg['formatted_price']` (e.g. **`৳550`**).
+> - **Discount Tag**: Bind to `pkg['badge']` (e.g. **`🔥 50% OFF`**).
 
 ---
 
