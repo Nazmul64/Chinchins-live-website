@@ -617,6 +617,19 @@ class PaymentController extends Controller
             ->latest('id')
             ->first();
 
+        // Calculate withdrawal statistics
+        $approvedWithdrawals = \App\Models\WithdrawRequest::where('user_id', $user->id)
+            ->where('status', 'approved');
+        $totalWithdrawnCoins = (int) $approvedWithdrawals->sum('coins');
+        $totalWithdrawnBdt = (float) $approvedWithdrawals->sum('net_payable_amount');
+        $approvedWithdrawalsCount = $approvedWithdrawals->count();
+        $pendingWithdrawalsCount = \App\Models\WithdrawRequest::where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->count();
+        $latestWithdrawal = \App\Models\WithdrawRequest::where('user_id', $user->id)
+            ->latest('id')
+            ->first();
+
         $coins = (int) $user->coins;
 
         return response()->json([
@@ -636,6 +649,12 @@ class PaymentController extends Controller
                 'formatted_total_deposited_bdt' => '৳' . number_format($totalDepositedBdt, (floor($totalDepositedBdt) == $totalDepositedBdt ? 0 : 2)),
                 'approved_deposits_count' => $approvedCount,
                 'pending_deposits_count' => $pendingCount,
+                'total_withdrawn_coins' => $totalWithdrawnCoins,
+                'formatted_total_withdrawn_coins' => number_format($totalWithdrawnCoins),
+                'total_withdrawn_bdt' => $totalWithdrawnBdt,
+                'formatted_total_withdrawn_bdt' => '৳' . number_format($totalWithdrawnBdt, (floor($totalWithdrawnBdt) == $totalWithdrawnBdt ? 0 : 2)),
+                'approved_withdrawals_count' => $approvedWithdrawalsCount,
+                'pending_withdrawals_count' => $pendingWithdrawalsCount,
                 'call_rate_per_minute' => 100, // 100 coins per 1 minute
                 'max_call_minutes' => (int) floor($coins / 100),
                 'avatar_url' => $user->avatar_url,
@@ -647,6 +666,16 @@ class PaymentController extends Controller
                     'transaction_id' => $latestDeposit->transaction_id,
                     'status' => $latestDeposit->status,
                     'created_at' => $latestDeposit->created_at->toIso8601String(),
+                ] : null,
+                'latest_withdrawal' => $latestWithdrawal ? [
+                    'id' => $latestWithdrawal->id,
+                    'coins' => (int) $latestWithdrawal->coins,
+                    'gross_amount' => (float) $latestWithdrawal->gross_amount,
+                    'net_payable_amount' => (float) $latestWithdrawal->net_payable_amount,
+                    'payment_method' => $latestWithdrawal->payment_method_name,
+                    'account_number' => $latestWithdrawal->account_number,
+                    'status' => $latestWithdrawal->status,
+                    'created_at' => $latestWithdrawal->created_at->toIso8601String(),
                 ] : null,
             ],
         ], 200);

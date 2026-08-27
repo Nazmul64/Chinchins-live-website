@@ -47,6 +47,14 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/deposits/{id}/approve', [DepositRequestController::class, 'approve'])->name('deposits.approve');
     Route::post('/deposits/{id}/reject', [DepositRequestController::class, 'reject'])->name('deposits.reject');
 
+    // Coin Withdrawal Requests & Settings
+    Route::get('/withdrawals', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'index'])->name('withdrawals.index');
+    Route::post('/withdrawals/{id}/approve', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'approve'])->name('withdrawals.approve');
+    Route::post('/withdrawals/{id}/reject', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'reject'])->name('withdrawals.reject');
+    Route::get('/withdrawals/settings', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'settings'])->name('withdrawals.settings');
+    Route::post('/withdrawals/settings', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'updateSettings'])->name('withdrawals.settings.update');
+    Route::post('/withdrawals/methods/{id}/toggle', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'toggleMethodWithdraw'])->name('withdrawals.toggle-method');
+
     // KYC Identity Verification Management
     Route::get('/kyc', [\App\Http\Controllers\Admin\KycAdminController::class, 'index'])->name('kyc.index');
     Route::get('/kyc/{id}', [\App\Http\Controllers\Admin\KycAdminController::class, 'show'])->name('kyc.show');
@@ -107,6 +115,24 @@ Route::post('/deposit/request', [\App\Http\Controllers\Api\PaymentController::cl
 Route::post('/deposit', [\App\Http\Controllers\Api\PaymentController::class, 'submitDeposit']);
 Route::get('/deposit/history', [\App\Http\Controllers\Api\PaymentController::class, 'getDepositHistory']);
 Route::get('/wallet/history', [\App\Http\Controllers\Api\PaymentController::class, 'getDepositHistory']);
+
+// Mobile App Withdrawal Fallback Routes
+Route::match(['get', 'post'], '/api/withdraw/info', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+Route::match(['get', 'post'], '/api/withdraw/config', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+Route::match(['get', 'post'], '/api/withdraw/calculate', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'calculate']);
+Route::match(['get', 'post'], '/api/withdraw/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::match(['get', 'post'], '/api/withdraw/request', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::match(['get', 'post'], '/api/withdraw/create', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::match(['get', 'post'], '/api/wallet/withdraw', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::get('/api/withdraw/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
+Route::get('/api/wallet/withdraw/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
+
+Route::get('/withdraw/info', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+Route::get('/withdraw/config', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+Route::post('/withdraw/calculate', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'calculate']);
+Route::post('/withdraw/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::post('/withdraw/request', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::get('/withdraw/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
 
 
 

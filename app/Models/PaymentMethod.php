@@ -24,6 +24,9 @@ class PaymentMethod extends Model
         'rate_per_bdt',
         'bonus_coins',
         'offer_tag',
+        'supports_withdraw',
+        'min_withdraw',
+        'max_withdraw',
         'is_active',
         'sort_order',
     ];
@@ -31,6 +34,9 @@ class PaymentMethod extends Model
     protected $casts = [
         'min_deposit' => 'decimal:2',
         'max_deposit' => 'decimal:2',
+        'supports_withdraw' => 'boolean',
+        'min_withdraw' => 'decimal:2',
+        'max_withdraw' => 'decimal:2',
         'rate_coins' => 'integer',
         'rate_bdt' => 'decimal:2',
         'rate_per_bdt' => 'float',
@@ -51,6 +57,11 @@ class PaymentMethod extends Model
     public function depositRequests()
     {
         return $this->hasMany(DepositRequest::class);
+    }
+
+    public function withdrawRequests()
+    {
+        return $this->hasMany(WithdrawRequest::class);
     }
 
     public function getIconUrlAttribute(): ?string

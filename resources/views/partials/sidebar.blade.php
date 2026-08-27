@@ -47,6 +47,7 @@
         <!-- Deposit Requests -->
         @php
             $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count();
+            $pendingWithCount = \App\Models\WithdrawRequest::where('status', 'pending')->count();
             $pendingKycCount = \App\Models\KycVerification::where('status', 'pending')->count();
         @endphp
         <a href="{{ route('admin.deposits.index') }}" class="menu-item {{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
@@ -58,6 +59,35 @@
                 <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingDepCount }}</span>
             @endif
         </a>
+
+        <!-- Withdrawal Requests & Settings -->
+        <div class="menu-item-group {{ request()->routeIs('admin.withdrawals.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.withdrawals.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-hand-holding-dollar" style="color: #3b82f6;"></i>
+                    <span>Withdrawals</span>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    @if($pendingWithCount > 0)
+                        <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingWithCount }}</span>
+                    @endif
+                    <i class="fa-solid fa-chevron-right menu-arrow"></i>
+                </div>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.withdrawals.*') ? 'display: block;' : '' }}">
+                <a href="{{ route('admin.withdrawals.index') }}" class="submenu-item {{ request()->routeIs('admin.withdrawals.index') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>All Requests</span>
+                    @if($pendingWithCount > 0)
+                        <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">{{ $pendingWithCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('admin.withdrawals.settings') }}" class="submenu-item {{ request()->routeIs('admin.withdrawals.settings') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Withdraw Settings</span>
+                </a>
+            </div>
+        </div>
 
         <!-- KYC Identity Verification -->
         <a href="{{ route('admin.kyc.index') }}" class="menu-item {{ request()->routeIs('admin.kyc.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">

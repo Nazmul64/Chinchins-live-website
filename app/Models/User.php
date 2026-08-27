@@ -190,6 +190,14 @@ class User extends Authenticatable
     }
 
     /**
+     * User's withdrawal requests.
+     */
+    public function withdrawRequests()
+    {
+        return $this->hasMany(WithdrawRequest::class);
+    }
+
+    /**
      * User's coin transaction history.
      */
     public function coinTransactions()

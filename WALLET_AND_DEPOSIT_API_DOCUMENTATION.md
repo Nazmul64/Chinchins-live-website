@@ -442,3 +442,5 @@ class WalletApiService {
    - On payment done, call `submitDepositRequest()`.
 4. **Deposit History Tab**:
    - Call `getDepositHistory()` to show the list of deposits with method name (bKash/Nagad), TrxID, amount, coins, and status badge (`pending`, `approved`, `rejected`).
+5. **Withdrawal / Cash Out System**:
+   - For full Withdrawal / Cash Out endpoints (`/api/withdraw/info`, `/api/withdraw/calculate`, `/api/withdraw/submit`, `/api/withdraw/history`), please refer to [WITHDRAW_API_DOCUMENTATION.md](file:///f:/Chinchins-live-website/WITHDRAW_API_DOCUMENTATION.md).
