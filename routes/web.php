@@ -55,6 +55,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/withdrawals/settings', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'updateSettings'])->name('withdrawals.settings.update');
     Route::post('/withdrawals/methods/{id}/toggle', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'toggleMethodWithdraw'])->name('withdrawals.toggle-method');
 
+    // Audio & Video Call Sessions & Revenue Settings
+    Route::get('/calls', [\App\Http\Controllers\Admin\CallAdminController::class, 'index'])->name('calls.index');
+    Route::get('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'settings'])->name('calls.settings');
+    Route::post('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'updateSettings'])->name('calls.settings.update');
+
     // KYC Identity Verification Management
     Route::get('/kyc', [\App\Http\Controllers\Admin\KycAdminController::class, 'index'])->name('kyc.index');
     Route::get('/kyc/{id}', [\App\Http\Controllers\Admin\KycAdminController::class, 'show'])->name('kyc.show');
@@ -133,6 +138,19 @@ Route::post('/withdraw/calculate', [\App\Http\Controllers\Api\WithdrawalApiContr
 Route::post('/withdraw/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::post('/withdraw/request', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::get('/withdraw/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
+
+// Mobile App Call Fallback Routes
+Route::match(['get', 'post'], '/api/call/config', [\App\Http\Controllers\Api\CallController::class, 'getConfig']);
+Route::match(['get', 'post'], '/api/call/settings', [\App\Http\Controllers\Api\CallController::class, 'getConfig']);
+Route::match(['get', 'post'], '/api/call/match', [\App\Http\Controllers\Api\CallController::class, 'randomMatch']);
+Route::match(['get', 'post'], '/api/call/random-match', [\App\Http\Controllers\Api\CallController::class, 'randomMatch']);
+Route::post('/api/call/initiate', [\App\Http\Controllers\Api\CallController::class, 'initiate']);
+Route::post('/api/call/start', [\App\Http\Controllers\Api\CallController::class, 'start']);
+Route::post('/api/call/connect', [\App\Http\Controllers\Api\CallController::class, 'start']);
+Route::post('/api/call/deduct-interval', [\App\Http\Controllers\Api\CallController::class, 'deductInterval']);
+Route::post('/api/call/pulse', [\App\Http\Controllers\Api\CallController::class, 'deductInterval']);
+Route::post('/api/call/end', [\App\Http\Controllers\Api\CallController::class, 'end']);
+Route::get('/api/call/history', [\App\Http\Controllers\Api\CallController::class, 'history']);
 
 
 

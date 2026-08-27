@@ -48,6 +48,7 @@ class User extends Authenticatable
         'tags',
         'video_call_rate',
         'coins',
+        'free_calls_used',
         'close_friends_count',
     ];
 
@@ -177,8 +178,32 @@ class User extends Authenticatable
             'age'                 => 'integer',
             'video_call_rate'     => 'integer',
             'coins'               => 'integer',
+            'free_calls_used'     => 'integer',
             'close_friends_count' => 'integer',
         ];
+    }
+
+    /**
+     * Check if user is eligible for free trial call.
+     */
+    public function isEligibleForFreeCall(): bool
+    {
+        $config = CallSetting::getAllConfig();
+        if (!$config['is_free_call_enabled']) {
+            return false;
+        }
+
+        $limit = (int) $config['free_calls_per_user'];
+        return ($this->free_calls_used ?: 0) < $limit;
+    }
+
+    /**
+     * Mark a free trial call as used.
+     */
+    public function markFreeCallUsed(): void
+    {
+        $this->increment('free_calls_used');
+        $this->refresh();
     }
 
     /**

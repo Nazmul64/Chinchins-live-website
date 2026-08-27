@@ -100,6 +100,27 @@
             @endif
         </a>
 
+        <!-- Audio & Video Calling Sessions & Revenue -->
+        <div class="menu-item-group {{ request()->routeIs('admin.calls.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.calls.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-video" style="color: #ec4899;"></i>
+                    <span>Call & Revenue</span>
+                </div>
+                <i class="fa-solid fa-chevron-right menu-arrow"></i>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.calls.*') ? 'display: block;' : '' }}">
+                <a href="{{ route('admin.calls.index') }}" class="submenu-item {{ request()->routeIs('admin.calls.index') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Call Sessions Log</span>
+                </a>
+                <a href="{{ route('admin.calls.settings') }}" class="submenu-item {{ request()->routeIs('admin.calls.settings') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Call & Rate Settings</span>
+                </a>
+            </div>
+        </div>
+
         <!-- Coin Transactions -->
         <a href="{{ route('admin.transactions.index') }}" class="menu-item {{ request()->routeIs('admin.transactions.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">

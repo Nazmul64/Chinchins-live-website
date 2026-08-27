@@ -130,13 +130,19 @@ Route::get('/wallet/withdrawals', [\App\Http\Controllers\Api\WithdrawalApiContro
 Route::get('/withdraw/{id}', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'show']);
 
 // ==========================================
-// 📞 Video Calling & Coin Deduction APIs
+// 📞 WebRTC Audio & Video Calling & Revenue APIs
 // ==========================================
 Route::prefix('call')->group(function () {
+    Route::get('/config', [CallController::class, 'getConfig']);
+    Route::get('/settings', [CallController::class, 'getConfig']);
+    Route::match(['get', 'post'], '/match', [CallController::class, 'randomMatch']);
+    Route::match(['get', 'post'], '/random-match', [CallController::class, 'randomMatch']);
     Route::post('/initiate', [CallController::class, 'initiate']);
     Route::post('/start', [CallController::class, 'start']);
-    Route::post('/end', [CallController::class, 'end']);
+    Route::post('/connect', [CallController::class, 'start']);
     Route::post('/deduct-interval', [CallController::class, 'deductInterval']);
+    Route::post('/pulse', [CallController::class, 'deductInterval']);
+    Route::post('/end', [CallController::class, 'end']);
     Route::get('/history', [CallController::class, 'history']);
 });
 
