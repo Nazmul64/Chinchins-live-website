@@ -169,6 +169,95 @@
                 </div>
             </div>
 
+            <!-- KYC Identity Verification Card -->
+            <div class="premium-table-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-id-card text-info fa-lg"></i>
+                        <h5 class="mb-0 fw-bold" style="font-size: 16px; color: var(--text-primary);">KYC Identity Verification</h5>
+                    </div>
+                    <div>
+                        @if($user->is_verified)
+                            <span class="badge bg-success" style="font-size: 12px; padding: 6px 12px;">
+                                <i class="fa-solid fa-circle-check me-1"></i> Verified Profile
+                            </span>
+                        @elseif($user->kyc_status === 'pending')
+                            <span class="badge bg-warning text-dark" style="font-size: 12px; padding: 6px 12px;">
+                                <i class="fa-solid fa-clock me-1"></i> Review Pending
+                            </span>
+                        @else
+                            <span class="badge bg-secondary" style="font-size: 12px; padding: 6px 12px;">
+                                Not Verified
+                            </span>
+                        @endif
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="premium-datatable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Doc Type</th>
+                                <th>Legal Name</th>
+                                <th>ID Number</th>
+                                <th>Photos</th>
+                                <th>Status</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($user->kycVerifications as $kyc)
+                                <tr>
+                                    <td><small class="text-muted">{{ $kyc->submitted_at ? $kyc->submitted_at->format('M d, Y') : $kyc->created_at->format('M d, Y') }}</small></td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            {{ $kyc->document_type_label }}
+                                        </span>
+                                    </td>
+                                    <td><strong>{{ $kyc->full_name }}</strong></td>
+                                    <td><span class="font-monospace text-primary fw-bold">{{ $kyc->document_number }}</span></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <a href="{{ $kyc->front_image_url }}" target="_blank" class="badge bg-primary text-decoration-none">Front</a>
+                                            @if($kyc->back_image_url)
+                                                <a href="{{ $kyc->back_image_url }}" target="_blank" class="badge bg-secondary text-decoration-none">Back</a>
+                                            @endif
+                                            <a href="{{ $kyc->selfie_image_url }}" target="_blank" class="badge bg-danger text-decoration-none">Selfie</a>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if($kyc->status === 'approved')
+                                            <span class="badge bg-success">Verified</span>
+                                        @elseif($kyc->status === 'rejected')
+                                            <span class="badge bg-danger">Rejected</span>
+                                        @else
+                                            <span class="badge bg-warning text-dark">Pending</span>
+                                        @endif
+                                    </td>
+                                    <td style="text-align: right;">
+                                        @if($kyc->status === 'pending')
+                                            <form action="{{ route('admin.kyc.approve', $kyc->id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success py-1 px-2" style="font-size: 11px;">
+                                                    <i class="fa-solid fa-check"></i> Approve
+                                                </button>
+                                            </form>
+                                        @endif
+                                        <a href="{{ route('admin.kyc.index', ['search' => $user->account_id]) }}" class="btn btn-sm btn-outline-info py-1 px-2" style="font-size: 11px;">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">No KYC verification documents submitted by this user yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Manual Deposit Requests Card -->
             <div class="premium-table-card">
                 <div class="card-header d-flex justify-content-between align-items-center">

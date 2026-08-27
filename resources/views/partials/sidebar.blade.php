@@ -47,6 +47,7 @@
         <!-- Deposit Requests -->
         @php
             $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count();
+            $pendingKycCount = \App\Models\KycVerification::where('status', 'pending')->count();
         @endphp
         <a href="{{ route('admin.deposits.index') }}" class="menu-item {{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
             <div class="menu-item-left">
@@ -55,6 +56,17 @@
             </div>
             @if($pendingDepCount > 0)
                 <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingDepCount }}</span>
+            @endif
+        </a>
+
+        <!-- KYC Identity Verification -->
+        <a href="{{ route('admin.kyc.index') }}" class="menu-item {{ request()->routeIs('admin.kyc.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-id-card" style="color: #06b6d4;"></i>
+                <span>KYC Verification</span>
+            </div>
+            @if($pendingKycCount > 0)
+                <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingKycCount }}</span>
             @endif
         </a>
 

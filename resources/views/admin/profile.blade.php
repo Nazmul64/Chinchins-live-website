@@ -88,20 +88,27 @@
                                 <!-- Dark gradient overlay -->
                                 <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.85) 100%);"></div>
 
-                                <!-- Top Left: Online Badge -->
-                                <div style="position: absolute; top: 8px; left: 8px;">
-                                    <span style="background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 12px; display: flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,0.1);">
+                                <!-- Top Left: Online Badge & Verified Badge on Right of Online -->
+                                <div style="position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 4px; z-index: 10;">
+                                    <span style="background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 12px; display: flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,0.15);">
                                         <span style="width: 6px; height: 6px; border-radius: 50%; background: {{ $dbUser->is_active ? '#22c55e' : '#94a3b8' }};"></span>
                                         {{ $dbUser->is_active ? 'Online' : 'Offline' }}
                                     </span>
+                                    @if($dbUser->is_verified)
+                                        <span style="background: rgba(59, 130, 246, 0.9); backdrop-filter: blur(4px); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 12px; display: flex; align-items: center; gap: 3px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 2px 6px rgba(59,130,246,0.4);" title="Identity Verified">
+                                            <i class="fa-solid fa-circle-check" style="font-size: 9px; color: #fff;"></i> Verified
+                                        </span>
+                                    @endif
                                 </div>
 
-                                <!-- Top Right: Verified Badge -->
-                                <div style="position: absolute; top: 8px; right: 8px;">
-                                    <span style="background: #00bcd4; color: #fff; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,188,212,0.4);">
-                                        ✓
-                                    </span>
-                                </div>
+                                @if($dbUser->is_verified)
+                                    <!-- Top Right: Verified Checkmark Pill -->
+                                    <div style="position: absolute; top: 8px; right: 8px; z-index: 10;">
+                                        <span style="background: #3b82f6; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; box-shadow: 0 2px 6px rgba(59,130,246,0.5);" title="Verified">
+                                            ✓
+                                        </span>
+                                    </div>
+                                @endif
 
                                 <!-- Bottom Right: Pink Glowing Video Call Button -->
                                 <div style="position: absolute; bottom: 10px; right: 10px; z-index: 10;">

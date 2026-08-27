@@ -72,7 +72,42 @@ class User extends Authenticatable
         'profile_picture',
         'photos',
         'gallery',
+        'kyc_status',
     ];
+
+    /**
+     * User's KYC identity verification record.
+     */
+    public function kycVerification()
+    {
+        return $this->hasOne(KycVerification::class)->latestOfMany();
+    }
+
+    /**
+     * User's KYC verification history.
+     */
+    public function kycVerifications()
+    {
+        return $this->hasMany(KycVerification::class)->latest();
+    }
+
+    /**
+     * Accessor for user's KYC verification status.
+     * Values: 'approved' | 'pending' | 'rejected' | 'not_submitted'
+     */
+    public function getKycStatusAttribute(): string
+    {
+        if ($this->relationLoaded('kycVerification')) {
+            return $this->kycVerification?->status ?? ($this->is_verified ? 'approved' : 'not_submitted');
+        }
+
+        $latestKyc = $this->kycVerification()->first();
+        if ($latestKyc) {
+            return $latestKyc->status;
+        }
+
+        return $this->is_verified ? 'approved' : 'not_submitted';
+    }
 
     /**
      * Accessor for online status boolean.

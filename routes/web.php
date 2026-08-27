@@ -46,6 +46,13 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/deposits/{id}/approve', [DepositRequestController::class, 'approve'])->name('deposits.approve');
     Route::post('/deposits/{id}/reject', [DepositRequestController::class, 'reject'])->name('deposits.reject');
 
+    // KYC Identity Verification Management
+    Route::get('/kyc', [\App\Http\Controllers\Admin\KycAdminController::class, 'index'])->name('kyc.index');
+    Route::get('/kyc/{id}', [\App\Http\Controllers\Admin\KycAdminController::class, 'show'])->name('kyc.show');
+    Route::post('/kyc/{id}/approve', [\App\Http\Controllers\Admin\KycAdminController::class, 'approve'])->name('kyc.approve');
+    Route::post('/kyc/{id}/reject', [\App\Http\Controllers\Admin\KycAdminController::class, 'reject'])->name('kyc.reject');
+    Route::post('/kyc/{id}/revoke', [\App\Http\Controllers\Admin\KycAdminController::class, 'revoke'])->name('kyc.revoke');
+
     // Coin Transaction Ledger
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
 });

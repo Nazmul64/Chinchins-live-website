@@ -110,10 +110,38 @@ Route::prefix('call')->group(function () {
     Route::get('/history', [CallController::class, 'history']);
 });
 
+// ==========================================
+// 🪪 KYC Identity Verification APIs
+// ==========================================
+Route::prefix('kyc')->group(function () {
+    Route::post('/submit', [\App\Http\Controllers\Api\KycApiController::class, 'submit']);
+    Route::post('/verification/submit', [\App\Http\Controllers\Api\KycApiController::class, 'submit']);
+    Route::get('/status', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
+    Route::get('/verification/status', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
+    Route::get('/instructions', [\App\Http\Controllers\Api\KycApiController::class, 'instructions']);
+    Route::get('/guidelines', [\App\Http\Controllers\Api\KycApiController::class, 'instructions']);
+    Route::post('/ai-detect', [\App\Http\Controllers\Api\KycApiController::class, 'aiDetect']);
+});
+
+// KYC Aliases for Profile
+Route::prefix('profile/kyc')->group(function () {
+    Route::post('/submit', [\App\Http\Controllers\Api\KycApiController::class, 'submit']);
+    Route::get('/', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
+    Route::get('/status', [\App\Http\Controllers\Api\KycApiController::class, 'status']);
+});
+
+// Admin REST APIs for KYC
+Route::prefix('admin/kyc-verifications')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Admin\KycAdminController::class, 'index']);
+    Route::post('/{id}/approve', [\App\Http\Controllers\Admin\KycAdminController::class, 'approve']);
+    Route::post('/{id}/reject', [\App\Http\Controllers\Admin\KycAdminController::class, 'reject']);
+});
+
 // Authenticated Routes (Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
     // Auth status & logout
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
+
 
