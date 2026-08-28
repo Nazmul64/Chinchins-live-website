@@ -1042,6 +1042,10 @@ class CallController extends Controller
      * Receive / Poll for pending WebRTC Signals (SDP Offers, Answers, ICE Candidates).
      * GET /api/call/signal/receive (or GET /api/call/signals, POST /api/call/signals)
      */
+    /**
+     * Receive / Poll for pending WebRTC Signals (SDP Offers, Answers, ICE Candidates).
+     * GET /api/call/signal/receive (or GET /api/call/signals, POST /api/call/signals)
+     */
     public function getSignals(Request $request): JsonResponse
     {
         $user = $this->resolveUser($request);
@@ -1049,7 +1053,8 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Unauthenticated.',
-            ], 401);
+                'data' => [],
+            ], 200);
         }
 
         $data = $this->getRequestData($request);
@@ -1059,10 +1064,6 @@ class CallController extends Controller
         $autoRead = filter_var($data['auto_read'] ?? $request->input('auto_read', true), FILTER_VALIDATE_BOOLEAN);
 
         $query = \App\Models\CallSignal::with(['sender'])
-            ->where(function ($q) use ($user) {
-                $q->where('receiver_id', $user->id)
-                  ->orWhereNull('receiver_id');
-            })
             ->where('sender_id', '!=', $user->id);
 
         if ($callId) {
@@ -1071,6 +1072,15 @@ class CallController extends Controller
         if ($channelName) {
             $query->where('channel_name', $channelName);
         }
+
+        // If no callId or channelName, filter by receiver_id
+        if (!$callId && !$channelName) {
+            $query->where(function ($q) use ($user) {
+                $q->where('receiver_id', $user->id)
+                  ->orWhereNull('receiver_id');
+            });
+        }
+
         if ($lastSignalId > 0) {
             $query->where('id', '>', $lastSignalId);
         } else {
@@ -1114,7 +1124,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Unauthenticated.',
-            ], 401);
+            ], 200);
         }
 
         $data = $this->getRequestData($request);

@@ -1330,13 +1330,109 @@ class _WebrtcCallScreenState extends State<WebrtcCallScreen> {
 
 ---
 
-### ❓ Issue 3: "অ্যাডমিন প্যানেল থেকে রিংটোন সেটআপ কীভাবে করবেন?" (Admin Ringtone Setup)
-1. Go to Admin Dashboard ➡️ **Call & Revenue** ➡️ **Call & Ringtone Settings** (URL: `/admin/call-sessions/settings`).
-2. Scroll to **"Call Ringtone & Dial Tone Audio Setup"**.
-3. Upload custom **MP3 / WAV audio files** or input audio URLs for:
-   - **Incoming Call Ringtone** (রিসিভারের ফোনে কল আসার সময় যে রিংটোন বাজবে)
-   - **Outgoing Call Dial Tone** (কল করার সময় কলারের ফোনে যে ডায়ালটোন বাজবে)
-4. Click **"Save Call & Revenue Settings"**.
-5. The mobile app automatically receives these audio URLs in `GET /api/call/config`, `POST /api/call/initiate`, and `GET /api/call/incoming` to stream and loop while ringing!
+### ❓ Issue 4: "স্ক্রিনে 'Ringing & Connecting...' লেখাটি আটকে থাকে কেন?" (Why "Ringing & Connecting..." overlay is stuck)
+- **Root Cause**:
+  1. The Flutter UI state variable `_isConnecting` or `_isRinging` was not toggled to `false` when call status changed to `'connected'`.
+  2. Because WebRTC media tracks were still negotiating or `_remoteRenderer.srcObject` was null, the UI conditional `if (_isConnecting || _remoteRenderer.srcObject == null)` kept showing the loading pill.
+- **Flutter App Action**:
+  ```dart
+  // 1. In Status Polling Listener:
+  if (response['data']['status'] == 'connected') {
+    setState(() {
+      _isConnecting = false; // Hides the "Ringing & Connecting..." overlay immediately!
+      _isRinging = false;
+    });
+    // Stop Outgoing Dialtone
+    CallSoundManager.stopRingtone();
+  }
+
+  // 2. In peerConnection.onTrack:
+  _peerConnection!.onTrack = (RTCTrackEvent event) {
+    if (event.streams.isNotEmpty) {
+      setState(() {
+        _remoteRenderer.srcObject = event.streams[0];
+        _isConnecting = false; // Guarantees overlay disappears when video arrives
+      });
+    }
+  };
+  ```
+
+---
+
+### ❓ Issue 5: "কল গেলে রিসিভারের ফোনে রিংটোন শব্দ বাজে না কেন?" (Why Ringtone Sound Doesn't Play on Receiver Phone)
+- **Root Cause**:
+  - `CallSoundManager` wasn't receiving the `incoming_ringtone_url` from `GET /api/call/incoming` or `AudioPlayer` wasn't started in loop mode.
+- **Flutter App Action**:
+  ```dart
+  // When Incoming Call is detected:
+  final res = await http.get(Uri.parse('$baseUrl/api/call/incoming'), headers: authHeaders);
+  if (res['data']?['has_incoming_call'] == true) {
+    final ringtoneUrl = res['data']['incoming_ringtone_url'];
+    
+    // Play Ringtone in Loop
+    await CallSoundManager.playIncomingRingtone(ringtoneUrl);
+    
+    // Show Incoming Call Screen (রিসিভ বাটন)
+    Navigator.pushNamed(context, '/incoming_call', arguments: res['data']);
+  }
+  ```
+
+---
+
+### ❓ Issue 6: "Complete WebRTC Signaling Loop (VPS RESTful) — Offer, Answer & ICE Candidates"
+Here is the exact complete lifecycle code to exchange video & audio bidirectionally on VPS:
+
+```dart
+// 1. Caller Creates Offer
+RTCSessionDescription offer = await _peerConnection!.createOffer();
+await _peerConnection!.setLocalDescription(offer);
+await _sendSignal('offer', {'sdp': offer.sdp, 'type': offer.type});
+
+// 2. Both Send ICE Candidates
+_peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
+  if (candidate.candidate != null) {
+    _sendSignal('candidate', {
+      'candidate': candidate.candidate,
+      'sdpMid': candidate.sdpMid,
+      'sdpMLineIndex': candidate.sdpMLineIndex,
+    });
+  }
+};
+
+// 3. Signaling Poller (Every 500-750ms)
+_signalingTimer = Timer.periodic(const Duration(milliseconds: 600), (timer) async {
+  final res = await http.get(
+    Uri.parse('$baseUrl/api/call/signal/receive?call_id=$callId&last_signal_id=$_lastSignalId'),
+    headers: authHeaders,
+  );
+  if (res.statusCode == 200) {
+    final List signals = jsonDecode(res.body)['data'] ?? [];
+    for (var sig in signals) {
+      _lastSignalId = sig['id'];
+      final type = sig['type'];
+      final payload = sig['payload'];
+
+      if (type == 'offer' && !widget.isCaller) {
+        // Receiver handles Offer & generates Answer
+        await _peerConnection!.setRemoteDescription(RTCSessionDescription(payload['sdp'], 'offer'));
+        RTCSessionDescription answer = await _peerConnection!.createAnswer();
+        await _peerConnection!.setLocalDescription(answer);
+        await _sendSignal('answer', {'sdp': answer.sdp, 'type': answer.type});
+      } else if (type == 'answer' && widget.isCaller) {
+        // Caller sets Answer
+        await _peerConnection!.setRemoteDescription(RTCSessionDescription(payload['sdp'], 'answer'));
+      } else if (type == 'candidate') {
+        // Add ICE Candidate
+        await _peerConnection!.addCandidate(RTCIceCandidate(
+          payload['candidate'],
+          payload['sdpMid'],
+          payload['sdpMLineIndex'],
+        ));
+      }
+    }
+  }
+});
+```
+
 
 
