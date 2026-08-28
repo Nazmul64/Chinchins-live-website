@@ -7,43 +7,47 @@ This documentation is crafted specifically for **Mobile App Developers (Flutter 
 ---
 
 ## 📑 Table of Contents
-1. [Calling Architecture & Lifecycle Diagram](#-calling-architecture--lifecycle)
+1. [Calling Architecture & WebRTC Lifecycle Diagram](#-calling-architecture--lifecycle)
 2. [Authentication & Request Headers](#-authentication--request-headers)
 3. [Summary of All Endpoints](#-summary-of-all-endpoints)
 4. [API 1: Get Call Settings, Rates & Free Trial Status](#-1-get-call-settings--rates-api)
 5. [API 2: Random Match Online Female Host](#-2-random-match-online-female-host-api)
-6. [API 3: Initiate Call (Starts Ringing)](#-3-initiate-call-api)
+6. [API 3: Initiate Direct Call (Audio / Video, Starts Ringing)](#-3-initiate-call-api)
 7. [API 4: Check Incoming Call (For Receiver Device Ringing)](#-4-check-incoming-call-api-receiver-app)
 8. [API 5: Call Status Polling & Ringing Sync](#-5-call-status-polling--sync-api)
 9. [API 6: Confirm Ringing State](#-6-confirm-ringing-state-api)
 10. [API 7: Accept / Receive Call (রিসিভ বাটন প্রেস)](#-7-accept--receive-call-api)
 11. [API 8: Reject / Decline Call](#-8-reject--decline-call-api)
 12. [API 9: Cancel Call (By Caller)](#-9-cancel-call-api)
-13. [API 10: In-Call Pulse Deduction & Low Balance Top-Up Prompt (100 coins/min, 50/50 Split)](#-10-in-call-pulse-deduction--deposit-prompt-api)
-14. [API 11: End Call & Finalize Ledger](#-11-end-call-api)
-15. [API 12: User Call History](#-12-user-call-history-api)
-16. [💰 50/50 Revenue Sharing Formula](#-5050-revenue-sharing-formula)
-17. [📱 Complete Mobile App Implementation & Ringing Flow Guide](#-mobile-app-implementation-guide)
+13. [API 10: WebRTC ICE Servers Configuration (STUN / TURN)](#-10-webrtc-ice-servers-api)
+14. [API 11: WebRTC Signaling Send (SDP Offer / Answer / ICE Candidates)](#-11-webrtc-signaling-send-api)
+15. [API 12: WebRTC Signaling Receive & Poll](#-12-webrtc-signaling-receive--poll-api)
+16. [API 13: In-Call Real-Time Coin Billing (100 coins/min, Per-Second Auto Calculation, 50/50 Split)](#-13-in-call-pulse-deduction--deposit-prompt-api)
+17. [API 14: End Call & Finalize Ledger](#-14-end-call-api)
+18. [API 15: User Call History](#-15-user-call-history-api)
+19. [💰 100 Coins/Min Billing Formula & 50/50 Revenue Split](#-5050-revenue-sharing-formula)
+20. [📱 Complete Flutter WebRTC Mobile Implementation Guide](#-flutter-webrtc-implementation-guide)
 
 ---
 
-## 🔄 Calling Architecture & Lifecycle
+## 🔄 Calling Architecture & WebRTC Lifecycle
 
 ```
-[ Caller Dials Host / Taps "Call" ]
+[ Caller Dials Host / Taps "Audio" or "Video Call" ]
                │
                ▼
 [ 1. POST /api/call/initiate ]
        │ • Creates CallSession with status: "ringing"
-       │ • Checks Free Trial eligibility or coin balance
+       │ • Assigns WebRTC channel_name
+       │ • Rate: 100 coins/minute (1.67 coins/sec)
        ▼
 [ 2. Continuous Ringing Loop ]
        │
        ├─► Caller Device: Plays continuous outgoing dial tone
        │                  Polls `GET /api/call/status/{call_id}` every 1-2s
        │
-       └─► Receiver Device: Detects call via `GET /api/call/incoming` or Push Notification
-                            Plays continuous incoming ringtone in an infinite loop!
+       └─► Receiver Device: Detects incoming call via `GET /api/call/incoming` or FCM Push
+                            Plays continuous incoming ringtone!
                             Shows Incoming Call UI with "Accept / Receive (রিসিভ)" and "Decline" buttons
                │
                ├─────────────────────────────────────────┬────────────────────────────────────────┐
@@ -52,31 +56,41 @@ This documentation is crafted specifically for **Mobile App Developers (Flutter 
    POST /api/call/accept                      POST /api/call/reject                    POST /api/call/cancel
    • Status -> "connected"                    • Status -> "rejected"                   • Status -> "cancelled"
    • Stops Ringtone on both devices           • Stops Ringtone                         • Stops Ringtone on receiver
-   • Starts WebRTC Video/Audio Stream         • Caller shows "Call Declined"           • Screen Closes
-   • Starts In-Call Duration Timer            • Screen Closes
+   • Starts WebRTC SDP & ICE exchange         • Caller shows "Call Declined"           • Screen Closes
+   • Starts Call Duration Timer               • Screen Closes
                │
                ▼
-   [ 3. Active Call: Pulse Deduction (Every 60s) ]
+   [ 3. WebRTC Signaling via REST ]
+   • Caller creates SDP Offer ──► POST /api/call/signal/send (type: 'offer')
+   • Receiver fetches Offer   ──► GET  /api/call/signal/receive
+   • Receiver sends SDP Answer──► POST /api/call/signal/send (type: 'answer')
+   • Caller fetches Answer    ──► GET  /api/call/signal/receive
+   • Both exchange ICE candidates via `/api/call/signal/send` & `/api/call/signal/receive`
+   • Peer-to-Peer Audio/Video Media Stream is Live!
+               │
+               ▼
+   [ 4. Active Call Billing: Per-Minute / Per-Second Heartbeat ]
    POST /api/call/deduct-interval
                │
                ├─► Free Trial Active: 0 coins deducted. Returns `free_seconds_remaining`.
                │
-               └─► Paid Call / Free Trial Expired:
+               └─► Paid Call (100 coins/minute = ~1.67 coins/sec):
                      │
-                     ├─► Caller has Coins (>= 100 coins):
-                     │     • 100 coins deducted from Caller
-                     │     • 50 coins (50%) credited to Host's Wallet (Female User)
-                     │     • 50 coins (50%) credited to Admin Platform Revenue
-                     │     • Call continues seamlessly!
+                     ├─► Caller has Coins (>= 100 coins / interval):
+                     │     • Deducted from Caller Wallet
+                     │     • 50% credited to Host's Wallet (Female User)
+                     │     • 50% credited to Admin Platform Revenue
+                     │     • WebRTC stream continues seamlessly!
                      │
                      └─► Caller has 0 Coins / Low Balance:
                            • Returns code: "LOW_BALANCE_DEPOSIT_REQUIRED"
-                           • App stops media stream & displays "Recharge Coins Now" popup
+                           • App closes media stream & displays "Recharge Coins Now" popup
                            • Navigates user to Deposit / Coin Packages Screen
                │
                ▼
-   [ 4. Call Ends: POST /api/call/end ]
+   [ 5. Call Ends: POST /api/call/end ]
    • Status -> "ended"
+   • WebRTC PeerConnection closed
    • Records total duration & returns call summary ledger.
 ```
 
@@ -98,16 +112,20 @@ Content-Type: application/json
 
 | Method | Endpoint | Description | Aliases |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/call/config` | Get calling rates, free trial settings, 50/50 revenue split, and user balance/eligibility. | `/api/call/settings` |
+| `GET` | `/api/call/config` | Get calling rates (100 coins/min), free trial settings, 50/50 split, and user balance. | `/api/call/settings` |
 | `POST` | `/api/call/random-match` | Find an active online host (Female) for one-tap matching. | `/api/call/match`, `GET /api/call/match` |
-| `POST` | `/api/call/initiate` | Caller initiates call. Sets status to `ringing`. | — |
+| `POST` | `/api/call/initiate` | Caller initiates direct Audio/Video call. Sets status to `ringing`. | — |
 | `GET` | `/api/call/incoming` | Receiver checks for active incoming ringing calls. | `/api/call/check-incoming`, `POST /api/call/check-incoming`, `/api/call/active-incoming` |
 | `GET` | `/api/call/status/{id}` | Real-time status sync (detects when accepted, rejected, cancelled, or ended). | `POST /api/call/status`, `GET /api/call/status` |
 | `POST` | `/api/call/ringing` | Receiver confirms device is actively ringing. | `/api/call/ring-ping` |
-| `POST` | `/api/call/accept` | **Receiver clicks "Call Receive" (রিসিভ) button**. Connects call & starts video/audio. | `/api/call/answer`, `/api/call/receive`, `/api/call/start`, `/api/call/connect` |
+| `POST` | `/api/call/accept` | **Receiver clicks "Call Receive" (রিসিভ) button**. Connects call & starts WebRTC stream. | `/api/call/answer`, `/api/call/receive`, `/api/call/start`, `/api/call/connect` |
 | `POST` | `/api/call/reject` | Receiver declines/rejects call. Stops ringing on caller device. | `/api/call/decline` |
 | `POST` | `/api/call/cancel` | Caller cancels call before host answers. Stops ringing on receiver device. | — |
-| `POST` | `/api/call/deduct-interval` | In-call heartbeat billing (100 coins/min: 50 coins to host, 50 coins to admin). Triggers deposit prompt if balance is 0. | `/api/call/pulse`, `/api/call/bill` |
+| `GET` | `/api/call/ice-servers` | Get STUN/TURN ICE servers list for WebRTC peer connection in Flutter. | — |
+| `POST` | `/api/call/signal/send` | Send WebRTC SDP Offer, SDP Answer, or ICE Candidate. | `/api/call/send-signal`, `/api/call/signal` |
+| `GET` | `/api/call/signal/receive` | Poll/Receive pending WebRTC signals (Offer/Answer/Candidates) for this user. | `/api/call/signals`, `/api/call/get-signals`, `POST /api/call/signals` |
+| `POST` | `/api/call/signal/clear` | Clear / mark WebRTC signals as read. | `/api/call/clear-signals` |
+| `POST` | `/api/call/deduct-interval` | In-call heartbeat billing (100 coins/min, 50% host share, 50% admin share). Triggers deposit prompt if balance is 0. | `/api/call/pulse`, `/api/call/bill` |
 | `POST` | `/api/call/end` | Either party hangs up. Finalizes duration and revenue summary. | `/api/call/finish`, `/api/call/hangup` |
 | `GET` | `/api/call/history` | Get paginated list of calls made and received. | — |
 
@@ -531,19 +549,179 @@ Triggered when the Caller taps **"Cancel"** while waiting for host to answer.
 
 ---
 
-## 💓 10. In-Call Pulse Deduction & Deposit Prompt API
+---
 
-During the active call, the mobile app sends a heartbeat request every 60 seconds (or when free trial timer expires) to perform real-time coin deduction and 50/50 revenue sharing.
+## 🧊 10. WebRTC ICE Servers API
+
+Provides standard Google STUN/TURN server configurations for WebRTC PeerConnection creation in Flutter (`flutter_webrtc`).
+
+### **Endpoint**
+`GET /api/call/ice-servers`
+
+### **Success Response (200 OK)**
+```json
+{
+  "status": true,
+  "message": "WebRTC ICE Servers retrieved successfully.",
+  "data": {
+    "iceServers": [
+      {
+        "urls": [
+          "stun:stun.l.google.com:19302",
+          "stun:stun1.l.google.com:19302",
+          "stun:stun2.l.google.com:19302",
+          "stun:stun3.l.google.com:19302",
+          "stun:stun4.l.google.com:19302"
+        ]
+      },
+      {
+        "urls": "stun:global.stun.twilio.com:3478?transport=udp"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 📡 11. WebRTC Signaling Send API
+
+Used by Caller and Receiver to exchange SDP Offers, SDP Answers, and ICE Candidates via REST.
+
+### **Endpoint**
+`POST /api/call/signal/send` *(Aliases: `/api/call/send-signal`, `/api/call/signal`)*
+
+### **Request Body (Sending SDP Offer)**
+```json
+{
+  "call_id": 12,
+  "channel_name": "call_video_1_2_1787851605_DPUb",
+  "type": "offer",
+  "payload": {
+    "sdp": "v=0\r\no=- 423456789 2 IN IP4 127.0.0.1...",
+    "type": "offer"
+  }
+}
+```
+
+### **Request Body (Sending SDP Answer)**
+```json
+{
+  "call_id": 12,
+  "channel_name": "call_video_1_2_1787851605_DPUb",
+  "type": "answer",
+  "payload": {
+    "sdp": "v=0\r\no=- 987654321 2 IN IP4 127.0.0.1...",
+    "type": "answer"
+  }
+}
+```
+
+### **Request Body (Sending ICE Candidate)**
+```json
+{
+  "call_id": 12,
+  "channel_name": "call_video_1_2_1787851605_DPUb",
+  "type": "candidate",
+  "payload": {
+    "candidate": "candidate:842163049 1 udp 1677729535 192.168.1.100 56214 typ srflx...",
+    "sdpMid": "0",
+    "sdpMLineIndex": 0
+  }
+}
+```
+
+### **Success Response (200 OK)**
+```json
+{
+  "status": true,
+  "message": "Signal 'offer' sent successfully.",
+  "data": {
+    "signal_id": 105,
+    "call_id": 12,
+    "type": "offer",
+    "sender_id": 1,
+    "receiver_id": 2,
+    "created_at": "2026-08-28T14:40:02Z"
+  }
+}
+```
+
+---
+
+## 📬 12. WebRTC Signaling Receive & Poll API
+
+The peer device polls this endpoint every 500ms to 1s to fetch incoming SDP Offers, Answers, and ICE candidates.
+
+### **Endpoint**
+`GET /api/call/signal/receive` *(Aliases: `GET /api/call/signals`, `POST /api/call/signals`)*
+
+### **Query Parameters / Body**
+- `call_id`: (optional) ID of the call session.
+- `channel_name`: (optional) WebRTC channel name.
+- `last_signal_id`: (optional) ID of last received signal to fetch only newer signals.
+- `auto_read`: (optional, default `true`) Automatically mark fetched signals as read.
+
+### **Success Response (200 OK)**
+```json
+{
+  "status": true,
+  "count": 2,
+  "data": [
+    {
+      "id": 106,
+      "call_id": 12,
+      "channel_name": "call_video_1_2_1787851605_DPUb",
+      "sender_id": 2,
+      "sender_name": "Ayeena04",
+      "type": "answer",
+      "payload": {
+        "sdp": "v=0\r\no=- 987654321 2 IN IP4...",
+        "type": "answer"
+      },
+      "created_at": "2026-08-28T14:40:04Z"
+    },
+    {
+      "id": 107,
+      "call_id": 12,
+      "channel_name": "call_video_1_2_1787851605_DPUb",
+      "sender_id": 2,
+      "sender_name": "Ayeena04",
+      "type": "candidate",
+      "payload": {
+        "candidate": "candidate:842163049 1 udp 1677729535 192.168.1.100 56214 typ srflx...",
+        "sdpMid": "0",
+        "sdpMLineIndex": 0
+      },
+      "created_at": "2026-08-28T14:40:05Z"
+    }
+  ]
+}
+```
+
+---
+
+## 💓 13. In-Call Pulse Deduction & Deposit Prompt API
+
+During the active call, the mobile app sends a heartbeat request every 60 seconds (or custom interval e.g. 10s, 30s) to perform real-time coin deduction (100 coins/min = ~1.67 coins/sec) and 50/50 revenue sharing.
 
 ### **Endpoint**
 `POST /api/call/deduct-interval` *(Aliases: `/api/call/pulse`, `/api/call/bill`)*
 
-### **Request Body (JSON)**
+### **Request Body (Option A: 60-Second Interval)**
 ```json
 {
   "call_id": 12,
   "elapsed_seconds": 60,
   "coins": 100
+}
+```
+
+### **Request Body (Option B: Dynamic Per-Second / Chunk Calculation)**
+```json
+{
+  "call_id": 12,
+  "interval_seconds": 30
 }
 ```
 
@@ -557,23 +735,27 @@ During the active call, the mobile app sends a heartbeat request every 60 second
   "data": {
     "current_coins": 0,
     "coins_deducted": 0,
+    "rate_per_minute": 100,
+    "rate_per_second": 1.6667,
     "can_continue": true,
     "should_terminate_call": false
   }
 }
 ```
 
-### **State 2: Paid Call — 100 Coins Deducted (50/50 Split - 200 OK)**
+### **State 2: Paid Call — Coins Deducted (50/50 Split - 200 OK)**
 ```json
 {
   "status": true,
-  "message": "Deducted 100 coins. Host earned 50 coins (50%). Admin revenue 50 coins (50%).",
+  "message": "Deducted 100 coins (Rate: 100 coins/min, 1.6667 coins/sec). Host earned 50 coins (50%). Admin revenue 50 coins (50%).",
   "data": {
     "current_coins": 44900,
     "coins_deducted": 100,
     "host_earned_coins": 50,
     "admin_revenue_coins": 50,
     "total_call_coins_deducted": 100,
+    "rate_per_minute": 100,
+    "rate_per_second": 1.6667,
     "can_continue": true,
     "should_terminate_call": false
   }
@@ -588,13 +770,16 @@ During the active call, the mobile app sends a heartbeat request every 60 second
   "message": "Your balance is insufficient to continue calling. Please deposit/recharge coins now.",
   "current_coins": 0,
   "required_coins": 100,
+  "rate_per_minute": 100,
+  "rate_per_second": 1.6667,
   "should_terminate_call": true,
   "redirect_to_deposit": true,
   "deposit_url": "/deposit",
   "data": {
     "caller_id": 1,
     "call_id": 12,
-    "current_coins": 0
+    "current_coins": 0,
+    "required_coins": 100
   }
 }
 ```
@@ -602,7 +787,7 @@ During the active call, the mobile app sends a heartbeat request every 60 second
 
 ---
 
-## 📴 11. End Call API
+## 📴 14. End Call API
 
 Called when either user hangs up or the session terminates.
 
@@ -642,7 +827,7 @@ Called when either user hangs up or the session terminates.
 
 ---
 
-## 📜 12. User Call History API
+## 📜 15. User Call History API
 
 Returns list of past calls made or received by the user.
 
@@ -686,51 +871,144 @@ Returns list of past calls made or received by the user.
 
 ---
 
-## 💰 50/50 Revenue Sharing Formula
+## 💰 100 Coins/Min Billing Formula & 50/50 Revenue Split
 
-When caller is billed $C$ coins (e.g. 100 coins per minute):
+1. **Per-Minute Rate**:
+   - $\text{Rate per Minute} = 100 \text{ coins}$
+2. **Automatic Per-Second Rate Calculation**:
+   - $\text{Rate per Second} = \frac{100}{60} = 1.66667 \text{ coins/second}$
+   - For an interval of $T$ seconds: $\text{Coins to Deduct} = \text{round}\left(T \times \frac{100}{60}\right)$
+   - Examples:
+     - 60 seconds = **100 coins**
+     - 30 seconds = **50 coins**
+     - 10 seconds = **17 coins**
 
-1. **Host Share (Female User / Receiver)**:
-   $$\text{Host Earned Coins} = \text{round}\left(C \times \frac{\text{Host } \%}{100}\right)$$
-   *Example: $100 \times 50\% = \mathbf{50 \text{ coins}}$ credited to Host Wallet.*
+3. **Host 50% Share (Female User / Receiver)**:
+   $$\text{Host Earned Coins} = \text{round}\left(\text{Coins Deducted} \times 50\%\right)$$
+   *Example: 100 coins billed $\to \mathbf{50 \text{ coins}}$ credited to Host Wallet.*
 
-2. **Admin Platform Revenue**:
-   $$\text{Admin Revenue Coins} = C - \text{Host Earned Coins}$$
-   *Example: $100 - 50 = \mathbf{50 \text{ coins}}$ credited to Admin Profit Ledger.*
+4. **Admin 50% Platform Revenue**:
+   $$\text{Admin Revenue Coins} = \text{Coins Deducted} - \text{Host Earned Coins}$$
+   *Example: 100 coins billed $\to \mathbf{50 \text{ coins}}$ platform net revenue.*
 
 ---
 
-## 📱 Mobile App Implementation Guide
+## 📱 Flutter WebRTC Implementation Guide
 
-### 1. Continuous Ringing on Receiver Device
-- In the mobile app foreground/background service, poll `GET /api/call/incoming` every 1.5 seconds (or trigger via FCM Data Push).
-- When `has_incoming_call: true`:
-  - Open the **Full Screen Incoming Call Activity / Screen**.
-  - Play the custom ringtone sound with `loop = true` (infinite loop until user action).
-  - Ping `POST /api/call/ringing` with `call_id`.
-  - Start a local 45-second timer. If no action after 45s, stop ringtone and dismiss screen.
+### 1. Flutter WebRTC Call Initialization & SDP Exchange
+```dart
+// 1. Caller initiates call
+final initRes = await http.post(
+  Uri.parse('$baseUrl/api/call/initiate'),
+  headers: authHeaders,
+  body: jsonEncode({'receiver_id': targetUserId, 'call_type': 'video'}),
+);
+final callId = initRes['data']['call_id'];
+final channelName = initRes['data']['channel_name'];
 
-### 2. Receiver Taps "Call Receive" (রিসিভ বাটন)
-- Stop the incoming ringtone immediately.
-- Call `POST /api/call/accept` with `call_id`.
-- Transition into the **Active Video Call Screen**.
-- Join the WebRTC/Agora channel using `channel_name`.
-- Start local call duration timer and pulse heartbeat.
+// 2. Fetch ICE Servers
+final iceRes = await http.get(Uri.parse('$baseUrl/api/call/ice-servers'));
+final configuration = {'iceServers': iceRes['data']['iceServers']};
+RTCPeerConnection peerConnection = await createPeerConnection(configuration);
 
-### 3. Receiver Taps "Decline"
-- Stop the incoming ringtone immediately.
-- Call `POST /api/call/reject` with `call_id`.
-- Close incoming call screen.
+// 3. Create & Send SDP Offer
+RTCSessionDescription offer = await peerConnection.createOffer();
+await peerConnection.setLocalDescription(offer);
 
-### 4. Caller Dialing Screen
-- Caller initiates call via `POST /api/call/initiate`.
-- Play outgoing dial tone sound with `loop = true`.
-- Start polling `GET /api/call/status/{call_id}` every 1 second:
-  - If `status == "connected"`: Stop dial tone, navigate into **Active Video Call Screen**, connect WebRTC/Agora stream!
-  - If `status == "rejected"`: Stop dial tone, show toast **"Host declined the call"**, close screen.
-  - If `status == "missed"`: Stop dial tone, show toast **"No answer"**, close screen.
-  - If caller taps **"Cancel"**: Call `POST /api/call/cancel`, stop dial tone, close screen.
+await http.post(
+  Uri.parse('$baseUrl/api/call/signal/send'),
+  headers: authHeaders,
+  body: jsonEncode({
+    'call_id': callId,
+    'channel_name': channelName,
+    'type': 'offer',
+    'payload': {'sdp': offer.sdp, 'type': offer.type},
+  }),
+);
 
-### 5. In-Call Heartbeat Billing
-- Every 60 seconds (or after free trial duration), send `POST /api/call/deduct-interval`.
-- If server returns HTTP 402 with `code: "LOW_BALANCE_DEPOSIT_REQUIRED"`, terminate media stream and show the **"Please Recharge Coins / Deposit Now"** bottom sheet.
+// 4. On ICE Candidate Generated
+peerConnection.onIceCandidate = (RTCIceCandidate candidate) {
+  http.post(
+    Uri.parse('$baseUrl/api/call/signal/send'),
+    headers: authHeaders,
+    body: jsonEncode({
+      'call_id': callId,
+      'channel_name': channelName,
+      'type': 'candidate',
+      'payload': {
+        'candidate': candidate.candidate,
+        'sdpMid': candidate.sdpMid,
+        'sdpMLineIndex': candidate.sdpMLineIndex,
+      },
+    }),
+  );
+};
+```
+
+### 2. Receiver Answering & Signaling Loop
+```dart
+// 1. Receiver taps "Receive" (রিসিভ)
+await http.post(
+  Uri.parse('$baseUrl/api/call/accept'),
+  headers: authHeaders,
+  body: jsonEncode({'call_id': callId}),
+);
+
+// 2. Poll for Signals (SDP Offer / Answer & ICE Candidates)
+Timer.periodic(Duration(milliseconds: 750), (timer) async {
+  final res = await http.get(
+    Uri.parse('$baseUrl/api/call/signal/receive?call_id=$callId'),
+    headers: authHeaders,
+  );
+  for (var signal in res['data']) {
+    if (signal['type'] == 'offer') {
+      await peerConnection.setRemoteDescription(
+        RTCSessionDescription(signal['payload']['sdp'], 'offer'),
+      );
+      RTCSessionDescription answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      await http.post(
+        Uri.parse('$baseUrl/api/call/signal/send'),
+        headers: authHeaders,
+        body: jsonEncode({
+          'call_id': callId,
+          'type': 'answer',
+          'payload': {'sdp': answer.sdp, 'type': answer.type},
+        }),
+      );
+    } else if (signal['type'] == 'answer') {
+      await peerConnection.setRemoteDescription(
+        RTCSessionDescription(signal['payload']['sdp'], 'answer'),
+      );
+    } else if (signal['type'] == 'candidate') {
+      await peerConnection.addCandidate(
+        RTCIceCandidate(
+          signal['payload']['candidate'],
+          signal['payload']['sdpMid'],
+          signal['payload']['sdpMLineIndex'],
+        ),
+      );
+    }
+  }
+});
+```
+
+### 3. Active Call Heartbeat Coin Billing (100 coins/min)
+```dart
+// In-Call Timer: Runs every 60 seconds (or 10s intervals)
+Timer.periodic(Duration(seconds: 60), (timer) async {
+  final pulseRes = await http.post(
+    Uri.parse('$baseUrl/api/call/deduct-interval'),
+    headers: authHeaders,
+    body: jsonEncode({'call_id': callId, 'elapsed_seconds': 60, 'coins': 100}),
+  );
+
+  if (pulseRes.statusCode == 402 || pulseRes['code'] == 'LOW_BALANCE_DEPOSIT_REQUIRED') {
+    timer.cancel();
+    // Stop WebRTC stream
+    peerConnection.close();
+    // Show Low Balance Popup / Navigate to Deposit Screen
+    showRechargeCoinDialog();
+  }
+});
+```

@@ -147,6 +147,17 @@ Route::prefix('call')->group(function () {
     Route::post('/ringing', [CallController::class, 'ringing']);
     Route::post('/ring-ping', [CallController::class, 'ringing']);
     
+    // WebRTC Signaling & ICE Servers for Flutter App
+    Route::get('/ice-servers', [CallController::class, 'getIceServers']);
+    Route::post('/signal/send', [CallController::class, 'sendSignal']);
+    Route::post('/send-signal', [CallController::class, 'sendSignal']);
+    Route::post('/signal', [CallController::class, 'sendSignal']);
+    Route::match(['get', 'post'], '/signal/receive', [CallController::class, 'getSignals']);
+    Route::match(['get', 'post'], '/signals', [CallController::class, 'getSignals']);
+    Route::match(['get', 'post'], '/get-signals', [CallController::class, 'getSignals']);
+    Route::post('/signal/clear', [CallController::class, 'clearSignals']);
+    Route::post('/clear-signals', [CallController::class, 'clearSignals']);
+
     // Call Actions (Receive / Accept / Start / Connect / Reject / Cancel)
     Route::post('/accept', [CallController::class, 'accept']);
     Route::post('/answer', [CallController::class, 'accept']);

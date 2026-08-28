@@ -806,8 +806,9 @@ class CallController extends Controller
         }
 
         $config = CallSetting::getAllConfig();
-        $ratePerMinute = (int) ($call->rate_per_minute ?: $config['video_call_rate_per_minute']);
-        $hostPercent = (float) $config['host_earning_percent'];
+        $ratePerMinute = (int) ($call->rate_per_minute ?: $config['video_call_rate_per_minute'] ?: 100);
+        $ratePerSecond = round($ratePerMinute / 60, 4);
+        $hostPercent = (float) ($config['host_earning_percent'] ?? 50.0);
 
         // 1. Check if Call is in Free Trial window
         if ($call->is_free_trial && $call->free_duration_seconds > 0) {
@@ -822,6 +823,8 @@ class CallController extends Controller
                     'data' => [
                         'current_coins' => (int) $caller->coins,
                         'coins_deducted' => 0,
+                        'rate_per_minute' => $ratePerMinute,
+                        'rate_per_second' => $ratePerSecond,
                         'can_continue' => true,
                         'should_terminate_call' => false,
                     ],
@@ -836,8 +839,15 @@ class CallController extends Controller
             }
         }
 
-        // 2. Paid call deduction logic: Check Caller Balance
-        $coinsToDeduct = (int) ($data['coins'] ?? $request->input('coins', $ratePerMinute));
+        // 2. Paid call deduction logic:
+        // Support per-second calculation based on 100 coins/min ($ratePerMinute / 60)
+        $intervalSecs = (int) ($data['interval_seconds'] ?? $data['duration_chunk'] ?? 0);
+        if ($intervalSecs > 0) {
+            $coinsToDeduct = (int) max(1, round($intervalSecs * ($ratePerMinute / 60)));
+        } else {
+            $coinsToDeduct = (int) ($data['coins'] ?? $request->input('coins', $ratePerMinute));
+        }
+
         if ($coinsToDeduct <= 0) {
             $coinsToDeduct = $ratePerMinute ?: 100;
         }
@@ -849,6 +859,8 @@ class CallController extends Controller
                 'message' => "Your balance is insufficient to continue calling. Please deposit/recharge coins now.",
                 'current_coins' => (int) $caller->coins,
                 'required_coins' => $coinsToDeduct,
+                'rate_per_minute' => $ratePerMinute,
+                'rate_per_second' => $ratePerSecond,
                 'should_terminate_call' => true,
                 'redirect_to_deposit' => true,
                 'deposit_url' => '/deposit',
@@ -856,6 +868,7 @@ class CallController extends Controller
                     'caller_id' => $caller->id,
                     'call_id' => $call->id,
                     'current_coins' => (int) $caller->coins,
+                    'required_coins' => $coinsToDeduct,
                 ],
             ], 402);
         }
@@ -867,8 +880,8 @@ class CallController extends Controller
             $caller->deductCoins(
                 $coinsToDeduct,
                 'video_call_spent',
-                "Call pulse with {$call->receiver?->display_name} (Call #{$call->id})",
-                "call_pulse_#{$call->id}"
+                "Call pulse ({$coinsToDeduct} coins) with {$call->receiver?->display_name} (Call #{$call->id})",
+                "call_pulse_#{$call->id}_" . time()
             );
 
             // Calculate host earning (50%) and admin revenue (50%)
@@ -881,7 +894,7 @@ class CallController extends Controller
                     $hostEarned,
                     'video_call_earned',
                     "Earned {$hostEarned} coins from {$call->call_type} call with {$caller->display_name}",
-                    "host_earn_#{$call->id}"
+                    "host_earn_#{$call->id}_" . time()
                 );
             }
 
@@ -896,14 +909,16 @@ class CallController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => "Deducted {$coinsToDeduct} coins. Host earned {$hostEarned} coins (50%). Admin revenue {$adminRevenue} coins (50%).",
+                'message' => "Deducted {$coinsToDeduct} coins (Rate: {$ratePerMinute} coins/min, {$ratePerSecond} coins/sec). Host earned {$hostEarned} coins (50%). Admin revenue {$adminRevenue} coins (50%).",
                 'data' => [
                     'current_coins' => (int) $caller->coins,
                     'coins_deducted' => $coinsToDeduct,
                     'host_earned_coins' => $hostEarned,
                     'admin_revenue_coins' => $adminRevenue,
                     'total_call_coins_deducted' => (int) $call->coins_deducted,
-                    'can_continue' => $caller->coins >= $ratePerMinute,
+                    'rate_per_minute' => $ratePerMinute,
+                    'rate_per_second' => $ratePerSecond,
+                    'can_continue' => $caller->coins >= max(1, (int) round($ratePerMinute / 60)),
                     'should_terminate_call' => false,
                 ],
             ], 200);
@@ -914,6 +929,207 @@ class CallController extends Controller
                 'message' => 'Error processing call deduction: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * WebRTC ICE Servers Configuration (STUN & TURN for Flutter).
+     * GET /api/call/ice-servers
+     */
+    public function getIceServers(Request $request): JsonResponse
+    {
+        return response()->json([
+            'status' => true,
+            'message' => 'WebRTC ICE Servers retrieved successfully.',
+            'data' => [
+                'iceServers' => [
+                    [
+                        'urls' => [
+                            'stun:stun.l.google.com:19302',
+                            'stun:stun1.l.google.com:19302',
+                            'stun:stun2.l.google.com:19302',
+                            'stun:stun3.l.google.com:19302',
+                            'stun:stun4.l.google.com:19302',
+                        ],
+                    ],
+                    [
+                        'urls' => 'stun:global.stun.twilio.com:3478?transport=udp',
+                    ],
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Send WebRTC Signal (SDP Offer, SDP Answer, ICE Candidate, Ping, Bye).
+     * POST /api/call/signal/send (or POST /api/call/send-signal)
+     */
+    public function sendSignal(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $data = $this->getRequestData($request);
+        $validator = Validator::make($data, [
+            'call_id' => 'nullable',
+            'channel_name' => 'nullable',
+            'type' => 'required|string', // offer, answer, candidate, ping, bye
+            'payload' => 'required', // SDP or Candidate JSON / String
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Signal validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $callId = $data['call_id'] ?? $request->input('call_id');
+        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+
+        $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
+            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
+            ->first();
+
+        $receiverId = $data['receiver_id'] ?? null;
+        if (!$receiverId && $call) {
+            $receiverId = ($call->caller_id === $user->id) ? $call->receiver_id : $call->caller_id;
+        }
+
+        $payload = $data['payload'];
+        if (is_string($payload)) {
+            $decoded = json_decode($payload, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $payload = $decoded;
+            }
+        }
+
+        $signal = \App\Models\CallSignal::create([
+            'call_session_id' => $call?->id,
+            'channel_name' => $channelName ?: $call?->channel_name,
+            'sender_id' => $user->id,
+            'receiver_id' => $receiverId,
+            'type' => strtolower($data['type']),
+            'payload' => is_array($payload) ? $payload : ['data' => $payload],
+            'is_read' => false,
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => "Signal '{$signal->type}' sent successfully.",
+            'data' => [
+                'signal_id' => $signal->id,
+                'call_id' => $signal->call_session_id,
+                'type' => $signal->type,
+                'sender_id' => $user->id,
+                'receiver_id' => $receiverId,
+                'created_at' => $signal->created_at->toIso8601String(),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Receive / Poll for pending WebRTC Signals (SDP Offers, Answers, ICE Candidates).
+     * GET /api/call/signal/receive (or GET /api/call/signals, POST /api/call/signals)
+     */
+    public function getSignals(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $data = $this->getRequestData($request);
+        $callId = $data['call_id'] ?? $request->input('call_id');
+        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+        $lastSignalId = (int) ($data['last_signal_id'] ?? $request->input('last_signal_id', 0));
+        $autoRead = filter_var($data['auto_read'] ?? $request->input('auto_read', true), FILTER_VALIDATE_BOOLEAN);
+
+        $query = \App\Models\CallSignal::with(['sender'])
+            ->where(function ($q) use ($user) {
+                $q->where('receiver_id', $user->id)
+                  ->orWhereNull('receiver_id');
+            })
+            ->where('sender_id', '!=', $user->id);
+
+        if ($callId) {
+            $query->where('call_session_id', $callId);
+        }
+        if ($channelName) {
+            $query->where('channel_name', $channelName);
+        }
+        if ($lastSignalId > 0) {
+            $query->where('id', '>', $lastSignalId);
+        } else {
+            $query->where('is_read', false);
+        }
+
+        $signals = $query->orderBy('id', 'asc')->limit(50)->get();
+
+        if ($autoRead && $signals->isNotEmpty()) {
+            \App\Models\CallSignal::whereIn('id', $signals->pluck('id'))->update(['is_read' => true]);
+        }
+
+        $formatted = $signals->map(function ($s) {
+            return [
+                'id' => $s->id,
+                'call_id' => $s->call_session_id,
+                'channel_name' => $s->channel_name,
+                'sender_id' => $s->sender_id,
+                'sender_name' => $s->sender?->display_name,
+                'type' => $s->type,
+                'payload' => $s->payload,
+                'created_at' => $s->created_at->toIso8601String(),
+            ];
+        });
+
+        return response()->json([
+            'status' => true,
+            'count' => $signals->count(),
+            'data' => $formatted,
+        ], 200);
+    }
+
+    /**
+     * Clear / Mark WebRTC Signals as read.
+     * POST /api/call/signal/clear
+     */
+    public function clearSignals(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $data = $this->getRequestData($request);
+        $callId = $data['call_id'] ?? $request->input('call_id');
+        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+
+        $query = \App\Models\CallSignal::where('receiver_id', $user->id);
+        if ($callId) {
+            $query->where('call_session_id', $callId);
+        }
+        if ($channelName) {
+            $query->where('channel_name', $channelName);
+        }
+
+        $query->update(['is_read' => true]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Signals marked as read.',
+        ], 200);
     }
 
     /**
