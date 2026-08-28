@@ -375,7 +375,7 @@ class CallController extends Controller
                 'is_low_balance' => true,
                 'redirect_to_deposit' => true,
                 'deposit_url' => '/deposit',
-            ], 402);
+            ], 200); // Return 200 to prevent Flutter auth interceptor from triggering logout
         }
 
         $freeDuration = $isEligibleForFree ? $config['free_call_duration_seconds'] : 0;
@@ -437,7 +437,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Unauthenticated.',
-            ], 401);
+            ], 200);
         }
 
         // Auto-expire calls that have been ringing > 45 seconds
@@ -522,7 +522,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call session not found.',
-            ], 404);
+            ], 200);
         }
 
         // Auto-expire if ringing for > 45s without answer
@@ -597,7 +597,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call session not found.',
-            ], 404);
+            ], 200);
         }
 
         if (in_array($call->status, ['initiated', 'ringing'])) {
@@ -630,7 +630,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call ID or Channel Name required.',
-            ], 422);
+            ], 200);
         }
 
         $call = CallSession::with(['caller', 'receiver'])
@@ -642,7 +642,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call session not found.',
-            ], 404);
+            ], 200);
         }
 
         if (in_array($call->status, ['rejected', 'declined', 'cancelled', 'ended', 'missed'])) {
@@ -650,7 +650,7 @@ class CallController extends Controller
                 'status' => false,
                 'message' => "Cannot accept call. Call is already {$call->status}.",
                 'call_status' => $call->status,
-            ], 400);
+            ], 200);
         }
 
         $call->status = 'connected';
@@ -712,7 +712,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call session not found.',
-            ], 404);
+            ], 200);
         }
 
         $call->status = 'rejected';
@@ -747,7 +747,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call session not found.',
-            ], 404);
+            ], 200);
         }
 
         $call->status = 'cancelled';
@@ -778,7 +778,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Unauthenticated.',
-            ], 401);
+            ], 200);
         }
 
         $data = $this->getRequestData($request);
@@ -789,7 +789,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call ID is required.',
-            ], 422);
+            ], 200);
         }
 
         $call = CallSession::with(['caller', 'receiver'])->find($callId);
@@ -798,7 +798,7 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call session not found.',
-            ], 404);
+            ], 200);
         }
 
         // If call was not yet marked connected, mark it connected now
@@ -875,7 +875,7 @@ class CallController extends Controller
                     'current_coins' => (int) $caller->coins,
                     'required_coins' => $coinsToDeduct,
                 ],
-            ], 402);
+            ], 200); // Returns 200 OK with explicit code so mobile interceptor never forces logout
         }
 
         // 3. Atomically Deduct from Caller & Credit Host 50% Share

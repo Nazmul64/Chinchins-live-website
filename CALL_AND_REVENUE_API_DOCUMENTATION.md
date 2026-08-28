@@ -1268,7 +1268,57 @@ class _WebrtcCallScreenState extends State<WebrtcCallScreen> {
     _localRenderer.dispose();
     _remoteRenderer.dispose();
     super.dispose();
-  }
-}
 ```
+
+---
+
+## 🛠️ Mobile Developer Troubleshooting & Common Bug Fixes
+
+### ❓ Issue 1: "কল রিসিভ করলে বা কথা বলার সময় অ্যাপ অটোমেটিক লগআউট হয়ে যায় কেন?" (Why app logs out during call)
+- **Root Cause**: Flutter app global HTTP/Dio Interceptor intercepts HTTP 401/402/404 responses and automatically calls `AuthBloc.logout()` or `SharedPreferences.clear()`.
+- **Backend Fix**: All call and signaling endpoints now return **HTTP 200 OK** with structured JSON:
+  - When balance is low: `{ "status": false, "code": "LOW_BALANCE_DEPOSIT_REQUIRED", "message": "...", "should_terminate_call": true, "redirect_to_deposit": true }`
+  - When call ended/rejected: `{ "status": false, "code": "CALL_TERMINATED", "message": "..." }`
+- **Flutter App Action**:
+  - In your API service, check `if (response['code'] == 'LOW_BALANCE_DEPOSIT_REQUIRED')`: terminate media stream and show the **"Recharge Coins / Deposit"** dialog. Do **NOT** call logout!
+
+---
+
+### ❓ Issue 2: "ভিডিও কলে কথা বলার সময় ক্যামেরা স্ট্রিম না এসে শুধু প্রোফাইল ছবি ও টাইমার শো করে কেন?" (Why camera video doesn't show)
+- **Root Cause**:
+  1. The Flutter UI was rendering a static placeholder `Image.network(avatarUrl)` on top of the `RTCVideoView` widget.
+  2. `peerConnection.onTrack` event was not updating the `_remoteRenderer.srcObject`.
+  3. The signaling loop (SDP Offer ➡️ SDP Answer ➡️ ICE Candidates) was not exchanging credentials.
+- **Flutter App Action**:
+  1. Initialize **two renderers**:
+     ```dart
+     final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+     final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+     ```
+  2. In `peerConnection.onTrack`, always assign the remote stream:
+     ```dart
+     _peerConnection!.onTrack = (RTCTrackEvent event) {
+       if (event.streams.isNotEmpty) {
+         setState(() {
+           _remoteRenderer.srcObject = event.streams[0]; // Renders partner's live video!
+         });
+       }
+     };
+     ```
+  3. Build your UI Stack:
+     - **Background Fullscreen**: `RTCVideoView(_remoteRenderer, objectFit: RTCVideoViewObjectFitCover)` (Shows caller/receiver face live).
+     - **Corner PiP (Top Right)**: `RTCVideoView(_localRenderer, mirror: true)` (Shows own face).
+     - Remove any static avatar/image covering the `RTCVideoView` once status is `connected`!
+
+---
+
+### ❓ Issue 3: "অ্যাডমিন প্যানেল থেকে রিংটোন সেটআপ কীভাবে করবেন?" (Admin Ringtone Setup)
+1. Go to Admin Dashboard ➡️ **Call & Revenue** ➡️ **Call & Ringtone Settings** (URL: `/admin/call-sessions/settings`).
+2. Scroll to **"Call Ringtone & Dial Tone Audio Setup"**.
+3. Upload custom **MP3 / WAV audio files** or input audio URLs for:
+   - **Incoming Call Ringtone** (রিসিভারের ফোনে কল আসার সময় যে রিংটোন বাজবে)
+   - **Outgoing Call Dial Tone** (কল করার সময় কলারের ফোনে যে ডায়ালটোন বাজবে)
+4. Click **"Save Call & Revenue Settings"**.
+5. The mobile app automatically receives these audio URLs in `GET /api/call/config`, `POST /api/call/initiate`, and `GET /api/call/incoming` to stream and loop while ringing!
+
 

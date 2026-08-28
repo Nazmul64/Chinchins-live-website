@@ -116,7 +116,7 @@
                 </a>
                 <a href="{{ route('admin.calls.settings') }}" class="submenu-item {{ request()->routeIs('admin.calls.settings') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
-                    <span>Call & Rate Settings</span>
+                    <span>Call & Ringtone Settings</span>
                 </a>
             </div>
         </div>
