@@ -1511,3 +1511,324 @@ _signalingTimer = Timer.periodic(const Duration(milliseconds: 600), (timer) asyn
     }
   }
   ```
+
+---
+
+### ❓ Issue 9: "ভিডিও কল দিলে 'Allow Permission' চায় কেন? অটোমেটিক পারমিশন কীভাবে করবেন?"
+- **কারণ**: Android এবং iOS অপারেটিং সিস্টেমের নিজস্ব সিকিউরিটি নিয়মানুযায়ী প্রথমবার ক্যামেরা বা মাইক্রোফোন ব্যবহারের সময় ইউজারের থেকে পারমিশন নিতে হয়।
+- **ফ্লাটার সমাধান**: অ্যাপ ওপেন হওয়ার সময় (Splash Screen বা Main Navigation Screen-এ) ক্যামেরা ও মাইক পারমিশন একবার নিয়ে নিলে কল দেওয়ার সময় আর কোনো পারমিশন ডায়ালগ পপআপ হবে না:
+  ```dart
+  import 'package:permission_handler/permission_handler.dart';
+
+  // Splash Screen বা Login করার সাথে সাথে একবার কল করুন:
+  Future<void> requestCallPermissions() async {
+    await [
+      Permission.camera,
+      Permission.microphone,
+    ].request();
+  }
+  ```
+
+---
+
+### ❓ Issue 10: "হোয়াটসঅ্যাপ / ইমো / মেসেঞ্জারের মতো সম্পূর্ণ VideoCallScreen উইজেট কোড"
+
+নিচে সম্পূর্ণ রেডিমেড `VideoCallScreen` কোড দেওয়া হলো যা সরাসরি আপনার `video_call_screen.dart` ফাইলে রিপ্লেস করলে:
+1. **ব্যাকগ্রাউন্ডে সবসময় অন্য প্রান্তের ইউজারের (রুমার) লাইভ ক্যামেরা ভিডিও দেখাবে**।
+2. **কর্নারের ছোট উইন্ডোতে নিজের লাইভ ফ্রন্ট ক্যামেরা দেখাবে**।
+3. **উভয় প্রান্তের কথা লাউডস্পিকারে ক্রিস্টাল ক্লিয়ার শোনা যাবে**।
+4. **যে-কোনো একজন লাল বাটন চাপলে উভয়ের স্ক্রিন তৎক্ষণাৎ বন্ধ হয়ে যাবে**।
+
+```dart
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import '../services/webrtc_call_service.dart';
+import '../services/call_api_service.dart';
+import '../services/call_sound_manager.dart';
+
+class VideoCallScreen extends StatefulWidget {
+  final dynamic callId;
+  final String? channelName;
+  final bool isCaller;
+  final String partnerName;
+  final String partnerAvatarUrl;
+  final int ratePerMinute;
+
+  const VideoCallScreen({
+    Key? key,
+    required this.callId,
+    this.channelName,
+    required this.isCaller,
+    required this.partnerName,
+    required this.partnerAvatarUrl,
+    this.ratePerMinute = 100,
+  }) : super(key: key);
+
+  @override
+  State<VideoCallScreen> createState() => _VideoCallScreenState();
+}
+
+class _VideoCallScreenState extends State<VideoCallScreen> {
+  final WebRTCCallService _webrtcService = WebRTCCallService();
+  Timer? _statusTimer;
+  Timer? _billingTimer;
+  int _callDurationSeconds = 0;
+  Timer? _durationTimer;
+  bool _isMuted = false;
+  bool _isSpeakerOn = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCallSession();
+  }
+
+  Future<void> _initCallSession() async {
+    // 1. Initialize Media & Camera
+    await _webrtcService.initializeMedia(isAudioOnly: false);
+    if (mounted) setState(() {});
+
+    // 2. Start WebRTC Session
+    if (widget.isCaller) {
+      await _webrtcService.startCallAsCaller(
+        callId: widget.callId,
+        channelName: widget.channelName,
+        onRemoteStreamConnected: (stream) {
+          if (mounted) {
+            setState(() {}); // Crucial: Triggers UI rebuild so remote video shows!
+          }
+        },
+        onCallEnded: _onPartnerEndedCall,
+      );
+    } else {
+      await _webrtcService.startCallAsReceiver(
+        callId: widget.callId,
+        channelName: widget.channelName,
+        onRemoteStreamConnected: (stream) {
+          if (mounted) {
+            setState(() {}); // Crucial: Triggers UI rebuild so remote video shows!
+          }
+        },
+        onCallEnded: _onPartnerEndedCall,
+      );
+    }
+
+    // 3. Start Duration Timer
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _callDurationSeconds++;
+        });
+      }
+    });
+
+    // 4. Start Status Sync Poller (Every 1s)
+    _statusTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      final statusRes = await CallApiService.getCallStatus(widget.callId);
+      final status = statusRes['data']?['status'];
+      final isTerminated = statusRes['data']?['is_terminated'] ?? false;
+      if (status == 'ended' || status == 'cancelled' || status == 'rejected' || isTerminated == true) {
+        _onPartnerEndedCall();
+      }
+    });
+
+    // 5. In-Call Pulse Billing (Only if Caller, every 60s)
+    if (widget.isCaller) {
+      _billingTimer = Timer.periodic(const Duration(seconds: 60), (timer) async {
+        final res = await CallApiService.deductInterval(
+          callId: widget.callId,
+          elapsedSeconds: _callDurationSeconds,
+          coins: widget.ratePerMinute,
+        );
+        if (res['code'] == 'LOW_BALANCE_DEPOSIT_REQUIRED') {
+          _endCall();
+          _showDepositDialog();
+        }
+      });
+    }
+  }
+
+  void _onPartnerEndedCall() async {
+    _statusTimer?.cancel();
+    _billingTimer?.cancel();
+    _durationTimer?.cancel();
+    await _webrtcService.dispose();
+    if (mounted) {
+      Navigator.pop(context); // Exits call screen instantly
+    }
+  }
+
+  void _endCall() async {
+    _statusTimer?.cancel();
+    _billingTimer?.cancel();
+    _durationTimer?.cancel();
+    await CallApiService.endCall(widget.callId);
+    await _webrtcService.dispose();
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  void _showDepositDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Insufficient Coins'),
+        content: const Text('Your coin balance is low. Please recharge / deposit coins to continue calling.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushNamed(context, '/deposit');
+            },
+            child: const Text('Recharge Coins Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDuration(int totalSecs) {
+    final mins = (totalSecs ~/ 60).toString().padLeft(2, '0');
+    final secs = (totalSecs % 60).toString().padLeft(2, '0');
+    return '$mins:$secs';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // 1. FULLSCREEN BACKGROUND: Remote Video (Partner's Live Camera Feed)
+          Positioned.fill(
+            child: _webrtcService.hasRemoteStream
+                ? RTCVideoView(
+                    _webrtcService.remoteRenderer,
+                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                  )
+                : Image.network(
+                    widget.partnerAvatarUrl,
+                    fit: BoxFit.cover,
+                  ),
+          ),
+
+          // 2. CORNER PiP: Local Camera (Your Own Front Camera Feed)
+          Positioned(
+            top: 50,
+            right: 16,
+            width: 110,
+            height: 160,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                color: Colors.black54,
+                child: _webrtcService.isInitialized
+                    ? RTCVideoView(
+                        _webrtcService.localRenderer,
+                        mirror: true,
+                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                      )
+                    : const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+              ),
+            ),
+          ),
+
+          // 3. TOP HEADER: Partner Info & Call Duration Timer
+          Positioned(
+            top: 50,
+            left: 16,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundImage: NetworkImage(widget.partnerAvatarUrl),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.partnerName,
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      _formatDuration(_callDurationSeconds),
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // 4. BOTTOM CONTROLS: Switch Camera, Mute, Hangup, Speaker
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Switch Camera (Front/Back)
+                FloatingActionButton(
+                  heroTag: 'switch_cam',
+                  backgroundColor: Colors.white24,
+                  onPressed: () => _webrtcService.switchCamera(),
+                  child: const Icon(Icons.cameraswitch, color: Colors.white),
+                ),
+
+                // Microphone Mute / Unmute
+                FloatingActionButton(
+                  heroTag: 'mic',
+                  backgroundColor: _isMuted ? Colors.red : Colors.white24,
+                  onPressed: () {
+                    setState(() {
+                      _isMuted = !_isMuted;
+                      _webrtcService.toggleMute(_isMuted);
+                    });
+                  },
+                  child: Icon(_isMuted ? Icons.mic_off : Icons.mic, color: Colors.white),
+                ),
+
+                // End Call (Hangup)
+                FloatingActionButton(
+                  heroTag: 'hangup',
+                  backgroundColor: Colors.red,
+                  onPressed: _endCall,
+                  child: const Icon(Icons.call_end, color: Colors.white),
+                ),
+
+                // Loudspeaker Toggle
+                FloatingActionButton(
+                  heroTag: 'speaker',
+                  backgroundColor: _isSpeakerOn ? Colors.green : Colors.white24,
+                  onPressed: () {
+                    setState(() {
+                      _isSpeakerOn = !_isSpeakerOn;
+                      _webrtcService.toggleSpeakerphone(_isSpeakerOn);
+                    });
+                  },
+                  child: Icon(_isSpeakerOn ? Icons.volume_up : Icons.volume_down, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _statusTimer?.cancel();
+    _billingTimer?.cancel();
+    _durationTimer?.cancel();
+    _webrtcService.dispose();
+    super.dispose();
+  }
+}
+```
+
