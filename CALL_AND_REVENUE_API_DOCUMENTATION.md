@@ -1434,5 +1434,80 @@ _signalingTimer = Timer.periodic(const Duration(milliseconds: 600), (timer) asyn
 });
 ```
 
+---
 
+### ❓ Issue 7: "ভিডিও কলে কেন ব্যাকগ্রাউন্ডে নিজের ক্যামেরা এবং কর্নারে পার্টনারের ছবি দেখাচ্ছিল?" (Fixing Video View & Remote Stream UI Binding)
+- **Root Cause**:
+  1. In `video_call_screen.dart`, `onRemoteStreamConnected` was missing `setState(() {})`, so Flutter never knew when the remote stream arrived and stayed stuck rendering the static avatar.
+  2. The background `RTCVideoView` was bound to `localRenderer` instead of `remoteRenderer`.
+- **Flutter App Action**:
+  ```dart
+  // 1. When starting the call in VideoCallScreen:
+  _webrtcService.startCallAsCaller(
+    callId: widget.callId,
+    channelName: widget.channelName,
+    onRemoteStreamConnected: (stream) {
+      if (mounted) {
+        setState(() {}); // Crucial: Rebuilds UI so remoteRenderer becomes visible!
+      }
+    },
+  );
 
+  // 2. In build() widget layout:
+  // Fullscreen Background -> Partner's Remote Video (or photo while connecting)
+  Widget _buildBackgroundVideo() {
+    if (_webrtcService.hasRemoteStream) {
+      return RTCVideoView(
+        _webrtcService.remoteRenderer,
+        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+      );
+    }
+    return Image.network(widget.partnerAvatarUrl, fit: BoxFit.cover);
+  }
+
+  // Top-Right Corner PiP -> Own Front Camera
+  Widget _buildLocalCameraPiP() {
+    return Positioned(
+      top: 50, right: 16, width: 110, height: 160,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: RTCVideoView(
+          _webrtcService.localRenderer,
+          mirror: true,
+          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+        ),
+      ),
+    );
+  }
+  ```
+
+---
+
+### ❓ Issue 8: "কল কেটে দিলে অপর প্রান্তের কল কেন কাটে না / স্ক্রিন স্টিল হয়ে আটকে থাকে?" (Synchronous Hangup & Call Termination)
+- **Root Cause**:
+  - When Caller hangs up (`POST /api/call/end`), Receiver's screen was not listening for the `'bye'` signal or status change to `'ended'`.
+- **Backend Feature**:
+  - `POST /api/call/end` automatically saves `status = 'ended'` AND creates a `CallSignal` with `type: 'bye'`.
+- **Flutter App Action**:
+  ```dart
+  // 1. Inside Signaling Poller (receiveSignals loop):
+  for (var signal in signals) {
+    final type = signal['type']?.toString().toLowerCase();
+    if (type == 'bye' || type == 'hangup' || type == 'call_ended') {
+      await _webrtcService.dispose();
+      if (mounted) {
+        Navigator.pop(context); // Closes screen instantly!
+      }
+      return;
+    }
+  }
+
+  // 2. Inside Call Status Poller (every 1 sec):
+  final statusRes = await CallApiService.getCallStatus(widget.callId);
+  if (statusRes['status'] == 'ended' || statusRes['status'] == 'rejected' || statusRes['status'] == 'cancelled') {
+    await _webrtcService.dispose();
+    if (mounted) {
+      Navigator.pop(context); // Closes screen instantly!
+    }
+  }
+  ```

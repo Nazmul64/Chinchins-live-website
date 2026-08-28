@@ -1149,10 +1149,12 @@ class CallController extends Controller
 
     /**
      * End Call Session and finalize duration and records.
+     * Automatically emits 'bye' WebRTC signal to terminate the partner's screen synchronously.
      * POST /api/call/end
      */
     public function end(Request $request): JsonResponse
     {
+        $user = $this->resolveUser($request);
         $data = $this->getRequestData($request);
         $callId = $data['call_id'] ?? $request->input('call_id');
         $channelName = $data['channel_name'] ?? $request->input('channel_name');
@@ -1166,21 +1168,6 @@ class CallController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Call session not found.',
-            ], 404);
-        }
-
-        if ($call->status === 'ended') {
-            return response()->json([
-                'status' => true,
-                'message' => 'Call has already ended.',
-                'data' => [
-                    'call_id' => $call->id,
-                    'duration_seconds' => (int) $call->duration_seconds,
-                    'duration_formatted' => $call->formatted_duration,
-                    'coins_deducted' => (int) $call->coins_deducted,
-                    'host_earned_coins' => (int) $call->host_earned_coins,
-                    'caller_balance' => (int) $call->caller_balance_after,
-                ],
             ], 200);
         }
 
@@ -1192,6 +1179,27 @@ class CallController extends Controller
         $call->ended_at = $endedAt;
         $call->duration_seconds = $durationSeconds;
         $call->save();
+
+        // Broadcast 'bye' signal to the other party so their screen terminates immediately
+        try {
+            $senderId = $user?->id ?: $call->caller_id;
+            $receiverId = ($senderId === $call->caller_id) ? $call->receiver_id : $call->caller_id;
+
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name' => $call->channel_name,
+                'sender_id' => $senderId,
+                'receiver_id' => $receiverId,
+                'type' => 'bye',
+                'payload' => [
+                    'action' => 'call_ended',
+                    'reason' => 'user_hangup',
+                    'ended_by' => $senderId,
+                    'duration_seconds' => $durationSeconds,
+                ],
+                'is_read' => false,
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'status' => true,
