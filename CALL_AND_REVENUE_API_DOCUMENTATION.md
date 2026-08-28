@@ -1827,8 +1827,189 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _billingTimer?.cancel();
     _durationTimer?.cancel();
     _webrtcService.dispose();
-    super.dispose();
-  }
-}
 ```
+
+---
+
+### ❓ Issue 11: "🚨 Fatal Error: Unable to RTCPeerConnection::addTrack: peerConnection is null & Surface.release() NPE Fix"
+
+> 🎯 **আপনার স্ক্রিনশটের ডিবাগ লগ ও লগক্যাটের এরর**:
+> ```
+> [02:32:32] ERROR in _createPeerConnectionInternal: Unable to RTCPeerConnection::addTrack: addTrack(): peerConnection is null
+> [02:32:32] Failed to create PeerConnection
+> E/MethodChannel#FlutterWebRTC.Method: java.lang.NullPointerException: Attempt to invoke virtual method 'void android.view.Surface.release()' on a null object reference
+> ```
+
+#### 🔍 মূল কারণ (Root Cause):
+1. `_createPeerConnectionInternal()` মেথডে `final pc = await createPeerConnection(configuration);` তৈরি হওয়ার পর `_peerConnection = pc;` অ্যাসাইন করার আগেই `pc.addTrack(track, _localStream!)` কল করা হয়েছিল। ফলে নেটিভ অ্যান্ড্রয়েড লেয়ারে `peerConnection is null` এক্সেপশন হয়ে পিয়ার কানেকশন ফেইল করছিল।
+2. কল ডিসপোজ করার সময় `renderer.srcObject = null` না করে সরাসরি `dispose()` কল করায় অ্যান্ড্রয়েড `Surface.release()` নাল পয়েন্টার এক্সেপশন দিচ্ছিল।
+
+---
+
+#### 🛠️ `webrtc_call_service.dart` ফাইলে নিচের দুটি মেথড সরাসরি রিপ্লেস করুন:
+
+#### ১. `_createPeerConnectionInternal` মেথড:
+```dart
+  Future<RTCPeerConnection?> _createPeerConnectionInternal(
+    dynamic callId,
+    String? channelName,
+    Function(MediaStream stream)? onRemoteStreamConnected,
+  ) async {
+    try {
+      _log('Fetching ICE servers from server...');
+      final iceServers = await CallApiService.getIceServers();
+      _log('ICE servers received: ${iceServers.length} servers');
+
+      final Map<String, dynamic> configuration = {
+        'iceServers': iceServers,
+        'sdpSemantics': 'unified-plan',
+      };
+
+      _log('Creating RTCPeerConnection...');
+      final pc = await createPeerConnection(configuration);
+      _peerConnection = pc; // 🔑 CRUCIAL FIX: _peerConnection আগে অ্যাসাইন করতে হবে!
+      pcState = 'Created';
+      _log('RTCPeerConnection created and assigned successfully');
+
+      // 🔑 CRUCIAL FIX: Safe Track Adding with fallback
+      if (_localStream != null) {
+        for (final track in _localStream!.getTracks()) {
+          try {
+            await pc.addTrack(track, _localStream!);
+            _log('Local track added: ${track.kind} (${track.id})');
+          } catch (e) {
+            _log('addTrack fallback to addStream: $e');
+            try {
+              await pc.addStream(_localStream!);
+            } catch (_) {}
+          }
+        }
+      }
+
+      // 1. Unified-Plan Track Event
+      pc.onTrack = (RTCTrackEvent event) {
+        _log('ON_TRACK: kind=${event.track.kind}, streams=${event.streams.length}');
+        if (event.streams.isNotEmpty) {
+          _remoteStream = event.streams[0];
+          remoteRenderer.srcObject = _remoteStream;
+          _log('Remote stream attached to remoteRenderer (tracks: ${_remoteStream!.getTracks().length})');
+          onRemoteStreamConnected?.call(_remoteStream!);
+        } else if (event.track.kind == 'video' || event.track.kind == 'audio') {
+          _remoteStream ??= event.streams.firstOrNull;
+          remoteRenderer.srcObject = _remoteStream;
+          onRemoteStreamConnected?.call(_remoteStream!);
+        }
+      };
+
+      // 2. Fallback onAddTrack handler
+      pc.onAddTrack = (MediaStream stream, MediaStreamTrack track) {
+        _log('ON_ADD_TRACK: kind=${track.kind}, streamId=${stream.id}');
+        _remoteStream = stream;
+        remoteRenderer.srcObject = _remoteStream;
+        onRemoteStreamConnected?.call(_remoteStream!);
+      };
+
+      // 3. Fallback onAddStream handler
+      pc.onAddStream = (MediaStream stream) {
+        _log('ON_ADD_STREAM: streamId=${stream.id}, tracks=${stream.getTracks().length}');
+        _remoteStream = stream;
+        remoteRenderer.srcObject = _remoteStream;
+        onRemoteStreamConnected?.call(_remoteStream!);
+      };
+
+      // 4. Connection State Observers
+      pc.onConnectionState = (RTCPeerConnectionState state) {
+        pcState = state.toString().split('.').last;
+        _log('PC State changed: $pcState');
+      };
+
+      pc.onIceConnectionState = (RTCIceConnectionState state) {
+        iceState = state.toString().split('.').last;
+        _log('ICE State changed: $iceState');
+      };
+
+      // 5. ICE Candidate Listener
+      pc.onIceCandidate = (RTCIceCandidate candidate) {
+        if (candidate.candidate != null && candidate.candidate!.isNotEmpty) {
+          iceCandidatesSent++;
+          _log('ICE candidate generated (#$iceCandidatesSent), sending to server...');
+          CallApiService.sendSignal(
+            callId: callId,
+            channelName: channelName,
+            type: 'candidate',
+            payload: {
+              'candidate': candidate.candidate,
+              'sdpMid': candidate.sdpMid,
+              'sdpMLineIndex': candidate.sdpMLineIndex,
+            },
+          );
+        }
+      };
+
+      return pc;
+    } catch (e, st) {
+      lastError = e.toString();
+      _log('ERROR in _createPeerConnectionInternal: $e');
+      AppLogger.error('CreatePeerConnectionError', e, st);
+      return null;
+    }
+  }
+```
+
+---
+
+#### ২. ক্র্যাশ-প্রুফ `dispose()` মেথড (Avoids `Surface.release()` NullPointerException):
+```dart
+  Future<void> dispose() async {
+    try {
+      _signalingTimer?.cancel();
+      _signalingTimer = null;
+
+      if (_peerConnection != null) {
+        try {
+          await _peerConnection!.close();
+        } catch (_) {}
+        try {
+          await _peerConnection!.dispose();
+        } catch (_) {}
+        _peerConnection = null;
+      }
+
+      if (_localStream != null) {
+        for (final track in _localStream!.getTracks()) {
+          try {
+            track.stop();
+          } catch (_) {}
+        }
+        try {
+          await _localStream!.dispose();
+        } catch (_) {}
+        _localStream = null;
+      }
+
+      // 🔑 CRUCIAL: Detach srcObject before disposing renderers to prevent Surface.release NPE!
+      try {
+        localRenderer.srcObject = null;
+      } catch (_) {}
+      try {
+        remoteRenderer.srcObject = null;
+      } catch (_) {}
+
+      try {
+        await localRenderer.dispose();
+      } catch (_) {}
+      try {
+        await remoteRenderer.dispose();
+      } catch (_) {}
+
+      _remoteStream = null;
+      _isInitialized = false;
+      _log('WebRTC streams and renderers disposed cleanly without crash');
+    } catch (e, st) {
+      _log('WebRTCDisposeError: $e');
+      AppLogger.error('WebRTCDisposeError', e, st);
+    }
+  }
+```
+
 
