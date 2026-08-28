@@ -82,9 +82,9 @@ class CallSession extends Model
         return match ($this->status) {
             'connected' => 'badge-soft-success',
             'ended' => 'badge-soft-secondary',
-            'initiated' => 'badge-soft-info',
-            'missed', 'rejected', 'failed' => 'badge-soft-danger',
-            default => 'badge-soft-warning',
+            'initiated', 'ringing' => 'badge-soft-warning',
+            'rejected', 'declined', 'cancelled', 'missed', 'failed' => 'badge-soft-danger',
+            default => 'badge-soft-info',
         };
     }
 }

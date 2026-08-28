@@ -137,12 +137,35 @@ Route::prefix('call')->group(function () {
     Route::get('/settings', [CallController::class, 'getConfig']);
     Route::match(['get', 'post'], '/match', [CallController::class, 'randomMatch']);
     Route::match(['get', 'post'], '/random-match', [CallController::class, 'randomMatch']);
+    
+    // Call Signaling & Ringing Lifecycle
     Route::post('/initiate', [CallController::class, 'initiate']);
-    Route::post('/start', [CallController::class, 'start']);
-    Route::post('/connect', [CallController::class, 'start']);
+    Route::match(['get', 'post'], '/incoming', [CallController::class, 'checkIncoming']);
+    Route::match(['get', 'post'], '/check-incoming', [CallController::class, 'checkIncoming']);
+    Route::match(['get', 'post'], '/active-incoming', [CallController::class, 'checkIncoming']);
+    Route::match(['get', 'post'], '/status/{id?}', [CallController::class, 'getStatus']);
+    Route::post('/ringing', [CallController::class, 'ringing']);
+    Route::post('/ring-ping', [CallController::class, 'ringing']);
+    
+    // Call Actions (Receive / Accept / Start / Connect / Reject / Cancel)
+    Route::post('/accept', [CallController::class, 'accept']);
+    Route::post('/answer', [CallController::class, 'accept']);
+    Route::post('/receive', [CallController::class, 'accept']);
+    Route::post('/start', [CallController::class, 'accept']);
+    Route::post('/connect', [CallController::class, 'accept']);
+    Route::post('/reject', [CallController::class, 'reject']);
+    Route::post('/decline', [CallController::class, 'reject']);
+    Route::post('/cancel', [CallController::class, 'cancel']);
+
+    // Real-Time In-Call Coin Billing (Pulse Heartbeat & 50/50 Revenue Split)
     Route::post('/deduct-interval', [CallController::class, 'deductInterval']);
     Route::post('/pulse', [CallController::class, 'deductInterval']);
-    Route::post('/end', [CallController::class, 'end']);
+    Route::post('/bill', [CallController::class, 'deductInterval']);
+
+    // End Call & History
+    Route::match(['get', 'post'], '/end', [CallController::class, 'end']);
+    Route::match(['get', 'post'], '/finish', [CallController::class, 'end']);
+    Route::match(['get', 'post'], '/hangup', [CallController::class, 'end']);
     Route::get('/history', [CallController::class, 'history']);
 });
 

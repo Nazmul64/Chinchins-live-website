@@ -249,7 +249,7 @@ class CallController extends Controller
                 'receiver_id' => $matchedUser->id,
                 'channel_name' => $channelName,
                 'call_type' => $callType,
-                'status' => 'initiated',
+                'status' => 'ringing',
                 'rate_per_minute' => $ratePerMinute,
                 'is_free_trial' => $isEligibleForFree,
                 'free_duration_seconds' => $freeDuration,
@@ -260,6 +260,7 @@ class CallController extends Controller
                 'call_id' => $call->id,
                 'channel_name' => $channelName,
                 'call_type' => $callType,
+                'status' => 'ringing',
                 'is_free_trial' => $isEligibleForFree,
                 'free_duration_seconds' => $freeDuration,
                 'rate_per_minute' => $ratePerMinute,
@@ -297,6 +298,7 @@ class CallController extends Controller
     /**
      * Initiate an Audio or Video Call.
      * Supports Free Trial for first-time registration without requiring coin balance!
+     * Sets initial call status to 'ringing'.
      * POST /api/call/initiate
      */
     public function initiate(Request $request): JsonResponse
@@ -382,7 +384,7 @@ class CallController extends Controller
             'receiver_id' => $receiver->id,
             'channel_name' => $channelName,
             'call_type' => $callType,
-            'status' => 'initiated',
+            'status' => 'ringing',
             'rate_per_minute' => $ratePerMinute,
             'is_free_trial' => $isEligibleForFree,
             'free_duration_seconds' => $freeDuration,
@@ -394,18 +396,20 @@ class CallController extends Controller
         return response()->json([
             'status' => true,
             'message' => $isEligibleForFree 
-                ? "Free trial call initiated! You have {$freeDuration} seconds of free calling."
-                : "Call initiated successfully.",
+                ? "Free trial call initiated! Ringing receiver... You have {$freeDuration} seconds of free calling."
+                : "Call initiated! Ringing receiver...",
             'data' => [
                 'call_id' => $call->id,
                 'channel_name' => $channelName,
                 'call_type' => $callType,
+                'status' => 'ringing',
                 'rate_per_minute' => $ratePerMinute,
                 'is_free_trial' => $isEligibleForFree,
                 'free_duration_seconds' => $freeDuration,
                 'caller_coins' => (int) $caller->coins,
                 'max_call_minutes' => $maxMinutes,
                 'max_call_seconds' => $isEligibleForFree ? $freeDuration : ($maxMinutes * 60),
+                'ring_timeout_seconds' => 45,
                 'receiver' => [
                     'id' => $receiver->id,
                     'account_id' => $receiver->account_id,
@@ -418,21 +422,167 @@ class CallController extends Controller
     }
 
     /**
-     * Start/Connect Call Session (when receiver answers WebRTC stream).
-     * POST /api/call/start (or POST /api/call/connect)
+     * Check for Incoming Calls (For Receiver Device / App).
+     * The mobile app polls this or listens on WebSocket to ring continuously when a call comes in.
+     * GET /api/call/incoming (or POST /api/call/check-incoming)
      */
-    public function start(Request $request): JsonResponse
+    public function checkIncoming(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        // Auto-expire calls that have been ringing > 45 seconds
+        CallSession::where('receiver_id', $user->id)
+            ->whereIn('status', ['initiated', 'ringing'])
+            ->where('created_at', '<', now()->subSeconds(45))
+            ->update([
+                'status' => 'missed',
+                'ended_at' => now(),
+            ]);
+
+        // Find active ringing call for this user
+        $incoming = CallSession::with(['caller'])
+            ->where('receiver_id', $user->id)
+            ->whereIn('status', ['initiated', 'ringing'])
+            ->where('created_at', '>=', now()->subSeconds(45))
+            ->latest()
+            ->first();
+
+        if (!$incoming) {
+            return response()->json([
+                'status' => true,
+                'has_incoming_call' => false,
+                'message' => 'No active incoming calls.',
+                'data' => null,
+            ], 200);
+        }
+
+        $elapsedSeconds = max(0, now()->diffInSeconds($incoming->created_at));
+
+        return response()->json([
+            'status' => true,
+            'has_incoming_call' => true,
+            'message' => 'Incoming call detected! Ring device.',
+            'data' => [
+                'call_id' => $incoming->id,
+                'channel_name' => $incoming->channel_name,
+                'call_type' => $incoming->call_type,
+                'status' => $incoming->status,
+                'is_free_trial' => (bool) $incoming->is_free_trial,
+                'free_duration_seconds' => (int) $incoming->free_duration_seconds,
+                'rate_per_minute' => (int) $incoming->rate_per_minute,
+                'ring_elapsed_seconds' => $elapsedSeconds,
+                'ring_timeout_seconds' => max(0, 45 - $elapsedSeconds),
+                'caller' => [
+                    'id' => $incoming->caller?->id,
+                    'account_id' => $incoming->caller?->account_id,
+                    'name' => $incoming->caller?->display_name,
+                    'avatar' => $incoming->caller?->avatar_url,
+                    'gender' => $incoming->caller?->gender ?: 'male',
+                    'level' => $incoming->caller?->level ?: 'Lv1',
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Real-time Call Status Polling & Ringing Synchronization.
+     * Both Caller and Receiver apps poll this to synchronize:
+     * - Ringing status
+     * - Connected (when receiver clicks Accept/Receive button)
+     * - Rejected / Declined
+     * - Cancelled (when caller hangs up before answer)
+     * - Ended
+     * - Missed / Timeout
+     * GET /api/call/status/{id} (or POST /api/call/status)
+     */
+    public function getStatus(Request $request, $id = null): JsonResponse
+    {
+        $data = $this->getRequestData($request);
+        $callId = $id ?? ($data['call_id'] ?? $request->input('call_id'));
+        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+
+        $call = CallSession::with(['caller', 'receiver'])
+            ->when($callId, fn($q) => $q->where('id', $callId))
+            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
+            ->first();
+
+        if (!$call) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Call session not found.',
+            ], 404);
+        }
+
+        // Auto-expire if ringing for > 45s without answer
+        if (in_array($call->status, ['initiated', 'ringing'])) {
+            $ringSeconds = now()->diffInSeconds($call->created_at);
+            if ($ringSeconds > 45) {
+                $call->status = 'missed';
+                $call->ended_at = now();
+                $call->save();
+            }
+        }
+
+        $duration = 0;
+        if ($call->status === 'connected' && $call->started_at) {
+            $duration = max(0, now()->diffInSeconds($call->started_at));
+        } elseif ($call->status === 'ended') {
+            $duration = (int) $call->duration_seconds;
+        }
+
+        return response()->json([
+            'status' => true,
+            'data' => [
+                'call_id' => $call->id,
+                'channel_name' => $call->channel_name,
+                'call_type' => $call->call_type,
+                'status' => $call->status,
+                'is_active' => ($call->status === 'connected'),
+                'is_ringing' => in_array($call->status, ['initiated', 'ringing']),
+                'is_terminated' => in_array($call->status, ['ended', 'rejected', 'declined', 'cancelled', 'missed', 'failed']),
+                'started_at' => $call->started_at ? $call->started_at->toIso8601String() : null,
+                'ended_at' => $call->ended_at ? $call->ended_at->toIso8601String() : null,
+                'duration_seconds' => $duration,
+                'duration_formatted' => sprintf('%02d:%02d', floor($duration / 60), $duration % 60),
+                'rate_per_minute' => (int) $call->rate_per_minute,
+                'is_free_trial' => (bool) $call->is_free_trial,
+                'free_duration_seconds' => (int) $call->free_duration_seconds,
+                'coins_deducted' => (int) $call->coins_deducted,
+                'host_earned_coins' => (int) $call->host_earned_coins,
+                'caller' => [
+                    'id' => $call->caller?->id,
+                    'account_id' => $call->caller?->account_id,
+                    'name' => $call->caller?->display_name,
+                    'avatar' => $call->caller?->avatar_url,
+                    'coins' => (int) ($call->caller?->coins ?? 0),
+                ],
+                'receiver' => [
+                    'id' => $call->receiver?->id,
+                    'account_id' => $call->receiver?->account_id,
+                    'name' => $call->receiver?->display_name,
+                    'avatar' => $call->receiver?->avatar_url,
+                    'coins' => (int) ($call->receiver?->coins ?? 0),
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Receiver confirms device is actively ringing.
+     * POST /api/call/ringing
+     */
+    public function ringing(Request $request): JsonResponse
     {
         $data = $this->getRequestData($request);
         $callId = $data['call_id'] ?? $request->input('call_id');
         $channelName = $data['channel_name'] ?? $request->input('channel_name');
-
-        if (empty($callId) && empty($channelName)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Call ID or Channel Name required.',
-            ], 422);
-        }
 
         $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
             ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
@@ -445,22 +595,166 @@ class CallController extends Controller
             ], 404);
         }
 
+        if (in_array($call->status, ['initiated', 'ringing'])) {
+            $call->status = 'ringing';
+            $call->save();
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Ringing state confirmed. Continue looping ringtone until answered or cancelled.',
+            'data' => [
+                'call_id' => $call->id,
+                'status' => $call->status,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Accept / Receive Incoming Call (Triggered by Receiver clicking "Call Receive" / "Accept" button).
+     * Transitions call state from 'ringing' -> 'connected', starts call timer and media stream.
+     * POST /api/call/accept (or POST /api/call/answer, POST /api/call/receive, POST /api/call/start, POST /api/call/connect)
+     */
+    public function accept(Request $request): JsonResponse
+    {
+        $data = $this->getRequestData($request);
+        $callId = $data['call_id'] ?? $request->input('call_id');
+        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+
+        if (empty($callId) && empty($channelName)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Call ID or Channel Name required.',
+            ], 422);
+        }
+
+        $call = CallSession::with(['caller', 'receiver'])
+            ->when($callId, fn($q) => $q->where('id', $callId))
+            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
+            ->first();
+
+        if (!$call) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Call session not found.',
+            ], 404);
+        }
+
+        if (in_array($call->status, ['rejected', 'declined', 'cancelled', 'ended', 'missed'])) {
+            return response()->json([
+                'status' => false,
+                'message' => "Cannot accept call. Call is already {$call->status}.",
+                'call_status' => $call->status,
+            ], 400);
+        }
+
         $call->status = 'connected';
-        $call->started_at = now();
+        if (!$call->started_at) {
+            $call->started_at = now();
+        }
         $call->save();
 
         return response()->json([
             'status' => true,
-            'message' => 'Call connected successfully.',
+            'message' => 'Call accepted and connected successfully! Start audio/video media stream.',
             'data' => [
                 'call_id' => $call->id,
                 'channel_name' => $call->channel_name,
                 'call_type' => $call->call_type,
-                'status' => $call->status,
+                'status' => 'connected',
                 'started_at' => $call->started_at->toIso8601String(),
-                'rate_per_minute' => $call->rate_per_minute,
+                'rate_per_minute' => (int) $call->rate_per_minute,
                 'is_free_trial' => (bool) $call->is_free_trial,
                 'free_duration_seconds' => (int) $call->free_duration_seconds,
+                'caller' => [
+                    'id' => $call->caller?->id,
+                    'name' => $call->caller?->display_name,
+                    'avatar' => $call->caller?->avatar_url,
+                ],
+                'receiver' => [
+                    'id' => $call->receiver?->id,
+                    'name' => $call->receiver?->display_name,
+                    'avatar' => $call->receiver?->avatar_url,
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Start/Connect Call Session (Alias for accept).
+     * POST /api/call/start (or POST /api/call/connect)
+     */
+    public function start(Request $request): JsonResponse
+    {
+        return $this->accept($request);
+    }
+
+    /**
+     * Reject / Decline Incoming Call (Triggered by Receiver).
+     * POST /api/call/reject (or POST /api/call/decline)
+     */
+    public function reject(Request $request): JsonResponse
+    {
+        $data = $this->getRequestData($request);
+        $callId = $data['call_id'] ?? $request->input('call_id');
+        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+
+        $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
+            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
+            ->first();
+
+        if (!$call) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Call session not found.',
+            ], 404);
+        }
+
+        $call->status = 'rejected';
+        $call->ended_at = now();
+        $call->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Call declined successfully. Ringing stopped.',
+            'data' => [
+                'call_id' => $call->id,
+                'status' => 'rejected',
+            ],
+        ], 200);
+    }
+
+    /**
+     * Cancel Outgoing Call (Triggered by Caller before receiver answers).
+     * POST /api/call/cancel
+     */
+    public function cancel(Request $request): JsonResponse
+    {
+        $data = $this->getRequestData($request);
+        $callId = $data['call_id'] ?? $request->input('call_id');
+        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+
+        $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
+            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
+            ->first();
+
+        if (!$call) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Call session not found.',
+            ], 404);
+        }
+
+        $call->status = 'cancelled';
+        $call->ended_at = now();
+        $call->save();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Call cancelled by caller.',
+            'data' => [
+                'call_id' => $call->id,
+                'status' => 'cancelled',
             ],
         ], 200);
     }
@@ -468,8 +762,8 @@ class CallController extends Controller
     /**
      * Real-time heart-beat pulse deduction during active call.
      * Automatically handles Free Trial expiration -> prompts "Please Deposit Now" if 0 coins.
-     * Applies 50/50 Revenue Sharing (Host Earnings vs Platform Commission).
-     * POST /api/call/deduct-interval
+     * Applies 50/50 Revenue Sharing (50% to Host / Female User, 50% to Platform Admin).
+     * POST /api/call/deduct-interval (or POST /api/call/pulse)
      */
     public function deductInterval(Request $request): JsonResponse
     {
@@ -500,6 +794,15 @@ class CallController extends Controller
                 'status' => false,
                 'message' => 'Call session not found.',
             ], 404);
+        }
+
+        // If call was not yet marked connected, mark it connected now
+        if ($call->status !== 'connected' && $call->status !== 'ended') {
+            $call->status = 'connected';
+            if (!$call->started_at) {
+                $call->started_at = now();
+            }
+            $call->save();
         }
 
         $config = CallSetting::getAllConfig();
@@ -535,6 +838,9 @@ class CallController extends Controller
 
         // 2. Paid call deduction logic: Check Caller Balance
         $coinsToDeduct = (int) ($data['coins'] ?? $request->input('coins', $ratePerMinute));
+        if ($coinsToDeduct <= 0) {
+            $coinsToDeduct = $ratePerMinute ?: 100;
+        }
 
         if ($caller->coins < $coinsToDeduct) {
             return response()->json([
@@ -565,7 +871,7 @@ class CallController extends Controller
                 "call_pulse_#{$call->id}"
             );
 
-            // Calculate host earning and admin revenue
+            // Calculate host earning (50%) and admin revenue (50%)
             $hostEarned = (int) round($coinsToDeduct * ($hostPercent / 100));
             $adminRevenue = $coinsToDeduct - $hostEarned;
 
@@ -590,7 +896,7 @@ class CallController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => "Deducted {$coinsToDeduct} coins. Host earned {$hostEarned} coins.",
+                'message' => "Deducted {$coinsToDeduct} coins. Host earned {$hostEarned} coins (50%). Admin revenue {$adminRevenue} coins (50%).",
                 'data' => [
                     'current_coins' => (int) $caller->coins,
                     'coins_deducted' => $coinsToDeduct,
