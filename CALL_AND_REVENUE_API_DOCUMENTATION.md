@@ -893,122 +893,382 @@ Returns list of past calls made or received by the user.
 
 ---
 
-## 📱 Flutter WebRTC Implementation Guide
+## 📱 Flutter WebRTC & Ringtone Implementation Guide
 
-### 1. Flutter WebRTC Call Initialization & SDP Exchange
+### 1. 🔔 Ringtone & Dial Tone Playback Workflow
+
+When calling or receiving calls, the mobile app uses `audioplayers` or `just_audio` to play the continuous ringtone URL returned by the backend:
+
 ```dart
-// 1. Caller initiates call
-final initRes = await http.post(
-  Uri.parse('$baseUrl/api/call/initiate'),
-  headers: authHeaders,
-  body: jsonEncode({'receiver_id': targetUserId, 'call_type': 'video'}),
-);
-final callId = initRes['data']['call_id'];
-final channelName = initRes['data']['channel_name'];
+import 'package:audioplayers/audioplayers.dart';
 
-// 2. Fetch ICE Servers
-final iceRes = await http.get(Uri.parse('$baseUrl/api/call/ice-servers'));
-final configuration = {'iceServers': iceRes['data']['iceServers']};
-RTCPeerConnection peerConnection = await createPeerConnection(configuration);
+final AudioPlayer _ringtonePlayer = AudioPlayer();
 
-// 3. Create & Send SDP Offer
-RTCSessionDescription offer = await peerConnection.createOffer();
-await peerConnection.setLocalDescription(offer);
+// A. Caller Device: Play Outgoing Dial Tone
+void playOutgoingDialTone(String dialToneUrl) async {
+  await _ringtonePlayer.setReleaseMode(ReleaseMode.loop);
+  await _ringtonePlayer.play(UrlSource(dialToneUrl));
+}
 
-await http.post(
-  Uri.parse('$baseUrl/api/call/signal/send'),
-  headers: authHeaders,
-  body: jsonEncode({
-    'call_id': callId,
-    'channel_name': channelName,
-    'type': 'offer',
-    'payload': {'sdp': offer.sdp, 'type': offer.type},
-  }),
-);
+// B. Receiver Device: Play Incoming Ringtone
+void playIncomingRingtone(String ringtoneUrl) async {
+  await _ringtonePlayer.setReleaseMode(ReleaseMode.loop);
+  await _ringtonePlayer.play(UrlSource(ringtoneUrl));
+}
 
-// 4. On ICE Candidate Generated
-peerConnection.onIceCandidate = (RTCIceCandidate candidate) {
-  http.post(
-    Uri.parse('$baseUrl/api/call/signal/send'),
-    headers: authHeaders,
-    body: jsonEncode({
-      'call_id': callId,
-      'channel_name': channelName,
-      'type': 'candidate',
-      'payload': {
+// C. Stop Ringtone immediately when Call Connects / Declines / Cancels
+void stopRingtone() async {
+  await _ringtonePlayer.stop();
+}
+```
+
+---
+
+### 2. 🎥 Fix For Video Not Showing (Remote Stream vs Local Stream)
+
+> ⚠️ **Common Bug**: Why could the receiver only see their own camera instead of the caller's face?
+> 
+> **Cause**: The Flutter app did not attach `event.streams[0]` to a separate `_remoteRenderer` inside `peerConnection.onTrack`!
+> 
+> **Solution**: You must instantiate **two separate renderers** in Flutter WebRTC:
+> 1. `_localRenderer` for your own front camera (shown in small PiP window).
+> 2. `_remoteRenderer` for the partner's camera (shown in full-screen).
+
+```dart
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:http/http.dart' as http;
+
+class WebrtcCallScreen extends StatefulWidget {
+  final int callId;
+  final String channelName;
+  final bool isCaller;
+  final String callType; // 'video' or 'audio'
+  final String token;
+  final String baseUrl;
+
+  const WebrtcCallScreen({
+    Key? key,
+    required this.callId,
+    required this.channelName,
+    required this.isCaller,
+    required this.callType,
+    required this.token,
+    required this.baseUrl,
+  }) : super(key: key);
+
+  @override
+  _WebrtcCallScreenState createState() => _WebrtcCallScreenState();
+}
+
+class _WebrtcCallScreenState extends State<WebrtcCallScreen> {
+  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+
+  RTCPeerConnection? _peerConnection;
+  MediaStream? _localStream;
+  Timer? _signalingTimer;
+  Timer? _billingTimer;
+  int _lastSignalId = 0;
+  bool _isMuted = false;
+  bool _isSpeakerOn = true;
+
+  @override
+  void initState() {
+    super.initState();
+    initRenderersAndConnection();
+  }
+
+  Future<void> initRenderersAndConnection() async {
+    // 1. Initialize Renderers
+    await _localRenderer.initialize();
+    await _remoteRenderer.initialize();
+
+    // 2. Fetch ICE Servers from Backend
+    final iceRes = await http.get(
+      Uri.parse('${widget.baseUrl}/api/call/ice-servers'),
+      headers: {'Authorization': 'Bearer ${widget.token}', 'Accept': 'application/json'},
+    );
+    final iceData = jsonDecode(iceRes.body);
+    final configuration = {
+      'iceServers': iceData['data']['iceServers'],
+      'sdpSemantics': 'unified-plan',
+    };
+
+    // 3. Create PeerConnection
+    _peerConnection = await createPeerConnection(configuration);
+
+    // 4. Capture Local Camera / Mic Media Stream
+    final isVideo = widget.callType == 'video';
+    final mediaConstraints = {
+      'audio': true,
+      'video': isVideo
+          ? {
+              'facingMode': 'user',
+              'mandatory': {'minWidth': '640', 'minHeight': '480', 'minFrameRate': '30'},
+            }
+          : false,
+    };
+
+    _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+    _localRenderer.srcObject = _localStream;
+
+    // 5. Add local audio/video tracks to PeerConnection
+    _localStream!.getTracks().forEach((track) {
+      _peerConnection!.addTrack(track, _localStream!);
+    });
+
+    // 6. CRITICAL: Handle Incoming Remote Video/Audio Track
+    _peerConnection!.onTrack = (RTCTrackEvent event) {
+      if (event.streams.isNotEmpty) {
+        setState(() {
+          // Attaches the partner's remote video stream!
+          _remoteRenderer.srcObject = event.streams[0];
+        });
+      }
+    };
+
+    // 7. On Local ICE Candidate Generated -> Send to Backend
+    _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
+      _sendSignal('candidate', {
         'candidate': candidate.candidate,
         'sdpMid': candidate.sdpMid,
         'sdpMLineIndex': candidate.sdpMLineIndex,
-      },
-    }),
-  );
-};
-```
+      });
+    };
 
-### 2. Receiver Answering & Signaling Loop
-```dart
-// 1. Receiver taps "Receive" (রিসিভ)
-await http.post(
-  Uri.parse('$baseUrl/api/call/accept'),
-  headers: authHeaders,
-  body: jsonEncode({'call_id': callId}),
-);
-
-// 2. Poll for Signals (SDP Offer / Answer & ICE Candidates)
-Timer.periodic(Duration(milliseconds: 750), (timer) async {
-  final res = await http.get(
-    Uri.parse('$baseUrl/api/call/signal/receive?call_id=$callId'),
-    headers: authHeaders,
-  );
-  for (var signal in res['data']) {
-    if (signal['type'] == 'offer') {
-      await peerConnection.setRemoteDescription(
-        RTCSessionDescription(signal['payload']['sdp'], 'offer'),
-      );
-      RTCSessionDescription answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      await http.post(
-        Uri.parse('$baseUrl/api/call/signal/send'),
-        headers: authHeaders,
-        body: jsonEncode({
-          'call_id': callId,
-          'type': 'answer',
-          'payload': {'sdp': answer.sdp, 'type': answer.type},
-        }),
-      );
-    } else if (signal['type'] == 'answer') {
-      await peerConnection.setRemoteDescription(
-        RTCSessionDescription(signal['payload']['sdp'], 'answer'),
-      );
-    } else if (signal['type'] == 'candidate') {
-      await peerConnection.addCandidate(
-        RTCIceCandidate(
-          signal['payload']['candidate'],
-          signal['payload']['sdpMid'],
-          signal['payload']['sdpMLineIndex'],
-        ),
-      );
+    // 8. If Caller -> Create and Send SDP Offer
+    if (widget.isCaller) {
+      RTCSessionDescription offer = await _peerConnection!.createOffer();
+      await _peerConnection!.setLocalDescription(offer);
+      await _sendSignal('offer', {'sdp': offer.sdp, 'type': offer.type});
     }
+
+    // 9. Start Polling for Signals (Offer / Answer / ICE Candidates)
+    _startSignalingPolling();
+
+    // 10. Start In-Call Pulse Billing (100 coins/min)
+    _startBillingHeartbeat();
   }
-});
+
+  Future<void> _sendSignal(String type, dynamic payload) async {
+    await http.post(
+      Uri.parse('${widget.baseUrl}/api/call/signal/send'),
+      headers: {
+        'Authorization': 'Bearer ${widget.token}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'call_id': widget.callId,
+        'channel_name': widget.channelName,
+        'type': type,
+        'payload': payload,
+      }),
+    );
+  }
+
+  void _startSignalingPolling() {
+    _signalingTimer = Timer.periodic(const Duration(milliseconds: 750), (timer) async {
+      final res = await http.get(
+        Uri.parse('${widget.baseUrl}/api/call/signal/receive?call_id=${widget.callId}&last_signal_id=$_lastSignalId'),
+        headers: {'Authorization': 'Bearer ${widget.token}', 'Accept': 'application/json'},
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final List signals = data['data'] ?? [];
+
+        for (var sig in signals) {
+          _lastSignalId = sig['id'];
+          final type = sig['type'];
+          final payload = sig['payload'];
+
+          if (type == 'offer' && !widget.isCaller) {
+            // Receiver sets remote Offer and sends Answer
+            await _peerConnection!.setRemoteDescription(
+              RTCSessionDescription(payload['sdp'], 'offer'),
+            );
+            RTCSessionDescription answer = await _peerConnection!.createAnswer();
+            await _peerConnection!.setLocalDescription(answer);
+            await _sendSignal('answer', {'sdp': answer.sdp, 'type': answer.type});
+          } else if (type == 'answer' && widget.isCaller) {
+            // Caller receives Answer
+            await _peerConnection!.setRemoteDescription(
+              RTCSessionDescription(payload['sdp'], 'answer'),
+            );
+          } else if (type == 'candidate') {
+            // Add ICE Candidate
+            await _peerConnection!.addCandidate(
+              RTCIceCandidate(
+                payload['candidate'],
+                payload['sdpMid'],
+                payload['sdpMLineIndex'],
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
+
+  void _startBillingHeartbeat() {
+    _billingTimer = Timer.periodic(const Duration(seconds: 60), (timer) async {
+      final res = await http.post(
+        Uri.parse('${widget.baseUrl}/api/call/deduct-interval'),
+        headers: {
+          'Authorization': 'Bearer ${widget.token}',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'call_id': widget.callId, 'elapsed_seconds': 60, 'coins': 100}),
+      );
+
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 402 || data['code'] == 'LOW_BALANCE_DEPOSIT_REQUIRED') {
+        timer.cancel();
+        _endCall();
+        _showLowBalanceDialog();
+      }
+    });
+  }
+
+  void _showLowBalanceDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Insufficient Coins'),
+        content: const Text('Your coin balance is low. Please recharge / deposit coins to continue calling.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushNamed(context, '/deposit');
+            },
+            child: const Text('Recharge Coins Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _endCall() async {
+    _signalingTimer?.cancel();
+    _billingTimer?.cancel();
+
+    await http.post(
+      Uri.parse('${widget.baseUrl}/api/call/end'),
+      headers: {'Authorization': 'Bearer ${widget.token}', 'Content-Type': 'application/json'},
+      body: jsonEncode({'call_id': widget.callId}),
+    );
+
+    _localStream?.dispose();
+    _peerConnection?.close();
+    _localRenderer.dispose();
+    _remoteRenderer.dispose();
+
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isVideo = widget.callType == 'video';
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // 1. FULLSCREEN BACKGROUND: Remote Video (Partner's Face)
+          if (isVideo)
+            Positioned.fill(
+              child: RTCVideoView(
+                _remoteRenderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              ),
+            )
+          else
+            // Audio Call Screen UI
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  CircleAvatar(radius: 60, backgroundImage: NetworkImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb')),
+                  SizedBox(height: 16),
+                  Text('Audio Call Connected', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+
+          // 2. SMALL CORNER PiP: Local Video (Own Face)
+          if (isVideo)
+            Positioned(
+              top: 50,
+              right: 20,
+              width: 110,
+              height: 160,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: RTCVideoView(_localRenderer, mirror: true, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover),
+              ),
+            ),
+
+          // 3. BOTTOM CONTROLS (Mute, Speaker, Hangup)
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                FloatingActionButton(
+                  heroTag: 'mic',
+                  backgroundColor: _isMuted ? Colors.red : Colors.white24,
+                  onPressed: () {
+                    setState(() {
+                      _isMuted = !_isMuted;
+                      _localStream?.getAudioTracks()[0].enabled = !_isMuted;
+                    });
+                  },
+                  child: Icon(_isMuted ? Icons.mic_off : Icons.mic, color: Colors.white),
+                ),
+                FloatingActionButton(
+                  heroTag: 'hangup',
+                  backgroundColor: Colors.red,
+                  onPressed: _endCall,
+                  child: const Icon(Icons.call_end, color: Colors.white),
+                ),
+                FloatingActionButton(
+                  heroTag: 'speaker',
+                  backgroundColor: _isSpeakerOn ? Colors.green : Colors.white24,
+                  onPressed: () {
+                    setState(() {
+                      _isSpeakerOn = !_isSpeakerOn;
+                      _localStream?.getAudioTracks()[0].enableSpeakerphone(_isSpeakerOn);
+                    });
+                  },
+                  child: Icon(_isSpeakerOn ? Icons.volume_up : Icons.volume_down, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _signalingTimer?.cancel();
+    _billingTimer?.cancel();
+    _localStream?.dispose();
+    _peerConnection?.close();
+    _localRenderer.dispose();
+    _remoteRenderer.dispose();
+    super.dispose();
+  }
+}
 ```
 
-### 3. Active Call Heartbeat Coin Billing (100 coins/min)
-```dart
-// In-Call Timer: Runs every 60 seconds (or 10s intervals)
-Timer.periodic(Duration(seconds: 60), (timer) async {
-  final pulseRes = await http.post(
-    Uri.parse('$baseUrl/api/call/deduct-interval'),
-    headers: authHeaders,
-    body: jsonEncode({'call_id': callId, 'elapsed_seconds': 60, 'coins': 100}),
-  );
-
-  if (pulseRes.statusCode == 402 || pulseRes['code'] == 'LOW_BALANCE_DEPOSIT_REQUIRED') {
-    timer.cancel();
-    // Stop WebRTC stream
-    peerConnection.close();
-    // Show Low Balance Popup / Navigate to Deposit Screen
-    showRechargeCoinDialog();
-  }
-});
-```

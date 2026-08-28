@@ -90,6 +90,10 @@ class CallAdminController extends Controller
             'video_call_rate_per_minute' => 'required|integer|min:1',
             'audio_call_rate_per_minute' => 'required|integer|min:1',
             'host_earning_percent' => 'required|numeric|min:0|max:100',
+            'incoming_ringtone_file' => 'nullable|file|mimes:mp3,wav,ogg,m4a,aac|max:10240',
+            'outgoing_ringtone_file' => 'nullable|file|mimes:mp3,wav,ogg,m4a,aac|max:10240',
+            'incoming_ringtone_url' => 'nullable|string|max:500',
+            'outgoing_ringtone_url' => 'nullable|string|max:500',
         ]);
 
         $hostPercent = (float) $request->input('host_earning_percent');
@@ -104,6 +108,26 @@ class CallAdminController extends Controller
         CallSetting::set('host_earning_percent', $hostPercent, 'Percentage of call coins credited to Host (female user)');
         CallSetting::set('admin_commission_percent', $adminPercent, 'Percentage of call coins kept as Admin Platform Revenue');
 
-        return back()->with('success', "Call rates & revenue split updated! Host receives {$hostPercent}%, Platform receives {$adminPercent}%.");
+        // Handle Incoming Call Ringtone Upload
+        if ($request->hasFile('incoming_ringtone_file')) {
+            $file = $request->file('incoming_ringtone_file');
+            $filename = 'incoming_ringtone_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/ringtones'), $filename);
+            CallSetting::set('incoming_ringtone_url', asset('uploads/ringtones/' . $filename), 'Custom uploaded incoming call ringtone sound');
+        } elseif ($request->filled('incoming_ringtone_url')) {
+            CallSetting::set('incoming_ringtone_url', $request->input('incoming_ringtone_url'), 'Incoming call ringtone URL');
+        }
+
+        // Handle Outgoing Dial Tone Upload
+        if ($request->hasFile('outgoing_ringtone_file')) {
+            $file = $request->file('outgoing_ringtone_file');
+            $filename = 'outgoing_dialtone_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/ringtones'), $filename);
+            CallSetting::set('outgoing_ringtone_url', asset('uploads/ringtones/' . $filename), 'Custom uploaded outgoing dial tone sound');
+        } elseif ($request->filled('outgoing_ringtone_url')) {
+            CallSetting::set('outgoing_ringtone_url', $request->input('outgoing_ringtone_url'), 'Outgoing dial tone URL');
+        }
+
+        return back()->with('success', "Call rates, ringtones & revenue split updated! Host receives {$hostPercent}%, Platform receives {$adminPercent}%.");
     }
 }

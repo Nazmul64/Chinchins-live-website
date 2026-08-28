@@ -27,9 +27,11 @@ class CallSetting extends Model
             'free_call_duration_seconds' => '10', // 10s default, admin can change to 5, 10, 30, 60, etc.
             'free_calls_per_user' => '1', // 1 free trial call per new user
             'video_call_rate_per_minute' => '100', // 100 coins / min
-            'audio_call_rate_per_minute' => '60', // 60 coins / min
+            'audio_call_rate_per_minute' => '100', // 100 coins / min
             'host_earning_percent' => '50.00', // 50% to host/female user
             'admin_commission_percent' => '50.00', // 50% to platform revenue
+            'incoming_ringtone_url' => 'https://assets.mixkit.co/active_storage/sfx/2874/2874-preview.mp3', // default incoming ringtone
+            'outgoing_ringtone_url' => 'https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3', // default outgoing dial tone
         ];
     }
 
@@ -76,7 +78,17 @@ class CallSetting extends Model
         $adminPercent = (float) ($merged['admin_commission_percent'] ?? 50.00);
         $freeSecs = (int) ($merged['free_call_duration_seconds'] ?? 10);
         $videoRate = (int) ($merged['video_call_rate_per_minute'] ?? 100);
-        $audioRate = (int) ($merged['audio_call_rate_per_minute'] ?? 60);
+        $audioRate = (int) ($merged['audio_call_rate_per_minute'] ?? 100);
+
+        $incomingRingtone = $merged['incoming_ringtone_url'] ?? $defaults['incoming_ringtone_url'];
+        if ($incomingRingtone && !str_starts_with($incomingRingtone, 'http')) {
+            $incomingRingtone = asset(ltrim($incomingRingtone, '/'));
+        }
+
+        $outgoingRingtone = $merged['outgoing_ringtone_url'] ?? $defaults['outgoing_ringtone_url'];
+        if ($outgoingRingtone && !str_starts_with($outgoingRingtone, 'http')) {
+            $outgoingRingtone = asset(ltrim($outgoingRingtone, '/'));
+        }
 
         return [
             'is_call_enabled' => (bool) ($merged['is_call_enabled'] ?? '1'),
@@ -91,6 +103,8 @@ class CallSetting extends Model
             'video_admin_revenue_per_min' => (int) round($videoRate * ($adminPercent / 100)),
             'audio_host_earning_per_min' => (int) round($audioRate * ($hostPercent / 100)),
             'audio_admin_revenue_per_min' => (int) round($audioRate * ($adminPercent / 100)),
+            'incoming_ringtone_url' => $incomingRingtone,
+            'outgoing_ringtone_url' => $outgoingRingtone,
         ];
     }
 }

@@ -27,7 +27,7 @@
         </div>
     </div>
 
-    <form action="{{ route('admin.calls.settings.update') }}" method="POST">
+    <form action="{{ route('admin.calls.settings.update') }}" method="POST" enctype="multipart/form-data">
         @csrf
         <div class="row g-4">
             <!-- Left Column: Core Settings Form -->
@@ -91,9 +91,9 @@
                     <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="fw-bold text-dark mb-1">
-                                <i class="fa-solid fa-coins text-warning me-2"></i> Per-Minute Billing & 50/50 Revenue Split
+                                <i class="fa-solid fa-coins text-warning me-2"></i> Per-Minute Billing (100 Coins/min) & 50/50 Revenue Split
                             </h5>
-                            <p class="text-muted mb-0" style="font-size: 13px;">Set coins charged per minute and how the coins are divided between the female host and the platform.</p>
+                            <p class="text-muted mb-0" style="font-size: 13px;">Set coins charged per minute and how coins are divided 50/50 between the female host and the platform.</p>
                         </div>
                         <!-- Calling Global Switch -->
                         <div class="form-check form-switch form-switch-lg">
@@ -116,7 +116,7 @@
                                     <input type="number" name="video_call_rate_per_minute" id="inputVideoRate" class="form-control" value="{{ $config['video_call_rate_per_minute'] }}" min="1" required style="font-weight: 700; font-size: 15px;">
                                     <span class="input-group-text bg-light">Coins/min</span>
                                 </div>
-                                <small class="text-muted">Deducted from the caller for every 1 minute of video call.</small>
+                                <small class="text-muted">Rate: 100 coins/min (Auto calculated as ~1.67 coins/second).</small>
                             </div>
 
                             <!-- Audio Call Rate -->
@@ -129,7 +129,7 @@
                                     <input type="number" name="audio_call_rate_per_minute" id="inputAudioRate" class="form-control" value="{{ $config['audio_call_rate_per_minute'] }}" min="1" required style="font-weight: 700; font-size: 15px;">
                                     <span class="input-group-text bg-light">Coins/min</span>
                                 </div>
-                                <small class="text-muted">Deducted from the caller for every 1 minute of audio call.</small>
+                                <small class="text-muted">Rate: 100 coins/min (Auto calculated as ~1.67 coins/second).</small>
                             </div>
 
                             <!-- Host Earning Share % -->
@@ -154,6 +154,85 @@
                                     <span class="input-group-text bg-light fw-bold">%</span>
                                 </div>
                                 <small class="text-muted" id="adminCoinsHelper">Platform keeps 50 coins for every 100 coins spent by caller.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Custom Ringtone & Dial Tone Audio Card -->
+                <div class="card mb-4" style="border-radius: 16px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                        <h5 class="fw-bold text-dark mb-1">
+                            <i class="fa-solid fa-music text-primary me-2"></i> Call Ringtone & Dial Tone Audio Setup (রিংটোন কনফিগারেশন)
+                        </h5>
+                        <p class="text-muted mb-0" style="font-size: 13px;">Upload custom ringtone audio files (MP3/WAV/OGG) or provide audio URLs for incoming ringtones and outgoing dial tones.</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-4">
+                            <!-- Incoming Call Ringtone (Receiver Device) -->
+                            <div class="col-12 col-md-6">
+                                <div class="p-3" style="background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+                                    <label class="form-label fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 13px;">
+                                        <i class="fa-solid fa-bell text-warning"></i> Incoming Call Ringtone (রিসিভার রিংটোন)
+                                    </label>
+                                    <p class="text-muted" style="font-size: 12px; margin-bottom: 8px;">Plays continuously on the receiver's phone when an incoming call arrives.</p>
+                                    
+                                    <!-- File Upload -->
+                                    <div class="mb-2">
+                                        <label class="form-label text-muted" style="font-size: 11px;">Upload New Audio File (MP3, WAV):</label>
+                                        <input type="file" name="incoming_ringtone_file" accept="audio/*" class="form-control form-control-sm">
+                                    </div>
+
+                                    <!-- URL input -->
+                                    <div class="mb-2">
+                                        <label class="form-label text-muted" style="font-size: 11px;">Or Custom Audio URL:</label>
+                                        <input type="url" name="incoming_ringtone_url" value="{{ $config['incoming_ringtone_url'] }}" class="form-control form-control-sm" placeholder="https://...">
+                                    </div>
+
+                                    <!-- Audio Preview -->
+                                    @if(!empty($config['incoming_ringtone_url']))
+                                    <div class="mt-2">
+                                        <label class="form-label fw-bold text-dark" style="font-size: 11px;">Preview Ringtone:</label>
+                                        <audio controls class="w-100" style="height: 34px;">
+                                            <source src="{{ $config['incoming_ringtone_url'] }}">
+                                            Your browser does not support audio element.
+                                        </audio>
+                                    </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Outgoing Call Dial Tone (Caller Device) -->
+                            <div class="col-12 col-md-6">
+                                <div class="p-3" style="background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+                                    <label class="form-label fw-bold text-dark d-flex align-items-center gap-2" style="font-size: 13px;">
+                                        <i class="fa-solid fa-phone-volume text-primary"></i> Outgoing Call Dial Tone (কলার ডায়ালটোন)
+                                    </label>
+                                    <p class="text-muted" style="font-size: 12px; margin-bottom: 8px;">Plays continuously on the caller's phone while waiting for the host to answer.</p>
+                                    
+                                    <!-- File Upload -->
+                                    <div class="mb-2">
+                                        <label class="form-label text-muted" style="font-size: 11px;">Upload New Audio File (MP3, WAV):</label>
+                                        <input type="file" name="outgoing_ringtone_file" accept="audio/*" class="form-control form-control-sm">
+                                    </div>
+
+                                    <!-- URL input -->
+                                    <div class="mb-2">
+                                        <label class="form-label text-muted" style="font-size: 11px;">Or Custom Audio URL:</label>
+                                        <input type="url" name="outgoing_ringtone_url" value="{{ $config['outgoing_ringtone_url'] }}" class="form-control form-control-sm" placeholder="https://...">
+                                    </div>
+
+                                    <!-- Audio Preview -->
+                                    @if(!empty($config['outgoing_ringtone_url']))
+                                    <div class="mt-2">
+                                        <label class="form-label fw-bold text-dark" style="font-size: 11px;">Preview Dial Tone:</label>
+                                        <audio controls class="w-100" style="height: 34px;">
+                                            <source src="{{ $config['outgoing_ringtone_url'] }}">
+                                            Your browser does not support audio element.
+                                        </audio>
+                                    </div>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -207,15 +286,15 @@
                                 <span class="fw-bold text-success" style="font-size: 13px;">
                                     <i class="fa-solid fa-phone me-1"></i> Audio Call (1 min):
                                 </span>
-                                <strong id="previewAudioRate" class="text-dark">60 Coins</strong>
+                                <strong id="previewAudioRate" class="text-dark">100 Coins</strong>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
                                 <span class="text-muted" style="font-size: 12px;">Female Host Gets:</span>
-                                <strong id="previewHostAudioCoins" class="text-success">+30 Coins</strong>
+                                <strong id="previewHostAudioCoins" class="text-success">+50 Coins</strong>
                             </div>
                             <div class="d-flex justify-content-between">
                                 <span class="text-muted" style="font-size: 12px;">Admin Platform:</span>
-                                <strong id="previewAdminAudioCoins" class="text-purple" style="color: #8b5cf6;">+30 Coins</strong>
+                                <strong id="previewAdminAudioCoins" class="text-purple" style="color: #8b5cf6;">+50 Coins</strong>
                             </div>
                         </div>
 
@@ -227,8 +306,8 @@
                             </div>
                             <ul class="text-muted ps-3 mb-0" style="font-size: 12px; line-height: 1.6;">
                                 <li>New users get <strong id="previewFreeSecs" class="text-dark">10 seconds</strong> of free call.</li>
-                                <li>No coins required in wallet to initiate trial.</li>
-                                <li>When timer hits 0s and wallet has 0 coins, call automatically terminates with <code>LOW_BALANCE_DEPOSIT_REQUIRED</code> and pops up <strong>Buy Coins / Deposit</strong>.</li>
+                                <li>Rate is <strong>100 coins/min</strong> (~1.67 coins/sec).</li>
+                                <li>When timer hits 0s and wallet has 0 coins, call terminates with <code>LOW_BALANCE_DEPOSIT_REQUIRED</code> and opens <strong>Deposit / Recharge Coins</strong>.</li>
                             </ul>
                         </div>
                     </div>

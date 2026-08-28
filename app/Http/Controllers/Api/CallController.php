@@ -151,6 +151,8 @@ class CallController extends Controller
                 'audio_call_rate_per_minute' => $config['audio_call_rate_per_minute'],
                 'host_earning_percent' => $config['host_earning_percent'],
                 'admin_commission_percent' => $config['admin_commission_percent'],
+                'incoming_ringtone_url' => $config['incoming_ringtone_url'],
+                'outgoing_ringtone_url' => $config['outgoing_ringtone_url'],
                 'video_split' => [
                     'total_rate' => $config['video_call_rate_per_minute'],
                     'host_receives' => $config['video_host_earning_per_min'],
@@ -410,6 +412,7 @@ class CallController extends Controller
                 'max_call_minutes' => $maxMinutes,
                 'max_call_seconds' => $isEligibleForFree ? $freeDuration : ($maxMinutes * 60),
                 'ring_timeout_seconds' => 45,
+                'outgoing_ringtone_url' => $config['outgoing_ringtone_url'],
                 'receiver' => [
                     'id' => $receiver->id,
                     'account_id' => $receiver->account_id,
@@ -463,6 +466,7 @@ class CallController extends Controller
             ], 200);
         }
 
+        $config = CallSetting::getAllConfig();
         $elapsedSeconds = max(0, now()->diffInSeconds($incoming->created_at));
 
         return response()->json([
@@ -479,6 +483,7 @@ class CallController extends Controller
                 'rate_per_minute' => (int) $incoming->rate_per_minute,
                 'ring_elapsed_seconds' => $elapsedSeconds,
                 'ring_timeout_seconds' => max(0, 45 - $elapsedSeconds),
+                'incoming_ringtone_url' => $config['incoming_ringtone_url'],
                 'caller' => [
                     'id' => $incoming->caller?->id,
                     'account_id' => $incoming->caller?->account_id,
