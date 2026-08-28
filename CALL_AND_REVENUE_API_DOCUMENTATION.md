@@ -30,6 +30,23 @@ This documentation is crafted specifically for **Mobile App Developers (Flutter 
 
 ---
 
+## 💰 Core Financial & Billing Rules (অবশ্যই মনে রাখতে হবে)
+
+> [!IMPORTANT]
+> 1. **শুধুমাত্র কলারের (Caller) ব্যালেন্স থেকে কয়েন কাটবে**:
+>    - যে ইউজার কল দিচ্ছে কেবল তার ব্যালেন্স চেক হবে এবং তার অ্যাকাউন্ট থেকেই **১ মিনিটে ১০০ কয়েন** (বা প্রতি সেকেন্ডে ১.৬৭ কয়েন) কাটা হবে।
+> 2. **রিসিভার (Receiver / Female Host) সম্পূর্ণ ফ্রি**:
+>    - যে ব্যক্তি কল রিসিভ করবে তার ব্যালেন্সে ০ কয়েন থাকলেও সে কল ধরতে পারবে। তার ব্যালেন্স থেকে কোনো টাকা বা কয়েন **কাটবে না**।
+> 3. **৫০/৫০ রেভিনিউ শেয়ারিং (50/50 Revenue Split)**:
+>    - কলারের থেকে ১০০ কয়েন কাটলে:
+>      - **৫০ কয়েন (৫০%)** সরাসরি রিসিভারের (হোস্টের) ওয়ালেটে জমা হবে (Host Earning)।
+>      - **৫০ কয়েন (৫০%)** প্ল্যাটফর্ম অ্যাডমিন রেভিনিউ হিসেবে জমা হবে (Admin Profit)।
+> 4. **ক্রিস্টাল ক্লিয়ার অডিও ও ভিডিও (Audio & Video Clarity)**:
+>    - **অডিও কলে**: দুই প্রান্তের ইউজারই একে অপরের কথা পরিষ্কার শুনতে পারবে।
+>    - **ভিডিও কলে**: দুই প্রান্তের ইউজার একে অপরকে ক্যামেরায় লাইভ দেখতে পারবে এবং কথা পরিষ্কার শুনতে পারবে।
+
+---
+
 ## 🔄 Calling Architecture & WebRTC Lifecycle
 
 ```
@@ -37,9 +54,10 @@ This documentation is crafted specifically for **Mobile App Developers (Flutter 
                │
                ▼
 [ 1. POST /api/call/initiate ]
+       │ • Checks ONLY Caller's Coin Balance (Receiver requires 0 coins!)
        │ • Creates CallSession with status: "ringing"
        │ • Assigns WebRTC channel_name
-       │ • Rate: 100 coins/minute (1.67 coins/sec)
+       │ • Rate: 100 coins/minute (~1.67 coins/sec)
        ▼
 [ 2. Continuous Ringing Loop ]
        │
@@ -60,32 +78,32 @@ This documentation is crafted specifically for **Mobile App Developers (Flutter 
    • Starts Call Duration Timer               • Screen Closes
                │
                ▼
-   [ 3. WebRTC Signaling via REST ]
+   [ 3. WebRTC VPS REST Signaling ]
    • Caller creates SDP Offer ──► POST /api/call/signal/send (type: 'offer')
    • Receiver fetches Offer   ──► GET  /api/call/signal/receive
    • Receiver sends SDP Answer──► POST /api/call/signal/send (type: 'answer')
    • Caller fetches Answer    ──► GET  /api/call/signal/receive
    • Both exchange ICE candidates via `/api/call/signal/send` & `/api/call/signal/receive`
-   • Peer-to-Peer Audio/Video Media Stream is Live!
+   • Peer-to-Peer Audio & Video Streams are Live! (Both parties see & hear each other)
                │
                ▼
-   [ 4. Active Call Billing: Per-Minute / Per-Second Heartbeat ]
+   [ 4. Active Call Billing: Pulse Heartbeat ]
    POST /api/call/deduct-interval
                │
-               ├─► Free Trial Active: 0 coins deducted. Returns `free_seconds_remaining`.
+               ├─► Free Trial Active: 0 coins deducted.
                │
-               └─► Paid Call (100 coins/minute = ~1.67 coins/sec):
+               └─► Paid Call (100 coins/minute):
                      │
-                     ├─► Caller has Coins (>= 100 coins / interval):
-                     │     • Deducted from Caller Wallet
-                     │     • 50% credited to Host's Wallet (Female User)
-                     │     • 50% credited to Admin Platform Revenue
+                     ├─► Caller has Coins (>= 100 coins):
+                     │     • Deducted ONLY from Caller
+                     │     • 50 coins (50%) credited to Host's Wallet (Female User)
+                     │     • 50 coins (50%) credited to Admin Platform Revenue
                      │     • WebRTC stream continues seamlessly!
                      │
                      └─► Caller has 0 Coins / Low Balance:
-                           • Returns code: "LOW_BALANCE_DEPOSIT_REQUIRED"
-                           • App closes media stream & displays "Recharge Coins Now" popup
-                           • Navigates user to Deposit / Coin Packages Screen
+                           • Returns code: "LOW_BALANCE_DEPOSIT_REQUIRED" (HTTP 200)
+                           • App closes media stream & opens "Recharge Coins" popup
+                           • Does NOT logout!
                │
                ▼
    [ 5. Call Ends: POST /api/call/end ]
