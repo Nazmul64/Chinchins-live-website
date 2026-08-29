@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CallController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\WebRTCCallController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -128,6 +129,26 @@ Route::get('/withdraw/history', [\App\Http\Controllers\Api\WithdrawalApiControll
 Route::get('/wallet/withdraw/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
 Route::get('/wallet/withdrawals', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
 Route::get('/withdraw/{id}', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'show']);
+
+// ==========================================
+// 📡 WebRTC Signaling & Call Management (Laravel Reverb / P2P)
+// ==========================================
+Route::prefix('calls')->group(function () {
+    Route::get('/', [WebRTCCallController::class, 'index']);             // Call history
+    Route::post('/', [WebRTCCallController::class, 'store']);            // Create / Initiate Call
+    Route::get('/{call}', [WebRTCCallController::class, 'show']);        // Call details
+    Route::post('/{call}/accept', [WebRTCCallController::class, 'accept']); // Accept Call
+    Route::post('/{call}/reject', [WebRTCCallController::class, 'reject']); // Reject Call
+    Route::post('/{call}/cancel', [WebRTCCallController::class, 'cancel']); // Cancel Call
+    Route::post('/{call}/end', [WebRTCCallController::class, 'end']);       // End Call
+    
+    // WebRTC Signaling Relay (Offer, Answer, ICE Candidates)
+    Route::post('/{call}/offer', [WebRTCCallController::class, 'offer']);
+    Route::post('/{call}/answer', [WebRTCCallController::class, 'answer']);
+    Route::post('/{call}/ice-candidate', [WebRTCCallController::class, 'iceCandidate']);
+    Route::post('/{call}/candidate', [WebRTCCallController::class, 'iceCandidate']);
+    Route::post('/{call}/signal', [WebRTCCallController::class, 'signal']);
+});
 
 // ==========================================
 // 📞 WebRTC Audio & Video Calling & Revenue APIs
