@@ -58,15 +58,20 @@ class CallController extends Controller
                      ?? $request->header('user-id') 
                      ?? $request->header('userId')
                      ?? $request->header('X-Account-Id')
-                     ?? $request->header('Account-Id');
+                     ?? $request->header('Account-Id')
+                     ?? $request->header('X-Phone');
 
         if ($headerUserId) {
-            $u = User::find($headerUserId) ?? User::where('account_id', $headerUserId)->first();
+            $u = User::find($headerUserId) ?? User::where('account_id', $headerUserId)->orWhere('phone', $headerUserId)->first();
             if ($u) return $u;
         }
 
-        // 4. Fallback: user_id, userId, account_id in request body / query
-        $idParam = $request->input('user_id') ?? $request->input('userId') ?? $request->input('id');
+        // 4. Fallback: user_id, userId, caller_id, sender_id, account_id in request body / query
+        $idParam = $request->input('user_id') 
+                ?? $request->input('userId') 
+                ?? $request->input('caller_id') 
+                ?? $request->input('sender_id') 
+                ?? $request->input('id');
         if ($idParam) {
             $u = User::find($idParam);
             if ($u) return $u;
@@ -83,8 +88,8 @@ class CallController extends Controller
             if ($u) return $u;
         }
 
-        // 5. Safe fallback for dev/mobile testing
-        return User::first();
+        // Return null if unidentifiable so we do not conflate caller and receiver into User::first()
+        return null;
     }
 
     /**
@@ -174,12 +179,12 @@ class CallController extends Controller
      */
     public function randomMatch(Request $request): JsonResponse
     {
-        $caller = $this->resolveUser($request);
+        $caller = $this->resolveUser($request) ?? User::first();
 
         if (!$caller) {
             return response()->json([
                 'status' => false,
-                'message' => 'Unauthenticated.',
+                'message' => 'Unauthenticated. Pass Authorization Bearer token or user_id.',
             ], 401);
         }
 
@@ -310,7 +315,7 @@ class CallController extends Controller
         if (!$caller) {
             return response()->json([
                 'status' => false,
-                'message' => 'Unauthenticated.',
+                'message' => 'Unauthenticated. Pass Authorization Bearer token or user_id/caller_id parameter.',
             ], 401);
         }
 
@@ -433,15 +438,44 @@ class CallController extends Controller
     {
         $user = $this->resolveUser($request);
 
-        if (!$user) {
+        // Also allow explicit query/body parameters for receiver identification
+        $receiverId = $request->input('user_id') 
+                   ?? $request->input('receiver_id') 
+                   ?? $request->input('to_user_id') 
+                   ?? $request->input('userId')
+                   ?? $user?->id;
+
+        $receiverAccount = $request->input('account_id') ?? $request->input('accountId') ?? $user?->account_id;
+
+        if (!$receiverId && !$receiverAccount && !$user) {
             return response()->json([
                 'status' => false,
-                'message' => 'Unauthenticated.',
+                'has_incoming_call' => false,
+                'message' => 'User not identified. Provide Authorization token or user_id parameter.',
+                'data' => null,
+            ], 200);
+        }
+
+        $targetUser = $user;
+        if (!$targetUser) {
+            if ($receiverId) {
+                $targetUser = User::find($receiverId) ?? User::where('account_id', $receiverId)->first();
+            } elseif ($receiverAccount) {
+                $targetUser = User::where('account_id', $receiverAccount)->first();
+            }
+        }
+
+        if (!$targetUser) {
+            return response()->json([
+                'status' => false,
+                'has_incoming_call' => false,
+                'message' => 'Target user not found.',
+                'data' => null,
             ], 200);
         }
 
         // Auto-expire calls that have been ringing > 45 seconds
-        CallSession::where('receiver_id', $user->id)
+        CallSession::where('receiver_id', $targetUser->id)
             ->whereIn('status', ['initiated', 'ringing'])
             ->where('created_at', '<', now()->subSeconds(45))
             ->update([
@@ -451,7 +485,7 @@ class CallController extends Controller
 
         // Find active ringing call for this user
         $incoming = CallSession::with(['caller'])
-            ->where('receiver_id', $user->id)
+            ->where('receiver_id', $targetUser->id)
             ->whereIn('status', ['initiated', 'ringing'])
             ->where('created_at', '>=', now()->subSeconds(45))
             ->latest()
@@ -774,13 +808,6 @@ class CallController extends Controller
     {
         $caller = $this->resolveUser($request);
 
-        if (!$caller) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Unauthenticated.',
-            ], 200);
-        }
-
         $data = $this->getRequestData($request);
         $callId = $data['call_id'] ?? $request->input('call_id');
         $elapsedSeconds = (int) ($data['elapsed_seconds'] ?? $request->input('elapsed_seconds', 0));
@@ -801,13 +828,26 @@ class CallController extends Controller
             ], 200);
         }
 
-        // If call was not yet marked connected, mark it connected now
-        if ($call->status !== 'connected' && $call->status !== 'ended') {
-            $call->status = 'connected';
-            if (!$call->started_at) {
-                $call->started_at = now();
-            }
-            $call->save();
+        // Caller resolution fallback to session caller
+        if (!$caller) {
+            $caller = $call->caller;
+        }
+
+        if (!$caller) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Caller not identified.',
+            ], 200);
+        }
+
+        // If call is NOT connected (e.g. still ringing, cancelled, ended, rejected), DO NOT DEDUCT AND DO NOT FORCE STATUS TO CONNECTED
+        if ($call->status !== 'connected') {
+            return response()->json([
+                'status' => false,
+                'message' => "Call is not connected yet (current status: {$call->status}). Billing pulse runs only when call is actively connected.",
+                'call_status' => $call->status,
+                'should_terminate_call' => in_array($call->status, ['ended', 'rejected', 'declined', 'cancelled', 'missed']),
+            ], 200);
         }
 
         $config = CallSetting::getAllConfig();
@@ -991,14 +1031,27 @@ class CallController extends Controller
     public function sendSignal(Request $request): JsonResponse
     {
         $user = $this->resolveUser($request);
-        if (!$user) {
+        $data = $this->getRequestData($request);
+
+        $callId = $data['call_id'] ?? $request->input('call_id');
+        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+
+        $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
+            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
+            ->first();
+
+        $senderId = $data['sender_id'] ?? $request->input('sender_id') ?? $user?->id;
+        if (!$senderId && $call) {
+            $senderId = $call->caller_id;
+        }
+
+        if (!$senderId) {
             return response()->json([
                 'status' => false,
-                'message' => 'Unauthenticated.',
+                'message' => 'Unauthenticated or sender not identified.',
             ], 401);
         }
 
-        $data = $this->getRequestData($request);
         $type = strtolower($data['type'] ?? $request->input('type', ''));
 
         if (empty($type)) {
@@ -1031,16 +1084,9 @@ class CallController extends Controller
             }
         }
 
-        $callId = $data['call_id'] ?? $request->input('call_id');
-        $channelName = $data['channel_name'] ?? $request->input('channel_name');
-
-        $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
-            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
-            ->first();
-
         $receiverId = $data['receiver_id'] ?? $data['to_user_id'] ?? null;
         if (!$receiverId && $call) {
-            $receiverId = ($call->caller_id === $user->id) ? $call->receiver_id : $call->caller_id;
+            $receiverId = ($call->caller_id == $senderId) ? $call->receiver_id : $call->caller_id;
         }
 
         // Normalize candidate type
@@ -1051,7 +1097,7 @@ class CallController extends Controller
         $signal = \App\Models\CallSignal::create([
             'call_session_id' => $call?->id,
             'channel_name' => $channelName ?: $call?->channel_name,
-            'sender_id' => $user->id,
+            'sender_id' => $senderId,
             'receiver_id' => $receiverId,
             'type' => $type,
             'payload' => is_array($payload) ? $payload : ['data' => $payload],
@@ -1066,7 +1112,7 @@ class CallController extends Controller
                 'call_id' => $signal->call_session_id,
                 'channel_name' => $signal->channel_name,
                 'type' => $signal->type,
-                'sender_id' => $user->id,
+                'sender_id' => $senderId,
                 'receiver_id' => $receiverId,
                 'payload' => $signal->payload,
                 'created_at' => $signal->created_at->toIso8601String(),
@@ -1078,29 +1124,23 @@ class CallController extends Controller
      * Receive / Poll for pending WebRTC Signals (SDP Offers, Answers, ICE Candidates).
      * GET /api/call/signal/receive (or GET /api/call/signals, POST /api/call/signals)
      */
-    /**
-     * Receive / Poll for pending WebRTC Signals (SDP Offers, Answers, ICE Candidates).
-     * GET /api/call/signal/receive (or GET /api/call/signals, POST /api/call/signals)
-     */
     public function getSignals(Request $request): JsonResponse
     {
         $user = $this->resolveUser($request);
-        if (!$user) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Unauthenticated.',
-                'data' => [],
-            ], 200);
-        }
-
         $data = $this->getRequestData($request);
+
         $callId = $data['call_id'] ?? $request->input('call_id');
         $channelName = $data['channel_name'] ?? $request->input('channel_name');
         $lastSignalId = (int) ($data['last_signal_id'] ?? $request->input('last_signal_id', 0));
-        $autoRead = filter_var($data['auto_read'] ?? $request->input('auto_read', true), FILTER_VALIDATE_BOOLEAN);
+        $autoRead = filter_var($data['auto_read'] ?? $request->input('auto_read', false), FILTER_VALIDATE_BOOLEAN);
 
-        $query = \App\Models\CallSignal::with(['sender'])
-            ->where('sender_id', '!=', $user->id);
+        $currentUserId = $data['user_id'] 
+                      ?? $data['receiver_id'] 
+                      ?? $request->input('user_id') 
+                      ?? $request->input('receiver_id') 
+                      ?? $user?->id;
+
+        $query = \App\Models\CallSignal::with(['sender']);
 
         if ($callId) {
             $query->where('call_session_id', $callId);
@@ -1109,12 +1149,9 @@ class CallController extends Controller
             $query->where('channel_name', $channelName);
         }
 
-        // If no callId or channelName, filter by receiver_id
-        if (!$callId && !$channelName) {
-            $query->where(function ($q) use ($user) {
-                $q->where('receiver_id', $user->id)
-                  ->orWhereNull('receiver_id');
-            });
+        // If current user is identified, exclude own signals and only retrieve signals meant for this user or from partner
+        if ($currentUserId) {
+            $query->where('sender_id', '!=', $currentUserId);
         }
 
         if ($lastSignalId > 0) {
@@ -1125,7 +1162,7 @@ class CallController extends Controller
 
         $signals = $query->orderBy('id', 'asc')->limit(50)->get();
 
-        if ($autoRead && $signals->isNotEmpty()) {
+        if ($autoRead && $signals->isNotEmpty() && $currentUserId) {
             \App\Models\CallSignal::whereIn('id', $signals->pluck('id'))->update(['is_read' => true]);
         }
 

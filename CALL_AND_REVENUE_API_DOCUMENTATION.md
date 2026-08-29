@@ -2256,5 +2256,190 @@ void onCallConnectedOrEnded() {
 }
 ```
 
+---
 
+### ❓ Issue 13: "এক ফোন থেকে কল দিলে অটোমেটিক নিজের ফোনে রিসিভ হয়ে যায়, কিন্তু অপর প্রান্তে (রিসিভারের ফোনে) কল যায় না এবং WebRTC অডিও-ভিডিও স্ট্রিম হয় না কেন?"
+
+> 🎯 **সমস্যাটির লক্ষণ (Symptoms)**:
+> 1. ফোন ১ (কলার) থেকে কল ডায়াল করলে সাথে সাথে কলারের ফোনেই কলটি "Connected / Received" হয়ে যাচ্ছিল (অথচ রিসিভার তখনো কল ধরে নাই)।
+> 2. ফোন ২ (রিসিভার/হোস্ট) এর ফোনে কোনো ইনকামিং কল আসছিল না এবং কোনো রিংটোন বাজছিল না।
+> 3. ভিডিও কল কানেক্ট হওয়ার পর একে অপরের মুখ দেখা যাচ্ছিল না বা কথা শোনা যাচ্ছিল না।
+
+---
+
+#### 🔍 মূল ৩টি কারণ এবং ব্যাকএন্ড সমাধান (Root Causes & Backend Fixes Applied):
+
+| সমস্যা | মূল কারণ (Root Cause) | ব্যাকএন্ডে কীভাবে ফিক্স করা হলো (Fix Applied) |
+| :--- | :--- | :--- |
+| **১. কলারের ফোনে অটো-রিসিভ হওয়া** | কলার কল ইনিশিয়েট করার পর অ্যাপের ব্যাকগ্রাউন্ড টাইমার `/api/call/deduct-interval` (পালস বিলিং) কল করছিল। পূর্বের কোডে `deductInterval` স্বয়ংক্রিয়ভাবে স্ট্যাটাসকে `connected` করে ফেলছিল। | **ফিক্সড**: `deductInterval` এখন কল স্ট্যাটাস `ringing` থাকলে কখনোই `connected` করবে না। যতক্ষণ না রিসিভার রিসিভ বাটন প্রেস করে `/api/call/accept` কল করবে, ততক্ষণ কল `ringing` থাকবে। |
+| **২. রিসিভারের ফোনে কল না যাওয়া** | রিসিভার অ্যাপ যখন `GET /api/call/incoming` কল করছিল, তখন সঠিক `Authorization: Bearer <TOKEN>` অথবা `user_id` না থাকায় ব্যাকএন্ড রিসিভারকে শনাক্ত করতে না পেরে ডিফল্ট ইউজার হিসেবে চেক করছিল। | **ফিক্সড**: `checkIncoming` এখন হেডার বা বডি/কোয়ারিতে পাঠানো `user_id`, `receiver_id`, `account_id`, `phone` সরাসরি সাপোর্ট করে। ফলে রিসিভার নিশ্চিতভাবে তার ইনকামিং কল পায়। |
+| **৩. WebRTC অডিও/ভিডিও স্ট্রিম না আসা** | সিগন্যালিংয়ের সময় অফার/অ্যানসার ও ICE Candidate আদান-প্রদানে ইউজার ফিল্টারিং এবং লোকাল/রিমোট ভিডিও রেন্ডারার উইজেটে স্টেট আপডেট না হওয়ায় লাইভ ক্যামেরা দৃশ্যমান হচ্ছিল না। | **ফিক্সড**: ব্যাকএন্ডে `sendSignal` ও `getSignals` এ পিয়ার সিগন্যালিং ১০০% নির্ভুল করা হয়েছে। ফ্লাটারে `peerConnection.onTrack` এ `setState` ও স্পিকার অন করলেই লাইভ ভিডিও ও অডিও চালু হয়ে যায়। |
+
+---
+
+#### 🚀 সম্পূর্ণ ২-ফোন কল ও WebRTC ফ্লো (Step-by-Step Complete Flow):
+
+```
+┌──────────────────────────────┐                         ┌──────────────────────────────┐
+│       Phone 1 (Caller)       │                         │      Phone 2 (Receiver)      │
+└──────────────┬───────────────┘                         └──────────────┬───────────────┘
+               │                                                        │
+ 1. Initiate Call (POST /api/call/initiate)                             │
+    Body: {"receiver_id": 2, "call_type": "video"}                      │
+    Returns: {call_id: 12, status: "ringing"}                           │
+    • Starts Outgoing Ringtone 🔔                                       │
+    • Starts Status Polling (/api/call/status/12)                       │
+               │                                                        │
+               │                                          2. Polling / Incoming Check
+               │                                             (GET /api/call/incoming?user_id=2)
+               │                                             Returns: {has_incoming_call: true, call_id: 12}
+               │                                             • Starts Incoming Ringtone 🎵
+               │                                             • Shows Incoming Call UI (রিসিভ বাটন)
+               │                                                        │
+               │                                          3. Receiver Taps "Accept (রিসিভ)"
+               │                                             POST /api/call/accept
+               │                                             Body: {"call_id": 12}
+               │                                             • Call Status becomes "connected"
+               │                                             • Stops Ringtone ⏹️
+               │                                                        │
+ 4. Caller Detects status == "connected"                                │
+    • Stops Ringtone ⏹️                                                 │
+    • Opens VideoCallScreen                                             │
+               │                                                        │
+ 5. WebRTC Peer-to-Peer Connection Starts                               │
+    • Caller creates SDP Offer  ──► POST /api/call/signal/send ───────► Receiver gets Offer
+    • Receiver creates Answer   ◄── POST /api/call/signal/send ◄─────── Receiver sends Answer
+    • Both exchange ICE Candidates via /api/call/signal/send & /api/call/signal/receive
+               │                                                        │
+ 6. 🎉 Audio & Video Streams are LIVE!                                  │
+    • Phone 1 sees Phone 2's Camera (Fullscreen)                        │ Phone 2 sees Phone 1's Camera
+    • Phone 1 hears Phone 2's Voice (Crystal clear audio)               │ Phone 2 hears Phone 1's Voice
+               │                                                        │
+ 7. In-Call 100 Coins/Min Heartbeat (Caller ONLY)                       │
+    • Caller sends POST /api/call/deduct-interval every 5-10s           │
+    • 50% Coins Credited to Receiver's Wallet (Host Earnings) 💰        │
+```
+
+---
+
+#### 📱 ফ্লাটার অ্যাপে রিসিভারের ইনকামিং কল লিসেনার ও রিসিভ বাটন কোড:
+
+```dart
+// 1. Receiver Device: Background/Periodic Incoming Call Checker (প্রতি ১-২ সেকেন্ডে চেক করবে)
+Timer? _incomingCallPoller;
+
+void startListeningForIncomingCalls(int currentUserId) {
+  _incomingCallPoller = Timer.periodic(const Duration(seconds: 2), (timer) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/call/incoming?user_id=$currentUserId'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $userAuthToken',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['has_incoming_call'] == true && json['data'] != null) {
+        _incomingCallPoller?.cancel(); // পোলিং বন্ধ
+        
+        final callData = json['data'];
+        
+        // রিংটোন বাজানো শুরু
+        RingtoneService.playIncomingRingtone();
+        
+        // ইনকামিং কল স্ক্রিন ওপেন
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => IncomingCallScreen(
+              callId: callData['call_id'],
+              channelName: callData['channel_name'],
+              callerName: callData['caller']['name'],
+              callerAvatar: callData['caller']['avatar'],
+              callType: callData['call_type'],
+            ),
+          ),
+        );
+      }
+    }
+  });
+}
+
+// 2. IncomingCallScreen-এ "Accept / Receive (রিসিভ বাটন)" প্রেস করলে:
+Future<void> onReceiveCallPressed(int callId, String channelName, String callerName, String callerAvatar) async {
+  // রিংটোন বন্ধ করা
+  RingtoneService.stop();
+
+  // ব্যাকএন্ডে Accept পাঠানো
+  final res = await http.post(
+    Uri.parse('$baseUrl/api/call/accept'),
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $userAuthToken',
+    },
+    body: jsonEncode({'call_id': callId}),
+  );
+
+  final json = jsonDecode(res.body);
+  if (json['status'] == true) {
+    // সরাসরি WebRTC ভিডিও কল স্ক্রিনে চলে যাবে
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VideoCallScreen(
+          callId: callId,
+          channelName: channelName,
+          isCaller: false, // রিসিভার
+          partnerName: callerName,
+          partnerAvatarUrl: callerAvatar,
+        ),
+      ),
+    );
+  }
+}
+```
+
+---
+
+#### 🎙️ WebRTC অডিও ও ভিডিও স্ট্রিমিং নিশ্চিত করার ৩টি জরুরি নিয়ম:
+
+1. **লাউডস্পিকার অন রাখা (Enable Speakerphone)**:
+   ```dart
+   import 'package:flutter_webrtc/flutter_webrtc.dart';
+
+   // কল কানেক্ট হওয়ার সাথে সাথে অডিও আউটপুট স্পিকারে দিন:
+   Helper.setSpeakerphoneOn(true);
+   ```
+
+2. **লোকাল ক্যামেরা ও মাইক চালু করা (Local User Media)**:
+   ```dart
+   final Map<String, dynamic> mediaConstraints = {
+     'audio': true,
+     'video': {
+       'facingMode': 'user', // Front camera
+       'width': {'ideal': 640},
+       'height': {'ideal': 480},
+     },
+   };
+   MediaStream localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+   _localRenderer.srcObject = localStream;
+
+   // PeerConnection-এ ট্র্যাক অ্যাড করা
+   for (var track in localStream.getTracks()) {
+     await _peerConnection!.addTrack(track, localStream);
+   }
+   ```
+
+3. **রিমোট ভিডিও ভিউ দেখানো (Remote Track Handling)**:
+   ```dart
+   _peerConnection!.onTrack = (RTCTrackEvent event) {
+     if (event.streams.isNotEmpty) {
+       setState(() {
+         _remoteRenderer.srcObject = event.streams[0]; // অপরের লাইভ ভিডিও ব্যাকগ্রাউন্ডে চলে আসবে
+       });
+     }
+   };
+   ```
 
