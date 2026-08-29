@@ -942,24 +942,44 @@ class CallController extends Controller
      */
     public function getIceServers(Request $request): JsonResponse
     {
+        $iceServers = [
+            [
+                'urls' => [
+                    'stun:stun.l.google.com:19302',
+                    'stun:stun1.l.google.com:19302',
+                    'stun:stun2.l.google.com:19302',
+                    'stun:stun3.l.google.com:19302',
+                    'stun:stun4.l.google.com:19302',
+                ],
+            ],
+            [
+                'urls' => 'stun:global.stun.twilio.com:3478?transport=udp',
+            ],
+        ];
+
+        // If custom TURN server is configured in .env or settings
+        $turnUrl = env('TURN_SERVER_URL') ?: env('TURN_URL');
+        $turnUser = env('TURN_SERVER_USERNAME') ?: env('TURN_USERNAME');
+        $turnPass = env('TURN_SERVER_PASSWORD') ?: env('TURN_CREDENTIAL') ?: env('TURN_PASSWORD');
+
+        if ($turnUrl) {
+            $turnEntry = [
+                'urls' => is_array($turnUrl) ? $turnUrl : explode(',', $turnUrl),
+            ];
+            if ($turnUser) {
+                $turnEntry['username'] = $turnUser;
+            }
+            if ($turnPass) {
+                $turnEntry['credential'] = $turnPass;
+            }
+            $iceServers[] = $turnEntry;
+        }
+
         return response()->json([
             'status' => true,
             'message' => 'WebRTC ICE Servers retrieved successfully.',
             'data' => [
-                'iceServers' => [
-                    [
-                        'urls' => [
-                            'stun:stun.l.google.com:19302',
-                            'stun:stun1.l.google.com:19302',
-                            'stun:stun2.l.google.com:19302',
-                            'stun:stun3.l.google.com:19302',
-                            'stun:stun4.l.google.com:19302',
-                        ],
-                    ],
-                    [
-                        'urls' => 'stun:global.stun.twilio.com:3478?transport=udp',
-                    ],
-                ],
+                'iceServers' => $iceServers,
             ],
         ], 200);
     }
@@ -979,19 +999,36 @@ class CallController extends Controller
         }
 
         $data = $this->getRequestData($request);
-        $validator = Validator::make($data, [
-            'call_id' => 'nullable',
-            'channel_name' => 'nullable',
-            'type' => 'required|string', // offer, answer, candidate, ping, bye
-            'payload' => 'required', // SDP or Candidate JSON / String
-        ]);
+        $type = strtolower($data['type'] ?? $request->input('type', ''));
 
-        if ($validator->fails()) {
+        if (empty($type)) {
             return response()->json([
                 'status' => false,
-                'message' => 'Signal validation failed.',
-                'errors' => $validator->errors(),
+                'message' => 'Signal type is required (offer, answer, candidate, ice_candidate, ping, bye).',
             ], 422);
+        }
+
+        // Auto-extract payload flexibly (supports root-level sdp / candidate or nested payload)
+        $payload = $data['payload'] ?? $request->input('payload');
+        if ($payload === null) {
+            if (isset($data['sdp'])) {
+                $payload = ['sdp' => $data['sdp'], 'type' => $type];
+            } elseif (isset($data['candidate']) || isset($data['ice_candidate'])) {
+                $payload = [
+                    'candidate' => $data['candidate'] ?? $data['ice_candidate'],
+                    'sdpMid' => $data['sdpMid'] ?? $data['sdp_mid'] ?? null,
+                    'sdpMLineIndex' => $data['sdpMLineIndex'] ?? $data['sdp_mline_index'] ?? 0,
+                ];
+            } else {
+                $payload = $data;
+            }
+        }
+
+        if (is_string($payload)) {
+            $decoded = json_decode($payload, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $payload = $decoded;
+            }
         }
 
         $callId = $data['call_id'] ?? $request->input('call_id');
@@ -1001,17 +1038,14 @@ class CallController extends Controller
             ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
             ->first();
 
-        $receiverId = $data['receiver_id'] ?? null;
+        $receiverId = $data['receiver_id'] ?? $data['to_user_id'] ?? null;
         if (!$receiverId && $call) {
             $receiverId = ($call->caller_id === $user->id) ? $call->receiver_id : $call->caller_id;
         }
 
-        $payload = $data['payload'];
-        if (is_string($payload)) {
-            $decoded = json_decode($payload, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $payload = $decoded;
-            }
+        // Normalize candidate type
+        if ($type === 'ice_candidate') {
+            $type = 'candidate';
         }
 
         $signal = \App\Models\CallSignal::create([
@@ -1019,7 +1053,7 @@ class CallController extends Controller
             'channel_name' => $channelName ?: $call?->channel_name,
             'sender_id' => $user->id,
             'receiver_id' => $receiverId,
-            'type' => strtolower($data['type']),
+            'type' => $type,
             'payload' => is_array($payload) ? $payload : ['data' => $payload],
             'is_read' => false,
         ]);
@@ -1030,9 +1064,11 @@ class CallController extends Controller
             'data' => [
                 'signal_id' => $signal->id,
                 'call_id' => $signal->call_session_id,
+                'channel_name' => $signal->channel_name,
                 'type' => $signal->type,
                 'sender_id' => $user->id,
                 'receiver_id' => $receiverId,
+                'payload' => $signal->payload,
                 'created_at' => $signal->created_at->toIso8601String(),
             ],
         ], 200);
