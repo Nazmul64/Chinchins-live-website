@@ -2012,4 +2012,249 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 ```
 
+---
+
+### ❓ Issue 12: "🚨 Offer Error: Unable to RTCPeerConnection::createOffer / WEBRTC_CREATE_OFFER_ERROR & addTrack null Fix + 0-Second Instant Ringtone"
+
+> 🎯 **আপনার স্ক্রিনশটের ডিবাগ লগ ও এরর**:
+> ```
+> PC: Created | ICE: Not Started
+> Offer: Offer Error: Unable to RTCPeerConnection::createOffer: peerConnectionCreateOffer(): WEBRTC_CREATE_OFFER_ERROR
+> Answer: Idle | Cand: S:0 R:0 | Remote: Waiting
+> [12:39:25] addTrack(): peerConnection is null
+> [12:39:25] addTrack fallback to addStream: Unable to RTCPeerConnection::addTrack: peerConnectionAddStream(): peerConnection is null
+> ```
+
+#### 🔍 মূল সমস্যা ৩টি (Root Causes):
+1. **`createOffer()` Constraints এরর**: `unified-plan` মোডে `createOffer({'offerToReceiveVideo': 1})` এভাবে ইন্টিজার পাস করলে নেটিভ WebRTC C++ ইঞ্জিন `WEBRTC_CREATE_OFFER_ERROR` থ্রো করে। সঠিক উপায় হলো `createOffer({'mandatory': {'OfferToReceiveAudio': true, 'OfferToReceiveVideo': true}, 'optional': []})` ব্যবহার করা।
+2. **`addTrack` এর সময় Native Handle সিঙ্ক**: `createPeerConnection()` কল করার পর নেটিভ অ্যান্ড্রয়েড লেয়ারে অবজেক্ট রেজিস্টার হতে কয়েক মিলি-সেকেন্ড সময় লাগে। তাই `await Future.delayed(const Duration(milliseconds: 100))` দিয়ে তারপর `addTrack` কল করতে হবে এবং `_peerConnection` ভ্যালিডেশন চেক রাখতে হবে।
+3. **রিংটোন বাজতে ৫-৭ সেকেন্ড লেট হওয়া**: কল ডায়াল করার পর এপিআই রেসপন্স বা পোলিংয়ের অপেক্ষায় থাকার কারণে রিংটোন দেরিতে বাজে। সমাধান হলো — ইউজার "Call" বাটনে চাপ দেওয়ার সাথে সাথে **Zero Milliseconds (তাৎক্ষণিক)** লোকাল রিংটোন `AudioPlayer.play()` চালু করতে হবে, সার্ভার এপিআই কল হবে ব্যাকগ্রাউন্ডে।
+
+---
+
+#### 🛠️ `webrtc_call_service.dart` ফাইলে নিচের কমপ্লিট মেথডগুলো সরাসরি রিপ্লেস করুন:
+
+```dart
+  // ========================================================
+  // 1. 100% Robust PeerConnection Creation & Track Binding
+  // ========================================================
+  Future<RTCPeerConnection?> _createPeerConnectionInternal(
+    dynamic callId,
+    String? channelName,
+    Function(MediaStream stream)? onRemoteStreamConnected,
+  ) async {
+    try {
+      _log('Fetching ICE servers from server...');
+      final iceServers = await CallApiService.getIceServers();
+      _log('ICE servers received: ${iceServers.length} servers');
+
+      final Map<String, dynamic> configuration = {
+        'iceServers': iceServers.isNotEmpty
+            ? iceServers
+            : [
+                {
+                  'urls': [
+                    'stun:stun.l.google.com:19302',
+                    'stun:stun1.l.google.com:19302',
+                    'stun:stun2.l.google.com:19302',
+                  ]
+                },
+                {
+                  'urls': ['stun:global.stun.twilio.com:3478']
+                }
+              ],
+        'sdpSemantics': 'unified-plan',
+      };
+
+      _log('Creating RTCPeerConnection...');
+      final pc = await createPeerConnection(configuration);
+      _peerConnection = pc;
+      pcState = 'Created';
+      _log('RTCPeerConnection created and assigned successfully');
+
+      // 🔑 CRUCIAL: 100ms micro-pause to ensure native handle registration
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // 🔑 CRUCIAL: Safe Track Adding with validation
+      if (_localStream != null && _peerConnection != null) {
+        for (final track in _localStream!.getTracks()) {
+          try {
+            await _peerConnection!.addTrack(track, _localStream!);
+            _log('✅ Local track added: ${track.kind} (${track.id})');
+          } catch (e) {
+            _log('⚠️ addTrack warning: $e');
+          }
+        }
+      }
+
+      // Unified-Plan Track Event (Remote Stream)
+      pc.onTrack = (RTCTrackEvent event) {
+        _log('📥 ON_TRACK: kind=${event.track.kind}, streams=${event.streams.length}');
+        if (event.streams.isNotEmpty) {
+          _remoteStream = event.streams[0];
+          remoteRenderer.srcObject = _remoteStream;
+          _log('✅ Remote stream attached to remoteRenderer (audio: ${_remoteStream!.getAudioTracks().length}, video: ${_remoteStream!.getVideoTracks().length})');
+          onRemoteStreamConnected?.call(_remoteStream!);
+        }
+      };
+
+      // Connection State Observers
+      pc.onConnectionState = (RTCPeerConnectionState state) {
+        pcState = state.toString().split('.').last;
+        _log('🔗 PC State: $pcState');
+      };
+
+      pc.onIceConnectionState = (RTCIceConnectionState state) {
+        iceState = state.toString().split('.').last;
+        _log('🧊 ICE State: $iceState');
+      };
+
+      // ICE Candidate Listener
+      pc.onIceCandidate = (RTCIceCandidate candidate) {
+        if (candidate.candidate != null && candidate.candidate!.isNotEmpty) {
+          iceCandidatesSent++;
+          _log('📤 ICE candidate generated (#$iceCandidatesSent), sending to server...');
+          CallApiService.sendSignal(
+            callId: callId,
+            channelName: channelName,
+            type: 'candidate',
+            payload: {
+              'candidate': candidate.candidate,
+              'sdpMid': candidate.sdpMid,
+              'sdpMLineIndex': candidate.sdpMLineIndex,
+            },
+          );
+        }
+      };
+
+      return pc;
+    } catch (e, st) {
+      lastError = e.toString();
+      _log('❌ ERROR in _createPeerConnectionInternal: $e');
+      AppLogger.error('CreatePeerConnectionError', e, st);
+      return null;
+    }
+  }
+
+  // ========================================================
+  // 2. Fixed createOffer (Eliminates WEBRTC_CREATE_OFFER_ERROR)
+  // ========================================================
+  Future<bool> createAndSendOffer(dynamic callId, String? channelName) async {
+    try {
+      if (_peerConnection == null) {
+        _log('❌ Cannot create offer: _peerConnection is null');
+        return false;
+      }
+
+      _log('Creating SDP Offer...');
+      
+      // 🔑 CRUCIAL: Standard unified-plan constraints
+      final Map<String, dynamic> offerConstraints = {
+        'mandatory': {
+          'OfferToReceiveAudio': true,
+          'OfferToReceiveVideo': true,
+        },
+        'optional': [],
+      };
+
+      RTCSessionDescription offer = await _peerConnection!.createOffer(offerConstraints);
+      await _peerConnection!.setLocalDescription(offer);
+      _log('✅ Local SDP Offer created & set as local description');
+
+      // Send offer to Laravel Backend
+      final success = await CallApiService.sendSignal(
+        callId: callId,
+        channelName: channelName,
+        type: 'offer',
+        payload: {
+          'sdp': offer.sdp,
+          'type': offer.type,
+        },
+      );
+
+      return success;
+    } catch (e, st) {
+      lastError = 'Offer Error: $e';
+      _log('❌ Error in createAndSendOffer: $e');
+      AppLogger.error('CreateOfferError', e, st);
+      return false;
+    }
+  }
+
+  // ========================================================
+  // 3. Fixed createAnswer (For Receiver Side)
+  // ========================================================
+  Future<bool> createAndSendAnswer(dynamic callId, String? channelName) async {
+    try {
+      if (_peerConnection == null) {
+        _log('❌ Cannot create answer: _peerConnection is null');
+        return false;
+      }
+
+      _log('Creating SDP Answer...');
+      final Map<String, dynamic> answerConstraints = {
+        'mandatory': {
+          'OfferToReceiveAudio': true,
+          'OfferToReceiveVideo': true,
+        },
+        'optional': [],
+      };
+
+      RTCSessionDescription answer = await _peerConnection!.createAnswer(answerConstraints);
+      await _peerConnection!.setLocalDescription(answer);
+      _log('✅ Local SDP Answer created & set as local description');
+
+      // Send answer to Laravel Backend
+      final success = await CallApiService.sendSignal(
+        callId: callId,
+        channelName: channelName,
+        type: 'answer',
+        payload: {
+          'sdp': answer.sdp,
+          'type': answer.type,
+        },
+      );
+
+      return success;
+    } catch (e, st) {
+      lastError = 'Answer Error: $e';
+      _log('❌ Error in createAndSendAnswer: $e');
+      AppLogger.error('CreateAnswerError', e, st);
+      return false;
+    }
+  }
+```
+
+---
+
+#### 🔔 Instant Ringtone Solution (0-Second Delay):
+
+```dart
+// 📞 Caller Side: Call Button প্রেস করার সাথে সাথে তাৎক্ষণিক রিংটোন বাজানো
+void onStartCallPressed() {
+  // ১. সাথে সাথে রিংটোন চালু (Zero delay!)
+  RingtoneService.playOutgoingRingtone(); // asset: 'assets/audio/outgoing_ring.mp3', loop: true
+
+  // ২. ব্যাকগ্রাউন্ডে সার্ভার কল ইনিশিয়েট
+  CallApiService.initiateCall(receiverId: hostUser.id, callType: 'video').then((res) {
+    if (!res.status) {
+      RingtoneService.stop();
+      showToast(res.message);
+    }
+  });
+}
+
+// 📲 Receiver Side: ইনকামিং কল আসার সাথে সাথে তাৎক্ষণিক রিংটোন
+void onIncomingCallDetected(IncomingCallData call) {
+  RingtoneService.playIncomingRingtone(); // asset: 'assets/audio/incoming_ring.mp3', loop: true
+  showIncomingCallScreen(call);
+}
+
+// ⏹️ কল রিসিভ বা কেটে দিলে সাথে সাথে রিংটোন বন্ধ
+void onCallConnectedOrEnded() {
+  RingtoneService.stop();
+}
+```
+
+
 
