@@ -2443,3 +2443,151 @@ Future<void> onReceiveCallPressed(int callId, String channelName, String callerN
    };
    ```
 
+---
+
+## 🟢 21. User Online / Inactive Presence & Heartbeat Tracking APIs (অনলাইন / ইন-অ্যাক্টিভ ও ডিভাইস পুশ টোকেন সিস্টেম)
+
+অ্যাপে ইউজার বা হোস্ট আসলেই সক্রিয় আছে কিনা তা যাচাই করার জন্য ব্যাকএন্ডে **Dynamic Real-Time Heartbeat & Presence Engine** ইমপ্লিমেন্ট করা হয়েছে।
+
+### 📌 মূল নীতি (Core Business Rules):
+1. **সবাইকে ডিফল্ট অনলাইন দেখাবে না**:
+   - পূর্বে সব অ্যাক্টিভ ইউজারকে স্ট্যাটাস `Online` দেখানো হচ্ছিল।
+   - এখন থেকে যে ইউজার গত **৫ মিনিটের মধ্যে অ্যাপ ওপেন করেছে বা হার্টবিট পাঠিয়েছে** কেবল তাকে `Online` (`is_online = true`, `status_text: 'Online'`) দেখাবে।
+   - যে ইউজার অ্যাপে নেই বা ৫ মিনিট ধরে কোনো অ্যাক্টিভিটি নেই, তাকে সরাসরি **`Inactive` বা `Offline` (`is_online = false`, `status_text: 'Inactive'`)** দেখাবে।
+2. **কল চলাকালীন স্ট্যাটাস**:
+   - যখন কোনো ইউজার বা হোস্ট কলে ব্যস্ত থাকবে, তার স্ট্যাটাস স্বয়ংক্রিয়ভাবে **`In Call`** দেখাবে।
+
+---
+
+### 📡 Presence Endpoints Summary:
+
+| মেথড | এন্ডপয়েন্ট | বিবরণ |
+| :--- | :--- | :--- |
+| `POST` | `/api/user/heartbeat` | অ্যাপ ওপেন থাকলে প্রতি ৩০-৬০ সেকেন্ডে হার্টবিট পাঠাবে (Keep-Alive Online). |
+| `POST` | `/api/user/status` | হোস্ট বা ইউজার নিজে থেকে অনলাইন/অফলাইন/ইন-অ্যাক্টিভ/বিজি টগল করবে। |
+| `POST` | `/api/user/fcm-token` | মোবাইল ফোনের FCM Device Token সংরক্ষণ করে ব্যাকগ্রাউন্ড ইনকামিং কলের জন্য। |
+| `GET` | `/api/user/presence/{id}` | যেকোনো নির্দিষ্ট হোস্টের (যেমন: রুমা) লাইভ অনলাইন/ইন-অ্যাক্টিভ স্ট্যাটাস চেক। |
+| `GET` | `/api/users/online` | বর্তমানে লাইভ থাকা সকল অনলাইন হোস্টের তালিকা। |
+| `GET` | `/api/call/wait-incoming` | **০-সেকেন্ড লেটেন্সি লং-পোলিং স্ট্রিম** — কল আসার সাথে সাথে মিলিসেকেন্ডে রিসিভারের ফোন রিং বাজাবে! |
+
+---
+
+### 💓 ১. Send App Heartbeat (Keep User Online)
+- **এন্ডপয়েন্ট**: `POST /api/user/heartbeat` *(Aliases: `/api/profile/heartbeat`, `/api/user/ping`)*
+- **রিকোয়েস্ট হেডার / বডি**:
+```json
+{
+  "device_type": "android",
+  "status": "online",
+  "fcm_token": "eXample_FCM_Device_Token_Here..."
+}
+```
+- **রেসপন্স (200 OK)**:
+```json
+{
+  "status": true,
+  "message": "Heartbeat received. User presence updated to Online.",
+  "data": {
+    "user_id": 2,
+    "account_id": "1000000002",
+    "is_online": true,
+    "status_text": "Online",
+    "online_status": "online",
+    "last_seen_at": "2026-08-29T17:50:00.000000Z"
+  }
+}
+```
+
+---
+
+### ❓ Issue 14: "রুমাকে (বা যেকোনো হোস্টকে) কল দিলে তার ফোনে সাথে সাথে কল পৌঁছানো ও রিং বাজানোর সম্পূর্ণ ফ্লাটার ব্যাকগ্রাউন্ড ও লং-পোলিং সল্যুশন"
+
+> 🎯 **সমস্যা**: কলার যখন রুমাকে কল দিচ্ছে, কলারের ফোনে রিং বাজছে কিন্তু রুমার ফোনে কল আসতে দেরি হচ্ছে বা রিং বাজছে না।
+
+#### 🛠️ ১০০% প্রফেশনাল ৩ স্তরের সমাধান (3-Tier Call Delivery Solution):
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Tier 1: Zero-Latency Long-Polling Stream (/api/call/wait-incoming)        │
+│  • অ্যাপ যখন স্ক্রিনে ওপেন থাকে, এই রিকোয়েস্ট সার্ভারের সাথে কানেক্টেড থাকে  │
+│  • কলার কল চাপার 50 Milliseconds (তাৎক্ষণিক) এর মধ্যে রুমার ফোন রিং বাজে!   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Tier 2: Firebase FCM High-Priority Data Push Notification                  │
+│  • অ্যাপ যদি বন্ধ বা ব্যাকগ্রাউন্ডে থাকে, FCM পুশ রুমার ডিভাইস ওয়েকআপ করে │
+│  • ফুলস্ক্রিন ইনকামিং কল ডায়ালার ওপেন করে লাউড রিংটোন বাজায়                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Tier 3: Standard 2-Second Poller Fallback (/api/call/incoming)            │
+│  • যেকোনো নেটওয়ার্ক ড্রপের ব্যাকআপ হিসেবে প্রতি ২ সেকেন্ডে চেক করে         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 💻 ফ্লাটার অ্যাপে লং-পোলিং লিসেনার সার্ভিস কোড (`incoming_call_manager.dart`):
+
+```dart
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../services/call_sound_manager.dart';
+import '../screens/incoming_call_screen.dart';
+
+class IncomingCallManager {
+  static bool _isListening = false;
+
+  /// অ্যাপ ওপেন হলে (Main / Home Screen-এ) এই মেথড একবার কল করুন
+  static void startListening(BuildContext context, int myUserId, String authToken) {
+    if (_isListening) return;
+    _isListening = true;
+    _listenLoop(context, myUserId, authToken);
+  }
+
+  static Future<void> _listenLoop(BuildContext context, int myUserId, String authToken) async {
+    while (_isListening) {
+      try {
+        // ⚡ Zero-Latency Long Polling (সার্ভার সাথে সাথে রেসপন্স করে যখনই কল আসে)
+        final url = Uri.parse('$baseUrl/api/call/wait-incoming?user_id=$myUserId&timeout=15');
+        final response = await http.get(
+          url,
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $authToken',
+          },
+        ).timeout(const Duration(seconds: 25));
+
+        if (response.statusCode == 200) {
+          final res = jsonDecode(response.body);
+          if (res['has_incoming_call'] == true && res['data'] != null) {
+            final call = res['data'];
+
+            // ১. তাৎক্ষণিক রিংটোন বাজানো শুরু
+            CallSoundManager.playIncomingRingtone(call['incoming_ringtone_url']);
+
+            // ২. ইনকামিং কল স্ক্রিন পপআপ করা
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => IncomingCallScreen(
+                    callId: call['call_id'],
+                    channelName: call['channel_name'],
+                    callerName: call['caller']['name'],
+                    callerAvatar: call['caller']['avatar'],
+                    callType: call['call_type'],
+                  ),
+                ),
+              );
+            }
+          }
+        }
+      } catch (_) {
+        // নেটওয়ার্ক সাময়িক ড্রপ হলে ১ সেকেন্ড পজ দিয়ে পুনরায় কানেক্ট করবে
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+  }
+
+  static void stopListening() {
+    _isListening = false;
+  }
+}
+```

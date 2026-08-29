@@ -693,6 +693,14 @@ class CallController extends Controller
         }
         $call->save();
 
+        // Update online status of caller & receiver to in_call
+        if ($call->caller) {
+            $call->caller->update(['online_status' => 'in_call']);
+        }
+        if ($call->receiver) {
+            $call->receiver->update(['online_status' => 'in_call']);
+        }
+
         return response()->json([
             'status' => true,
             'message' => 'Call accepted and connected successfully! Start audio/video media stream.',
@@ -716,6 +724,97 @@ class CallController extends Controller
                     'avatar' => $call->receiver?->avatar_url,
                 ],
             ],
+        ], 200);
+    }
+
+    /**
+     * Long-Polling Stream for Incoming Calls (Zero-Latency Instant Ringing).
+     * Holds the HTTP connection for up to 15-20 seconds and returns immediately when a call arrives.
+     * GET /api/call/wait-incoming?user_id=2 (or POST /api/call/wait-incoming)
+     */
+    public function waitIncoming(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        $receiverId = $request->input('user_id') 
+                   ?? $request->input('receiver_id') 
+                   ?? $request->input('to_user_id') 
+                   ?? $request->input('userId')
+                   ?? $user?->id;
+
+        $receiverAccount = $request->input('account_id') ?? $request->input('accountId') ?? $user?->account_id;
+
+        $targetUser = $user;
+        if (!$targetUser) {
+            if ($receiverId) {
+                $targetUser = User::find($receiverId) ?? User::where('account_id', $receiverId)->first();
+            } elseif ($receiverAccount) {
+                $targetUser = User::where('account_id', $receiverAccount)->first();
+            }
+        }
+
+        if (!$targetUser) {
+            return response()->json([
+                'status' => false,
+                'has_incoming_call' => false,
+                'message' => 'Target user not found.',
+                'data' => null,
+            ], 200);
+        }
+
+        // Heartbeat update
+        $targetUser->update(['last_seen_at' => now(), 'online_status' => 'online']);
+
+        $startTime = time();
+        $timeout = min(20, (int) $request->input('timeout', 15));
+
+        while ((time() - $startTime) < $timeout) {
+            $incoming = CallSession::with(['caller'])
+                ->where('receiver_id', $targetUser->id)
+                ->whereIn('status', ['initiated', 'ringing'])
+                ->where('created_at', '>=', now()->subSeconds(45))
+                ->latest()
+                ->first();
+
+            if ($incoming) {
+                $config = CallSetting::getAllConfig();
+                $elapsedSeconds = max(0, now()->diffInSeconds($incoming->created_at));
+
+                return response()->json([
+                    'status' => true,
+                    'has_incoming_call' => true,
+                    'message' => 'Incoming call detected! Ring device immediately.',
+                    'data' => [
+                        'call_id' => $incoming->id,
+                        'channel_name' => $incoming->channel_name,
+                        'call_type' => $incoming->call_type,
+                        'status' => $incoming->status,
+                        'is_free_trial' => (bool) $incoming->is_free_trial,
+                        'free_duration_seconds' => (int) $incoming->free_duration_seconds,
+                        'rate_per_minute' => (int) $incoming->rate_per_minute,
+                        'ring_elapsed_seconds' => $elapsedSeconds,
+                        'ring_timeout_seconds' => max(0, 45 - $elapsedSeconds),
+                        'incoming_ringtone_url' => $config['incoming_ringtone_url'],
+                        'caller' => [
+                            'id' => $incoming->caller?->id,
+                            'account_id' => $incoming->caller?->account_id,
+                            'name' => $incoming->caller?->display_name,
+                            'avatar' => $incoming->caller?->avatar_url,
+                            'gender' => $incoming->caller?->gender ?: 'male',
+                            'level' => $incoming->caller?->level ?: 'Lv1',
+                        ],
+                    ],
+                ], 200);
+            }
+
+            usleep(500000); // 500ms
+        }
+
+        return response()->json([
+            'status' => true,
+            'has_incoming_call' => false,
+            'message' => 'No incoming calls during wait window.',
+            'data' => null,
         ], 200);
     }
 
@@ -753,6 +852,14 @@ class CallController extends Controller
         $call->ended_at = now();
         $call->save();
 
+        // Restore online status
+        if ($call->caller) {
+            $call->caller->update(['online_status' => 'online']);
+        }
+        if ($call->receiver) {
+            $call->receiver->update(['online_status' => 'online']);
+        }
+
         return response()->json([
             'status' => true,
             'message' => 'Call declined successfully. Ringing stopped.',
@@ -787,6 +894,14 @@ class CallController extends Controller
         $call->status = 'cancelled';
         $call->ended_at = now();
         $call->save();
+
+        // Restore online status
+        if ($call->caller) {
+            $call->caller->update(['online_status' => 'online']);
+        }
+        if ($call->receiver) {
+            $call->receiver->update(['online_status' => 'online']);
+        }
 
         return response()->json([
             'status' => true,
@@ -1252,6 +1367,14 @@ class CallController extends Controller
         $call->ended_at = $endedAt;
         $call->duration_seconds = $durationSeconds;
         $call->save();
+
+        // Reset online status back to online
+        if ($call->caller) {
+            $call->caller->update(['online_status' => 'online']);
+        }
+        if ($call->receiver) {
+            $call->receiver->update(['online_status' => 'online']);
+        }
 
         // Broadcast 'bye' signal to the other party so their screen terminates immediately
         try {

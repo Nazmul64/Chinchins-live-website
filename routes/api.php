@@ -143,6 +143,8 @@ Route::prefix('call')->group(function () {
     Route::match(['get', 'post'], '/incoming', [CallController::class, 'checkIncoming']);
     Route::match(['get', 'post'], '/check-incoming', [CallController::class, 'checkIncoming']);
     Route::match(['get', 'post'], '/active-incoming', [CallController::class, 'checkIncoming']);
+    Route::match(['get', 'post'], '/wait-incoming', [CallController::class, 'waitIncoming']);
+    Route::match(['get', 'post'], '/stream-incoming', [CallController::class, 'waitIncoming']);
     Route::match(['get', 'post'], '/status/{id?}', [CallController::class, 'getStatus']);
     Route::post('/ringing', [CallController::class, 'ringing']);
     Route::post('/ring-ping', [CallController::class, 'ringing']);
@@ -179,6 +181,31 @@ Route::prefix('call')->group(function () {
     Route::match(['get', 'post'], '/hangup', [CallController::class, 'end']);
     Route::get('/history', [CallController::class, 'history']);
 });
+
+// ==========================================
+// 🟢 User Online Presence, Heartbeat & Push Tokens
+// ==========================================
+Route::prefix('user')->group(function () {
+    Route::post('/heartbeat', [\App\Http\Controllers\Api\PresenceController::class, 'heartbeat']);
+    Route::post('/ping', [\App\Http\Controllers\Api\PresenceController::class, 'heartbeat']);
+    Route::post('/status', [\App\Http\Controllers\Api\PresenceController::class, 'updateStatus']);
+    Route::post('/presence/status', [\App\Http\Controllers\Api\PresenceController::class, 'updateStatus']);
+    Route::post('/fcm-token', [\App\Http\Controllers\Api\PresenceController::class, 'updateFcmToken']);
+    Route::post('/device-token', [\App\Http\Controllers\Api\PresenceController::class, 'updateFcmToken']);
+    Route::get('/presence/{id?}', [\App\Http\Controllers\Api\PresenceController::class, 'getPresence']);
+});
+
+Route::prefix('presence')->group(function () {
+    Route::post('/heartbeat', [\App\Http\Controllers\Api\PresenceController::class, 'heartbeat']);
+    Route::post('/ping', [\App\Http\Controllers\Api\PresenceController::class, 'heartbeat']);
+    Route::post('/status', [\App\Http\Controllers\Api\PresenceController::class, 'updateStatus']);
+    Route::get('/{id?}', [\App\Http\Controllers\Api\PresenceController::class, 'getPresence']);
+});
+
+Route::get('/users/online', [\App\Http\Controllers\Api\PresenceController::class, 'getOnlineUsers']);
+Route::get('/home/online', [\App\Http\Controllers\Api\PresenceController::class, 'getOnlineUsers']);
+Route::post('/profile/heartbeat', [\App\Http\Controllers\Api\PresenceController::class, 'heartbeat']);
+Route::post('/device/token', [\App\Http\Controllers\Api\PresenceController::class, 'updateFcmToken']);
 
 // ==========================================
 // 🪪 KYC Identity Verification APIs

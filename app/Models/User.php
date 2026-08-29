@@ -34,6 +34,11 @@ class User extends Authenticatable
         'gallery_images',
         'is_verified',
         'is_active',
+        'last_seen_at',
+        'online_status',
+        'fcm_token',
+        'device_token',
+        'device_type',
         'is_locked',
         'locked_reason',
         'locked_at',
@@ -81,6 +86,14 @@ class User extends Authenticatable
     ];
 
     /**
+     * User's presence and heartbeat session.
+     */
+    public function presence()
+    {
+        return $this->hasOne(UserPresence::class);
+    }
+
+    /**
      * User's KYC identity verification record.
      */
     public function kycVerification()
@@ -116,21 +129,56 @@ class User extends Authenticatable
 
     /**
      * Accessor for online status boolean.
+     * True only if user is active, not locked, and recently active (within last 5 minutes) or marked online.
      */
     public function getIsOnlineAttribute(): bool
     {
-        return (bool) $this->is_active;
+        if ($this->is_locked || !$this->is_active) {
+            return false;
+        }
+
+        if (in_array($this->online_status, ['offline', 'inactive'])) {
+            return false;
+        }
+
+        if ($this->last_seen_at) {
+            return $this->last_seen_at->greaterThanOrEqualTo(now()->subMinutes(5));
+        }
+
+        if (in_array($this->online_status, ['online', 'busy', 'in_call'])) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Accessor for human-readable status text.
+     * Returns: 'Online' | 'Inactive' | 'In Call' | 'Busy' | 'Locked'
      */
     public function getStatusTextAttribute(): string
     {
         if ($this->is_locked) {
             return 'Locked';
         }
-        return $this->is_active ? 'Online' : 'Offline';
+
+        if (!$this->is_active) {
+            return 'Inactive';
+        }
+
+        if ($this->online_status === 'in_call') {
+            return 'In Call';
+        }
+
+        if ($this->online_status === 'busy') {
+            return 'Busy';
+        }
+
+        if ($this->is_online) {
+            return 'Online';
+        }
+
+        return 'Inactive';
     }
 
     /**
@@ -172,6 +220,7 @@ class User extends Authenticatable
             'tags'                => 'array',
             'is_verified'         => 'boolean',
             'is_active'           => 'boolean',
+            'last_seen_at'        => 'datetime',
             'is_locked'           => 'boolean',
             'locked_at'           => 'datetime',
             'unlocked_at'         => 'datetime',
