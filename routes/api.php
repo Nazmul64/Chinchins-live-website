@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\WebRTCCallController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,6 +14,12 @@ use Illuminate\Support\Facades\Route;
 | API Routes for Chinchins Live
 |--------------------------------------------------------------------------
 */
+
+// ==========================================
+// 📡 Real-Time Broadcasting Channel Auth Route
+// ==========================================
+// Enables Bearer Token Authorization for Flutter & Web Pusher/Reverb Private Channels (/api/broadcasting/auth)
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 // Public Authentication & Registration Routes
 Route::post('/register', [AuthController::class, 'register']);
