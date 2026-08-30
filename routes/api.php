@@ -286,11 +286,50 @@ Route::prefix('admin/kyc-verifications')->group(function () {
     Route::post('/{id}/reject', [\App\Http\Controllers\Admin\KycAdminController::class, 'reject']);
 });
 
+// ==========================================
+// 💘 Match Tab & Live Waiting Hosts Matching APIs
+// ==========================================
+Route::prefix('match')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\MatchApiController::class, 'getMatchTab']);
+    Route::get('/status', [\App\Http\Controllers\Api\MatchApiController::class, 'getMatchTab']);
+    Route::get('/hosts', [\App\Http\Controllers\Api\MatchApiController::class, 'getMatchTab']);
+    Route::post('/start', [\App\Http\Controllers\Api\MatchApiController::class, 'startMatch']);
+    Route::post('/random', [\App\Http\Controllers\Api\MatchApiController::class, 'startMatch']);
+    Route::post('/', [\App\Http\Controllers\Api\MatchApiController::class, 'startMatch']);
+});
+
+// ==========================================
+// 💬 In-App Messages, Chat, Voice & Limit APIs
+// ==========================================
+Route::prefix('messages')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
+    Route::get('/conversations', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
+    Route::get('/inbox', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
+    Route::get('/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
+    Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
+    Route::post('/read', [\App\Http\Controllers\Api\MessageApiController::class, 'markAsRead']);
+});
+
+Route::prefix('chat')->group(function () {
+    Route::get('/conversations', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
+    Route::get('/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
+    Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
+    Route::post('/read', [\App\Http\Controllers\Api\MessageApiController::class, 'markAsRead']);
+});
+
+// ==========================================
+// 👁️ Profile View Tracking & Auto-Callback Trigger
+// ==========================================
+Route::post('/profile/{id}/view', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
+Route::post('/profile/view', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
+Route::post('/user/view-profile', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
+
 // Authenticated Routes (Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
     // Auth status & logout
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
+
 
 

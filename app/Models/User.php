@@ -54,6 +54,10 @@ class User extends Authenticatable
         'video_call_rate',
         'coins',
         'free_calls_used',
+        'free_messages_used',
+        'free_messages_limit',
+        'is_busy',
+        'auto_call_enabled',
         'close_friends_count',
     ];
 
