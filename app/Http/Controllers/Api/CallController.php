@@ -1219,6 +1219,27 @@ class CallController extends Controller
             'is_read' => false,
         ]);
 
+        // Also broadcast via Reverb/Pusher for real-time Flutter WebRTC signaling
+        if ($receiverId) {
+            try {
+                $callId = $call?->id ?? 0;
+                $roomId = $channelName ?: ($call?->channel_name ?? 'room_' . $callId);
+
+                if ($type === 'offer') {
+                    $sdpStr = is_array($payload) ? ($payload['sdp'] ?? json_encode($payload)) : (string)$payload;
+                    event(new \App\Events\WebRTCOffer((int)$receiverId, (int)$callId, (string)$roomId, $sdpStr));
+                } elseif ($type === 'answer') {
+                    $sdpStr = is_array($payload) ? ($payload['sdp'] ?? json_encode($payload)) : (string)$payload;
+                    event(new \App\Events\WebRTCAnswer((int)$receiverId, (int)$callId, (string)$roomId, $sdpStr));
+                } elseif ($type === 'candidate') {
+                    $candStr = is_array($payload) ? ($payload['candidate'] ?? json_encode($payload)) : (string)$payload;
+                    $sdpMid = is_array($payload) ? ($payload['sdpMid'] ?? $payload['sdp_mid'] ?? null) : null;
+                    $sdpMLineIndex = is_array($payload) ? ($payload['sdpMLineIndex'] ?? $payload['sdp_mline_index'] ?? 0) : 0;
+                    event(new \App\Events\WebRTCICECandidate((int)$receiverId, (int)$callId, (string)$roomId, $candStr, $sdpMid, (int)$sdpMLineIndex));
+                }
+            } catch (\Throwable $e) {}
+        }
+
         return response()->json([
             'status' => true,
             'message' => "Signal '{$signal->type}' sent successfully.",

@@ -44,18 +44,19 @@ class WebRTCICECandidate implements ShouldBroadcastNow
         return 'webrtc.ice_candidate';
     }
 
-    /**
-     * CRITICAL: Do NOT alter or filter candidate data.
-     */
     public function broadcastWith(): array
     {
+        $candStr = is_array($this->candidate) ? ($this->candidate['candidate'] ?? '') : (string)$this->candidate;
+        $sdpMid = $this->sdpMid ?? (is_array($this->candidate) ? ($this->candidate['sdpMid'] ?? $this->candidate['sdp_mid'] ?? null) : null);
+        $sdpMLineIndex = $this->sdpMLineIndex ?? (is_array($this->candidate) ? ($this->candidate['sdpMLineIndex'] ?? $this->candidate['sdp_mline_index'] ?? 0) : 0);
+
         return array_merge([
             'event'         => 'webrtc.ice_candidate',
             'call_id'       => $this->callId,
             'room_id'       => $this->roomId,
-            'candidate'     => $this->candidate,
-            'sdpMid'        => $this->sdpMid,
-            'sdpMLineIndex' => $this->sdpMLineIndex,
+            'candidate'     => $candStr ?: $this->candidate,
+            'sdpMid'        => $sdpMid,
+            'sdpMLineIndex' => $sdpMLineIndex,
         ], $this->extraPayload);
     }
 }

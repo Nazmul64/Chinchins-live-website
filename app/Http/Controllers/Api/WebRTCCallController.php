@@ -328,7 +328,13 @@ class WebRTCCallController extends Controller
             return response()->json(['success' => false, 'message' => 'Call not found'], 404);
         }
 
-        $sdp = $request->input('sdp');
+        $rawSdp = $request->input('sdp') ?? $request->input('description') ?? $request->input('payload');
+        if (is_array($rawSdp)) {
+            $sdp = $rawSdp['sdp'] ?? json_encode($rawSdp);
+        } else {
+            $sdp = (string) $rawSdp;
+        }
+
         if (empty($sdp)) {
             return response()->json(['success' => false, 'message' => 'SDP offer is required'], 422);
         }
@@ -336,14 +342,14 @@ class WebRTCCallController extends Controller
         $targetUserId = ($callInstance->caller_id === $user->id) ? $callInstance->receiver_id : $callInstance->caller_id;
 
         // Extract extra fields without modifying sdp
-        $extraPayload = $request->except(['sdp', 'call_id', 'room_id', 'type']);
+        $extraPayload = $request->except(['sdp', 'call_id', 'room_id', 'type', 'description', 'payload']);
 
         // Broadcast unmodified SDP offer to receiver
         try {
             event(new WebRTCOffer(
-                targetUserId: $targetUserId,
-                callId: $callInstance->id,
-                roomId: $callInstance->room_id,
+                targetUserId: (int) $targetUserId,
+                callId: (int) $callInstance->id,
+                roomId: (string) $callInstance->room_id,
                 sdp: $sdp,
                 extraPayload: $extraPayload
             ));
@@ -372,20 +378,26 @@ class WebRTCCallController extends Controller
             return response()->json(['success' => false, 'message' => 'Call not found'], 404);
         }
 
-        $sdp = $request->input('sdp');
+        $rawSdp = $request->input('sdp') ?? $request->input('description') ?? $request->input('payload');
+        if (is_array($rawSdp)) {
+            $sdp = $rawSdp['sdp'] ?? json_encode($rawSdp);
+        } else {
+            $sdp = (string) $rawSdp;
+        }
+
         if (empty($sdp)) {
             return response()->json(['success' => false, 'message' => 'SDP answer is required'], 422);
         }
 
         $targetUserId = ($callInstance->caller_id === $user->id) ? $callInstance->receiver_id : $callInstance->caller_id;
-        $extraPayload = $request->except(['sdp', 'call_id', 'room_id', 'type']);
+        $extraPayload = $request->except(['sdp', 'call_id', 'room_id', 'type', 'description', 'payload']);
 
         // Broadcast unmodified SDP answer to caller
         try {
             event(new WebRTCAnswer(
-                targetUserId: $targetUserId,
-                callId: $callInstance->id,
-                roomId: $callInstance->room_id,
+                targetUserId: (int) $targetUserId,
+                callId: (int) $callInstance->id,
+                roomId: (string) $callInstance->room_id,
                 sdp: $sdp,
                 extraPayload: $extraPayload
             ));
@@ -414,22 +426,33 @@ class WebRTCCallController extends Controller
             return response()->json(['success' => false, 'message' => 'Call not found'], 404);
         }
 
-        $candidate = $request->input('candidate');
-        $sdpMid = $request->input('sdpMid') ?? $request->input('sdp_mid');
-        $sdpMLineIndex = $request->input('sdpMLineIndex') ?? $request->input('sdp_m_line_index');
+        $rawCandidate = $request->input('candidate') ?? $request->input('ice_candidate') ?? $request->input('payload');
+        if (is_array($rawCandidate)) {
+            $candidate = $rawCandidate['candidate'] ?? json_encode($rawCandidate);
+            $sdpMid = $request->input('sdpMid') ?? $request->input('sdp_mid') ?? ($rawCandidate['sdpMid'] ?? $rawCandidate['sdp_mid'] ?? null);
+            $sdpMLineIndex = $request->input('sdpMLineIndex') ?? $request->input('sdp_m_line_index') ?? ($rawCandidate['sdpMLineIndex'] ?? $rawCandidate['sdp_m_line_index'] ?? 0);
+        } else {
+            $candidate = (string) $rawCandidate;
+            $sdpMid = $request->input('sdpMid') ?? $request->input('sdp_mid');
+            $sdpMLineIndex = $request->input('sdpMLineIndex') ?? $request->input('sdp_m_line_index');
+        }
+
+        if (empty($candidate)) {
+            return response()->json(['success' => false, 'message' => 'Candidate is required'], 422);
+        }
 
         $targetUserId = ($callInstance->caller_id === $user->id) ? $callInstance->receiver_id : $callInstance->caller_id;
-        $extraPayload = $request->except(['candidate', 'sdpMid', 'sdp_mid', 'sdpMLineIndex', 'sdp_m_line_index', 'call_id', 'room_id']);
+        $extraPayload = $request->except(['candidate', 'ice_candidate', 'sdpMid', 'sdp_mid', 'sdpMLineIndex', 'sdp_m_line_index', 'call_id', 'room_id', 'payload']);
 
         // Broadcast unmodified ICE Candidate to the peer
         try {
             event(new WebRTCICECandidate(
-                targetUserId: $targetUserId,
-                callId: $callInstance->id,
-                roomId: $callInstance->room_id,
+                targetUserId: (int) $targetUserId,
+                callId: (int) $callInstance->id,
+                roomId: (string) $callInstance->room_id,
                 candidate: $candidate,
                 sdpMid: $sdpMid,
-                sdpMLineIndex: $sdpMLineIndex !== null ? (int)$sdpMLineIndex : null,
+                sdpMLineIndex: $sdpMLineIndex !== null ? (int)$sdpMLineIndex : 0,
                 extraPayload: $extraPayload
             ));
         } catch (\Throwable $e) {}

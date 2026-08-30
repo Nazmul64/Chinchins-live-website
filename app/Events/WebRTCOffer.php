@@ -40,17 +40,20 @@ class WebRTCOffer implements ShouldBroadcastNow
         return 'webrtc.offer';
     }
 
-    /**
-     * CRITICAL: Do NOT alter or reformat SDP.
-     */
     public function broadcastWith(): array
     {
+        $sdpString = is_array($this->sdp) ? ($this->sdp['sdp'] ?? '') : (string)$this->sdp;
+
         return array_merge([
-            'event'   => 'webrtc.offer',
-            'call_id' => $this->callId,
-            'room_id' => $this->roomId,
-            'type'    => 'offer',
-            'sdp'     => $this->sdp,
+            'event'       => 'webrtc.offer',
+            'call_id'     => $this->callId,
+            'room_id'     => $this->roomId,
+            'type'        => 'offer',
+            'sdp'         => $sdpString,
+            'description' => [
+                'sdp'  => $sdpString,
+                'type' => 'offer',
+            ],
         ], $this->extraPayload);
     }
 }

@@ -40,17 +40,20 @@ class WebRTCAnswer implements ShouldBroadcastNow
         return 'webrtc.answer';
     }
 
-    /**
-     * CRITICAL: Do NOT alter or reformat SDP.
-     */
     public function broadcastWith(): array
     {
+        $sdpString = is_array($this->sdp) ? ($this->sdp['sdp'] ?? '') : (string)$this->sdp;
+
         return array_merge([
-            'event'   => 'webrtc.answer',
-            'call_id' => $this->callId,
-            'room_id' => $this->roomId,
-            'type'    => 'answer',
-            'sdp'     => $this->sdp,
+            'event'       => 'webrtc.answer',
+            'call_id'     => $this->callId,
+            'room_id'     => $this->roomId,
+            'type'        => 'answer',
+            'sdp'         => $sdpString,
+            'description' => [
+                'sdp'  => $sdpString,
+                'type' => 'answer',
+            ],
         ], $this->extraPayload);
     }
 }
