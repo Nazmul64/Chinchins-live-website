@@ -142,6 +142,7 @@ Route::get('/withdraw/{id}', [\App\Http\Controllers\Api\WithdrawalApiController:
 // ==========================================
 Route::prefix('calls')->group(function () {
     Route::get('/', [WebRTCCallController::class, 'index']);             // Call history
+    Route::get('/ice-servers', [CallController::class, 'getIceServers']); // WebRTC ICE Servers
     Route::post('/', [WebRTCCallController::class, 'store']);            // Create / Initiate Call
     Route::get('/{call}', [WebRTCCallController::class, 'show']);        // Call details
     Route::post('/{call}/accept', [WebRTCCallController::class, 'accept']); // Accept Call
