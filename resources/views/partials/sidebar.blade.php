@@ -44,6 +44,18 @@
             </div>
         </a>
 
+        <!-- Gifts & Rewards System -->
+        <a href="{{ route('admin.gifts.index') }}" class="menu-item {{ request()->routeIs('admin.gifts.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-gift" style="color: #f43f5e;"></i>
+                <span>Gifts & Rewards</span>
+            </div>
+            @php
+                $activeGiftsTotal = \App\Models\Gift::where('is_active', true)->count();
+            @endphp
+            <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(244,63,94,0.15); color: #f43f5e;">{{ $activeGiftsTotal }}</span>
+        </a>
+
         <!-- Deposit Requests -->
         @php
             $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count();

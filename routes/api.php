@@ -322,7 +322,31 @@ Route::prefix('chat')->group(function () {
 // ==========================================
 Route::post('/profile/{id}/view', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
 Route::post('/profile/view', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
-Route::post('/user/view-profile', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
+// ==========================================
+// 🎁 Gifts, Rewards & Profile Received Gifts APIs
+// ==========================================
+Route::prefix('gifts')->group(function () {
+    // 1. Gift Catalog (Store of gifts)
+    Route::get('/', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
+    Route::get('/catalog', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
+    Route::get('/list', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
+    Route::get('/categories', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
+
+    // 2. User's Received Gifts (For Profile Charm Level & Gifts Received Screen)
+    Route::get('/received/{id?}', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+    Route::get('/user/{id?}', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+
+    // 3. Send Gift to Host/User
+    Route::post('/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+    Route::post('/give', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+});
+
+// Profile / User level aliases for Gifts
+Route::get('/profile/{id}/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+Route::get('/profile/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+Route::get('/users/{id}/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+Route::get('/users/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
 
 // Authenticated Routes (Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
@@ -330,6 +354,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
+
 
 
 

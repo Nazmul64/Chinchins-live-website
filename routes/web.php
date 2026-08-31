@@ -67,6 +67,15 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/kyc/{id}/reject', [\App\Http\Controllers\Admin\KycAdminController::class, 'reject'])->name('kyc.reject');
     Route::post('/kyc/{id}/revoke', [\App\Http\Controllers\Admin\KycAdminController::class, 'revoke'])->name('kyc.revoke');
 
+    // Gifts & Rewards Management
+    Route::get('/gifts', [\App\Http\Controllers\Admin\GiftController::class, 'index'])->name('gifts.index');
+    Route::post('/gifts', [\App\Http\Controllers\Admin\GiftController::class, 'store'])->name('gifts.store');
+    Route::put('/gifts/{id}', [\App\Http\Controllers\Admin\GiftController::class, 'update'])->name('gifts.update');
+    Route::delete('/gifts/{id}', [\App\Http\Controllers\Admin\GiftController::class, 'destroy'])->name('gifts.destroy');
+    Route::post('/gifts/{id}/toggle-status', [\App\Http\Controllers\Admin\GiftController::class, 'toggleStatus'])->name('gifts.toggle-status');
+    Route::post('/gifts/give-to-user', [\App\Http\Controllers\Admin\GiftController::class, 'giveGiftToUser'])->name('gifts.give');
+    Route::get('/gifts/logs', [\App\Http\Controllers\Admin\GiftController::class, 'logs'])->name('gifts.logs');
+
     // Coin Transaction Ledger
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
 });

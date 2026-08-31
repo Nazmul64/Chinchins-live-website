@@ -448,4 +448,21 @@ class User extends Authenticatable
     {
         return $this->nickname ?: ($this->name ?: trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? '')));
     }
+
+    /**
+     * Gifts received by this user (as host / streamer / profile owner).
+     */
+    public function receivedGifts()
+    {
+        return $this->hasMany(UserGift::class, 'user_id');
+    }
+
+    /**
+     * Gifts sent by this user to others.
+     */
+    public function sentGifts()
+    {
+        return $this->hasMany(UserGift::class, 'sender_id');
+    }
 }
+
