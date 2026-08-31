@@ -21,6 +21,11 @@ use Illuminate\Support\Facades\Route;
 // Enables Bearer Token Authorization for Flutter & Web Pusher/Reverb Private Channels (/api/broadcasting/auth)
 Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
+// Public App Configuration & Branding (Logo, Name, Free limits for Login/Register Screen)
+Route::get('/app/config', [\App\Http\Controllers\Api\MessageApiController::class, 'getAppConfig']);
+Route::get('/settings', [\App\Http\Controllers\Api\MessageApiController::class, 'getAppConfig']);
+Route::get('/app/settings', [\App\Http\Controllers\Api\MessageApiController::class, 'getAppConfig']);
+
 // Public Authentication & Registration Routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);

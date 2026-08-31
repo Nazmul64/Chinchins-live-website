@@ -141,6 +141,14 @@
             </div>
         </a>
 
+        <!-- App Branding & Settings -->
+        <a href="{{ route('admin.settings.index') }}" class="menu-item {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-sliders" style="color: #06b6d4;"></i>
+                <span>App Branding & Config</span>
+            </div>
+        </a>
+
         <!-- Application Dropdown -->
         <div class="menu-item-group">
             <button type="button" class="menu-item menu-dropdown-toggle">
