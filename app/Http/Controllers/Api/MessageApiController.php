@@ -4,18 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
-use App\Models\CallSession;
 use App\Models\CallSetting;
 use App\Models\ChatMessage;
 use App\Models\CoinPackage;
 use App\Models\CoinTransaction;
+use App\Models\Notification;
 use App\Models\PaymentMethod;
 use App\Models\ProfileView;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -68,7 +68,7 @@ class MessageApiController extends Controller
     }
 
     /**
-     * Get Conversations / Inbox List with Unread Badges and Latest Message Previews (Matching Screenshot).
+     * Get Conversations / Inbox List with Unread Badges and Latest Message Previews.
      * GET /api/messages or GET /api/messages/conversations or GET /api/chat/conversations
      */
     public function getConversations(Request $request): JsonResponse
@@ -116,7 +116,6 @@ class MessageApiController extends Controller
 
             $totalUnreadCount += $unreadCount;
 
-            // Format message snippet matching mobile UI in Screenshot (Video call, Image, Bangla text)
             $preview = 'Start chatting';
             $previewType = 'text';
             $timestamp = 'Recently';
@@ -125,15 +124,18 @@ class MessageApiController extends Controller
                 $previewType = $lastMessage->type;
                 if ($lastMessage->type === 'video_call') {
                     $preview = '[Video Call]';
-                } elseif ($lastMessage->type === 'image') {
+                } elseif ($lastMessage->type === 'audio_call') {
+                    $preview = '[Audio Call]';
+                } elseif ($lastMessage->type === 'image' || $lastMessage->type === 'profile_picture') {
                     $preview = '[Image]';
                 } elseif ($lastMessage->type === 'voice') {
                     $preview = '[Voice Note]';
+                } elseif ($lastMessage->type === 'emoji') {
+                    $preview = $lastMessage->message ?: '😊';
                 } else {
                     $preview = $lastMessage->message ?: 'Message';
                 }
 
-                // Format time: e.g. "59 minutes", "09:56", "Yesterday"
                 if ($lastMessage->created_at->isToday()) {
                     if ($lastMessage->created_at->diffInMinutes(now()) < 60) {
                         $mins = max(1, $lastMessage->created_at->diffInMinutes(now()));
@@ -258,8 +260,78 @@ class MessageApiController extends Controller
     }
 
     /**
-     * Send Message (Text, Voice Audio, Image) with Free Quota & Coin Balance Check.
-     * Uploads media directly to public/uploads/sms_profile or public/uploads/messages.
+     * Standalone Upload Media for Chat (Images, Profile Pictures, Voice Audios).
+     * Uploads media directly to public/uploads/chat_messages/
+     * POST /api/messages/upload or POST /api/chat/upload
+     */
+    public function uploadMedia(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Pass Authorization token or user_id.',
+            ], 401);
+        }
+
+        $chatUploadDir = public_path('uploads/chat_messages');
+        if (!File::exists($chatUploadDir)) {
+            File::makeDirectory($chatUploadDir, 0777, true, true);
+        }
+
+        $file = $request->file('file') 
+             ?? $request->file('image') 
+             ?? $request->file('image_file') 
+             ?? $request->file('photo') 
+             ?? $request->file('picture') 
+             ?? $request->file('avatar') 
+             ?? $request->file('profile_picture') 
+             ?? $request->file('voice') 
+             ?? $request->file('voice_file') 
+             ?? $request->file('audio') 
+             ?? $request->file('audio_file');
+
+        if (!$file || !$file->isValid()) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'No valid media file provided. Attach file with key `file`, `image`, or `voice`.',
+            ], 422);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'bin');
+        $mime = $file->getMimeType();
+
+        $isAudio = in_array($extension, ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'webm', '3gp', 'amr', 'opus']) 
+                || str_starts_with($mime, 'audio/');
+
+        $prefix = $isAudio ? 'voice_' : 'msg_img_';
+        $filename = $prefix . time() . '_' . Str::random(8) . '.' . $extension;
+
+        $file->move($chatUploadDir, $filename);
+
+        $relativeUrl = 'uploads/chat_messages/' . $filename;
+        $fullUrl = asset($relativeUrl);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Media uploaded successfully to public/uploads/chat_messages.',
+            'data'    => [
+                'type'       => $isAudio ? 'voice' : 'image',
+                'filename'   => $filename,
+                'file_path'  => $relativeUrl,
+                'media_url'  => $fullUrl,
+                'url'        => $fullUrl,
+                'extension'  => $extension,
+                'mime_type'  => $mime,
+                'file_size'  => File::size($chatUploadDir . '/' . $filename),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Send Message (Text, Emojis, Voice Audio, Image, Profile Picture) with Free Quota & Coin Balance Check.
+     * Uploads media directly to public/uploads/chat_messages/.
      * POST /api/messages/send or POST /api/chat/send
      */
     public function sendMessage(Request $request): JsonResponse
@@ -273,30 +345,23 @@ class MessageApiController extends Controller
             ], 401);
         }
 
-        $validator = Validator::make($request->all(), [
-            'receiver_id' => 'required',
-            'type'        => 'nullable|in:text,image,voice,video_call,audio_call',
-            'message'     => 'nullable|string|max:2000',
-            'voice_file'  => 'nullable|file|mimes:mp3,wav,m4a,aac,ogg,webm|max:10240',
-            'image_file'  => 'nullable|image|max:10240',
-            'duration'    => 'nullable|integer',
-        ]);
+        $receiverId = $request->input('receiver_id') 
+                   ?? $request->input('receiverId') 
+                   ?? $request->input('to_user_id') 
+                   ?? $request->input('user_id');
 
-        if ($validator->fails()) {
+        if (!$receiverId) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Validation error.',
-                'errors'  => $validator->errors(),
+                'message' => 'The receiver_id field is required.',
             ], 422);
         }
 
-        $receiverId = $request->input('receiver_id');
         $receiver = User::find($receiverId) ?? User::where('account_id', $receiverId)->first();
-
         if (!$receiver) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Receiver not found.',
+                'message' => 'Receiver user not found.',
             ], 404);
         }
 
@@ -345,35 +410,84 @@ class MessageApiController extends Controller
             $sender->increment('free_messages_used');
         }
 
-        // Handle Media Uploads to public/uploads/sms_profile
-        $mediaUrl = $request->input('media_url');
-        $type = $request->input('type', 'text');
-
-        $smsUploadDir = public_path('uploads/sms_profile');
-        if (!File::exists($smsUploadDir)) {
-            File::makeDirectory($smsUploadDir, 0777, true, true);
+        // ==========================================
+        // 📁 Handle Media Uploads to public/uploads/chat_messages
+        // ==========================================
+        $chatUploadDir = public_path('uploads/chat_messages');
+        if (!File::exists($chatUploadDir)) {
+            File::makeDirectory($chatUploadDir, 0777, true, true);
         }
 
-        if ($request->hasFile('voice_file')) {
-            $voiceFile = $request->file('voice_file');
-            $filename = 'voice_' . time() . '_' . Str::random(6) . '.' . $voiceFile->getClientOriginalExtension();
-            $voiceFile->move($smsUploadDir, $filename);
-            $mediaUrl = asset('uploads/sms_profile/' . $filename);
+        $mediaUrl = $request->input('media_url') ?? $request->input('url');
+        $rawType = $request->input('type');
+        $type = 'text';
+
+        // Check for Audio / Voice file upload
+        $voiceFile = $request->file('voice_file') 
+                  ?? $request->file('audio_file') 
+                  ?? $request->file('voice') 
+                  ?? $request->file('audio')
+                  ?? $request->file('recording')
+                  ?? $request->file('voice_note');
+
+        // Check for Image / Photo / Profile Picture file upload
+        $imgFile = $request->file('image_file') 
+                ?? $request->file('image') 
+                ?? $request->file('photo') 
+                ?? $request->file('picture') 
+                ?? $request->file('avatar') 
+                ?? $request->file('profile_picture') 
+                ?? $request->file('file')
+                ?? $request->file('media_file');
+
+        if ($voiceFile && $voiceFile->isValid()) {
+            $ext = strtolower($voiceFile->getClientOriginalExtension() ?: 'mp3');
+            $filename = 'voice_' . time() . '_' . Str::random(8) . '.' . $ext;
+            $voiceFile->move($chatUploadDir, $filename);
+            $mediaUrl = asset('uploads/chat_messages/' . $filename);
             $type = 'voice';
-        } elseif ($request->hasFile('image_file')) {
-            $imgFile = $request->file('image_file');
-            $filename = 'sms_' . time() . '_' . Str::random(6) . '.' . $imgFile->getClientOriginalExtension();
-            $imgFile->move($smsUploadDir, $filename);
-            $mediaUrl = asset('uploads/sms_profile/' . $filename);
-            $type = 'image';
+        } elseif ($imgFile && $imgFile->isValid()) {
+            $ext = strtolower($imgFile->getClientOriginalExtension() ?: 'jpg');
+            $prefix = ($rawType === 'profile_picture' || $request->hasFile('profile_picture') || $request->hasFile('avatar')) ? 'msg_avatar_' : 'msg_img_';
+            $filename = $prefix . time() . '_' . Str::random(8) . '.' . $ext;
+            $imgFile->move($chatUploadDir, $filename);
+            $mediaUrl = asset('uploads/chat_messages/' . $filename);
+            $type = ($rawType === 'profile_picture') ? 'profile_picture' : 'image';
+        } elseif (!empty($rawType)) {
+            $type = $rawType;
         }
 
-        $messageText = $request->input('message');
-        if (!$messageText && $type === 'voice') {
-            $messageText = '[Voice Note]';
-        } elseif (!$messageText && $type === 'image') {
-            $messageText = '[Image]';
+        $messageText = $request->input('message') 
+                    ?? $request->input('text') 
+                    ?? $request->input('content') 
+                    ?? $request->input('emoji') 
+                    ?? $request->input('caption');
+
+        $isEmojiOnly = false;
+        if (!empty($messageText)) {
+            $clean = preg_replace('/[\x{1F600}-\x{1F64F}\x{1F300}-\x{1F5FF}\x{1F680}-\x{1F6FF}\x{1F700}-\x{1F77F}\x{1F780}-\x{1F7FF}\x{1F800}-\x{1F8FF}\x{1F900}-\x{1F9FF}\x{1FA00}-\x{1FA6F}\x{1FA70}-\x{1FAFF}\x{2600}-\x{26FF}\x{2700}-\x{27BF}\x{2300}-\x{23FF}\x{2B50}\x{2B55}\x{200D}\x{FE0F}\x{FE0E}\s]/u', '', trim($messageText));
+            if ($clean === '' && mb_strlen(trim($messageText)) > 0) {
+                $isEmojiOnly = true;
+            }
         }
+
+        if ($rawType === 'emoji' || $request->has('emoji') || $isEmojiOnly) {
+            if ($type === 'text') {
+                $type = 'emoji';
+            }
+        }
+
+        if (empty($messageText)) {
+            if ($type === 'voice') {
+                $messageText = '[Voice Note]';
+            } elseif ($type === 'image' || $type === 'profile_picture') {
+                $messageText = '[Image]';
+            } elseif ($type === 'emoji') {
+                $messageText = '😊';
+            }
+        }
+
+        $duration = (int) ($request->input('duration') ?? $request->input('voice_duration') ?? $request->input('audio_duration') ?? 0);
 
         $chatMessage = ChatMessage::create([
             'sender_id'   => $sender->id,
@@ -381,11 +495,39 @@ class MessageApiController extends Controller
             'type'        => $type,
             'message'     => $messageText,
             'media_url'   => $mediaUrl,
-            'duration'    => (int) $request->input('duration', 0),
+            'duration'    => $duration,
             'is_read'     => false,
             'is_free'     => $isFree,
             'coin_cost'   => $isFree ? 0 : $coinCost,
         ]);
+
+        // ==========================================
+        // 🔔 Create In-App Notification for Receiver
+        // ==========================================
+        $notificationSnippet = match($type) {
+            'voice'           => '🎤 Sent you a voice message',
+            'image'           => '📷 Sent you a photo',
+            'profile_picture' => '🖼️ Sent you a profile picture',
+            'emoji'           => "{$messageText} Sent you an emoji",
+            default           => Str::limit($messageText, 60),
+        };
+
+        Notification::createNotification(
+            userId: $receiver->id,
+            actorId: $sender->id,
+            type: 'message',
+            title: "Message from {$sender->display_name}",
+            message: $notificationSnippet,
+            data: [
+                'message_id'   => $chatMessage->id,
+                'sender_id'    => $sender->id,
+                'sender_name'  => $sender->display_name,
+                'avatar_url'   => $sender->avatar_url,
+                'type'         => $type,
+                'media_url'    => $mediaUrl,
+                'created_at'   => $chatMessage->created_at->toIso8601String(),
+            ]
+        );
 
         $remainingFree = max(0, $freeLimit - ($sender->fresh()->free_messages_used ?? 0));
 
@@ -393,7 +535,19 @@ class MessageApiController extends Controller
             'status'  => true,
             'message' => 'Message sent successfully.',
             'data'    => [
-                'chat_message' => $chatMessage,
+                'chat_message' => [
+                    'id'          => $chatMessage->id,
+                    'sender_id'   => $chatMessage->sender_id,
+                    'receiver_id' => $chatMessage->receiver_id,
+                    'type'        => $chatMessage->type,
+                    'message'     => $chatMessage->message,
+                    'media_url'   => $chatMessage->media_url,
+                    'duration'    => $chatMessage->duration,
+                    'is_read'     => (bool) $chatMessage->is_read,
+                    'is_free'     => (bool) $chatMessage->is_free,
+                    'coin_cost'   => $chatMessage->coin_cost,
+                    'created_at'  => $chatMessage->created_at->toIso8601String(),
+                ],
                 'sender'       => [
                     'id'                      => $sender->id,
                     'name'                    => $sender->display_name,
@@ -406,7 +560,7 @@ class MessageApiController extends Controller
 
     /**
      * Mark Messages as Read.
-     * POST /api/messages/read
+     * POST /api/messages/read or POST /api/chat/read
      */
     public function markAsRead(Request $request): JsonResponse
     {
@@ -416,10 +570,17 @@ class MessageApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
-        $senderId = $request->input('sender_id');
+        $senderId = $request->input('sender_id') ?? $request->input('user_id') ?? $request->input('partner_id');
         if ($senderId) {
             ChatMessage::where('sender_id', $senderId)
                 ->where('receiver_id', $user->id)
+                ->where('is_read', false)
+                ->update([
+                    'is_read' => true,
+                    'read_at' => now(),
+                ]);
+        } else {
+            ChatMessage::where('receiver_id', $user->id)
                 ->where('is_read', false)
                 ->update([
                     'is_read' => true,
@@ -434,14 +595,14 @@ class MessageApiController extends Controller
     }
 
     /**
-     * Record Profile View & Trigger Automatic Callback / Greeting.
-     * When user visits host's profile, host sends an auto notification / call trigger back to user!
-     * POST /api/profile/{id}/view or POST /api/user/view-profile
+     * Record Profile View & Trigger Automatic Real-Time Notification & Auto-Callback / Greeting.
+     * When user views someone's profile, the profile owner receives an automatic notification and greeting!
+     * POST /api/profile/{id}/view or POST /api/profile/view or POST /api/user/view-profile
      */
     public function recordProfileView(Request $request, $id = null): JsonResponse
     {
         $viewer = $this->resolveUser($request);
-        $hostId = $id ?? $request->input('host_id') ?? $request->input('id');
+        $hostId = $id ?? $request->input('host_id') ?? $request->input('id') ?? $request->input('profile_id') ?? $request->input('user_id');
 
         if (!$viewer) {
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
@@ -452,28 +613,61 @@ class MessageApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Host profile not found.'], 404);
         }
 
-        // Record profile view
-        ProfileView::create([
+        // Check if host is currently available (online and not busy talking to someone else)
+        $isHostAvailable = (bool) $host->is_online && !(bool) $host->is_busy;
+
+        // Record profile view in ledger
+        $profileView = ProfileView::create([
             'viewer_id'           => $viewer->id,
             'host_id'             => $host->id,
-            'auto_call_triggered' => true,
+            'auto_call_triggered' => $isHostAvailable,
             'callback_requested'  => true,
-            'status'              => 'callback_pending',
+            'status'              => $isHostAvailable ? 'callback_ready' : 'host_busy',
             'viewed_at'           => now(),
         ]);
+
+        // ==========================================
+        // 🔔 Send Automatic Profile Visitor Notification to Host
+        // ==========================================
+        $notification = Notification::createNotification(
+            userId: $host->id,
+            actorId: $viewer->id,
+            type: 'profile_view',
+            title: 'New Profile Visitor 👁️',
+            message: "{$viewer->display_name} viewed your profile!",
+            data: [
+                'viewer_id'       => $viewer->id,
+                'account_id'      => $viewer->account_id,
+                'name'            => $viewer->display_name,
+                'avatar_url'      => $viewer->avatar_url,
+                'is_online'       => (bool) $viewer->is_online,
+                'video_call_rate' => (int) ($viewer->video_call_rate ?: 100),
+                'viewed_at'       => now()->toIso8601String(),
+            ]
+        );
 
         $config = CallSetting::getAllConfig();
         $ratePerMinute = (int) ($host->video_call_rate ?: ($config['video_call_rate_per_minute'] ?? 100));
         $hasSufficientBalance = $viewer->isEligibleForFreeCall() || ($viewer->coins >= $ratePerMinute);
 
-        // Simulated automatic greeting / invite from host to user's chat (Matching Screenshot #1)
+        // Auto greetings matching Bangladesh / Global app audience
+        $greetings = [
+            "Hi {$viewer->display_name}! I saw you visited my profile. Call me now?",
+            "Hi {$viewer->display_name}! আমাকে দেখতে চাও?",
+            "Hey handsome! Thanks for visiting my profile ❤️",
+            "Hi {$viewer->display_name}! I am free right now, let's video chat!",
+        ];
+        $greetingText = $greetings[array_rand($greetings)];
+
+        // Simulated automatic greeting / invite from host to visitor's chat
         $welcomeMessage = ChatMessage::create([
             'sender_id'   => $host->id,
             'receiver_id' => $viewer->id,
             'type'        => 'text',
-            'message'     => "Hi {$viewer->display_name}! I saw you visited my profile. Call me now?",
+            'message'     => $greetingText,
             'is_read'     => false,
             'is_free'     => true,
+            'coin_cost'   => 0,
         ]);
 
         return response()->json([
@@ -485,19 +679,246 @@ class MessageApiController extends Controller
                     'account_id'      => $host->account_id,
                     'display_name'    => $host->display_name,
                     'avatar_url'      => $host->avatar_url,
+                    'is_online'       => (bool) $host->is_online,
+                    'is_busy'         => (bool) $host->is_busy,
+                    'is_available'    => $isHostAvailable,
                     'video_call_rate' => $ratePerMinute,
                     'country'         => $host->country ?: 'Bangladesh',
-                    'level'           => $host->level ?: 4,
+                    'level'           => $host->level ?: 'Lv1',
                     'introduction'    => $host->introduction,
                 ],
+                'notification' => [
+                    'id'          => $notification->id,
+                    'receiver_id' => $host->id,
+                    'type'        => 'profile_view',
+                    'title'       => $notification->title,
+                    'message'     => $notification->message,
+                ],
                 'callback'     => [
-                    'auto_call_triggered' => true,
+                    'auto_call_triggered' => $isHostAvailable,
+                    'host_is_available'   => $isHostAvailable,
                     'viewer_can_receive'  => $hasSufficientBalance,
                     'required_coins'      => $ratePerMinute,
                     'viewer_coins'        => (int) $viewer->coins,
+                    'trigger_action'      => $isHostAvailable ? 'INCOMING_CALL' : 'CHAT_NOTIFICATION',
                 ],
-                'auto_message' => $welcomeMessage,
+                'auto_message' => [
+                    'id'         => $welcomeMessage->id,
+                    'sender_id'  => $host->id,
+                    'message'    => $greetingText,
+                    'type'       => 'text',
+                    'time'       => 'Just now',
+                    'created_at' => $welcomeMessage->created_at->toIso8601String(),
+                ],
             ],
+        ], 200);
+    }
+
+    /**
+     * Get List of Users Who Viewed My Profile (Profile Visitors List).
+     * GET /api/profile/visitors or GET /api/visitors or GET /api/user/visitors
+     */
+    public function getVisitors(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $perPage = (int) $request->input('per_page', 20);
+
+        // Get profile views where host_id is current user
+        $views = ProfileView::where('host_id', $user->id)
+            ->with('viewer')
+            ->orderBy('viewed_at', 'desc')
+            ->paginate($perPage);
+
+        $visitorsList = [];
+        foreach ($views as $view) {
+            $viewer = $view->viewer;
+            if (!$viewer) continue;
+
+            $timeAgo = 'Recently';
+            if ($view->viewed_at) {
+                if ($view->viewed_at->diffInMinutes(now()) < 60) {
+                    $mins = max(1, $view->viewed_at->diffInMinutes(now()));
+                    $timeAgo = "{$mins} mins ago";
+                } elseif ($view->viewed_at->isToday()) {
+                    $timeAgo = $view->viewed_at->format('H:i');
+                } elseif ($view->viewed_at->isYesterday()) {
+                    $timeAgo = 'Yesterday';
+                } else {
+                    $timeAgo = $view->viewed_at->format('M d, Y');
+                }
+            }
+
+            $visitorsList[] = [
+                'view_id'         => $view->id,
+                'user_id'         => $viewer->id,
+                'account_id'      => $viewer->account_id,
+                'name'            => $viewer->display_name,
+                'avatar_url'      => $viewer->avatar_url,
+                'is_online'       => (bool) $viewer->is_online,
+                'is_busy'         => (bool) $viewer->is_busy,
+                'video_call_rate' => (int) ($viewer->video_call_rate ?: 100),
+                'country'         => $viewer->country ?: 'Bangladesh',
+                'gender'          => $viewer->gender ?: 'other',
+                'level'           => $viewer->level ?: 'Lv1',
+                'viewed_at'       => $view->viewed_at ? $view->viewed_at->toIso8601String() : null,
+                'time_ago'        => $timeAgo,
+            ];
+        }
+
+        $unreadVisitorNotifications = Notification::where('user_id', $user->id)
+            ->where('type', 'profile_view')
+            ->where('is_read', false)
+            ->count();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Profile visitors loaded successfully.',
+            'data'    => [
+                'total_visitors'   => $views->total(),
+                'unread_visitors'  => $unreadVisitorNotifications,
+                'visitors'         => $visitorsList,
+                'pagination'       => [
+                    'current_page' => $views->currentPage(),
+                    'last_page'    => $views->lastPage(),
+                    'total'        => $views->total(),
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get In-App Notifications List.
+     * GET /api/notifications or GET /api/user/notifications
+     */
+    public function getNotifications(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $type = $request->input('type');
+        $query = Notification::where('user_id', $user->id)->with('actor')->latest();
+
+        if ($type) {
+            $query->where('type', $type);
+        }
+
+        $perPage = (int) $request->input('per_page', 25);
+        $notifications = $query->paginate($perPage);
+
+        $unreadTotal = Notification::where('user_id', $user->id)->where('is_read', false)->count();
+        $unreadProfileViews = Notification::where('user_id', $user->id)->where('type', 'profile_view')->where('is_read', false)->count();
+        $unreadMessages = Notification::where('user_id', $user->id)->where('type', 'message')->where('is_read', false)->count();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Notifications retrieved successfully.',
+            'data'    => [
+                'unread_count'        => $unreadTotal,
+                'profile_view_unread' => $unreadProfileViews,
+                'message_unread'      => $unreadMessages,
+                'notifications'       => $notifications->items(),
+                'pagination'          => [
+                    'current_page' => $notifications->currentPage(),
+                    'last_page'    => $notifications->lastPage(),
+                    'total'        => $notifications->total(),
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get Fast Notification Unread Badges Count.
+     * GET /api/notifications/unread-count
+     */
+    public function getNotificationUnreadCount(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $totalUnread = Notification::where('user_id', $user->id)->where('is_read', false)->count();
+        $profileViewUnread = Notification::where('user_id', $user->id)->where('type', 'profile_view')->where('is_read', false)->count();
+        $messageUnread = Notification::where('user_id', $user->id)->where('type', 'message')->where('is_read', false)->count();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Unread counts retrieved successfully.',
+            'data'    => [
+                'total_unread'        => $totalUnread,
+                'profile_view_unread' => $profileViewUnread,
+                'message_unread'      => $messageUnread,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Mark Notifications as Read.
+     * POST /api/notifications/read or POST /api/notifications/{id}/read
+     */
+    public function markNotificationRead(Request $request, $id = null): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $notificationId = $id ?? $request->input('id') ?? $request->input('notification_id');
+        $type = $request->input('type');
+
+        if ($notificationId) {
+            Notification::where('id', $notificationId)
+                ->where('user_id', $user->id)
+                ->update(['is_read' => true, 'read_at' => now()]);
+        } elseif ($type) {
+            Notification::where('user_id', $user->id)
+                ->where('type', $type)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+        } else {
+            Notification::where('user_id', $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Notification(s) marked as read.',
+        ], 200);
+    }
+
+    /**
+     * Clear / Delete Notifications.
+     * DELETE /api/notifications or POST /api/notifications/clear
+     */
+    public function clearNotifications(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $type = $request->input('type');
+        $query = Notification::where('user_id', $user->id);
+        if ($type) {
+            $query->where('type', $type);
+        }
+        $query->delete();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Notifications cleared successfully.',
         ], 200);
     }
 

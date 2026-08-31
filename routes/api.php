@@ -34,11 +34,17 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/home', [ProfileController::class, 'index']);
 Route::get('/users', [ProfileController::class, 'index']);
 
+// Profile Visitors List
+Route::get('/profile/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
+Route::get('/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
+Route::get('/user/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
+
 // Public User Profile Route (view any profile by ID or 10-12 digit Account ID)
 Route::get('/profile/{id}', [ProfileController::class, 'show']);
 
 // Profile & Media Management Endpoints (Supports Bearer Token or User ID Fallback, Always Returns JSON)
 Route::prefix('profile')->group(function () {
+    Route::get('/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
     Route::get('/me', [ProfileController::class, 'show']);
     Route::post('/update', [ProfileController::class, 'update']);
     Route::post('/status', [ProfileController::class, 'toggleStatus']);
@@ -304,7 +310,7 @@ Route::prefix('match')->group(function () {
 });
 
 // ==========================================
-// 💬 In-App Messages, Chat, Voice & Limit APIs
+// 💬 In-App Messages, Chat, Voice, Emojis & Media APIs
 // ==========================================
 Route::prefix('messages')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
@@ -312,6 +318,7 @@ Route::prefix('messages')->group(function () {
     Route::get('/inbox', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
     Route::get('/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
     Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
+    Route::post('/upload', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);
     Route::post('/read', [\App\Http\Controllers\Api\MessageApiController::class, 'markAsRead']);
 });
 
@@ -319,14 +326,37 @@ Route::prefix('chat')->group(function () {
     Route::get('/conversations', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
     Route::get('/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
     Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
+    Route::post('/upload', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);
     Route::post('/read', [\App\Http\Controllers\Api\MessageApiController::class, 'markAsRead']);
 });
 
+Route::post('/upload/chat-media', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);
+
 // ==========================================
-// 👁️ Profile View Tracking & Auto-Callback Trigger
+// 👁️ Profile View Tracking, Auto-Callback & Visitors List
 // ==========================================
 Route::post('/profile/{id}/view', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
 Route::post('/profile/view', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
+Route::post('/user/view-profile', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
+Route::get('/profile/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
+Route::get('/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
+Route::get('/user/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
+
+// ==========================================
+// 🔔 In-App Notifications & Alerts APIs
+// ==========================================
+Route::prefix('notifications')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\MessageApiController::class, 'getNotifications']);
+    Route::get('/unread-count', [\App\Http\Controllers\Api\MessageApiController::class, 'getNotificationUnreadCount']);
+    Route::get('/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
+    Route::post('/read', [\App\Http\Controllers\Api\MessageApiController::class, 'markNotificationRead']);
+    Route::post('/{id}/read', [\App\Http\Controllers\Api\MessageApiController::class, 'markNotificationRead']);
+    Route::match(['post', 'delete'], '/clear', [\App\Http\Controllers\Api\MessageApiController::class, 'clearNotifications']);
+    Route::delete('/', [\App\Http\Controllers\Api\MessageApiController::class, 'clearNotifications']);
+});
+
+Route::get('/user/notifications', [\App\Http\Controllers\Api\MessageApiController::class, 'getNotifications']);
+
 // ==========================================
 // 🎁 Gifts, Rewards & Profile Received Gifts APIs
 // ==========================================

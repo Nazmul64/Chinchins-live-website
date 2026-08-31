@@ -52,9 +52,9 @@ class AdminAuthAndDashboardTest extends TestCase
         $response = $this->actingAs($user)->get('/admin/dashboard');
         $response->assertStatus(200);
         $response->assertSee('Color Dashboard 1');
-        $response->assertSee('Total Orders');
-        $response->assertSee('8,542');
-        $response->assertSee('Revenue');
+        $response->assertSee('Total Users');
+        $response->assertSee('Coins in System');
+        $response->assertSee('Deposit Revenue');
         $response->assertSee('By Device');
         $response->assertSee('Traffic Source');
     }

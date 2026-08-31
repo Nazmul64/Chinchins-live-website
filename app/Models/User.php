@@ -464,5 +464,46 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserGift::class, 'sender_id');
     }
+
+    /**
+     * In-app notifications for this user.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'user_id')->latest();
+    }
+
+    /**
+     * Profile views where this user was visited as host/owner.
+     */
+    public function profileVisitors()
+    {
+        return $this->hasMany(ProfileView::class, 'host_id')->latest('viewed_at');
+    }
+
+    /**
+     * Profile views performed by this user.
+     */
+    public function profileViews()
+    {
+        return $this->hasMany(ProfileView::class, 'viewer_id')->latest('viewed_at');
+    }
+
+    /**
+     * Chat messages sent by this user.
+     */
+    public function sentMessages()
+    {
+        return $this->hasMany(ChatMessage::class, 'sender_id');
+    }
+
+    /**
+     * Chat messages received by this user.
+     */
+    public function receivedMessages()
+    {
+        return $this->hasMany(ChatMessage::class, 'receiver_id');
+    }
 }
+
 
