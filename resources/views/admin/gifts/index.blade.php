@@ -19,6 +19,9 @@
             <p class="page-subtitle">Manage animated gifts, diamond/coin prices (e.g. 17.70K, 9.99K, 5.55K), icons, badges, categories, and review users' gifts received ledger.</p>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button type="button" class="btn btn-outline-purple rounded-pill px-3 py-2 fw-semibold" style="font-size: 13px; border-color: #8b5cf6; color: #8b5cf6;" onclick="openLevelsModal()">
+                <i class="fa-solid fa-layer-group me-1"></i> Charm Levels (10K/lvl)
+            </button>
             <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-2 fw-semibold" style="font-size: 13px;" onclick="openGiveGiftModal()">
                 <i class="fa-solid fa-paper-plane me-1"></i> Direct Give / Reward User
             </button>
@@ -111,7 +114,7 @@
                 <div class="col-12 col-sm-6 col-md ms-auto">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-transparent border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                        <input type="text" name="search" class="form-control border-start-0" placeholder="Search gift name, coins (e.g. 17700), badge..." value="{{ request('search') }}">
+                        <input type="text" name="search" class="form-control border-start-0" placeholder="Search gift name, coins (e.g. 17.70K, 17700), badge..." value="{{ request('search') }}">
                     </div>
                 </div>
 
@@ -162,7 +165,7 @@
                         </form>
                     </div>
 
-                    <!-- Gift Icon Preview with dynamic glow -->
+                    <!-- Gift Icon Preview -->
                     <div class="my-2 d-flex justify-content-center align-items-center" style="min-height: 80px;">
                         <img src="{{ $gift->image_url }}" alt="{{ $gift->name }}" class="img-fluid rounded-3" style="max-height: 72px; width: 72px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(244, 63, 94, 0.25));" onerror="this.src='{{ asset('assets/images/gifts/gift-box-default.png') }}'">
                     </div>
@@ -170,7 +173,7 @@
                     <!-- Gift Name -->
                     <div class="fw-bold text-truncate mb-1" style="font-size: 12px;" title="{{ $gift->name }}">{{ $gift->name }}</div>
 
-                    <!-- Diamond / Coin Price Pill (Dynamic Formatting like 💎 17.70K) -->
+                    <!-- Diamond / Coin Price Pill (e.g. 💎 17.70K) -->
                     <div class="mb-2">
                         <span class="badge rounded-pill text-white px-2 py-1" style="background: linear-gradient(135deg, #a855f7, #6366f1); font-size: 11px; font-family: 'Fira Code', monospace; letter-spacing: 0.3px;">
                             💎 {{ $gift->formatted_coins }}
@@ -214,7 +217,7 @@
 </div>
 
 <!-- ========================================== -->
-<!-- 🎁 Modal: Create New Gift -->
+<!-- 🎁 Modal: Create New Gift (Cleaned up) -->
 <!-- ========================================== -->
 <div class="modal fade" id="createGiftModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -226,7 +229,7 @@
                     </div>
                     <div>
                         <h5 class="modal-title fw-bolder mb-0">Add New In-App Gift</h5>
-                        <p class="text-muted small mb-0">Upload icon image, set diamond coin price and animation metadata</p>
+                        <p class="text-muted small mb-0">Upload icon image and set diamond coin price</p>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -239,63 +242,58 @@
                         <!-- Gift Name -->
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" style="font-size: 13px;">Gift Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control" placeholder="e.g. Romantic Couple, Fire Dragon" required>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Romantic Couple, Fire Dragon, Castle" required>
                         </div>
 
-                        <!-- Diamond / Coin Price -->
+                        <!-- Diamond / Coin Price (Supports 17.70, 17.70K, 17700, 500) -->
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" style="font-size: 13px;">Coin / Diamond Price <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text bg-transparent"><i class="fa-solid fa-gem text-primary"></i></span>
-                                <input type="number" name="coins" id="createGiftCoinsInput" class="form-control" placeholder="e.g. 500, 5550, 17700" required min="1" oninput="updateCoinsPreview(this.value, 'createCoinsPreviewBadge')">
+                                <input type="text" name="coins" id="createGiftCoinsInput" class="form-control" placeholder="e.g. 17.70K, 17.70, 500, 9.99K" required oninput="handleSmartCoinInput(this.value, 'createCoinsPreviewBadge')">
                             </div>
                             <small class="text-muted" style="font-size: 11px;">
-                                Preview Display: <span class="badge bg-purple rounded-pill" id="createCoinsPreviewBadge" style="background: #8b5cf6;">💎 0</span> (Auto formatted like 17.70K, 5.55K, 500)
+                                Mobile App Display: <span class="badge bg-purple rounded-pill text-white" id="createCoinsPreviewBadge" style="background: #8b5cf6;">💎 0</span>
+                                <span class="text-muted ms-1">(Accepts 17.70, 17.70K, 17700, 500)</span>
                             </small>
                         </div>
 
                         <!-- Category -->
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Category <span class="text-danger">*</span></label>
-                            <select name="category" class="form-select" required>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Category</label>
+                            <select name="category" class="form-select">
                                 <option value="popular" selected>Popular</option>
-                                <option value="luxury">Luxury</option>
                                 <option value="romantic">Romantic</option>
+                                <option value="luxury">Luxury</option>
                                 <option value="effects">Effects / 3D</option>
                                 <option value="vip">VIP Exclusive</option>
                             </select>
                         </div>
 
                         <!-- Badge Tag -->
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Badge / Ribbon</label>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Badge / Ribbon (Optional)</label>
                             <input type="text" name="badge" class="form-control" placeholder="e.g. HOT, 3D, VIP, NEW">
                         </div>
 
-                        <!-- Sort Order -->
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Sort Order</label>
-                            <input type="number" name="sort_order" class="form-control" value="0" min="0">
-                        </div>
-
                         <!-- Image File Upload (Stored in public/uploads/gifts) -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Gift Icon File (Upload to public/uploads/gifts)</label>
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Gift Icon File (Uploads to public/uploads/gifts)</label>
                             <input type="file" name="image_file" class="form-control" accept="image/*" onchange="previewImageFile(this, 'createImagePreview')">
-                            <small class="text-muted" style="font-size: 11px;">PNG, SVG, JPG, WebP recommended with transparent background (max 5MB)</small>
+                            <small class="text-muted" style="font-size: 11px;">PNG, SVG, JPG, WebP transparent icon</small>
                         </div>
 
                         <!-- Image Preview Box -->
-                        <div class="col-12 col-md-6 text-center">
+                        <div class="col-12 col-md-5 text-center">
                             <label class="form-label fw-semibold d-block" style="font-size: 13px;">Live Icon Preview</label>
-                            <div class="p-2 border rounded-3 d-inline-block" style="background: rgba(0,0,0,0.05); min-width: 90px; min-height: 90px;">
-                                <img id="createImagePreview" src="{{ asset('assets/images/gifts/gift-box-default.png') }}" class="img-fluid" style="height: 75px; width: 75px; object-fit: contain;">
+                            <div class="p-2 border rounded-3 d-inline-block" style="background: rgba(0,0,0,0.05); min-width: 80px; min-height: 80px;">
+                                <img id="createImagePreview" src="{{ asset('assets/images/gifts/gift-box-default.png') }}" class="img-fluid" style="height: 68px; width: 68px; object-fit: contain;">
                             </div>
                         </div>
 
-                        <!-- Animation Type & URL (SVGA / Lottie / MP4) -->
+                        <!-- Animation Format & URL (Optional) -->
                         <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Animation Format</label>
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Animation Format (Optional)</label>
                             <select name="animation_type" class="form-select">
                                 <option value="image" selected>Standard Static / PNG</option>
                                 <option value="svga">SVGA Animation</option>
@@ -307,24 +305,18 @@
 
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" style="font-size: 13px;">Animation File URL (Optional)</label>
-                            <input type="text" name="animation_url" class="form-control" placeholder="https://.../dragon_fly.svga">
-                        </div>
-
-                        <!-- Description -->
-                        <div class="col-12">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Description / Note</label>
-                            <textarea name="description" class="form-control" rows="2" placeholder="Brief description of the gift effect..."></textarea>
+                            <input type="text" name="animation_url" class="form-control" placeholder="https://.../dragon.svga">
                         </div>
 
                         <!-- Toggles -->
-                        <div class="col-12 d-flex gap-4">
+                        <div class="col-12 d-flex gap-4 pt-2">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="is_active" id="createIsActive" checked value="1">
                                 <label class="form-check-label fw-semibold" for="createIsActive" style="font-size: 13px;">Active in Mobile App</label>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="is_broadcast" id="createIsBroadcast" value="1">
-                                <label class="form-check-label fw-semibold" for="createIsBroadcast" style="font-size: 13px;">Global Full-Screen Broadcast</label>
+                                <label class="form-check-label fw-semibold" for="createIsBroadcast" style="font-size: 13px;">Global Screen Broadcast</label>
                             </div>
                         </div>
                     </div>
@@ -351,7 +343,7 @@
                     </div>
                     <div>
                         <h5 class="modal-title fw-bolder mb-0">Edit In-App Gift</h5>
-                        <p class="text-muted small mb-0">Update coin price, image, category and details</p>
+                        <p class="text-muted small mb-0">Update coin price, image, and category</p>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -373,53 +365,47 @@
                             <label class="form-label fw-semibold" style="font-size: 13px;">Coin / Diamond Price <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text bg-transparent"><i class="fa-solid fa-gem text-primary"></i></span>
-                                <input type="number" name="coins" id="editGiftCoins" class="form-control" required min="1" oninput="updateCoinsPreview(this.value, 'editCoinsPreviewBadge')">
+                                <input type="text" name="coins" id="editGiftCoins" class="form-control" required oninput="handleSmartCoinInput(this.value, 'editCoinsPreviewBadge')">
                             </div>
                             <small class="text-muted" style="font-size: 11px;">
-                                Display Badge: <span class="badge bg-purple rounded-pill" id="editCoinsPreviewBadge" style="background: #8b5cf6;">💎 0</span>
+                                Mobile App Display: <span class="badge bg-purple rounded-pill text-white" id="editCoinsPreviewBadge" style="background: #8b5cf6;">💎 0</span>
                             </small>
                         </div>
 
                         <!-- Category -->
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Category <span class="text-danger">*</span></label>
-                            <select name="category" id="editGiftCategory" class="form-select" required>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Category</label>
+                            <select name="category" id="editGiftCategory" class="form-select">
                                 <option value="popular">Popular</option>
-                                <option value="luxury">Luxury</option>
                                 <option value="romantic">Romantic</option>
+                                <option value="luxury">Luxury</option>
                                 <option value="effects">Effects / 3D</option>
                                 <option value="vip">VIP Exclusive</option>
                             </select>
                         </div>
 
                         <!-- Badge -->
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" style="font-size: 13px;">Badge</label>
                             <input type="text" name="badge" id="editGiftBadge" class="form-control">
                         </div>
 
-                        <!-- Sort Order -->
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Sort Order</label>
-                            <input type="number" name="sort_order" id="editGiftSortOrder" class="form-control" min="0">
-                        </div>
-
                         <!-- Replace Image File -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Replace Image (Upload to public/uploads/gifts)</label>
+                        <div class="col-12 col-md-7">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Replace Image (Uploads to public/uploads/gifts)</label>
                             <input type="file" name="image_file" class="form-control" accept="image/*" onchange="previewImageFile(this, 'editImagePreview')">
                             <small class="text-muted" style="font-size: 11px;">Leave empty to keep current image</small>
                         </div>
 
                         <!-- Current Image Preview -->
-                        <div class="col-12 col-md-6 text-center">
+                        <div class="col-12 col-md-5 text-center">
                             <label class="form-label fw-semibold d-block" style="font-size: 13px;">Current Icon</label>
-                            <div class="p-2 border rounded-3 d-inline-block" style="background: rgba(0,0,0,0.05); min-width: 90px; min-height: 90px;">
-                                <img id="editImagePreview" src="" class="img-fluid" style="height: 75px; width: 75px; object-fit: contain;">
+                            <div class="p-2 border rounded-3 d-inline-block" style="background: rgba(0,0,0,0.05); min-width: 80px; min-height: 80px;">
+                                <img id="editImagePreview" src="" class="img-fluid" style="height: 68px; width: 68px; object-fit: contain;">
                             </div>
                         </div>
 
-                        <!-- Animation Type & URL -->
+                        <!-- Animation Format & URL -->
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" style="font-size: 13px;">Animation Format</label>
                             <select name="animation_type" id="editGiftAnimationType" class="form-select">
@@ -436,21 +422,15 @@
                             <input type="text" name="animation_url" id="editGiftAnimationUrl" class="form-control">
                         </div>
 
-                        <!-- Description -->
-                        <div class="col-12">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Description</label>
-                            <textarea name="description" id="editGiftDescription" class="form-control" rows="2"></textarea>
-                        </div>
-
                         <!-- Toggles -->
-                        <div class="col-12 d-flex gap-4">
+                        <div class="col-12 d-flex gap-4 pt-2">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="is_active" id="editIsActive" value="1">
                                 <label class="form-check-label fw-semibold" for="editIsActive" style="font-size: 13px;">Active in Mobile App</label>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="is_broadcast" id="editIsBroadcast" value="1">
-                                <label class="form-check-label fw-semibold" for="editIsBroadcast" style="font-size: 13px;">Global Full-Screen Broadcast</label>
+                                <label class="form-check-label fw-semibold" for="editIsBroadcast" style="font-size: 13px;">Global Screen Broadcast</label>
                             </div>
                         </div>
                     </div>
@@ -458,6 +438,78 @@
                 <div class="modal-footer border-0 pt-0 pb-4 px-4">
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn-ch-primary px-4">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- ⚙️ Modal: Charm Level Settings (Level 1..10) -->
+<!-- ========================================== -->
+<div class="modal fade" id="levelsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4" style="background: var(--card-bg, #ffffff);">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon-box" style="width: 44px; height: 44px; font-size: 20px; background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
+                        <i class="fa-solid fa-crown"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bolder mb-0">Charm Level Thresholds Configuration</h5>
+                        <p class="text-muted small mb-0">Configure required coin amounts for each level (Lv1: 10K, Lv2: 20K, Lv3: 30K, etc.)</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form action="{{ route('admin.gifts.levels.update') }}" method="POST">
+                @csrf
+                <div class="modal-body p-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle table-hover mb-0">
+                            <thead class="table-light">
+                                <tr style="font-size: 12px; text-transform: uppercase;">
+                                    <th>Level</th>
+                                    <th>Level Title</th>
+                                    <th>Required Received Coins (e.g. 10K, 20K)</th>
+                                    <th>Badge Icon</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($levelSettings as $lvl)
+                                    <tr>
+                                        <td>
+                                            <span class="badge rounded-pill text-white px-3 py-2 fw-bold" style="background: {{ $lvl->badge_color ?: '#8b5cf6' }};">
+                                                Lv{{ $lvl->level }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <input type="text" name="levels[{{ $lvl->level }}][title]" class="form-control form-control-sm" value="{{ $lvl->title }}">
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-transparent"><i class="fa-solid fa-gem text-primary"></i></span>
+                                                <input type="text" name="levels[{{ $lvl->level }}][required_coins]" class="form-control" value="{{ \App\Models\Gift::formatCoins($lvl->required_coins) }}">
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <select name="levels[{{ $lvl->level }}][badge_icon]" class="form-select form-select-sm">
+                                                <option value="crown" {{ $lvl->badge_icon == 'crown' ? 'selected' : '' }}>Crown 👑</option>
+                                                <option value="gem" {{ $lvl->badge_icon == 'gem' ? 'selected' : '' }}>Diamond 💎</option>
+                                                <option value="star" {{ $lvl->badge_icon == 'star' ? 'selected' : '' }}>Star ⭐</option>
+                                                <option value="fire" {{ $lvl->badge_icon == 'fire' ? 'selected' : '' }}>Fire 🔥</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 pb-4 px-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Save Level Thresholds</button>
                 </div>
             </form>
         </div>
@@ -529,6 +581,11 @@
         modal.show();
     }
 
+    function openLevelsModal() {
+        const modal = new bootstrap.Modal(document.getElementById('levelsModal'));
+        modal.show();
+    }
+
     function openGiveGiftModal() {
         const modal = new bootstrap.Modal(document.getElementById('giveGiftModal'));
         modal.show();
@@ -537,25 +594,47 @@
     function openEditGiftModal(gift) {
         document.getElementById('editGiftForm').action = `/admin/gifts/${gift.id}`;
         document.getElementById('editGiftName').value = gift.name || '';
-        document.getElementById('editGiftCoins').value = gift.coins || 0;
+        document.getElementById('editGiftCoins').value = gift.formatted_coins || gift.coins || '';
         document.getElementById('editGiftCategory').value = gift.category || 'popular';
         document.getElementById('editGiftBadge').value = gift.badge || '';
-        document.getElementById('editGiftSortOrder').value = gift.sort_order || 0;
         document.getElementById('editGiftAnimationType').value = gift.animation_type || 'image';
         document.getElementById('editGiftAnimationUrl').value = gift.animation_url || '';
-        document.getElementById('editGiftDescription').value = gift.description || '';
         document.getElementById('editIsActive').checked = !!gift.is_active;
         document.getElementById('editIsBroadcast').checked = !!gift.is_broadcast;
         
         document.getElementById('editImagePreview').src = gift.image_url || '';
-        updateCoinsPreview(gift.coins, 'editCoinsPreviewBadge');
+        handleSmartCoinInput(gift.formatted_coins || gift.coins, 'editCoinsPreviewBadge');
 
         const modal = new bootstrap.Modal(document.getElementById('editGiftModal'));
         modal.show();
     }
 
-    function updateCoinsPreview(val, targetId) {
-        const num = parseFloat(val) || 0;
+    /**
+     * Smart coin parser & preview updater.
+     * Supports: 17.70, 17.70K, 17.70k, 17700, 500, 9.99K, 10K
+     */
+    function handleSmartCoinInput(rawVal, targetBadgeId) {
+        if (!rawVal) {
+            document.getElementById(targetBadgeId).innerText = '💎 0';
+            return;
+        }
+
+        let str = String(rawVal).trim().toUpperCase().replace(/[💎\s,]/g, '');
+        let num = 0;
+
+        if (str.endsWith('M')) {
+            num = parseFloat(str.replace('M', '')) * 1000000;
+        } else if (str.endsWith('K')) {
+            num = parseFloat(str.replace('K', '')) * 1000;
+        } else if (!isNaN(parseFloat(str))) {
+            let val = parseFloat(str);
+            if (val > 0 && val < 1000 && str.includes('.')) {
+                num = val * 1000; // e.g. 17.70 -> 17700
+            } else {
+                num = val;
+            }
+        }
+
         let formatted = num.toString();
         if (num >= 1000000) {
             formatted = (num / 1000000).toFixed(2) + 'M';
@@ -563,7 +642,8 @@
             const k = (num / 1000).toFixed(2);
             formatted = (k.endsWith('.00') ? parseInt(num/1000) : k) + 'K';
         }
-        const badge = document.getElementById(targetId);
+
+        const badge = document.getElementById(targetBadgeId);
         if (badge) {
             badge.innerText = '💎 ' + formatted;
         }

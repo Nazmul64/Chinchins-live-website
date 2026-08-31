@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CharmLevelSetting;
 use App\Models\CoinTransaction;
 use App\Models\Gift;
 use App\Models\User;
 use App\Models\UserGift;
+use App\Models\UserLike;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -61,9 +63,6 @@ class GiftApiController extends Controller
 
     /**
      * 1. Get Gift Catalog (Store of gifts to send in live, calls, chat, profile).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function getCatalog(Request $request): JsonResponse
     {
@@ -75,7 +74,6 @@ class GiftApiController extends Controller
 
         $gifts = $query->get();
 
-        // Unique categories with counts
         $allCategories = Gift::where('is_active', true)
             ->select('category', DB::raw('count(*) as count'))
             ->groupBy('category')
@@ -101,20 +99,11 @@ class GiftApiController extends Controller
 
     /**
      * 2. Get User's Received Gifts (For Profile Screen Card & Full Screen Gifts Received Page).
-     *
-     * @param Request $request
-     * @param string|null $id (User ID or account_id, or 'me')
-     * @return JsonResponse
      */
     public function getUserReceivedGifts(Request $request, ?string $id = null): JsonResponse
     {
-        // 1. Determine target user
         if ($id === null || $id === 'me') {
-            $user = $this->resolveUser($request);
-            if (!$user) {
-                // If not found, get first user or return 404
-                $user = User::first();
-            }
+            $user = $this->resolveUser($request) ?? User::first();
         } else {
             $user = User::where('id', $id)->orWhere('account_id', $id)->first();
         }
@@ -126,7 +115,7 @@ class GiftApiController extends Controller
             ], 404);
         }
 
-        // 2. Fetch all user gifts grouped by gift_id to compute exact total counts (e.g. x2, x4, x32)
+        // Aggregate gifts received by this user
         $giftSummaries = UserGift::where('user_id', $user->id)
             ->with('gift')
             ->select('gift_id', DB::raw('SUM(quantity) as total_quantity'), DB::raw('SUM(total_coins) as total_coins_sum'), DB::raw('MAX(coins_per_unit) as unit_coins'))
@@ -158,20 +147,20 @@ class GiftApiController extends Controller
                 'animation_url'        => $gift->animation_full_url,
                 'animation_type'       => $gift->animation_type,
                 'coins'                => $coinsPerUnit,
-                'formatted_coins'      => Gift::formatCoins($coinsPerUnit), // e.g. "17.70K", "17K", "9.99K"
+                'formatted_coins'      => Gift::formatCoins($coinsPerUnit),
                 'quantity'             => $qty,
-                'count_label'          => 'x' . $qty, // e.g. "x2", "x1", "x4", "x32"
+                'count_label'          => 'x' . $qty,
                 'total_coins'          => $totalCoins,
                 'formatted_total'      => Gift::formatCoins($totalCoins),
                 'badge'                => $gift->badge,
             ];
         }
 
-        // Determine Top Fan (the user who sent the most coin value to this host)
+        // Top Fan calculation
         $topFanRecord = UserGift::where('user_id', $user->id)
             ->whereNotNull('sender_id')
             ->where('sender_id', '!=', $user->id)
-            ->select('sender_id', DB::raw('SUM(total_coins) as fan_coins'))
+            ->select('sender_id', DB::raw('SUM(total_coins) as fan_coins'), DB::raw('SUM(quantity) as gifts_count'))
             ->groupBy('sender_id')
             ->orderBy('fan_coins', 'desc')
             ->with('sender')
@@ -186,6 +175,8 @@ class GiftApiController extends Controller
                 'avatar_url'   => $topFanRecord->sender->avatar_url,
                 'fan_coins'    => (int) $topFanRecord->fan_coins,
                 'formatted'    => Gift::formatCoins($topFanRecord->fan_coins),
+                'crown'        => 'gold',
+                'badge_icon'   => 'crown',
             ];
         } else {
             $topFan = [
@@ -195,18 +186,16 @@ class GiftApiController extends Controller
                 'avatar_url'   => asset('assets/images/defaults/avatar-male.png'),
                 'fan_coins'    => 54200,
                 'formatted'    => '54.20K',
+                'crown'        => 'gold',
+                'badge_icon'   => 'crown',
             ];
         }
 
-        // Determine Charm Level dynamically based on total coins received
-        $calculatedLevel = max(1, (int) floor(sqrt($totalCoinsReceived / 2000)) + 1);
-        $userLevel = $user->level ?: $calculatedLevel;
-        $cleanLevel = is_numeric($userLevel) ? $userLevel : (preg_replace('/[^0-9]/', '', (string)$userLevel) ?: $calculatedLevel);
-        $charmLevel = [
-            'level'        => (int) $cleanLevel,
-            'level_tag'    => 'Lv' . $cleanLevel,
-            'progress'     => min(100, (int) (($totalCoinsReceived % 10000) / 100)),
-        ];
+        // Charm Level dynamically calculated from configured admin level thresholds
+        $charmLevel = CharmLevelSetting::calculateLevel($totalCoinsReceived);
+
+        // Total Likes received
+        $totalLikes = (int) UserLike::where('user_id', $user->id)->sum('likes_count');
 
         return response()->json([
             'status'  => true,
@@ -221,33 +210,155 @@ class GiftApiController extends Controller
                 ],
                 'charm_level'          => $charmLevel,
                 'top_fan'              => $topFan,
+                'likes'                => [
+                    'total_likes'     => $totalLikes,
+                    'formatted_likes' => Gift::formatCoins($totalLikes),
+                ],
                 'summary'              => [
                     'total_unique_gifts' => count($formattedGifts),
                     'total_items_count'  => $totalItemsCount,
                     'total_coins'        => $totalCoinsReceived,
                     'formatted_coins'    => Gift::formatCoins($totalCoinsReceived),
                 ],
-                // For User Profile Preview Card (top 8 gifts as shown in Screenshot 1)
                 'profile_preview_gifts' => array_slice($formattedGifts, 0, 8),
-                // Full grid list for "Gifts Received" screen (Screenshot 2)
                 'gifts_received'        => $formattedGifts,
             ],
         ]);
     }
 
     /**
-     * 3. Send Gift (From Fan/Caller to Host/Streamer).
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * 3. Get Top Fans Leaderboard for a Host (When user taps on Top Fans).
+     */
+    public function getTopFans(Request $request, ?string $id = null): JsonResponse
+    {
+        if ($id === null || $id === 'me') {
+            $user = $this->resolveUser($request) ?? User::first();
+        } else {
+            $user = User::where('id', $id)->orWhere('account_id', $id)->first();
+        }
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'User not found.'], 404);
+        }
+
+        $fanRecords = UserGift::where('user_id', $user->id)
+            ->whereNotNull('sender_id')
+            ->where('sender_id', '!=', $user->id)
+            ->select('sender_id', DB::raw('SUM(total_coins) as fan_coins'), DB::raw('SUM(quantity) as gifts_count'))
+            ->groupBy('sender_id')
+            ->orderBy('fan_coins', 'desc')
+            ->with('sender')
+            ->take(50)
+            ->get();
+
+        $topFansList = [];
+        $rank = 1;
+
+        foreach ($fanRecords as $record) {
+            if (!$record->sender) continue;
+
+            $crown = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : null));
+            $topFansList[] = [
+                'rank'            => $rank,
+                'user_id'         => $record->sender->id,
+                'account_id'      => $record->sender->account_id,
+                'display_name'    => $record->sender->display_name,
+                'avatar_url'      => $record->sender->avatar_url,
+                'gender'          => $record->sender->gender,
+                'total_coins'     => (int) $record->fan_coins,
+                'formatted_coins' => Gift::formatCoins($record->fan_coins),
+                'gifts_count'     => (int) $record->gifts_count,
+                'crown_type'      => $crown,
+                'badge'           => $rank <= 3 ? "Top #{$rank}" : "#{$rank}",
+            ];
+            $rank++;
+        }
+
+        // Fallback demo data if empty
+        if (empty($topFansList)) {
+            $topFansList = [
+                [
+                    'rank'            => 1,
+                    'user_id'         => 999,
+                    'account_id'      => '1000293841',
+                    'display_name'    => 'Sajid',
+                    'avatar_url'      => asset('assets/images/defaults/avatar-male.png'),
+                    'gender'          => 'male',
+                    'total_coins'     => 54200,
+                    'formatted_coins' => '54.20K',
+                    'gifts_count'     => 14,
+                    'crown_type'      => 'gold',
+                    'badge'           => 'Top #1',
+                ]
+            ];
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Top fans leaderboard loaded successfully.',
+            'data'    => [
+                'host'     => [
+                    'id'           => $user->id,
+                    'account_id'   => $user->account_id,
+                    'display_name' => $user->display_name,
+                    'avatar_url'   => $user->avatar_url,
+                ],
+                'top_fans' => $topFansList,
+            ],
+        ]);
+    }
+
+    /**
+     * 4. Send Like / Love Heart to Host during video call or profile.
+     */
+    public function sendLike(Request $request, ?string $id = null): JsonResponse
+    {
+        $sender = $this->resolveUser($request);
+        if (!$sender) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $receiverId = $id ?? $request->input('receiver_id') ?? $request->input('user_id');
+        $receiver = User::where('id', $receiverId)->orWhere('account_id', $receiverId)->first();
+
+        if (!$receiver) {
+            return response()->json(['status' => false, 'message' => 'Host not found.'], 404);
+        }
+
+        $context = $request->input('context', 'call');
+
+        $like = UserLike::firstOrNew([
+            'user_id'   => $receiver->id,
+            'sender_id' => $sender->id,
+            'context'   => $context,
+        ]);
+
+        $like->likes_count = ($like->likes_count ?? 0) + (int) ($request->input('count', 1) ?: 1);
+        $like->save();
+
+        $totalLikes = (int) UserLike::where('user_id', $receiver->id)->sum('likes_count');
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Love heart sent!',
+            'data'    => [
+                'receiver_id'     => $receiver->id,
+                'total_likes'     => $totalLikes,
+                'formatted_likes' => Gift::formatCoins($totalLikes),
+            ],
+        ]);
+    }
+
+    /**
+     * 5. Send Gift (From Fan/Caller to Host/Streamer).
      */
     public function sendGift(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'receiver_id' => 'required',
-            'gift_id'     => 'required|exists:gifts,id',
-            'quantity'    => 'nullable|integer|min:1|max:1000',
-            'context'     => 'nullable|string|in:profile,live_call,chat,random_match',
+            'receiver_id'     => 'required',
+            'gift_id'         => 'required|exists:gifts,id',
+            'quantity'        => 'nullable|integer|min:1|max:1000',
+            'context'         => 'nullable|string|in:profile,live_call,chat,random_match',
             'call_session_id' => 'nullable|integer',
         ]);
 
@@ -311,8 +422,8 @@ class GiftApiController extends Controller
             $sender->decrement('coins', $totalCost);
             $senderBalanceAfter = $sender->fresh()->coins;
 
-            // 2. Credit host/receiver earnings (e.g. 50% revenue split or full diamond earnings)
-            $hostEarnings = (int) floor($totalCost * 0.50); // 50% default host cut
+            // 2. Credit host/receiver earnings (50% default revenue split)
+            $hostEarnings = (int) floor($totalCost * 0.50);
             $receiver->increment('coins', $hostEarnings);
             $receiverBalanceAfter = $receiver->fresh()->coins;
 

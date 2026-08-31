@@ -226,14 +226,9 @@ class ProfileController extends Controller
             ];
         }
 
-        $calculatedLevel = max(1, (int) floor(sqrt($totalCoinsReceived / 2000)) + 1);
-        $userLevel = $user->level ?: $calculatedLevel;
-        $cleanLevel = is_numeric($userLevel) ? $userLevel : (preg_replace('/[^0-9]/', '', (string)$userLevel) ?: $calculatedLevel);
-        $charmLevel = [
-            'level'     => (int) $cleanLevel,
-            'level_tag' => 'Lv' . $cleanLevel,
-            'progress'  => min(100, (int) (($totalCoinsReceived % 10000) / 100)),
-        ];
+        // Charm Level dynamically calculated from configured admin level thresholds
+        $charmLevel = \App\Models\CharmLevelSetting::calculateLevel($totalCoinsReceived);
+        $totalLikes = (int) \App\Models\UserLike::where('user_id', $user->id)->sum('likes_count');
 
         return response()->json([
             'status' => true,
@@ -241,6 +236,10 @@ class ProfileController extends Controller
                 'user'                  => $user->fresh(),
                 'charm_level'           => $charmLevel,
                 'top_fan'               => $topFan,
+                'likes'                 => [
+                    'total_likes'     => $totalLikes,
+                    'formatted_likes' => Gift::formatCoins($totalLikes),
+                ],
                 'gifts_count'           => $totalItemsCount,
                 'gifts_total_coins'     => $totalCoinsReceived,
                 'formatted_gifts_coins' => Gift::formatCoins($totalCoinsReceived),

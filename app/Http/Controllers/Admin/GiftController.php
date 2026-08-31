@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CharmLevelSetting;
 use App\Models\Gift;
 use App\Models\User;
 use App\Models\UserGift;
@@ -13,7 +14,39 @@ use Illuminate\Support\Str;
 class GiftController extends Controller
 {
     /**
-     * Display a listing of gifts with dashboard statistics.
+     * Parse human input for coins/diamonds (e.g. 17.70, 17.70K, 17700, 500, 9.99k).
+     */
+    public static function parseCoins($input): int
+    {
+        if (empty($input)) return 0;
+
+        $str = strtoupper(trim((string) $input));
+        $str = str_replace(['💎', ' ', ','], '', $str);
+
+        if (str_ends_with($str, 'M')) {
+            $num = (float) str_replace('M', '', $str);
+            return (int) round($num * 1000000);
+        }
+
+        if (str_ends_with($str, 'K')) {
+            $num = (float) str_replace('K', '', $str);
+            return (int) round($num * 1000);
+        }
+
+        if (is_numeric($str)) {
+            $val = (float) $str;
+            // If user enters decimal like 17.70 or 5.55 or 9.99, interpret as K (17.70K = 17700)
+            if ($val > 0 && $val < 1000 && str_contains($str, '.')) {
+                return (int) round($val * 1000);
+            }
+            return (int) round($val);
+        }
+
+        return (int) round((float) preg_replace('/[^0-9.]/', '', $str));
+    }
+
+    /**
+     * Display a listing of gifts with dashboard statistics and level settings.
      */
     public function index(Request $request)
     {
@@ -52,6 +85,9 @@ class GiftController extends Controller
         // Users list for direct gift awarding tool
         $users = User::orderBy('name')->take(50)->get();
 
+        // Charm Level Settings
+        $levelSettings = CharmLevelSetting::orderBy('level', 'asc')->get();
+
         return view('admin.gifts.index', compact(
             'gifts',
             'totalGiftsCount',
@@ -59,7 +95,8 @@ class GiftController extends Controller
             'totalSentCount',
             'totalSentCoins',
             'categories',
-            'users'
+            'users',
+            'levelSettings'
         ));
     }
 
@@ -69,15 +106,13 @@ class GiftController extends Controller
     public function store(Request $request)
     {
         try {
-            $validated = $request->validate([
+            $request->validate([
                 'name'           => 'required|string|max:100',
-                'coins'          => 'required|integer|min:1',
-                'category'       => 'required|string|max:50',
+                'coins'          => 'required',
+                'category'       => 'nullable|string|max:50',
                 'badge'          => 'nullable|string|max:30',
-                'sort_order'     => 'nullable|integer|min:0',
                 'is_active'      => 'nullable|boolean',
                 'is_broadcast'   => 'nullable|boolean',
-                'description'    => 'nullable|string|max:500',
                 'image_file'     => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
                 'image_url'      => 'nullable|string|max:255',
                 'animation_url'  => 'nullable|string|max:255',
@@ -85,9 +120,14 @@ class GiftController extends Controller
                 'sound_url'      => 'nullable|string|max:255',
             ]);
 
+            $parsedCoins = static::parseCoins($request->input('coins'));
+            if ($parsedCoins <= 0) {
+                $parsedCoins = 100;
+            }
+
             $imagePath = 'uploads/gifts/rose_bouquet.png';
 
-            // Handle Image Upload
+            // Handle Image Upload to public/uploads/gifts
             if ($request->hasFile('image_file')) {
                 $file = $request->file('image_file');
                 $destinationPath = public_path('uploads/gifts');
@@ -102,22 +142,25 @@ class GiftController extends Controller
                 $imagePath = trim($request->input('image_url'));
             }
 
+            // Auto sort order
+            $nextSort = (Gift::max('sort_order') ?: 0) + 1;
+
             Gift::create([
-                'name'           => $validated['name'],
-                'coins'          => (int) $validated['coins'],
-                'category'       => strtolower($validated['category']),
-                'badge'          => $validated['badge'] ? strtoupper($validated['badge']) : null,
-                'sort_order'     => (int) ($request->input('sort_order') ?: 0),
+                'name'           => $request->input('name'),
+                'coins'          => $parsedCoins,
+                'category'       => strtolower($request->input('category') ?: 'popular'),
+                'badge'          => $request->filled('badge') ? strtoupper(trim($request->input('badge'))) : null,
+                'sort_order'     => $nextSort,
                 'is_active'      => $request->has('is_active') ? 1 : 0,
                 'is_broadcast'   => $request->has('is_broadcast') ? 1 : 0,
-                'description'    => $validated['description'] ?? null,
+                'description'    => null,
                 'image'          => $imagePath,
                 'animation_url'  => $request->input('animation_url'),
                 'animation_type' => $request->input('animation_type') ?: 'image',
                 'sound_url'      => $request->input('sound_url'),
             ]);
 
-            return redirect()->route('admin.gifts.index')->with('success', "Gift \"{$validated['name']}\" added successfully!");
+            return redirect()->route('admin.gifts.index')->with('success', "Gift \"{$request->input('name')}\" (💎 " . Gift::formatCoins($parsedCoins) . ") added successfully!");
         } catch (\Illuminate\Validation\ValidationException $ve) {
             return back()->withErrors($ve->validator)->withInput();
         } catch (\Throwable $e) {
@@ -133,21 +176,24 @@ class GiftController extends Controller
         try {
             $gift = Gift::findOrFail($id);
 
-            $validated = $request->validate([
+            $request->validate([
                 'name'           => 'required|string|max:100',
-                'coins'          => 'required|integer|min:1',
-                'category'       => 'required|string|max:50',
+                'coins'          => 'required',
+                'category'       => 'nullable|string|max:50',
                 'badge'          => 'nullable|string|max:30',
-                'sort_order'     => 'nullable|integer|min:0',
                 'is_active'      => 'nullable|boolean',
                 'is_broadcast'   => 'nullable|boolean',
-                'description'    => 'nullable|string|max:500',
                 'image_file'     => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
                 'image_url'      => 'nullable|string|max:255',
                 'animation_url'  => 'nullable|string|max:255',
                 'animation_type' => 'nullable|string|max:30',
                 'sound_url'      => 'nullable|string|max:255',
             ]);
+
+            $parsedCoins = static::parseCoins($request->input('coins'));
+            if ($parsedCoins <= 0) {
+                $parsedCoins = $gift->coins;
+            }
 
             $imagePath = $gift->image;
 
@@ -166,14 +212,12 @@ class GiftController extends Controller
             }
 
             $gift->update([
-                'name'           => $validated['name'],
-                'coins'          => (int) $validated['coins'],
-                'category'       => strtolower($validated['category']),
-                'badge'          => $validated['badge'] ? strtoupper($validated['badge']) : null,
-                'sort_order'     => (int) ($request->input('sort_order') ?: 0),
+                'name'           => $request->input('name'),
+                'coins'          => $parsedCoins,
+                'category'       => strtolower($request->input('category') ?: $gift->category),
+                'badge'          => $request->filled('badge') ? strtoupper(trim($request->input('badge'))) : null,
                 'is_active'      => $request->has('is_active') ? 1 : 0,
                 'is_broadcast'   => $request->has('is_broadcast') ? 1 : 0,
-                'description'    => $validated['description'] ?? null,
                 'image'          => $imagePath,
                 'animation_url'  => $request->input('animation_url'),
                 'animation_type' => $request->input('animation_type') ?: 'image',
@@ -211,6 +255,28 @@ class GiftController extends Controller
         $gift->delete();
 
         return redirect()->route('admin.gifts.index')->with('success', "Gift \"{$name}\" removed successfully.");
+    }
+
+    /**
+     * Update Charm Level threshold configurations.
+     */
+    public function updateLevels(Request $request)
+    {
+        $levels = $request->input('levels', []);
+        foreach ($levels as $levelNum => $data) {
+            $requiredCoins = static::parseCoins($data['required_coins'] ?? ($levelNum * 10000));
+            CharmLevelSetting::updateOrCreate(
+                ['level' => (int) $levelNum],
+                [
+                    'title'          => $data['title'] ?? ('Level ' . $levelNum),
+                    'required_coins' => $requiredCoins,
+                    'badge_icon'     => $data['badge_icon'] ?? 'crown',
+                    'badge_color'    => $data['badge_color'] ?? '#f59e0b',
+                ]
+            );
+        }
+
+        return back()->with('success', 'Charm Level coin thresholds updated successfully!');
     }
 
     /**

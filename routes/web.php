@@ -74,6 +74,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::delete('/gifts/{id}', [\App\Http\Controllers\Admin\GiftController::class, 'destroy'])->name('gifts.destroy');
     Route::post('/gifts/{id}/toggle-status', [\App\Http\Controllers\Admin\GiftController::class, 'toggleStatus'])->name('gifts.toggle-status');
     Route::post('/gifts/give-to-user', [\App\Http\Controllers\Admin\GiftController::class, 'giveGiftToUser'])->name('gifts.give');
+    Route::post('/gifts/levels', [\App\Http\Controllers\Admin\GiftController::class, 'updateLevels'])->name('gifts.levels.update');
     Route::get('/gifts/logs', [\App\Http\Controllers\Admin\GiftController::class, 'logs'])->name('gifts.logs');
 
     // Coin Transaction Ledger

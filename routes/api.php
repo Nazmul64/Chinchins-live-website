@@ -339,13 +339,21 @@ Route::prefix('gifts')->group(function () {
     // 3. Send Gift to Host/User
     Route::post('/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
     Route::post('/give', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+
+    // 4. Top Fans Leaderboard & Likes
+    Route::get('/top-fans/{id?}', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
+    Route::post('/like', [\App\Http\Controllers\Api\GiftApiController::class, 'sendLike']);
 });
 
-// Profile / User level aliases for Gifts
+// Profile / User level aliases for Gifts, Top Fans & Likes
 Route::get('/profile/{id}/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
 Route::get('/profile/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+Route::get('/profile/{id}/top-fans', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
+Route::post('/profile/{id}/like', [\App\Http\Controllers\Api\GiftApiController::class, 'sendLike']);
+Route::post('/user/{id}/like', [\App\Http\Controllers\Api\GiftApiController::class, 'sendLike']);
 Route::get('/users/{id}/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
 Route::get('/users/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+Route::get('/users/{id}/top-fans', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
 Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
 
 // Authenticated Routes (Sanctum)

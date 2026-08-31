@@ -524,6 +524,105 @@ class GiftsReceivedCard extends StatelessWidget {
 
 ---
 
+# 5️⃣ Top Fans Leaderboard & Live Love/Like Heart APIs
+
+### 📱 Screen Reference: Top Fans Leaderboard
+When a user taps on the **Top Fans** badge (with the crown) on the Host profile, this leaderboard displays all fans ranked #1, #2, #3 (Gold, Silver, Bronze Crowns) and subsequent ranks based on total coins gifted and love hearts sent.
+
+---
+
+### 🔹 Endpoint 5.1: Get Host's Top Fans Leaderboard
+- **Method:** `GET`
+- **Path:** `/api/profile/{userId}/top-fans` *(or `/api/gifts/top-fans/{userId}`)*
+
+#### 📥 Success Response (`200 OK`):
+```json
+{
+  "status": true,
+  "message": "Top fans leaderboard loaded successfully.",
+  "data": {
+    "host": {
+      "id": 12,
+      "account_id": "8934217890",
+      "display_name": "Nusrat",
+      "avatar_url": "http://your-domain.com/uploads/profiles/nusrat_avatar.jpg"
+    },
+    "top_fans": [
+      {
+        "rank": 1,
+        "user_id": 45,
+        "account_id": "1000293841",
+        "display_name": "Sajid",
+        "avatar_url": "http://your-domain.com/uploads/avatars/sajid.jpg",
+        "gender": "male",
+        "total_coins": 54200,
+        "formatted_coins": "54.20K",
+        "gifts_count": 14,
+        "crown_type": "gold",
+        "badge": "Top #1"
+      },
+      {
+        "rank": 2,
+        "user_id": 78,
+        "account_id": "1000293842",
+        "display_name": "Rahim Khan",
+        "avatar_url": "http://your-domain.com/uploads/avatars/rahim.jpg",
+        "gender": "male",
+        "total_coins": 32000,
+        "formatted_coins": "32K",
+        "gifts_count": 8,
+        "crown_type": "silver",
+        "badge": "Top #2"
+      },
+      {
+        "rank": 3,
+        "user_id": 92,
+        "account_id": "1000293843",
+        "display_name": "Tanvir",
+        "avatar_url": "http://your-domain.com/uploads/avatars/tanvir.jpg",
+        "gender": "male",
+        "total_coins": 18500,
+        "formatted_coins": "18.50K",
+        "gifts_count": 4,
+        "crown_type": "bronze",
+        "badge": "Top #3"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 🔹 Endpoint 5.2: Send Love / Like Heart to Host
+Send love hearts during a 1-on-1 video call or on the host's profile.
+
+- **Method:** `POST`
+- **Path:** `/api/profile/{userId}/like` *(or `/api/gifts/like`)*
+- **Headers:** `Authorization: Bearer <TOKEN>`
+- **Request Body (`application/json`):**
+  ```json
+  {
+    "count": 1,
+    "context": "call"
+  }
+  ```
+
+#### 📥 Success Response (`200 OK`):
+```json
+{
+  "status": true,
+  "message": "Love heart sent!",
+  "data": {
+    "receiver_id": 12,
+    "total_likes": 1420,
+    "formatted_likes": "1.42K"
+  }
+}
+```
+
+---
+
 # 6️⃣ Summary of All Available Endpoints
 
 | Endpoint | Method | Description | Auth Required |
@@ -532,11 +631,15 @@ class GiftsReceivedCard extends StatelessWidget {
 | `/api/gifts/catalog` | `GET` | Store catalog alias | No |
 | `/api/gifts/received/{userId}` | `GET` | Get host received gifts, Charm Level & Top Fan | No |
 | `/api/profile/{userId}/gifts` | `GET` | Profile gifts alias | No |
+| `/api/profile/{userId}/top-fans` | `GET` | Top Fans Leaderboard (#1 Gold, #2 Silver, #3 Bronze) | No |
+| `/api/profile/{userId}/like` | `POST` | Send Love Heart / Like to host | **Yes** (Bearer) |
 | `/api/gifts/send` | `POST` | Send gift from fan to host with coin deduction | **Yes** (Bearer) |
 | `/admin/gifts` | `GET` | Web Admin Panel Gift Catalog & Stats | Admin |
-| `/admin/gifts` | `POST` | Add New Gift with image upload to `public/uploads/gifts` | Admin |
+| `/admin/gifts` | `POST` | Add New Gift (supports `17.70K`, `17.70`, `500` coin input) | Admin |
 | `/admin/gifts/{id}` | `PUT` | Update gift price, name, image, category | Admin |
 | `/admin/gifts/{id}` | `DELETE` | Delete gift item | Admin |
 | `/admin/gifts/{id}/toggle-status` | `POST` | Toggle active/inactive in app | Admin |
+| `/admin/gifts/levels` | `POST` | Configure Charm Level coin thresholds (10K, 20K, 30K...) | Admin |
 | `/admin/gifts/give-to-user` | `POST` | Direct Admin Reward tool to give gift to host | Admin |
 | `/admin/gifts/logs` | `GET` | Complete gifts transaction & received ledger | Admin |
+
