@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\CharmLevelSetting;
 use App\Models\CoinTransaction;
 use App\Models\Gift;
+use App\Models\Notification;
 use App\Models\User;
 use App\Models\UserGift;
 use App\Models\UserLike;
+use App\Services\PushNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -457,6 +459,30 @@ class GiftApiController extends Controller
                 'description'   => "Received {$quantity}x {$gift->name} from {$sender->display_name} (+{$hostEarnings} coins)",
                 'reference_id'  => $userGift->id,
             ]);
+
+            // 5. In-App Notification & Real-time FCM Push Notification
+            Notification::createNotification(
+                userId: $receiver->id,
+                actorId: $sender->id,
+                type: 'gift',
+                title: "New Gift Received! 🎁",
+                message: "{$sender->display_name} sent you {$quantity}x {$gift->name} (+{$hostEarnings} coins)!",
+                data: [
+                    'gift_id'      => $gift->id,
+                    'gift_name'    => $gift->name,
+                    'gift_icon'    => $gift->image_url,
+                    'quantity'     => $quantity,
+                    'coins_earned' => $hostEarnings,
+                    'sender_id'    => $sender->id,
+                    'sender_name'  => $sender->display_name,
+                ]
+            );
+
+            try {
+                PushNotificationService::sendGiftPush($sender, $receiver, $gift, $hostEarnings);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Gift push notification error: " . $e->getMessage());
+            }
 
             // Get updated total received quantity for this specific gift on receiver's profile
             $newTotalGiftCount = (int) UserGift::where('user_id', $receiver->id)

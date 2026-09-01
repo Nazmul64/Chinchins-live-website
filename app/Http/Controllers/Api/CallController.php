@@ -7,6 +7,7 @@ use App\Models\CallSession;
 use App\Models\CallSetting;
 use App\Models\CoinTransaction;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -397,6 +398,13 @@ class CallController extends Controller
             'free_duration_seconds' => $freeDuration,
             'is_random_match' => filter_var($data['is_random_match'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ]);
+
+        // 📲 Trigger Real-Time IMO/WhatsApp-style High-Priority Push Notification to Receiver Phone
+        try {
+            PushNotificationService::sendIncomingCallPush($call, $caller, $receiver);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Incoming call push notification error: " . $e->getMessage());
+        }
 
         $maxMinutes = $ratePerMinute > 0 ? (int) floor($caller->coins / $ratePerMinute) : 0;
 

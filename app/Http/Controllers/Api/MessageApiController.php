@@ -12,6 +12,7 @@ use App\Models\Notification;
 use App\Models\PaymentMethod;
 use App\Models\ProfileView;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -529,6 +530,13 @@ class MessageApiController extends Controller
             ]
         );
 
+        // 📲 Trigger Real-Time FCM Push Notification to Receiver's Mobile Device
+        try {
+            PushNotificationService::sendChatMessagePush($chatMessage, $sender, $receiver);
+        } catch (\Throwable $e) {
+            Log::error("Chat message push notification error: " . $e->getMessage());
+        }
+
         $remainingFree = max(0, $freeLimit - ($sender->fresh()->free_messages_used ?? 0));
 
         return response()->json([
@@ -645,6 +653,13 @@ class MessageApiController extends Controller
                 'viewed_at'       => now()->toIso8601String(),
             ]
         );
+
+        // 📲 Dispatch Real-Time Push Alert to Host
+        try {
+            PushNotificationService::sendProfileViewPush($viewer, $host);
+        } catch (\Throwable $e) {
+            Log::error("Profile view push notification error: " . $e->getMessage());
+        }
 
         $config = CallSetting::getAllConfig();
         $ratePerMinute = (int) ($host->video_call_rate ?: ($config['video_call_rate_per_minute'] ?? 100));

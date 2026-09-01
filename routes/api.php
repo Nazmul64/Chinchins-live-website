@@ -22,9 +22,21 @@ use Illuminate\Support\Facades\Route;
 Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 // Public App Configuration & Branding (Logo, Name, Free limits for Login/Register Screen)
-Route::get('/app/config', [\App\Http\Controllers\Api\MessageApiController::class, 'getAppConfig']);
-Route::get('/settings', [\App\Http\Controllers\Api\MessageApiController::class, 'getAppConfig']);
-Route::get('/app/settings', [\App\Http\Controllers\Api\MessageApiController::class, 'getAppConfig']);
+Route::get('/app/config', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
+Route::get('/settings', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
+Route::get('/app/settings', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
+Route::get('/app/remote-config', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
+
+// 🚀 In-App OTA Update Engine & Version Check (Dynamic Features without manual APK rebuild)
+Route::match(['get', 'post'], '/app/check-update', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'checkUpdate']);
+Route::match(['get', 'post'], '/app/version-check', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'checkUpdate']);
+Route::match(['get', 'post'], '/app/version', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'checkUpdate']);
+Route::match(['get', 'post'], '/version', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'checkUpdate']);
+
+// 📲 Universal Device Registration for Push Notifications & Background Call Wake-up
+Route::post('/app/device/register', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'registerDevice']);
+Route::post('/device/register', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'registerDevice']);
+Route::post('/notifications/test-push', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'testPush']);
 
 // Public Authentication & Registration Routes
 Route::post('/register', [AuthController::class, 'register']);
