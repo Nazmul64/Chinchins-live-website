@@ -16,6 +16,30 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
+     * Boot the model and assign a 10-digit random account ID if not provided.
+     */
+    protected static function booted()
+    {
+        static::creating(function ($user) {
+            if (empty($user->account_id)) {
+                $user->account_id = static::generateUniqueAccountId();
+            }
+        });
+    }
+
+    /**
+     * Generate a unique 10-digit random account ID (never collides).
+     */
+    public static function generateUniqueAccountId(): string
+    {
+        do {
+            $accountId = (string) mt_rand(1000000000, 9999999999);
+        } while (static::where('account_id', $accountId)->exists());
+
+        return $accountId;
+    }
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>

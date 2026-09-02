@@ -409,6 +409,37 @@ Route::match(['get', 'post'], '/auth/me', [AuthController::class, 'me']);
 Route::match(['get', 'post'], '/auth/verify', [AuthController::class, 'me']);
 Route::match(['get', 'post'], '/me', [AuthController::class, 'me']);
 
+// ==========================================
+// 💳 Monthly & Weekly VIP Privilege Cards & Daily Check-in Rewards
+// ==========================================
+Route::prefix('vip-cards')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/list', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/my-subscriptions', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
+    Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
+    Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
+    Route::post('/buy', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
+    Route::post('/claim-daily', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+    Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+});
+
+// Mobile Aliases for Monthly Cards
+Route::prefix('monthly-cards')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
+    Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
+    Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+});
+
+// Admin VIP Cards CRUD
+Route::prefix('admin/vip-cards')->group(function () {
+    Route::post('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'store']);
+    Route::post('/{id}', [\App\Http\Controllers\Api\VipCardApiController::class, 'update']);
+    Route::match(['put', 'patch'], '/{id}', [\App\Http\Controllers\Api\VipCardApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\VipCardApiController::class, 'destroy']);
+    Route::post('/{id}/delete', [\App\Http\Controllers\Api\VipCardApiController::class, 'destroy']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
