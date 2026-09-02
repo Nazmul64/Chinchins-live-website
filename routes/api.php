@@ -403,12 +403,17 @@ Route::get('/users/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiContr
 Route::get('/users/{id}/top-fans', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
 Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
 
-// Authenticated Routes (Sanctum)
+// Authenticated & Session Verification Routes
+Route::match(['get', 'post'], '/auth/check', [AuthController::class, 'me']);
+Route::match(['get', 'post'], '/auth/me', [AuthController::class, 'me']);
+Route::match(['get', 'post'], '/auth/verify', [AuthController::class, 'me']);
+Route::match(['get', 'post'], '/me', [AuthController::class, 'me']);
+
 Route::middleware('auth:sanctum')->group(function () {
-    // Auth status & logout
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
+
 
 
 

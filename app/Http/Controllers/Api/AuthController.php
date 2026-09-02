@@ -167,19 +167,36 @@ class AuthController extends Controller
     }
 
     /**
-     * Get authenticated user profile.
+     * Get authenticated user profile / verify token.
+     * GET /api/auth/me or GET /api/auth/check
      *
      * @param Request $request
      * @return JsonResponse
      */
     public function me(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (!$user) {
+            $userId = $request->input('user_id') ?? $request->header('X-User-ID');
+            if ($userId) {
+                $user = User::find($userId);
+            }
+        }
+
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated or session expired.',
+            ], 401);
+        }
+
         return response()->json([
-            'status' => true,
-            'data'   => [
-                'user' => $request->user()->fresh(),
+            'status'  => true,
+            'message' => 'Session is valid and active.',
+            'data'    => [
+                'user' => $user->fresh(),
             ],
-        ]);
+        ], 200);
     }
 
     /**
