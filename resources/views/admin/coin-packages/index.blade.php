@@ -191,7 +191,7 @@
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="pkgForm" method="POST" action="{{ route('admin.coin-packages.store') }}">
+            <form id="pkgForm" method="POST" action="{{ route('admin.coin-packages.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div id="pkgMethodSpoof"></div>
                 <div class="modal-modern-body">
@@ -200,29 +200,39 @@
                         <div class="col-12 col-md-7">
                             <div class="row g-3">
                                 <div class="col-12">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Package Title</label>
+                                    <input type="text" name="title" id="pkgTitle" class="form-control fw-bold" placeholder="e.g. Starter Pack, VIP Diamond Pack">
+                                </div>
+
+                                <div class="col-12 col-sm-6">
                                     <label class="form-label fw-bold" style="font-size: 13px;">Base Coins / Gems <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light fw-bold text-warning"><i class="fa-solid fa-gem me-1"></i></span>
                                         <input type="number" name="coins" id="pkgCoins" class="form-control fw-bold" placeholder="e.g. 32000" value="32000" min="1" required oninput="updateModalPreview()">
                                     </div>
-                                    <small class="text-muted" style="font-size: 11px;">Primary coin quantity purchased</small>
+                                    <small class="text-muted" style="font-size: 11px;">Primary coin quantity</small>
                                 </div>
 
-                                <div class="col-12">
+                                <div class="col-12 col-sm-6">
                                     <label class="form-label fw-bold" style="font-size: 13px;">Bonus Coins (+Bonus)</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-success-subtle fw-bold text-success"><i class="fa-solid fa-gift me-1"></i> +</span>
                                         <input type="number" name="bonus_coins" id="pkgBonusCoins" class="form-control fw-bold text-success" placeholder="e.g. 8000" value="8000" min="0" oninput="updateModalPreview()">
                                     </div>
-                                    <small class="text-muted" style="font-size: 11px;">Extra free coins given with this package</small>
+                                    <small class="text-muted" style="font-size: 11px;">Extra free coins</small>
                                 </div>
 
-                                <div class="col-12">
+                                <div class="col-12 col-sm-6">
                                     <label class="form-label fw-bold" style="font-size: 13px;">Price in BDT (৳) <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light fw-bold text-primary">৳ BDT</span>
                                         <input type="number" step="any" name="price" id="pkgPrice" class="form-control fw-bold" placeholder="e.g. 550" value="550" min="1" required oninput="updateModalPreview()">
                                     </div>
+                                </div>
+
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Sort Order</label>
+                                    <input type="number" name="sort_order" id="pkgSortOrder" class="form-control rounded-3" value="0" min="0">
                                 </div>
 
                                 <div class="col-12">
@@ -239,9 +249,33 @@
                                     </div>
                                 </div>
 
+                                <!-- Animation & Media Assets -->
                                 <div class="col-12 col-sm-6">
-                                    <label class="form-label fw-bold" style="font-size: 13px;">Sort Order</label>
-                                    <input type="number" name="sort_order" id="pkgSortOrder" class="form-control rounded-3" value="0" min="0">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Package Icon / Image File</label>
+                                    <input type="file" name="icon" class="form-control" accept="image/*">
+                                    <small class="text-muted" style="font-size: 11px;">PNG, WebP, SVG transparent icon</small>
+                                </div>
+
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Animation File (.svga / .json / .webp / .gif)</label>
+                                    <input type="file" name="animation_file" class="form-control" accept=".svga,.json,.lottie,.webp,.gif,.mp4">
+                                    <small class="text-muted" style="font-size: 11px;">SVGA or Lottie animation</small>
+                                </div>
+
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Animation Format</label>
+                                    <select name="format" id="pkgFormat" class="form-select">
+                                        <option value="image" selected>Static Image</option>
+                                        <option value="svga">SVGA Animation (.svga)</option>
+                                        <option value="lottie">Lottie JSON (.json)</option>
+                                        <option value="webp">Animated WebP (.webp)</option>
+                                        <option value="gif">Animated GIF (.gif)</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Remote Animation URL</label>
+                                    <input type="text" name="animation_url" id="pkgAnimationUrl" class="form-control" placeholder="https://.../coins.svga">
                                 </div>
 
                                 <div class="col-12">
@@ -482,11 +516,14 @@ function openCreatePackageModal() {
     document.getElementById('pkgModalTitle').innerText = 'Add Coin Package';
     form.action = "{{ route('admin.coin-packages.store') }}";
     document.getElementById('pkgMethodSpoof').innerHTML = '';
+    document.getElementById('pkgTitle').value = '';
     document.getElementById('pkgCoins').value = '32000';
     document.getElementById('pkgBonusCoins').value = '8000';
     document.getElementById('pkgPrice').value = '550';
     document.getElementById('pkgBadge').value = '🔥 50% OFF';
     document.getElementById('pkgSortOrder').value = '1';
+    document.getElementById('pkgFormat').value = 'image';
+    document.getElementById('pkgAnimationUrl').value = '';
     document.getElementById('pkgIsPopular').checked = true;
     document.getElementById('pkgIsActive').checked = true;
 
@@ -503,11 +540,14 @@ function openEditPackageModal(packageData) {
     form.action = `/admin/coin-packages/${packageData.id}`;
     document.getElementById('pkgMethodSpoof').innerHTML = '<input type="hidden" name="_method" value="PUT">';
     
+    document.getElementById('pkgTitle').value = packageData.title || '';
     document.getElementById('pkgCoins').value = packageData.coins || '';
     document.getElementById('pkgBonusCoins').value = packageData.bonus_coins || 0;
     document.getElementById('pkgPrice').value = packageData.price || '';
     document.getElementById('pkgBadge').value = packageData.badge || '';
     document.getElementById('pkgSortOrder').value = packageData.sort_order || 0;
+    document.getElementById('pkgFormat').value = packageData.format || 'image';
+    document.getElementById('pkgAnimationUrl').value = packageData.animation_url || '';
     document.getElementById('pkgIsPopular').checked = Boolean(packageData.is_popular);
     document.getElementById('pkgIsActive').checked = Boolean(packageData.is_active);
 

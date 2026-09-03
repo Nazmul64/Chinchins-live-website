@@ -179,4 +179,55 @@ class LiveGiftAndWalletEngineTest extends TestCase
             'coins'      => 550,
         ]);
     }
+
+    public function test_vip_cards_api_returns_all_cards_with_animations_and_schedule(): void
+    {
+        $response = $this->getJson('/api/vip-cards');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => true,
+            ])
+            ->assertJsonStructure([
+                'status',
+                'message',
+                'data' => [
+                    'banner' => ['title', 'subtitle', 'action_type'],
+                    'cards'  => [
+                        '*' => [
+                            'id',
+                            'card_type',
+                            'name',
+                            'price_bdt',
+                            'price_coins',
+                            'duration_days',
+                            'instant_reward_coins',
+                            'daily_checkin_total_coins',
+                            'total_return_coins',
+                            'card_color',
+                            'format',
+                            'daily_schedule',
+                            'extra_rewards',
+                        ]
+                    ]
+                ]
+            ]);
+    }
+
+    public function test_coin_packages_api_returns_animations_and_badges(): void
+    {
+        $this->package->update([
+            'animation_url' => 'uploads/coins/animations/gold_gems.svga',
+            'format'        => 'svga',
+            'icon_url'      => 'uploads/coins/icons/gold_gem.png',
+        ]);
+
+        $response = $this->getJson('/api/coin-packages');
+
+        $response->assertStatus(200)
+            ->assertJsonFragment([
+                'format'        => 'svga',
+                'animation_url' => 'uploads/coins/animations/gold_gems.svga',
+            ]);
+    }
 }

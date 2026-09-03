@@ -162,9 +162,56 @@ class VipCardAdminController extends Controller
             'total_return_coins'        => 'nullable|integer|min:0',
             'card_color'                => 'nullable|string|max:20',
             'banner_tag'                => 'nullable|string|max:255',
+            'icon'                      => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'icon_url'                  => 'nullable|string|max:255',
+            'animation_file'            => 'nullable|file|max:25600',
+            'animation_url'             => 'nullable|string|max:255',
+            'bg_image'                  => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'bg_image_url'              => 'nullable|string|max:255',
+            'format'                    => 'nullable|string|in:lottie,svga,webp,gif,image,mp4',
             'description'               => 'nullable|string',
             'sort_order'                => 'nullable|integer',
         ]);
+
+        $destinationPath = public_path('uploads/vip_cards');
+        if (!File::exists($destinationPath)) {
+            File::makeDirectory($destinationPath, 0777, true, true);
+        }
+
+        $iconPath = $request->input('icon_url');
+        if ($request->hasFile('icon')) {
+            $iconFile = $request->file('icon');
+            $filename = 'vip_icon_' . time() . '_' . Str::random(6) . '.' . $iconFile->getClientOriginalExtension();
+            $iconFile->move($destinationPath, $filename);
+            $iconPath = 'uploads/vip_cards/' . $filename;
+        }
+
+        $animationPath = $request->input('animation_url');
+        $format = $request->input('format', 'lottie');
+        if ($request->hasFile('animation_file')) {
+            $animFile = $request->file('animation_file');
+            $ext = strtolower($animFile->getClientOriginalExtension());
+            $filename = 'vip_anim_' . time() . '_' . Str::random(6) . '.' . $ext;
+            $animFile->move($destinationPath, $filename);
+            $animationPath = 'uploads/vip_cards/' . $filename;
+            if ($ext === 'svga') {
+                $format = 'svga';
+            } elseif (in_array($ext, ['json', 'lottie'])) {
+                $format = 'lottie';
+            } elseif ($ext === 'webp') {
+                $format = 'webp';
+            } elseif ($ext === 'gif') {
+                $format = 'gif';
+            }
+        }
+
+        $bgImagePath = $request->input('bg_image_url');
+        if ($request->hasFile('bg_image')) {
+            $bgFile = $request->file('bg_image');
+            $filename = 'vip_bg_' . time() . '_' . Str::random(6) . '.' . $bgFile->getClientOriginalExtension();
+            $bgFile->move($destinationPath, $filename);
+            $bgImagePath = 'uploads/vip_cards/' . $filename;
+        }
 
         $dailySchedule = $this->parseDailySchedule($request);
         $extraRewards = $this->parseExtraRewards($request);
@@ -196,6 +243,10 @@ class VipCardAdminController extends Controller
             'total_return_coins'        => $totalReturnCoins,
             'card_color'                => $request->input('card_color', '#FF4081'),
             'banner_tag'                => $request->input('banner_tag', 'Spend Less, Get More Gems!'),
+            'icon_url'                  => $iconPath,
+            'animation_url'             => $animationPath,
+            'bg_image_url'              => $bgImagePath,
+            'format'                    => $format,
             'description'               => $request->input('description'),
             'daily_schedule'            => $dailySchedule,
             'extra_rewards'             => $extraRewards,
@@ -226,9 +277,62 @@ class VipCardAdminController extends Controller
             'total_return_coins'        => 'nullable|integer|min:0',
             'card_color'                => 'nullable|string|max:20',
             'banner_tag'                => 'nullable|string|max:255',
+            'icon'                      => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'icon_url'                  => 'nullable|string|max:255',
+            'animation_file'            => 'nullable|file|max:25600',
+            'animation_url'             => 'nullable|string|max:255',
+            'bg_image'                  => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'bg_image_url'              => 'nullable|string|max:255',
+            'format'                    => 'nullable|string|in:lottie,svga,webp,gif,image,mp4',
             'description'               => 'nullable|string',
             'sort_order'                => 'nullable|integer',
         ]);
+
+        $destinationPath = public_path('uploads/vip_cards');
+        if (!File::exists($destinationPath)) {
+            File::makeDirectory($destinationPath, 0777, true, true);
+        }
+
+        if ($request->hasFile('icon')) {
+            $iconFile = $request->file('icon');
+            $filename = 'vip_icon_' . time() . '_' . Str::random(6) . '.' . $iconFile->getClientOriginalExtension();
+            $iconFile->move($destinationPath, $filename);
+            $card->icon_url = 'uploads/vip_cards/' . $filename;
+        } elseif ($request->filled('icon_url')) {
+            $card->icon_url = $request->input('icon_url');
+        }
+
+        if ($request->hasFile('animation_file')) {
+            $animFile = $request->file('animation_file');
+            $ext = strtolower($animFile->getClientOriginalExtension());
+            $filename = 'vip_anim_' . time() . '_' . Str::random(6) . '.' . $ext;
+            $animFile->move($destinationPath, $filename);
+            $card->animation_url = 'uploads/vip_cards/' . $filename;
+            if ($ext === 'svga') {
+                $card->format = 'svga';
+            } elseif (in_array($ext, ['json', 'lottie'])) {
+                $card->format = 'lottie';
+            } elseif ($ext === 'webp') {
+                $card->format = 'webp';
+            } elseif ($ext === 'gif') {
+                $card->format = 'gif';
+            }
+        } elseif ($request->filled('animation_url')) {
+            $card->animation_url = $request->input('animation_url');
+        }
+
+        if ($request->hasFile('bg_image')) {
+            $bgFile = $request->file('bg_image');
+            $filename = 'vip_bg_' . time() . '_' . Str::random(6) . '.' . $bgFile->getClientOriginalExtension();
+            $bgFile->move($destinationPath, $filename);
+            $card->bg_image_url = 'uploads/vip_cards/' . $filename;
+        } elseif ($request->filled('bg_image_url')) {
+            $card->bg_image_url = $request->input('bg_image_url');
+        }
+
+        if ($request->filled('format')) {
+            $card->format = $request->input('format');
+        }
 
         $dailySchedule = $this->parseDailySchedule($request);
         if (empty($dailySchedule) && !$request->has('schedule_day') && !$request->filled('daily_schedule_raw')) {

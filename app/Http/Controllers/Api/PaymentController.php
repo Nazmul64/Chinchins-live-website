@@ -168,6 +168,7 @@ class PaymentController extends Controller
 
                     return [
                         'id' => $pkg->id,
+                        'title' => $pkg->title ?: ($baseCoins . ' Gems Pack'),
                         'coins' => $baseCoins, // Base Coins (e.g. 32000)
                         'base_coins' => $baseCoins, // Base Coins (e.g. 32000)
                         'bonus_coins' => $bonusCoins, // Bonus Coins (e.g. 8000)
@@ -186,11 +187,16 @@ class PaymentController extends Controller
                         'badge_color' => $pkg->badge_color ?: 'pink',
                         'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
                         'bonus_percentage' => $baseCoins > 0 && $bonusCoins > 0 ? (int) round(($bonusCoins / $baseCoins) * 100) : 0,
+                        'icon_url' => $pkg->icon_url,
+                        'icon_full_url' => $pkg->icon_full_url,
+                        'animation_url' => $pkg->animation_url,
+                        'animation_full_url' => $pkg->animation_full_url,
+                        'format' => $pkg->format ?: 'image',
                         'is_popular' => (bool) $pkg->is_popular,
                         'popular' => (bool) $pkg->is_popular,
                         'button_text' => "Recharge {$baseCoins} Gems ({$formattedPrice})",
-                        'currency' => 'BDT',
-                        'currency_symbol' => '৳',
+                        'currency' => $pkg->currency ?: 'BDT',
+                        'currency_symbol' => $pkg->currency === 'USD' ? '$' : '৳',
                     ];
                 });
 
@@ -234,6 +240,7 @@ class PaymentController extends Controller
             'message' => 'Coin package details retrieved successfully.',
             'data' => [
                 'id' => $pkg->id,
+                'title' => $pkg->title ?: ($baseCoins . ' Gems Pack'),
                 'coins' => $baseCoins,
                 'base_coins' => $baseCoins,
                 'bonus_coins' => $bonusCoins,
@@ -252,13 +259,18 @@ class PaymentController extends Controller
                 'badge_color' => $pkg->badge_color ?: 'pink',
                 'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
                 'bonus_percentage' => $baseCoins > 0 && $bonusCoins > 0 ? (int) round(($bonusCoins / $baseCoins) * 100) : 0,
+                'icon_url' => $pkg->icon_url,
+                'icon_full_url' => $pkg->icon_full_url,
+                'animation_url' => $pkg->animation_url,
+                'animation_full_url' => $pkg->animation_full_url,
+                'format' => $pkg->format ?: 'image',
                 'is_popular' => (bool) $pkg->is_popular,
                 'popular' => (bool) $pkg->is_popular,
                 'is_active' => (bool) $pkg->is_active,
                 'sort_order' => (int) ($pkg->sort_order ?: 0),
                 'button_text' => "Recharge {$baseCoins} Gems ({$formattedPrice})",
-                'currency' => 'BDT',
-                'currency_symbol' => '৳',
+                'currency' => $pkg->currency ?: 'BDT',
+                'currency_symbol' => $pkg->currency === 'USD' ? '$' : '৳',
             ],
         ], 200);
     }
@@ -267,36 +279,87 @@ class PaymentController extends Controller
      * Add / Create a new Coin Package via API.
      * POST /api/coin-packages
      */
+    /**
+     * Add / Create a new Coin Package via API.
+     * POST /api/coin-packages
+     */
     public function storeCoinPackage(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'coins' => 'required|integer|min:1',
-            'bonus_coins' => 'nullable|integer|min:0',
-            'price' => 'required|numeric|min:1',
-            'badge' => 'nullable|string|max:50',
-            'badge_color' => 'nullable|string|max:30',
-            'is_popular' => 'nullable|boolean',
-            'is_active' => 'nullable|boolean',
-            'sort_order' => 'nullable|integer|min:0',
+            'title'          => 'nullable|string|max:100',
+            'coins'          => 'required|integer|min:1',
+            'bonus_coins'    => 'nullable|integer|min:0',
+            'price'          => 'required|numeric|min:1',
+            'currency'       => 'nullable|string|max:10',
+            'badge'          => 'nullable|string|max:50',
+            'badge_color'    => 'nullable|string|max:30',
+            'icon'           => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'icon_url'       => 'nullable|string|max:255',
+            'animation_file' => 'nullable|file|max:25600',
+            'animation_url'  => 'nullable|string|max:255',
+            'format'         => 'nullable|string|in:svga,lottie,webp,gif,image,mp4',
+            'is_popular'     => 'nullable|boolean',
+            'is_active'      => 'nullable|boolean',
+            'sort_order'     => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'Validation error.',
-                'errors' => $validator->errors(),
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
+        $iconPath = $request->input('icon_url');
+        if ($request->hasFile('icon')) {
+            $iconFile = $request->file('icon');
+            $destPath = public_path('uploads/coins/icons');
+            if (!file_exists($destPath)) {
+                @mkdir($destPath, 0777, true);
+            }
+            $filename = 'coin_icon_' . time() . '_' . Str::random(6) . '.' . $iconFile->getClientOriginalExtension();
+            $iconFile->move($destPath, $filename);
+            $iconPath = 'uploads/coins/icons/' . $filename;
+        }
+
+        $animationPath = $request->input('animation_url');
+        $format = $request->input('format', 'image');
+        if ($request->hasFile('animation_file')) {
+            $animFile = $request->file('animation_file');
+            $destPath = public_path('uploads/coins/animations');
+            if (!file_exists($destPath)) {
+                @mkdir($destPath, 0777, true);
+            }
+            $ext = strtolower($animFile->getClientOriginalExtension());
+            $filename = 'coin_anim_' . time() . '_' . Str::random(6) . '.' . $ext;
+            $animFile->move($destPath, $filename);
+            $animationPath = 'uploads/coins/animations/' . $filename;
+            if ($ext === 'svga') {
+                $format = 'svga';
+            } elseif (in_array($ext, ['json', 'lottie'])) {
+                $format = 'lottie';
+            } elseif ($ext === 'webp') {
+                $format = 'webp';
+            } elseif ($ext === 'gif') {
+                $format = 'gif';
+            }
+        }
+
         $package = CoinPackage::create([
-            'coins' => (int) $request->input('coins'),
-            'bonus_coins' => (int) ($request->input('bonus_coins') ?: 0),
-            'price' => (float) $request->input('price'),
-            'badge' => $request->input('badge') ?: null,
-            'badge_color' => $request->input('badge_color') ?: 'pink',
-            'is_popular' => $request->boolean('is_popular', false),
-            'is_active' => $request->boolean('is_active', true),
-            'sort_order' => (int) ($request->input('sort_order') ?: 0),
+            'title'          => $request->input('title') ?: ($request->input('coins') . ' Gems Pack'),
+            'coins'          => (int) $request->input('coins'),
+            'bonus_coins'    => (int) ($request->input('bonus_coins') ?: 0),
+            'price'          => (float) $request->input('price'),
+            'currency'       => $request->input('currency', 'BDT'),
+            'icon_url'       => $iconPath,
+            'animation_url'  => $animationPath,
+            'format'         => $format,
+            'badge'          => $request->input('badge') ?: null,
+            'badge_color'    => $request->input('badge_color') ?: 'pink',
+            'is_popular'     => $request->boolean('is_popular', false),
+            'is_active'      => $request->boolean('is_active', true),
+            'sort_order'     => (int) ($request->input('sort_order') ?: 0),
         ]);
 
         $coins = (int) $package->coins;
@@ -306,27 +369,33 @@ class PaymentController extends Controller
         $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
 
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'message' => 'Coin package created successfully.',
-            'data' => [
-                'id' => $package->id,
-                'coins' => $coins,
-                'bonus_coins' => $bonus,
-                'total_coins' => $total,
-                'price' => $price,
-                'price_bdt' => $price,
-                'formatted_price' => $formattedPrice,
-                'badge' => $package->badge ?: null,
-                'badge_color' => $package->badge_color ?: 'pink',
-                'bonus_text' => $bonus > 0 ? "+{$bonus} Bonus" : null,
-                'bonus_percentage' => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
-                'is_popular' => (bool) $package->is_popular,
-                'popular' => (bool) $package->is_popular,
-                'is_active' => (bool) $package->is_active,
-                'sort_order' => (int) ($package->sort_order ?: 0),
-                'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
-                'currency' => 'BDT',
-                'currency_symbol' => '৳',
+            'data'    => [
+                'id'                 => $package->id,
+                'title'              => $package->title,
+                'coins'              => $coins,
+                'bonus_coins'        => $bonus,
+                'total_coins'        => $total,
+                'price'              => $price,
+                'price_bdt'          => $price,
+                'formatted_price'    => $formattedPrice,
+                'icon_url'           => $package->icon_url,
+                'icon_full_url'      => $package->icon_full_url,
+                'animation_url'      => $package->animation_url,
+                'animation_full_url' => $package->animation_full_url,
+                'format'             => $package->format,
+                'badge'              => $package->badge ?: null,
+                'badge_color'        => $package->badge_color ?: 'pink',
+                'bonus_text'         => $bonus > 0 ? "+{$bonus} Bonus" : null,
+                'bonus_percentage'   => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
+                'is_popular'         => (bool) $package->is_popular,
+                'popular'            => (bool) $package->is_popular,
+                'is_active'          => (bool) $package->is_active,
+                'sort_order'         => (int) ($package->sort_order ?: 0),
+                'button_text'        => "Recharge {$total} Gems ({$formattedPrice})",
+                'currency'           => $package->currency ?: 'BDT',
+                'currency_symbol'    => $package->currency === 'USD' ? '$' : '৳',
             ],
         ], 201);
     }
@@ -341,38 +410,87 @@ class PaymentController extends Controller
 
         if (!$package) {
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'Coin package not found.',
             ], 404);
         }
 
         $validator = Validator::make($request->all(), [
-            'coins' => 'sometimes|required|integer|min:1',
-            'bonus_coins' => 'nullable|integer|min:0',
-            'price' => 'sometimes|required|numeric|min:1',
-            'badge' => 'nullable|string|max:50',
-            'badge_color' => 'nullable|string|max:30',
-            'is_popular' => 'nullable|boolean',
-            'is_active' => 'nullable|boolean',
-            'sort_order' => 'nullable|integer|min:0',
+            'title'          => 'nullable|string|max:100',
+            'coins'          => 'nullable|integer|min:1',
+            'bonus_coins'    => 'nullable|integer|min:0',
+            'price'          => 'nullable|numeric|min:1',
+            'currency'       => 'nullable|string|max:10',
+            'badge'          => 'nullable|string|max:50',
+            'badge_color'    => 'nullable|string|max:30',
+            'icon'           => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'icon_url'       => 'nullable|string|max:255',
+            'animation_file' => 'nullable|file|max:25600',
+            'animation_url'  => 'nullable|string|max:255',
+            'format'         => 'nullable|string|in:svga,lottie,webp,gif,image,mp4',
+            'is_popular'     => 'nullable|boolean',
+            'is_active'      => 'nullable|boolean',
+            'sort_order'     => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'Validation error.',
-                'errors' => $validator->errors(),
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
-        if ($request->has('coins')) $package->coins = (int) $request->input('coins');
-        if ($request->has('bonus_coins')) $package->bonus_coins = (int) ($request->input('bonus_coins') ?: 0);
-        if ($request->has('price')) $package->price = (float) $request->input('price');
-        if ($request->has('badge')) $package->badge = $request->input('badge') ?: null;
-        if ($request->has('badge_color')) $package->badge_color = $request->input('badge_color') ?: 'pink';
+        if ($request->hasFile('icon')) {
+            $iconFile = $request->file('icon');
+            $destPath = public_path('uploads/coins/icons');
+            if (!file_exists($destPath)) {
+                @mkdir($destPath, 0777, true);
+            }
+            $filename = 'coin_icon_' . time() . '_' . Str::random(6) . '.' . $iconFile->getClientOriginalExtension();
+            $iconFile->move($destPath, $filename);
+            $package->icon_url = 'uploads/coins/icons/' . $filename;
+        } elseif ($request->filled('icon_url')) {
+            $package->icon_url = $request->input('icon_url');
+        }
+
+        if ($request->hasFile('animation_file')) {
+            $animFile = $request->file('animation_file');
+            $destPath = public_path('uploads/coins/animations');
+            if (!file_exists($destPath)) {
+                @mkdir($destPath, 0777, true);
+            }
+            $ext = strtolower($animFile->getClientOriginalExtension());
+            $filename = 'coin_anim_' . time() . '_' . Str::random(6) . '.' . $ext;
+            $animFile->move($destPath, $filename);
+            $package->animation_url = 'uploads/coins/animations/' . $filename;
+            if ($ext === 'svga') {
+                $package->format = 'svga';
+            } elseif (in_array($ext, ['json', 'lottie'])) {
+                $package->format = 'lottie';
+            } elseif ($ext === 'webp') {
+                $package->format = 'webp';
+            } elseif ($ext === 'gif') {
+                $package->format = 'gif';
+            }
+        } elseif ($request->filled('animation_url')) {
+            $package->animation_url = $request->input('animation_url');
+        }
+
+        if ($request->filled('format')) {
+            $package->format = $request->input('format');
+        }
+
+        if ($request->filled('title')) $package->title = $request->input('title');
+        if ($request->filled('coins')) $package->coins = (int) $request->input('coins');
+        if ($request->filled('bonus_coins')) $package->bonus_coins = (int) $request->input('bonus_coins');
+        if ($request->filled('price')) $package->price = (float) $request->input('price');
+        if ($request->filled('currency')) $package->currency = $request->input('currency');
+        if ($request->has('badge')) $package->badge = $request->input('badge');
+        if ($request->filled('badge_color')) $package->badge_color = $request->input('badge_color');
         if ($request->has('is_popular')) $package->is_popular = $request->boolean('is_popular');
         if ($request->has('is_active')) $package->is_active = $request->boolean('is_active');
-        if ($request->has('sort_order')) $package->sort_order = (int) ($request->input('sort_order') ?: 0);
+        if ($request->filled('sort_order')) $package->sort_order = (int) $request->input('sort_order');
 
         $package->save();
 
@@ -383,27 +501,33 @@ class PaymentController extends Controller
         $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
 
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'message' => 'Coin package updated successfully.',
-            'data' => [
-                'id' => $package->id,
-                'coins' => $coins,
-                'bonus_coins' => $bonus,
-                'total_coins' => $total,
-                'price' => $price,
-                'price_bdt' => $price,
-                'formatted_price' => $formattedPrice,
-                'badge' => $package->badge ?: null,
-                'badge_color' => $package->badge_color ?: 'pink',
-                'bonus_text' => $bonus > 0 ? "+{$bonus} Bonus" : null,
-                'bonus_percentage' => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
-                'is_popular' => (bool) $package->is_popular,
-                'popular' => (bool) $package->is_popular,
-                'is_active' => (bool) $package->is_active,
-                'sort_order' => (int) ($package->sort_order ?: 0),
-                'button_text' => "Recharge {$total} Gems ({$formattedPrice})",
-                'currency' => 'BDT',
-                'currency_symbol' => '৳',
+            'data'    => [
+                'id'                 => $package->id,
+                'title'              => $package->title,
+                'coins'              => $coins,
+                'bonus_coins'        => $bonus,
+                'total_coins'        => $total,
+                'price'              => $price,
+                'price_bdt'          => $price,
+                'formatted_price'    => $formattedPrice,
+                'icon_url'           => $package->icon_url,
+                'icon_full_url'      => $package->icon_full_url,
+                'animation_url'      => $package->animation_url,
+                'animation_full_url' => $package->animation_full_url,
+                'format'             => $package->format,
+                'badge'              => $package->badge ?: null,
+                'badge_color'        => $package->badge_color ?: 'pink',
+                'bonus_text'         => $bonus > 0 ? "+{$bonus} Bonus" : null,
+                'bonus_percentage'   => $coins > 0 && $bonus > 0 ? (int) round(($bonus / $coins) * 100) : 0,
+                'is_popular'         => (bool) $package->is_popular,
+                'popular'            => (bool) $package->is_popular,
+                'is_active'          => (bool) $package->is_active,
+                'sort_order'         => (int) ($package->sort_order ?: 0),
+                'button_text'        => "Recharge {$total} Gems ({$formattedPrice})",
+                'currency'           => $package->currency ?: 'BDT',
+                'currency_symbol'    => $package->currency === 'USD' ? '$' : '৳',
             ],
         ], 200);
     }

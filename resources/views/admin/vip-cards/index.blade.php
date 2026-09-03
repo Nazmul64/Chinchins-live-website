@@ -291,6 +291,41 @@
                                 <label class="form-label fw-semibold" style="font-size: 13px;">Banner Tagline</label>
                                 <input type="text" name="banner_tag" id="cardBannerTag" class="form-control" placeholder="Spend Less, Get More Gems! Update to New User Weekly Card">
                             </div>
+
+                            <!-- Card Icon, Animation & Background Media Assets -->
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-semibold" style="font-size: 13px;">Card Badge / Icon File</label>
+                                <input type="file" name="icon" class="form-control" accept="image/*">
+                                <small class="text-muted" style="font-size: 11px;">PNG, WebP, SVG for Card Header / Badge</small>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-semibold" style="font-size: 13px;">Card Animation File (.svga / .json / .webp)</label>
+                                <input type="file" name="animation_file" class="form-control" accept=".svga,.json,.lottie,.webp,.gif,.mp4">
+                                <small class="text-muted" style="font-size: 11px;">Lottie JSON, SVGA, WebP Animation</small>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-semibold" style="font-size: 13px;">Card Background Texture / Image</label>
+                                <input type="file" name="bg_image" class="form-control" accept="image/*">
+                                <small class="text-muted" style="font-size: 11px;">Custom card gradient / pattern banner</small>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-semibold" style="font-size: 13px;">Animation Format</label>
+                                <select name="format" id="cardFormat" class="form-select">
+                                    <option value="lottie" selected>Lottie JSON (.json)</option>
+                                    <option value="svga">SVGA Animation (.svga)</option>
+                                    <option value="webp">WebP Animation (.webp)</option>
+                                    <option value="gif">Animated GIF (.gif)</option>
+                                    <option value="image">Static Image</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12 col-md-8">
+                                <label class="form-label fw-semibold" style="font-size: 13px;">Animation File URL (Remote URL fallback)</label>
+                                <input type="text" name="animation_url" id="cardAnimationUrl" class="form-control" placeholder="https://.../vip_crown.json">
+                            </div>
                             
                             <div class="col-12">
                                 <div class="form-check form-switch">

@@ -26,6 +26,10 @@ class VipPrivilegeCard extends Model
         'description',
         'card_color',
         'banner_tag',
+        'icon_url',
+        'animation_url',
+        'bg_image_url',
+        'format',
         'is_active',
         'sort_order',
     ];
@@ -42,6 +46,54 @@ class VipPrivilegeCard extends Model
         'is_active'                 => 'boolean',
         'sort_order'                => 'integer',
     ];
+
+    protected $appends = [
+        'icon_full_url',
+        'animation_full_url',
+        'bg_image_full_url',
+    ];
+
+    /**
+     * Full URL for Card Icon
+     */
+    public function getIconFullUrlAttribute(): ?string
+    {
+        if (empty($this->icon_url)) {
+            return asset('assets/images/vip/vip_card_badge.png');
+        }
+        if (str_starts_with($this->icon_url, 'http://') || str_starts_with($this->icon_url, 'https://')) {
+            return $this->icon_url;
+        }
+        return asset(ltrim($this->icon_url, '/'));
+    }
+
+    /**
+     * Full URL for Animation (Lottie JSON / SVGA / WebP / GIF)
+     */
+    public function getAnimationFullUrlAttribute(): ?string
+    {
+        if (empty($this->animation_url)) {
+            return null;
+        }
+        if (str_starts_with($this->animation_url, 'http://') || str_starts_with($this->animation_url, 'https://')) {
+            return $this->animation_url;
+        }
+        return asset(ltrim($this->animation_url, '/'));
+    }
+
+    /**
+     * Full URL for Background Image
+     */
+    public function getBgImageFullUrlAttribute(): ?string
+    {
+        if (empty($this->bg_image_url)) {
+            return null;
+        }
+        if (str_starts_with($this->bg_image_url, 'http://') || str_starts_with($this->bg_image_url, 'https://')) {
+            return $this->bg_image_url;
+        }
+        return asset(ltrim($this->bg_image_url, '/'));
+    }
 
     /**
      * Subscriptions associated with this card.

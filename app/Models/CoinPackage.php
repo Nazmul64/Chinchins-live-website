@@ -10,9 +10,14 @@ class CoinPackage extends Model
     use HasFactory;
 
     protected $fillable = [
+        'title',
         'coins',
         'bonus_coins',
         'price',
+        'currency',
+        'icon_url',
+        'animation_url',
+        'format',
         'badge',
         'badge_color',
         'is_popular',
@@ -35,6 +40,8 @@ class CoinPackage extends Model
         'formatted_price',
         'bonus_percentage',
         'button_text',
+        'icon_full_url',
+        'animation_full_url',
     ];
 
     /**
@@ -83,5 +90,33 @@ class CoinPackage extends Model
         $total = $this->total_coins;
         $price = $this->formatted_price;
         return "Recharge {$total} Gems ({$price})";
+    }
+
+    /**
+     * Full URL for icon
+     */
+    public function getIconFullUrlAttribute(): ?string
+    {
+        if (empty($this->icon_url)) {
+            return asset('assets/images/coins/gem-stack.png');
+        }
+        if (str_starts_with($this->icon_url, 'http://') || str_starts_with($this->icon_url, 'https://')) {
+            return $this->icon_url;
+        }
+        return asset(ltrim($this->icon_url, '/'));
+    }
+
+    /**
+     * Full URL for Animation / Lottie / SVGA / GIF
+     */
+    public function getAnimationFullUrlAttribute(): ?string
+    {
+        if (empty($this->animation_url)) {
+            return null;
+        }
+        if (str_starts_with($this->animation_url, 'http://') || str_starts_with($this->animation_url, 'https://')) {
+            return $this->animation_url;
+        }
+        return asset(ltrim($this->animation_url, '/'));
     }
 }

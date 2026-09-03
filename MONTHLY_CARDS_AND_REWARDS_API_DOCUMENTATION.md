@@ -92,6 +92,10 @@
 | `extra_rewards` | `JSON` | ফ্রেম, আউটফিট, এসভিআইপি ব্যাজের তালিকা ও ইমেজ পাথ |
 | `card_color` | `VARCHAR(20)` | কার্ডের ব্যাকগ্রাউন্ড কালার হেক্স কোড (যেমন: `#FF4081`, `#00E676`) |
 | `banner_tag` | `VARCHAR(255)` | ব্যানার টেক্সট |
+| `icon_url` | `VARCHAR(255)` | কার্ড আইকন / ব্যাজ ইমেজ ইউআরএল |
+| `animation_url` | `VARCHAR(255)` | SVGA / Lottie JSON / WebP / GIF অ্যানিমেশন ইউআরএল |
+| `bg_image_url` | `VARCHAR(255)` | কার্ডের ব্যাকগ্রাউন্ড কভার / প্যাটার্ন ইমেজ ইউআরএল |
+| `format` | `VARCHAR(20)` | `lottie`, `svga`, `webp`, `gif`, `image` (Default: `lottie`) |
 | `is_active` | `BOOLEAN` | সক্রিয় অবস্থা (Default `true`) |
 | `sort_order` | `INT` | প্রদর্শনের ক্রম |
 
@@ -104,7 +108,7 @@ Base URL: `https://yourdomain.com/api`
 ---
 
 ### ৪.১. কার্ড ক্যাটালগ ও ব্যানার ডাটা
-প্রোফাইল পেজের ব্যানার এবং মান্থলি কার্ড স্ক্রিনের সমস্ত কার্ডের তথ্য, প্রতিদিনের শিডিউল, এক্সট্রা আউটফিটের ফুল ইমেজ URL এবং টাইমার রিটার্ন করে।
+প্রোফাইল পেজের ব্যানার এবং মান্থলি কার্ড স্ক্রিনের সমস্ত কার্ডের তথ্য, প্রতিদিনের শিডিউল, এক্সট্রা আউটফিটের ফুল ইমেজ URL, অ্যানিমেশন ফাইল এবং টাইমার রিটার্ন করে।
 
 * **Method:** `GET`
 * **URL:** `/api/vip-cards` (বা `/api/monthly-cards`)
@@ -136,6 +140,13 @@ Base URL: `https://yourdomain.com/api`
         "total_return_coins": 10120,
         "card_color": "#FF4081",
         "banner_tag": "Spend Less, Get More Gems! Update to New User Weekly Card",
+        "icon_url": "uploads/vip_cards/vip_icon_1.png",
+        "icon_full_url": "https://yourdomain.com/uploads/vip_cards/vip_icon_1.png",
+        "animation_url": "uploads/vip_cards/vip_anim_1.json",
+        "animation_full_url": "https://yourdomain.com/uploads/vip_cards/vip_anim_1.json",
+        "bg_image_url": "uploads/vip_cards/vip_bg_1.png",
+        "bg_image_full_url": "https://yourdomain.com/uploads/vip_cards/vip_bg_1.png",
+        "format": "lottie",
         "description": "Normal Recharge = 8,100 Gems. Weekly Card = 10,120 Gems + Outfits + Free Cards!",
         "countdown_seconds": 604740,
         "countdown_timer": "06 : 23 : 59 : 00",
