@@ -291,6 +291,10 @@ class User extends Authenticatable
         $this->increment('coins', $amount);
         $this->refresh();
 
+        // Sync with Wallet balance
+        $wallet = $this->getOrCreateWallet();
+        $wallet->increment('balance', $amount);
+
         $this->coinTransactions()->create([
             'type' => $type,
             'amount' => $amount,
@@ -313,6 +317,12 @@ class User extends Authenticatable
 
         $this->decrement('coins', $amount);
         $this->refresh();
+
+        // Sync with Wallet balance
+        $wallet = $this->getOrCreateWallet();
+        if ($wallet->balance >= $amount) {
+            $wallet->decrement('balance', $amount);
+        }
 
         $this->coinTransactions()->create([
             'type' => $type,
@@ -504,6 +514,31 @@ class User extends Authenticatable
     {
         return $this->hasMany(ChatMessage::class, 'receiver_id');
     }
+
+    /**
+     * User's wallet (Sender coin balance & Host earnings).
+     */
+    public function wallet()
+    {
+        return $this->hasOne(Wallet::class, 'user_id');
+    }
+
+    /**
+     * Helper to get or create user's wallet.
+     */
+    public function getOrCreateWallet(): Wallet
+    {
+        $wallet = $this->wallet;
+        if (!$wallet) {
+            $wallet = Wallet::create([
+                'user_id'  => $this->id,
+                'balance'  => (int) ($this->coins ?? 0),
+                'earnings' => 0,
+            ]);
+        }
+        return $wallet;
+    }
 }
+
 
 

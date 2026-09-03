@@ -7,6 +7,7 @@ use App\Models\CharmLevelSetting;
 use App\Models\Gift;
 use App\Models\User;
 use App\Models\UserGift;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -35,7 +36,6 @@ class GiftController extends Controller
 
         if (is_numeric($str)) {
             $val = (float) $str;
-            // If user enters decimal like 17.70 or 5.55 or 9.99, interpret as K (17.70K = 17700)
             if ($val > 0 && $val < 1000 && str_contains($str, '.')) {
                 return (int) round($val * 1000);
             }
@@ -101,71 +101,131 @@ class GiftController extends Controller
     }
 
     /**
-     * Store a newly created gift in storage.
+     * Store a newly created gift in storage (Web Admin Form & API).
      */
     public function store(Request $request)
     {
         try {
             $request->validate([
                 'name'           => 'required|string|max:100',
-                'coins'          => 'required',
+                'coins'          => 'nullable',
+                'coin_price'     => 'nullable',
                 'category'       => 'nullable|string|max:50',
                 'badge'          => 'nullable|string|max:30',
                 'is_active'      => 'nullable|boolean',
                 'is_broadcast'   => 'nullable|boolean',
-                'image_file'     => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+                'image_file'     => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+                'icon'           => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
                 'image_url'      => 'nullable|string|max:255',
+                'animation_file' => 'nullable|file|max:25600', // SVGA / JSON Lottie up to 25MB
                 'animation_url'  => 'nullable|string|max:255',
                 'animation_type' => 'nullable|string|max:30',
+                'format'         => 'nullable|string|in:svga,lottie,webp,image',
+                'display_type'   => 'nullable|string|in:fullscreen,bubble',
                 'sound_url'      => 'nullable|string|max:255',
             ]);
 
-            $parsedCoins = static::parseCoins($request->input('coins'));
+            $coinsInput = $request->input('coin_price') ?: $request->input('coins');
+            $parsedCoins = static::parseCoins($coinsInput);
             if ($parsedCoins <= 0) {
                 $parsedCoins = 100;
             }
 
-            $imagePath = 'uploads/gifts/rose_bouquet.png';
+            $iconPath = 'uploads/gifts/rose_bouquet.png';
 
-            // Handle Image Upload to public/uploads/gifts
-            if ($request->hasFile('image_file')) {
-                $file = $request->file('image_file');
-                $destinationPath = public_path('uploads/gifts');
+            // 1. Handle Icon/Image File Upload
+            $iconFile = $request->file('icon') ?: $request->file('image_file');
+            if ($iconFile) {
+                $destinationPath = public_path('uploads/gifts/icons');
                 if (!File::exists($destinationPath)) {
                     File::makeDirectory($destinationPath, 0777, true, true);
                 }
 
-                $filename = 'gift_' . time() . '_' . Str::random(8) . '.' . $file->getClientOriginalExtension();
-                $file->move($destinationPath, $filename);
-                $imagePath = 'uploads/gifts/' . $filename;
+                $filename = 'icon_' . time() . '_' . Str::random(8) . '.' . $iconFile->getClientOriginalExtension();
+                $iconFile->move($destinationPath, $filename);
+                $iconPath = 'uploads/gifts/icons/' . $filename;
             } elseif ($request->filled('image_url')) {
-                $imagePath = trim($request->input('image_url'));
+                $iconPath = trim($request->input('image_url'));
             }
+
+            // 2. Handle Animation File (SVGA / Lottie JSON) Upload
+            $animationPath = $request->input('animation_url');
+            $format = $request->input('format', 'svga');
+
+            if ($request->hasFile('animation_file')) {
+                $animFile = $request->file('animation_file');
+                $animDestPath = public_path('uploads/gifts/animations');
+                if (!File::exists($animDestPath)) {
+                    File::makeDirectory($animDestPath, 0777, true, true);
+                }
+
+                $ext = strtolower($animFile->getClientOriginalExtension());
+                $animFilename = 'anim_' . time() . '_' . Str::random(8) . '.' . $ext;
+                $animFile->move($animDestPath, $animFilename);
+                $animationPath = 'uploads/gifts/animations/' . $animFilename;
+
+                if ($ext === 'svga') {
+                    $format = 'svga';
+                } elseif (in_array($ext, ['json', 'lottie'])) {
+                    $format = 'lottie';
+                } elseif ($ext === 'webp') {
+                    $format = 'webp';
+                }
+            }
+
+            $displayType = $request->input('display_type') ?: ($request->has('is_broadcast') ? 'fullscreen' : 'bubble');
 
             // Auto sort order
             $nextSort = (Gift::max('sort_order') ?: 0) + 1;
 
-            Gift::create([
+            $gift = Gift::create([
                 'name'           => $request->input('name'),
                 'coins'          => $parsedCoins,
+                'coin_price'     => $parsedCoins,
                 'category'       => strtolower($request->input('category') ?: 'popular'),
                 'badge'          => $request->filled('badge') ? strtoupper(trim($request->input('badge'))) : null,
                 'sort_order'     => $nextSort,
                 'is_active'      => $request->has('is_active') ? 1 : 0,
-                'is_broadcast'   => $request->has('is_broadcast') ? 1 : 0,
+                'is_broadcast'   => $displayType === 'fullscreen' || $request->has('is_broadcast'),
                 'description'    => null,
-                'image'          => $imagePath,
-                'animation_url'  => $request->input('animation_url'),
-                'animation_type' => $request->input('animation_type') ?: 'image',
+                'image'          => $iconPath,
+                'icon_url'       => $iconPath,
+                'animation_url'  => $animationPath,
+                'file_url'       => $animationPath,
+                'animation_type' => $format,
+                'format'         => $format,
+                'display_type'   => $displayType,
                 'sound_url'      => $request->input('sound_url'),
             ]);
 
-            return redirect()->route('admin.gifts.index')->with('success', "Gift \"{$request->input('name')}\" (💎 " . Gift::formatCoins($parsedCoins) . ") added successfully!");
+            if ($request->wantsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status'  => true,
+                    'message' => 'Gift uploaded successfully!',
+                    'data'    => $gift,
+                ], 201);
+            }
+
+            return redirect()->route('admin.gifts.index')->with('success', "Gift \"{$gift->name}\" (💎 " . Gift::formatCoins($parsedCoins) . ") added successfully!");
         } catch (\Illuminate\Validation\ValidationException $ve) {
+            if ($request->wantsJson() || $request->is('api/*')) {
+                return response()->json(['status' => false, 'errors' => $ve->validator->errors()], 422);
+            }
             return back()->withErrors($ve->validator)->withInput();
         } catch (\Throwable $e) {
+            if ($request->wantsJson() || $request->is('api/*')) {
+                return response()->json(['status' => false, 'message' => $e->getMessage()], 500);
+            }
             return back()->with('error', 'Could not create gift: ' . $e->getMessage())->withInput();
         }
+    }
+
+    /**
+     * API Method: Store Gift via JSON / multipart API.
+     */
+    public function storeGift(Request $request): JsonResponse
+    {
+        return $this->store($request);
     }
 
     /**
@@ -178,51 +238,96 @@ class GiftController extends Controller
 
             $request->validate([
                 'name'           => 'required|string|max:100',
-                'coins'          => 'required',
+                'coins'          => 'nullable',
+                'coin_price'     => 'nullable',
                 'category'       => 'nullable|string|max:50',
                 'badge'          => 'nullable|string|max:30',
                 'is_active'      => 'nullable|boolean',
                 'is_broadcast'   => 'nullable|boolean',
-                'image_file'     => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+                'image_file'     => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+                'icon'           => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
                 'image_url'      => 'nullable|string|max:255',
+                'animation_file' => 'nullable|file|max:25600',
                 'animation_url'  => 'nullable|string|max:255',
                 'animation_type' => 'nullable|string|max:30',
+                'format'         => 'nullable|string|in:svga,lottie,webp,image',
+                'display_type'   => 'nullable|string|in:fullscreen,bubble',
                 'sound_url'      => 'nullable|string|max:255',
             ]);
 
-            $parsedCoins = static::parseCoins($request->input('coins'));
+            $coinsInput = $request->input('coin_price') ?: $request->input('coins');
+            $parsedCoins = static::parseCoins($coinsInput);
             if ($parsedCoins <= 0) {
                 $parsedCoins = $gift->coins;
             }
 
-            $imagePath = $gift->image;
+            $iconPath = $gift->image;
 
-            if ($request->hasFile('image_file')) {
-                $file = $request->file('image_file');
-                $destinationPath = public_path('uploads/gifts');
+            $iconFile = $request->file('icon') ?: $request->file('image_file');
+            if ($iconFile) {
+                $destinationPath = public_path('uploads/gifts/icons');
                 if (!File::exists($destinationPath)) {
                     File::makeDirectory($destinationPath, 0777, true, true);
                 }
 
-                $filename = 'gift_' . time() . '_' . Str::random(8) . '.' . $file->getClientOriginalExtension();
-                $file->move($destinationPath, $filename);
-                $imagePath = 'uploads/gifts/' . $filename;
+                $filename = 'icon_' . time() . '_' . Str::random(8) . '.' . $iconFile->getClientOriginalExtension();
+                $iconFile->move($destinationPath, $filename);
+                $iconPath = 'uploads/gifts/icons/' . $filename;
             } elseif ($request->filled('image_url')) {
-                $imagePath = trim($request->input('image_url'));
+                $iconPath = trim($request->input('image_url'));
             }
+
+            $animationPath = $gift->animation_url;
+            $format = $request->input('format', $gift->format ?? 'svga');
+
+            if ($request->hasFile('animation_file')) {
+                $animFile = $request->file('animation_file');
+                $animDestPath = public_path('uploads/gifts/animations');
+                if (!File::exists($animDestPath)) {
+                    File::makeDirectory($animDestPath, 0777, true, true);
+                }
+
+                $ext = strtolower($animFile->getClientOriginalExtension());
+                $animFilename = 'anim_' . time() . '_' . Str::random(8) . '.' . $ext;
+                $animFile->move($animDestPath, $animFilename);
+                $animationPath = 'uploads/gifts/animations/' . $animFilename;
+
+                if ($ext === 'svga') {
+                    $format = 'svga';
+                } elseif (in_array($ext, ['json', 'lottie'])) {
+                    $format = 'lottie';
+                }
+            } elseif ($request->filled('animation_url')) {
+                $animationPath = trim($request->input('animation_url'));
+            }
+
+            $displayType = $request->input('display_type', $gift->display_type ?? 'fullscreen');
 
             $gift->update([
                 'name'           => $request->input('name'),
                 'coins'          => $parsedCoins,
+                'coin_price'     => $parsedCoins,
                 'category'       => strtolower($request->input('category') ?: $gift->category),
                 'badge'          => $request->filled('badge') ? strtoupper(trim($request->input('badge'))) : null,
                 'is_active'      => $request->has('is_active') ? 1 : 0,
-                'is_broadcast'   => $request->has('is_broadcast') ? 1 : 0,
-                'image'          => $imagePath,
-                'animation_url'  => $request->input('animation_url'),
-                'animation_type' => $request->input('animation_type') ?: 'image',
+                'is_broadcast'   => $displayType === 'fullscreen' || $request->has('is_broadcast'),
+                'image'          => $iconPath,
+                'icon_url'       => $iconPath,
+                'animation_url'  => $animationPath,
+                'file_url'       => $animationPath,
+                'animation_type' => $format,
+                'format'         => $format,
+                'display_type'   => $displayType,
                 'sound_url'      => $request->input('sound_url'),
             ]);
+
+            if ($request->wantsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status'  => true,
+                    'message' => 'Gift updated successfully!',
+                    'data'    => $gift,
+                ]);
+            }
 
             return redirect()->route('admin.gifts.index')->with('success', "Gift \"{$gift->name}\" updated successfully!");
         } catch (\Illuminate\Validation\ValidationException $ve) {

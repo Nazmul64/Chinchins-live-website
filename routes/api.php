@@ -402,6 +402,9 @@ Route::get('/users/{id}/gifts', [\App\Http\Controllers\Api\GiftApiController::cl
 Route::get('/users/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
 Route::get('/users/{id}/top-fans', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
 Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+Route::post('/live/send-gift', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+Route::post('/live-stream/gift', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+Route::post('/gifts/upload', [\App\Http\Controllers\Admin\GiftController::class, 'storeGift']);
 
 // Authenticated & Session Verification Routes
 Route::match(['get', 'post'], '/auth/check', [AuthController::class, 'me']);

@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\LiveGiftSentEvent;
 use App\Http\Controllers\Controller;
 use App\Models\CharmLevelSetting;
 use App\Models\CoinTransaction;
 use App\Models\Gift;
+use App\Models\GiftTransaction;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\UserGift;
 use App\Models\UserLike;
+use App\Models\Wallet;
 use App\Services\PushNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -352,176 +355,199 @@ class GiftApiController extends Controller
     }
 
     /**
-     * 5. Send Gift (From Fan/Caller to Host/Streamer).
+     * 5. Send Gift (Live Streaming Gift & Wallet Engine with Reverb Real-Time Broadcasting).
+     * POST /api/gifts/send or POST /api/gift/send or POST /api/live/send-gift
      */
-    public function sendGift(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'receiver_id'     => 'required',
-            'gift_id'         => 'required|exists:gifts,id',
-            'quantity'        => 'nullable|integer|min:1|max:1000',
-            'context'         => 'nullable|string|in:profile,live_call,chat,random_match',
-            'call_session_id' => 'nullable|integer',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Validation error.',
-                'errors'  => $validator->errors(),
-            ], 422);
-        }
-
-        $sender = $this->resolveUser($request);
-        if (!$sender) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Unauthenticated. Please provide Bearer token or sender_id.',
-            ], 401);
-        }
-
-        $receiverId = $request->input('receiver_id');
-        $receiver = User::where('id', $receiverId)->orWhere('account_id', $receiverId)->first();
-
-        if (!$receiver) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Receiver user not found.',
-            ], 404);
-        }
-
-        if ($sender->id === $receiver->id) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'You cannot send a gift to yourself.',
-            ], 400);
-        }
-
-        $gift = Gift::findOrFail($request->input('gift_id'));
-        if (!$gift->is_active) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'This gift is currently unavailable.',
-            ], 400);
-        }
-
-        $quantity = (int) ($request->input('quantity', 1) ?: 1);
-        $totalCost = $gift->coins * $quantity;
-
-        // Check if sender has enough coins
-        if ($sender->coins < $totalCost) {
-            return response()->json([
-                'status'         => false,
-                'message'        => "Insufficient coin balance! You need {$totalCost} coins but have {$sender->coins} coins.",
-                'required_coins' => $totalCost,
-                'current_coins'  => $sender->coins,
-                'shortage'       => $totalCost - $sender->coins,
-            ], 402);
-        }
-
-        return DB::transaction(function () use ($sender, $receiver, $gift, $quantity, $totalCost, $request) {
-            // 1. Deduct coins from sender
-            $sender->decrement('coins', $totalCost);
-            $senderBalanceAfter = $sender->fresh()->coins;
-
-            // 2. Credit host/receiver earnings (50% default revenue split)
-            $hostEarnings = (int) floor($totalCost * 0.50);
-            $receiver->increment('coins', $hostEarnings);
-            $receiverBalanceAfter = $receiver->fresh()->coins;
-
-            // 3. Record in UserGift ledger
-            $userGift = UserGift::create([
-                'user_id'         => $receiver->id,
-                'sender_id'       => $sender->id,
-                'gift_id'         => $gift->id,
-                'quantity'        => $quantity,
-                'coins_per_unit'  => $gift->coins,
-                'total_coins'     => $totalCost,
-                'call_session_id' => $request->input('call_session_id'),
-                'context'         => $request->input('context', 'profile'),
-            ]);
-
-            // 4. Log Coin Transactions
-            CoinTransaction::create([
-                'user_id'       => $sender->id,
-                'type'          => 'gift_sent',
-                'amount'        => -$totalCost,
-                'balance_after' => $senderBalanceAfter,
-                'description'   => "Sent {$quantity}x {$gift->name} to {$receiver->display_name}",
-                'reference_id'  => $userGift->id,
-            ]);
-
-            CoinTransaction::create([
-                'user_id'       => $receiver->id,
-                'type'          => 'gift_received',
-                'amount'        => $hostEarnings,
-                'balance_after' => $receiverBalanceAfter,
-                'description'   => "Received {$quantity}x {$gift->name} from {$sender->display_name} (+{$hostEarnings} coins)",
-                'reference_id'  => $userGift->id,
-            ]);
-
-            // 5. In-App Notification & Real-time FCM Push Notification
-            Notification::createNotification(
-                userId: $receiver->id,
-                actorId: $sender->id,
-                type: 'gift',
-                title: "New Gift Received! 🎁",
-                message: "{$sender->display_name} sent you {$quantity}x {$gift->name} (+{$hostEarnings} coins)!",
-                data: [
-                    'gift_id'      => $gift->id,
-                    'gift_name'    => $gift->name,
-                    'gift_icon'    => $gift->image_url,
-                    'quantity'     => $quantity,
-                    'coins_earned' => $hostEarnings,
-                    'sender_id'    => $sender->id,
-                    'sender_name'  => $sender->display_name,
-                ]
-            );
-
-            try {
-                PushNotificationService::sendGiftPush($sender, $receiver, $gift, $hostEarnings);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error("Gift push notification error: " . $e->getMessage());
-            }
-
-            // Get updated total received quantity for this specific gift on receiver's profile
-            $newTotalGiftCount = (int) UserGift::where('user_id', $receiver->id)
-                ->where('gift_id', $gift->id)
-                ->sum('quantity');
-
-            return response()->json([
-                'status'  => true,
-                'message' => "Successfully sent {$quantity}x {$gift->name} to {$receiver->display_name}!",
-                'data'    => [
-                    'transaction_id'       => $userGift->id,
-                    'gift'                 => [
-                        'id'              => $gift->id,
-                        'name'            => $gift->name,
-                        'coins'           => $gift->coins,
-                        'formatted_coins' => $gift->formatted_coins,
-                        'image_url'       => $gift->image_url,
-                        'animation_url'   => $gift->animation_full_url,
-                        'animation_type'  => $gift->animation_type,
-                        'sound_url'       => $gift->sound_url,
-                        'is_broadcast'    => $gift->is_broadcast,
-                    ],
-                    'quantity'             => $quantity,
-                    'count_label'          => 'x' . $quantity,
-                    'total_cost'           => $totalCost,
-                    'formatted_cost'       => Gift::formatCoins($totalCost),
-                    'sender'               => [
-                        'id'              => $sender->id,
-                        'display_name'    => $sender->display_name,
-                        'remaining_coins' => $senderBalanceAfter,
-                        'formatted_coins' => Gift::formatCoins($senderBalanceAfter),
-                    ],
-                    'receiver'             => [
-                        'id'              => $receiver->id,
-                        'display_name'    => $receiver->display_name,
-                        'updated_slot'    => 'x' . $newTotalGiftCount,
-                    ],
-                ],
-            ]);
-        });
-    }
+     public function sendGift(Request $request): JsonResponse
+     {
+         $validator = Validator::make($request->all(), [
+             'stream_id'       => 'nullable',
+             'receiver_id'     => 'required',
+             'gift_id'         => 'required|exists:gifts,id',
+             'quantity'        => 'nullable|integer|min:1|max:1000',
+             'context'         => 'nullable|string|in:profile,live_call,chat,random_match,live_stream',
+             'call_session_id' => 'nullable|integer',
+         ]);
+ 
+         if ($validator->fails()) {
+             return response()->json([
+                 'status'  => false,
+                 'message' => 'Validation error.',
+                 'errors'  => $validator->errors(),
+             ], 422);
+         }
+ 
+         $sender = $this->resolveUser($request);
+         if (!$sender) {
+             return response()->json([
+                 'status'  => false,
+                 'message' => 'Unauthenticated. Please provide Bearer token or user_id.',
+             ], 401);
+         }
+ 
+         $receiverId = $request->input('receiver_id');
+         $receiver = User::where('id', $receiverId)->orWhere('account_id', $receiverId)->first();
+ 
+         if (!$receiver) {
+             return response()->json([
+                 'status'  => false,
+                 'message' => 'Receiver host not found.',
+             ], 404);
+         }
+ 
+         if ($sender->id === $receiver->id) {
+             return response()->json([
+                 'status'  => false,
+                 'message' => 'You cannot send a gift to yourself.',
+             ], 400);
+         }
+ 
+         $gift = Gift::findOrFail($request->input('gift_id'));
+         if (!$gift->is_active) {
+             return response()->json([
+                 'status'  => false,
+                 'message' => 'This gift is currently unavailable.',
+             ], 400);
+         }
+ 
+         $quantity = (int) ($request->input('quantity', 1) ?: 1);
+         $coinPrice = (int) ($gift->coin_price ?: $gift->coins);
+         $totalCost = $coinPrice * $quantity;
+ 
+         return DB::transaction(function () use ($sender, $receiver, $gift, $quantity, $coinPrice, $totalCost, $request) {
+             // 1. Lock Sender Wallet row to prevent race conditions & negative balance
+             $senderWallet = Wallet::where('user_id', $sender->id)->lockForUpdate()->first();
+             if (!$senderWallet) {
+                 $senderWallet = $sender->getOrCreateWallet();
+                 $senderWallet = Wallet::where('user_id', $sender->id)->lockForUpdate()->first();
+             }
+ 
+             // If wallet balance is lower than user coins, sync
+             if ($senderWallet->balance < $sender->coins) {
+                 $senderWallet->balance = (int) $sender->coins;
+                 $senderWallet->save();
+             }
+ 
+             if (!$senderWallet || $senderWallet->balance < $totalCost) {
+                 return response()->json([
+                     'status'         => false,
+                     'message'        => "Insufficient coins! You need {$totalCost} coins but have " . ($senderWallet ? $senderWallet->balance : 0) . " coins.",
+                     'required_coins' => $totalCost,
+                     'current_coins'  => $senderWallet ? $senderWallet->balance : 0,
+                     'shortage'       => $totalCost - ($senderWallet ? $senderWallet->balance : 0),
+                 ], 400);
+             }
+ 
+             // 2. Deduct coins from sender wallet & user balance
+             $senderWallet->decrement('balance', $totalCost);
+             $sender->decrement('coins', $totalCost);
+             $senderBalanceAfter = (int) $senderWallet->fresh()->balance;
+ 
+             // 3. Credit receiver/host earnings
+             $hostEarnings = $totalCost; // 100% earnings into Host Withdrawable Wallet
+             $receiverWallet = Wallet::firstOrCreate(['user_id' => $receiver->id]);
+             $receiverWallet->increment('earnings', $hostEarnings);
+             $receiver->increment('coins', (int) floor($totalCost * 0.50)); // standard user balance share
+ 
+             $streamId = (string) ($request->input('stream_id') ?: ('stream_' . $receiver->id));
+ 
+             // 4. Record Gift Transaction for live stream history
+             $giftTx = GiftTransaction::create([
+                 'stream_id'   => $streamId,
+                 'sender_id'   => $sender->id,
+                 'receiver_id' => $receiver->id,
+                 'gift_id'     => $gift->id,
+                 'coins_spent' => $totalCost,
+             ]);
+ 
+             // 5. Record UserGift collection ledger
+             $userGift = UserGift::create([
+                 'user_id'         => $receiver->id,
+                 'sender_id'       => $sender->id,
+                 'gift_id'         => $gift->id,
+                 'quantity'        => $quantity,
+                 'coins_per_unit'  => $coinPrice,
+                 'total_coins'     => $totalCost,
+                 'call_session_id' => $request->input('call_session_id'),
+                 'context'         => $request->input('context', 'live_stream'),
+             ]);
+ 
+             // 6. Log Coin Transaction ledger
+             CoinTransaction::create([
+                 'user_id'       => $sender->id,
+                 'type'          => 'gift_sent',
+                 'amount'        => -$totalCost,
+                 'balance_after' => $senderBalanceAfter,
+                 'description'   => "Sent {$quantity}x {$gift->name} to {$receiver->display_name}",
+                 'reference_id'  => $giftTx->id,
+             ]);
+ 
+             CoinTransaction::create([
+                 'user_id'       => $receiver->id,
+                 'type'          => 'gift_received',
+                 'amount'        => $hostEarnings,
+                 'balance_after' => (int) $receiverWallet->fresh()->earnings,
+                 'description'   => "Received {$quantity}x {$gift->name} from {$sender->display_name} (+{$hostEarnings} earnings)",
+                 'reference_id'  => $giftTx->id,
+             ]);
+ 
+             // 7. Real-Time Broadcast Payload for Flutter / Web Clients
+             $eventData = [
+                 'stream_id'      => $streamId,
+                 'sender_id'      => $sender->id,
+                 'sender_name'    => $sender->display_name ?? $sender->name,
+                 'sender_avatar'  => $sender->avatar_url,
+                 'gift_id'        => $gift->id,
+                 'gift_name'      => $gift->name,
+                 'icon_url'       => $gift->icon_url ?: $gift->image_url,
+                 'file_url'       => $gift->file_url ?: $gift->animation_full_url,
+                 'format'         => $gift->format ?? ($gift->animation_type ?: 'svga'),
+                 'display_type'   => $gift->display_type ?? ($gift->is_broadcast ? 'fullscreen' : 'bubble'),
+                 'quantity'       => $quantity,
+                 'coins_spent'    => $totalCost,
+             ];
+ 
+             // 8. Trigger Laravel Reverb Real-Time Broadcast Event (live-stream.{stream_id} -> gift.received)
+             try {
+                 broadcast(new LiveGiftSentEvent($streamId, $eventData))->toOthers();
+             } catch (\Throwable $e) {
+                 \Illuminate\Support\Facades\Log::warning("Reverb broadcast error: " . $e->getMessage());
+             }
+ 
+             // 9. Send In-App & FCM Push Notification
+             Notification::createNotification(
+                 userId: $receiver->id,
+                 actorId: $sender->id,
+                 type: 'gift',
+                 title: "New Gift Received! 🎁",
+                 message: "{$sender->display_name} sent you {$quantity}x {$gift->name} (+{$totalCost} coins)!",
+                 data: [
+                     'gift_id'      => $gift->id,
+                     'gift_name'    => $gift->name,
+                     'gift_icon'    => $gift->image_url,
+                     'quantity'     => $quantity,
+                     'coins_earned' => $hostEarnings,
+                     'sender_id'    => $sender->id,
+                     'sender_name'  => $sender->display_name,
+                 ]
+             );
+ 
+             try {
+                 PushNotificationService::sendGiftPush($sender, $receiver, $gift, $hostEarnings);
+             } catch (\Throwable $e) {}
+ 
+             return response()->json([
+                 'status'            => true,
+                 'message'           => 'Gift sent successfully!',
+                 'remaining_balance' => $senderBalanceAfter,
+                 'gift'              => $eventData,
+                 'data'              => [
+                     'transaction_id'    => $giftTx->id,
+                     'remaining_balance' => $senderBalanceAfter,
+                     'gift'              => $eventData,
+                 ],
+             ]);
+         });
+     }
 }
+

@@ -276,11 +276,11 @@
                             <input type="text" name="badge" class="form-control" placeholder="e.g. HOT, 3D, VIP, NEW">
                         </div>
 
-                        <!-- Image File Upload (Stored in public/uploads/gifts) -->
+                        <!-- Image File Upload (Stored in public/uploads/gifts/icons) -->
                         <div class="col-12 col-md-7">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Gift Icon File (Uploads to public/uploads/gifts)</label>
-                            <input type="file" name="image_file" class="form-control" accept="image/*" onchange="previewImageFile(this, 'createImagePreview')">
-                            <small class="text-muted" style="font-size: 11px;">PNG, SVG, JPG, WebP transparent icon</small>
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Gift Icon File (Tray Icon)</label>
+                            <input type="file" name="icon" class="form-control" accept="image/*" onchange="previewImageFile(this, 'createImagePreview')">
+                            <small class="text-muted" style="font-size: 11px;">PNG, WebP, SVG transparent icon for gift tray</small>
                         </div>
 
                         <!-- Image Preview Box -->
@@ -291,21 +291,35 @@
                             </div>
                         </div>
 
-                        <!-- Animation Format & URL (Optional) -->
+                        <!-- Animation File Upload (SVGA, Lottie JSON) -->
                         <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Animation Format (Optional)</label>
-                            <select name="animation_type" class="form-select">
-                                <option value="image" selected>Standard Static / PNG</option>
-                                <option value="svga">SVGA Animation</option>
-                                <option value="lottie">Lottie JSON</option>
-                                <option value="webp">Animated WebP</option>
-                                <option value="mp4">MP4 Video Alpha</option>
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Upload Animation File (.svga / .json)</label>
+                            <input type="file" name="animation_file" class="form-control" accept=".svga,.json,.lottie,.webp,.mp4">
+                            <small class="text-muted" style="font-size: 11px;">Max 25MB (SVGA, Lottie JSON, WebP)</small>
+                        </div>
+
+                        <!-- Display Type & Format -->
+                        <div class="col-12 col-md-3">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Format</label>
+                            <select name="format" class="form-select">
+                                <option value="svga" selected>SVGA (.svga)</option>
+                                <option value="lottie">Lottie JSON (.json)</option>
+                                <option value="webp">WebP Animation</option>
+                                <option value="image">Static Image</option>
                             </select>
                         </div>
 
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" style="font-size: 13px;">Animation File URL (Optional)</label>
-                            <input type="text" name="animation_url" class="form-control" placeholder="https://.../dragon.svga">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Display Type</label>
+                            <select name="display_type" class="form-select">
+                                <option value="fullscreen" selected>Fullscreen (Full Screen FX)</option>
+                                <option value="bubble">Bubble (Chat / Avatar Float)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Animation File URL (Optional Remote URL)</label>
+                            <input type="text" name="animation_url" class="form-control" placeholder="https://.../dragon.svga (Or upload file above)">
                         </div>
 
                         <!-- Toggles -->
