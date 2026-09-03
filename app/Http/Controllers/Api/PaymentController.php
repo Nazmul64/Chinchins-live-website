@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CoinPackage;
+use App\Models\CoinPurchaseLog;
 use App\Models\CoinTransaction;
 use App\Models\DepositRequest;
 use App\Models\PaymentMethod;
 use App\Models\User;
+use App\Models\Wallet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -711,5 +714,110 @@ class PaymentController extends Controller
                 'total' => $transactions->total(),
             ],
         ], 200);
+    }
+
+    /**
+     * Add coins to user wallet and record purchase log after payment completion.
+     */
+    public function addCoinsAfterPayment($userId, $packageId): array
+    {
+        return DB::transaction(function () use ($userId, $packageId) {
+            $package = CoinPackage::findOrFail($packageId);
+            $wallet = Wallet::firstOrCreate(['user_id' => $userId]);
+
+            $totalCoins = (int) ($package->coins + ($package->bonus_coins ?? 0));
+
+            // ব্যালেন্সে কয়েন যোগ (Wallet & User model sync)
+            $wallet->increment('balance', $totalCoins);
+
+            $user = User::find($userId);
+            if ($user) {
+                $user->increment('coins', $totalCoins);
+            }
+
+            // ট্রানজেকশন রেকর্ড রাখা
+            $log = CoinPurchaseLog::create([
+                'user_id'        => $userId,
+                'package_id'     => $packageId,
+                'coins'          => $totalCoins,
+                'amount_paid'    => $package->price,
+                'currency'       => $package->currency ?? 'BDT',
+                'payment_method' => 'online_gateway',
+            ]);
+
+            // Coin Transaction Ledger
+            CoinTransaction::create([
+                'user_id'       => $userId,
+                'type'          => 'package_purchase',
+                'amount'        => $totalCoins,
+                'balance_after' => (int) $wallet->fresh()->balance,
+                'description'   => "Purchased " . ($package->title ?? "Coin Package #{$package->id}") . " ({$totalCoins} coins)",
+                'reference_id'  => $log->id,
+            ]);
+
+            return [
+                'package'        => $package,
+                'coins_credited' => $totalCoins,
+                'wallet_balance' => (int) $wallet->fresh()->balance,
+                'purchase_log'   => $log,
+            ];
+        });
+    }
+
+    /**
+     * API: Purchase Coin Package.
+     * POST /api/coins/purchase
+     */
+    public function purchaseCoinPackage(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Please provide a valid Bearer token or user_id.',
+            ], 401);
+        }
+
+        $packageId = $request->input('package_id') ?? $request->input('id');
+
+        if (!$packageId) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Package ID is required.',
+            ], 422);
+        }
+
+        $package = CoinPackage::find($packageId);
+        if (!$package || !$package->is_active) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Selected coin package is unavailable or inactive.',
+            ], 404);
+        }
+
+        try {
+            $result = $this->addCoinsAfterPayment($user->id, $package->id);
+
+            return response()->json([
+                'status'            => true,
+                'message'           => 'Coin package purchased successfully! Coins added to wallet.',
+                'remaining_balance' => $result['wallet_balance'],
+                'data'              => [
+                    'package_id'     => $package->id,
+                    'title'          => $package->title,
+                    'coins_added'    => $result['coins_credited'],
+                    'price'          => (float) $package->price,
+                    'currency'       => $package->currency ?? 'BDT',
+                    'wallet_balance' => $result['wallet_balance'],
+                    'user_coins'     => (int) $user->fresh()->coins,
+                ],
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to process coin purchase: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }

@@ -128,6 +128,14 @@ Route::get('/coins/balance', [PaymentController::class, 'getWalletBalance']);
 Route::get('/wallet/transactions', [PaymentController::class, 'getTransactions']);
 Route::get('/coins/transactions', [PaymentController::class, 'getTransactions']);
 
+// Coin Package Instant Purchase Flow
+Route::post('/coins/purchase', [PaymentController::class, 'purchaseCoinPackage']);
+Route::post('/coins/buy', [PaymentController::class, 'purchaseCoinPackage']);
+Route::post('/packages/purchase', [PaymentController::class, 'purchaseCoinPackage']);
+Route::post('/packages/buy', [PaymentController::class, 'purchaseCoinPackage']);
+Route::post('/coin-packages/purchase', [PaymentController::class, 'purchaseCoinPackage']);
+Route::post('/wallet/buy-package', [PaymentController::class, 'purchaseCoinPackage']);
+
 // Submit Deposit request & view history (bKash, Nagad, Rocket, etc.)
 Route::post('/deposit/submit', [PaymentController::class, 'submitDeposit']);
 Route::post('/deposit/request', [PaymentController::class, 'submitDeposit']);
