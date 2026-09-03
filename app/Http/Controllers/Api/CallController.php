@@ -1106,6 +1106,7 @@ class CallController extends Controller
     public function getIceServers(Request $request): JsonResponse
     {
         $iceServers = [
+            // High-availability Global STUN Servers
             [
                 'urls' => [
                     'stun:stun.l.google.com:19302',
@@ -1113,18 +1114,23 @@ class CallController extends Controller
                     'stun:stun2.l.google.com:19302',
                     'stun:stun3.l.google.com:19302',
                     'stun:stun4.l.google.com:19302',
+                    'stun:stun.cloudflare.com:3478',
+                    'stun:global.stun.twilio.com:3478',
                 ],
             ],
+            // Built-in Reliable Global TURN Relay Servers for 4G/5G and Cross-Network Video Calls
             [
                 'urls' => [
-                    'stun:global.stun.twilio.com:3478',
-                    'stun:stun.cloudflare.com:3478',
-                    'stun:stun.services.mozilla.com',
+                    'turn:openrelay.metered.ca:80',
+                    'turn:openrelay.metered.ca:443',
+                    'turn:openrelay.metered.ca:443?transport=tcp',
                 ],
+                'username'   => 'openrelay',
+                'credential' => 'openrelay',
             ],
         ];
 
-        // If custom TURN server is configured in .env or settings
+        // Custom or Dedicated TURN server configured in .env
         $turnUrl = env('TURN_SERVER_URL') ?: env('TURN_URL');
         $turnUser = env('TURN_SERVER_USERNAME') ?: env('TURN_USERNAME');
         $turnPass = env('TURN_SERVER_PASSWORD') ?: env('TURN_CREDENTIAL') ?: env('TURN_PASSWORD');
@@ -1139,7 +1145,8 @@ class CallController extends Controller
             if ($turnPass) {
                 $turnEntry['credential'] = $turnPass;
             }
-            $iceServers[] = $turnEntry;
+            // Put dedicated TURN server first for priority
+            array_unshift($iceServers, $turnEntry);
         }
 
         return response()->json([
@@ -1148,6 +1155,7 @@ class CallController extends Controller
             'data' => [
                 'iceServers' => $iceServers,
             ],
+            'iceServers' => $iceServers, // Direct alias for Flutter webrtc config
         ], 200);
     }
 
