@@ -69,6 +69,63 @@ class ProfileController extends Controller
     }
 
     /**
+     * Search users by 8-digit Account ID, UID, Name, or Nickname.
+     * GET /api/search?q=84920183 or GET /api/users/search?search=84920183
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $term = trim($request->input('q') ?? $request->input('search') ?? $request->input('account_id') ?? $request->input('id') ?? '');
+
+        if (empty($term)) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Please provide a search term (account_id, name, or nickname).',
+                'data'    => [],
+            ], 422);
+        }
+
+        $query = User::query();
+
+        // Exact match prioritized for Account ID
+        if (is_numeric($term)) {
+            $exactUser = User::where('account_id', $term)
+                ->orWhere('id', (int) $term)
+                ->first();
+
+            if ($exactUser) {
+                return response()->json([
+                    'status'  => true,
+                    'message' => "User found with ID {$term}",
+                    'data'    => [
+                        'exact_match' => true,
+                        'users'       => [$exactUser],
+                    ],
+                ]);
+            }
+        }
+
+        // Fuzzy search by Name, Nickname, Account ID
+        $users = $query->where(function ($q) use ($term) {
+            $q->where('account_id', 'LIKE', "%{$term}%")
+              ->orWhere('name', 'LIKE', "%{$term}%")
+              ->orWhere('nickname', 'LIKE', "%{$term}%")
+              ->orWhere('phone', 'LIKE', "%{$term}%");
+        })->latest()->take(30)->get();
+
+        return response()->json([
+            'status'  => true,
+            'message' => count($users) . ' users found for search query.',
+            'data'    => [
+                'exact_match' => false,
+                'users'       => $users,
+            ],
+        ]);
+    }
+
+    /**
      * Resolve the target user from Sanctum token, request user, headers, or user_id/account_id fallback.
      *
      * @param Request $request

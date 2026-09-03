@@ -81,6 +81,8 @@ class User extends Authenticatable
         'cover_photo_url',
         'gallery_image_urls',
         'display_name',
+        'display_id',
+        'uid',
         'is_online',
         'status_text',
         'profile_picture',
@@ -368,16 +370,32 @@ class User extends Authenticatable
     }
 
     /**
-     * Generate unique 10-12 digit numeric string for account_id.
+     * Generate unique 8-digit numeric string for account_id (e.g. 84920183).
      */
     public static function generateUniqueAccountId(): string
     {
         do {
-            // Generate 10-digit random number (e.g. 6022816358 or 602281635)
-            $accountId = (string) random_int(1000000000, 9999999999);
+            // Generate 8-digit unique random number (10000000 - 99999999)
+            $accountId = (string) random_int(10000000, 99999999);
         } while (static::where('account_id', $accountId)->exists());
 
         return $accountId;
+    }
+
+    /**
+     * Accessor for 8-digit Display / Account ID.
+     */
+    public function getDisplayIdAttribute(): string
+    {
+        return !empty($this->account_id) ? (string) $this->account_id : (string) $this->id;
+    }
+
+    /**
+     * Accessor for UID alias.
+     */
+    public function getUidAttribute(): string
+    {
+        return !empty($this->account_id) ? (string) $this->account_id : (string) $this->id;
     }
 
     /**

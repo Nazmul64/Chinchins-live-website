@@ -46,12 +46,17 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/home', [ProfileController::class, 'index']);
 Route::get('/users', [ProfileController::class, 'index']);
 
+// User Search by 8-digit Account ID, UID, Name
+Route::get('/search', [ProfileController::class, 'search']);
+Route::get('/users/search', [ProfileController::class, 'search']);
+Route::get('/user/search', [ProfileController::class, 'search']);
+
 // Profile Visitors List
 Route::get('/profile/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
 Route::get('/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
 Route::get('/user/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
 
-// Public User Profile Route (view any profile by ID or 10-12 digit Account ID)
+// Public User Profile Route (view any profile by 8-digit Account ID or primary key ID)
 Route::get('/profile/{id}', [ProfileController::class, 'show']);
 
 // Profile & Media Management Endpoints (Supports Bearer Token or User ID Fallback, Always Returns JSON)

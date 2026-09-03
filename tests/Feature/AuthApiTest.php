@@ -74,7 +74,9 @@ class AuthApiTest extends TestCase
 
         $user = User::where('email', 'nazmul@gmail.com')->first();
         $this->assertNotNull($user->account_id);
-        $this->assertGreaterThanOrEqual(9, strlen($user->account_id));
+        $this->assertGreaterThanOrEqual(8, strlen($user->account_id));
+        $this->assertEquals($user->account_id, $user->display_id);
+        $this->assertEquals($user->account_id, $user->uid);
     }
 
     public function test_user_can_login_with_email_phone_or_account_id(): void
@@ -330,5 +332,28 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.user.id', $userB->id)
             ->assertJsonPath('data.user.avatar_url', null)
             ->assertJsonPath('data.user.gallery_images', []);
+    }
+
+    public function test_search_user_by_eight_digit_account_id(): void
+    {
+        $user = User::create([
+            'first_name' => 'Searchable',
+            'last_name'  => 'Person',
+            'phone'      => '01799887766',
+            'email'      => 'searchable@test.com',
+            'account_id' => '84920183',
+            'password'   => bcrypt('secret123'),
+        ]);
+
+        $response = $this->getJson('/api/search?q=84920183');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => true,
+            ])
+            ->assertJsonFragment([
+                'account_id' => '84920183',
+                'display_id' => '84920183',
+            ]);
     }
 }
