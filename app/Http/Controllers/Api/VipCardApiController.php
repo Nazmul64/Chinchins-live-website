@@ -31,6 +31,104 @@ class VipCardApiController extends Controller
     }
 
     /**
+     * Format Extra Perks array with absolute image/icon URLs.
+     */
+    public static function formatExtraRewards(?array $rewards): array
+    {
+        if (empty($rewards)) return [];
+
+        $formatted = [];
+        foreach ($rewards as $reward) {
+            $title = $reward['title'] ?? 'VIP Privilege';
+            $tag = $reward['tag'] ?? 'Perk';
+            $icon = $reward['icon'] ?? 'frame_avatar';
+            $image = $reward['image'] ?? null;
+
+            $imageUrl = null;
+            if (!empty($image)) {
+                $imageUrl = str_starts_with($image, 'http') ? $image : url($image);
+            }
+
+            $formatted[] = [
+                'title'     => $title,
+                'tag'       => $tag,
+                'icon'      => $icon,
+                'image'     => $image,
+                'image_url' => $imageUrl,
+            ];
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * Format Daily Schedule array.
+     */
+    public static function formatDailySchedule(?array $schedule): array
+    {
+        if (empty($schedule)) return [];
+
+        $formatted = [];
+        foreach ($schedule as $item) {
+            $day = (int) ($item['day'] ?? 1);
+            $coins = (int) ($item['coins'] ?? 0);
+            $extra = $item['extra'] ?? null;
+            $icon = $item['icon'] ?? null;
+            $image = $item['image'] ?? null;
+
+            $imageUrl = null;
+            if (!empty($image)) {
+                $imageUrl = str_starts_with($image, 'http') ? $image : url($image);
+            }
+
+            $formatted[] = [
+                'day'       => $day,
+                'day_label' => static::getDayLabel($day),
+                'coins'     => $coins,
+                'extra'     => $extra,
+                'icon'      => $icon,
+                'image_url' => $imageUrl,
+            ];
+        }
+
+        usort($formatted, fn($a, $b) => $a['day'] <=> $b['day']);
+        return $formatted;
+    }
+
+    /**
+     * Helper to get day suffix (1st, 2nd, 3rd, 4th...).
+     */
+    protected static function getDayLabel(int $day): string
+    {
+        if ($day % 100 >= 11 && $day % 100 <= 13) {
+            return $day . 'th';
+        }
+        return match ($day % 10) {
+            1 => $day . 'st',
+            2 => $day . 'nd',
+            3 => $day . 'rd',
+            default => $day . 'th',
+        };
+    }
+
+    /**
+     * Format seconds into Days : Hours : Minutes : Seconds (DD : HH : MM : SS)
+     */
+    public static function formatCountdown(int $seconds): string
+    {
+        if ($seconds <= 0) {
+            return '00 : 00 : 00 : 00';
+        }
+
+        $days = floor($seconds / 86400);
+        $hours = floor(($seconds % 86400) / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $secs = $seconds % 60;
+
+        return sprintf('%02d : %02d : %02d : %02d', $days, $hours, $minutes, $secs);
+    }
+
+    /**
      * Get All Monthly & Weekly Privilege Card Packages with Schedule & Outfits.
      * GET /api/vip-cards (or GET /api/monthly-cards)
      */
@@ -54,13 +152,23 @@ class VipCardApiController extends Controller
                 ->keyBy('vip_card_id');
         }
 
-        $formattedCards = $cards->map(function ($card) use ($userSubscriptions) {
+        $now = Carbon::now();
+
+        $formattedCards = $cards->map(function ($card) use ($userSubscriptions, $now) {
             $sub = $userSubscriptions[$card->id] ?? null;
 
             $isSubscribed = $sub !== null;
-            $remainingSeconds = $isSubscribed ? max(0, Carbon::now()->diffInSeconds($sub->expires_at, false)) : 0;
+            $remainingSeconds = $isSubscribed ? max(0, $now->diffInSeconds($sub->expires_at, false)) : 0;
             $currentDay = $isSubscribed ? $sub->getCurrentDayNumber() : 1;
             $hasClaimedToday = $isSubscribed ? $sub->hasClaimedToday() : false;
+
+            // Rolling promotional offer countdown timer for display (e.g. 7 days / duration timer)
+            $offerDurationSeconds = ((int) $card->duration_days) * 86400 - 60; // e.g. 6 days 23 hrs 59 mins
+            $displayCountdownSeconds = $isSubscribed ? $remainingSeconds : $offerDurationSeconds;
+            $countdownFormatted = static::formatCountdown($displayCountdownSeconds);
+
+            $formattedSchedule = static::formatDailySchedule($card->daily_schedule ?? []);
+            $formattedRewards = static::formatExtraRewards($card->extra_rewards ?? []);
 
             return [
                 'id'                        => $card->id,
@@ -74,18 +182,20 @@ class VipCardApiController extends Controller
                 'instant_reward_coins'      => (int) $card->instant_reward_coins,
                 'daily_checkin_total_coins' => (int) $card->daily_checkin_total_coins,
                 'total_return_coins'        => (int) $card->total_return_coins,
-                'card_color'                => $card->card_color,
-                'banner_tag'                => $card->banner_tag,
+                'card_color'                => $card->card_color ?? '#FF4081',
+                'banner_tag'                => $card->banner_tag ?? 'Spend Less, Get More Gems!',
                 'description'               => $card->description,
-                'daily_schedule'            => $card->daily_schedule ?? [],
-                'extra_rewards'             => $card->extra_rewards ?? [],
+                'countdown_seconds'         => $displayCountdownSeconds,
+                'countdown_timer'           => $countdownFormatted,
+                'daily_schedule'            => $formattedSchedule,
+                'extra_rewards'             => $formattedRewards,
                 'user_subscription'         => [
                     'is_subscribed'     => $isSubscribed,
                     'subscription_id'   => $sub?->id,
                     'started_at'        => $sub?->started_at?->toIso8601String(),
                     'expires_at'        => $sub?->expires_at?->toIso8601String(),
                     'remaining_seconds' => $remainingSeconds,
-                    'countdown_timer'   => $isSubscribed ? gmdate('d:H:i:s', $remainingSeconds) : null,
+                    'countdown_timer'   => $isSubscribed ? static::formatCountdown($remainingSeconds) : null,
                     'current_day'       => $currentDay,
                     'has_claimed_today' => $hasClaimedToday,
                     'claimed_days'      => $sub?->claimed_days ?? [],
@@ -126,12 +236,14 @@ class VipCardApiController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
+        $now = Carbon::now();
         $activeSubscriptions = [];
+
         foreach ($subscriptions as $sub) {
             if (!$sub->card) continue;
 
             $isActive = $sub->is_active;
-            $remainingSeconds = $isActive ? max(0, Carbon::now()->diffInSeconds($sub->expires_at, false)) : 0;
+            $remainingSeconds = $isActive ? max(0, $now->diffInSeconds($sub->expires_at, false)) : 0;
             $currentDay = $sub->getCurrentDayNumber();
             $hasClaimedToday = $sub->hasClaimedToday();
 
@@ -140,18 +252,18 @@ class VipCardApiController extends Controller
                 'card_id'           => $sub->vip_card_id,
                 'card_name'         => $sub->card->name,
                 'card_type'         => $sub->card_type,
-                'card_color'        => $sub->card->card_color,
+                'card_color'        => $sub->card->card_color ?? '#FF4081',
                 'is_active'         => $isActive,
                 'started_at'        => $sub->started_at?->toIso8601String(),
                 'expires_at'        => $sub->expires_at?->toIso8601String(),
                 'remaining_seconds' => $remainingSeconds,
-                'countdown_timer'   => gmdate('d:H:i:s', $remainingSeconds),
+                'countdown_timer'   => static::formatCountdown($remainingSeconds),
                 'current_day'       => $currentDay,
                 'total_days'        => $sub->card->duration_days,
                 'has_claimed_today' => $hasClaimedToday,
                 'claimed_days'      => $sub->claimed_days ?? [],
-                'daily_schedule'    => $sub->card->daily_schedule ?? [],
-                'extra_rewards'     => $sub->card->extra_rewards ?? [],
+                'daily_schedule'    => static::formatDailySchedule($sub->card->daily_schedule ?? []),
+                'extra_rewards'     => static::formatExtraRewards($sub->card->extra_rewards ?? []),
             ];
         }
 
