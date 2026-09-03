@@ -621,6 +621,30 @@ class MessageApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Host profile not found.'], 404);
         }
 
+        // ==========================================
+        // 🛑 Self-Profile Check: If user views their OWN profile, DO NOT trigger callback or notification!
+        // ==========================================
+        if ($viewer->id === $host->id) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'Viewing own profile. Auto-callback is disabled for self.',
+                'data'    => [
+                    'is_self'  => true,
+                    'host'     => [
+                        'id'           => $host->id,
+                        'account_id'   => $host->account_id,
+                        'display_name' => $host->display_name,
+                        'avatar_url'   => $host->avatar_url,
+                    ],
+                    'callback' => [
+                        'auto_call_triggered' => false,
+                        'host_is_available'   => false,
+                        'trigger_action'      => 'NONE',
+                    ],
+                ],
+            ], 200);
+        }
+
         // Check if host is currently available (online and not busy talking to someone else)
         $isHostAvailable = (bool) $host->is_online && !(bool) $host->is_busy;
 

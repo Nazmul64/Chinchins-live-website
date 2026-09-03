@@ -1436,11 +1436,35 @@ class CallController extends Controller
                 ],
                 'is_read' => false,
             ]);
+
+            // ==========================================
+            // 💬 Automatically create/update Chat Thread with Host Avatar & Call Summary
+            // ==========================================
+            $partnerUser = ($senderId === $call->caller_id) ? $call->receiver : $call->caller;
+            $durationFormatted = sprintf('%02d:%02d', floor($durationSeconds / 60), $durationSeconds % 60);
+            $callSummaryText = $durationSeconds > 0 
+                ? "📹 {$call->call_type} call ended ({$durationFormatted})"
+                : "📞 Missed {$call->call_type} call";
+
+            \App\Models\ChatMessage::create([
+                'sender_id'   => $partnerUser ? $partnerUser->id : $call->receiver_id,
+                'receiver_id' => $senderId,
+                'type'        => 'call_summary',
+                'message'     => $callSummaryText,
+                'is_read'     => false,
+                'is_free'     => true,
+                'coin_cost'   => 0,
+            ]);
         } catch (\Throwable $e) {}
+
+        $partnerUser = ($user?->id === $call->caller_id) ? $call->receiver : $call->caller;
+        if (!$partnerUser) {
+            $partnerUser = $call->receiver ?: $call->caller;
+        }
 
         return response()->json([
             'status' => true,
-            'message' => 'Call session ended successfully.',
+            'message' => 'Call session ended successfully. Chat conversation updated with host avatar.',
             'data' => [
                 'call_id' => $call->id,
                 'call_type' => $call->call_type,
@@ -1451,9 +1475,21 @@ class CallController extends Controller
                 'admin_revenue_coins' => (int) $call->admin_revenue_coins,
                 'caller_remaining_coins' => $call->caller ? (int) $call->caller->coins : (int) $call->caller_balance_after,
                 'partner' => [
-                    'id' => $call->receiver?->id,
-                    'name' => $call->receiver?->display_name,
-                    'avatar' => $call->receiver?->avatar_url,
+                    'id'              => $partnerUser?->id,
+                    'account_id'      => $partnerUser?->account_id,
+                    'name'            => $partnerUser?->display_name,
+                    'avatar'          => $partnerUser?->avatar_url,
+                    'avatar_url'      => $partnerUser?->avatar_url,
+                    'cover_photo_url' => $partnerUser?->cover_photo_url,
+                    'gender'          => $partnerUser?->gender ?: 'female',
+                    'country'         => $partnerUser?->country ?: 'Bangladesh',
+                ],
+                'chat_box' => [
+                    'open_chat_user_id' => $partnerUser?->id,
+                    'account_id'        => $partnerUser?->account_id,
+                    'partner_name'      => $partnerUser?->display_name,
+                    'partner_avatar'    => $partnerUser?->avatar_url,
+                    'last_message'      => $durationSeconds > 0 ? "📹 Video call ended ({$durationFormatted})" : "📞 Missed call",
                 ],
             ],
         ], 200);
