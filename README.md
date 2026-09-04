@@ -1,59 +1,51 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 📱 Chinchins Live — Backend API & WebRTC Streaming Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Chinchins Live is a modern live streaming, 1-on-1 WebRTC video calling, virtual gifting, VIP privileges, and instant wallet deposit/withdrawal platform.
 
-## About Laravel
+- **Live Server Base URL:** `https://chinchins.live/api`
+- **Master API Documentation:** See [`CHINCHINS_MASTER_RESTFUL_API_DOCUMENTATION.md`](./CHINCHINS_MASTER_RESTFUL_API_DOCUMENTATION.md) for full endpoint specifications, request/response formats, and the production Flutter WebRTC service code.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🌟 Core Features
+- **1-on-1 WebRTC Audio & Video Calling:**
+  - High-availability STUN and multi-protocol TURN (TCP, UDP, TLS on ports 80, 443, 3478, 5349) for seamless cross-network / 4G/5G / international connectivity.
+  - Zero-latency incoming call push notifications and ringtone triggers.
+  - Real-time in-call coin billing pulse with 50/50 revenue sharing (50% host earnings, 50% platform revenue).
+- **Wallet, Coins & Manual Deposits:**
+  - Support for manual payment methods (bKash, Nagad, Rocket, Bank Transfer) with admin review and instant coin top-ups.
+  - Withdrawal engine with minimum coin limits and real-time exchange rates.
+- **VIP Privilege Cards & Daily Check-In:**
+  - Weekly and monthly subscription cards with instant bonus coins and daily claimable rewards.
+- **Virtual Gifts & Live Stream Interactions:**
+  - SVGA/Lottie animated gifts with real-time coin deductions and top fan leaderboards.
+- **In-App Messaging & Profile Visitor Tracking:**
+  - Direct 1-on-1 messaging, photo sharing, and profile visit analytics.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🛠️ Tech Stack
+- **Framework:** Laravel 11 / PHP 8.2+
+- **Database:** MySQL
+- **Real-Time Signaling:** Laravel Reverb / WebSockets / WebRTC RESTful Polling
+- **Authentication:** Laravel Sanctum Bearer Tokens
+- **Client App:** Flutter (Android & iOS)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 🚀 Getting Started
 
-## Laravel Sponsors
+### 1. Environment Setup
+```bash
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 2. Running Tests
+```bash
+vendor/bin/phpunit
+```
 
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 3. API Documentation
+Read [`CHINCHINS_MASTER_RESTFUL_API_DOCUMENTATION.md`](./CHINCHINS_MASTER_RESTFUL_API_DOCUMENTATION.md) for complete endpoint schemas and Flutter WebRTC client integration.

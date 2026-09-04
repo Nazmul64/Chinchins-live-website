@@ -1101,12 +1101,14 @@ class CallController extends Controller
 
     /**
      * WebRTC ICE Servers Configuration (STUN & TURN for Flutter).
+     * Provides global high-availability STUN, multi-protocol TURN (TCP/UDP/TLS on 80, 443, 3478, 5349),
+     * and dynamic HMAC-SHA1 Coturn ephemeral credentials.
      * GET /api/call/ice-servers
      */
     public function getIceServers(Request $request): JsonResponse
     {
         $iceServers = [
-            // High-availability Global STUN Servers
+            // 1. High-availability Global STUN Servers
             [
                 'urls' => [
                     'stun:stun.l.google.com:19302',
@@ -1119,7 +1121,7 @@ class CallController extends Controller
                     'stun:stun.services.mozilla.com',
                 ],
             ],
-            // Built-in Reliable Global TURN Relay Servers for 4G/5G and Cross-Network / Remote Video Calls
+            // 2. Built-in Reliable Global TURN Relay Servers for 4G/5G and Cross-Network / Remote Video Calls
             [
                 'urls' => [
                     'turn:openrelay.metered.ca:80',
@@ -1134,12 +1136,25 @@ class CallController extends Controller
             ],
         ];
 
-        // Custom or Dedicated TURN server configured in .env
-        $turnUrl = env('TURN_SERVER_URL') ?: env('TURN_URL');
+        // 3. Custom or Dedicated TURN server configured in .env (e.g. VPS Coturn)
+        $turnUrl = env('TURN_SERVER_URL') ?: env('TURN_URL') ?: env('COTURN_URL');
         $turnUser = env('TURN_SERVER_USERNAME') ?: env('TURN_USERNAME');
         $turnPass = env('TURN_SERVER_PASSWORD') ?: env('TURN_CREDENTIAL') ?: env('TURN_PASSWORD');
+        $turnSecret = env('TURN_SERVER_SECRET') ?: env('TURN_SECRET') ?: env('COTURN_SECRET');
 
-        if ($turnUrl) {
+        if ($turnSecret && $turnUrl) {
+            $ttl = 86400; // 24 hours validity
+            $timestamp = time() + $ttl;
+            $username = $timestamp . ':' . ($request->user()?->id ?: 'user_' . Str::random(6));
+            $credential = base64_encode(hash_hmac('sha1', $username, $turnSecret, true));
+
+            $coturnEntry = [
+                'urls' => is_array($turnUrl) ? $turnUrl : explode(',', $turnUrl),
+                'username' => $username,
+                'credential' => $credential,
+            ];
+            array_unshift($iceServers, $coturnEntry);
+        } elseif ($turnUrl) {
             $turnEntry = [
                 'urls' => is_array($turnUrl) ? $turnUrl : explode(',', $turnUrl),
             ];
@@ -1149,7 +1164,6 @@ class CallController extends Controller
             if ($turnPass) {
                 $turnEntry['credential'] = $turnPass;
             }
-            // Put dedicated TURN server first for priority
             array_unshift($iceServers, $turnEntry);
         }
 
@@ -1158,10 +1172,13 @@ class CallController extends Controller
             'message' => 'WebRTC ICE Servers retrieved successfully.',
             'data' => [
                 'iceServers' => $iceServers,
+                'iceTransportPolicy' => 'all',
+                'bundlePolicy' => 'max-bundle',
+                'rtcpMuxPolicy' => 'require',
             ],
             'iceServers' => $iceServers, // Direct alias for Flutter webrtc config
         ], 200);
-    }
+    }  
 
     /**
      * Send WebRTC Signal (SDP Offer, SDP Answer, ICE Candidate, Ping, Bye).
