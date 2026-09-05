@@ -1,49 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
   <defs>
-    <radialGradient id="baseGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#EC4899" stop-opacity="0.9"/>
-      <stop offset="60%" stop-color="#38BDF8" stop-opacity="0.6"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#EC4899"/>
-      <stop offset="50%" stop-color="#38BDF8"/>
-      <stop offset="100%" stop-color="#FFFFFF"/>
+    <linearGradient id="wingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#E0F2FE"/>
+      <stop offset="80%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+    <filter id="wingGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Ambient Aura -->
-  <circle cx="256" cy="256" r="230" fill="url(#baseGlow)"/>
+  <style>
+    @keyframes wingFlapL { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-5deg); } }
+    @keyframes wingFlapR { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(5deg); } }
+    .wing-l { transform-origin: 150px 250px; animation: wingFlapL 2s infinite ease-in-out; }
+    .wing-r { transform-origin: 350px 250px; animation: wingFlapR 2s infinite ease-in-out; }
+  </style>
 
-  <!-- Outer Decorative Ring -->
-  <circle cx="256" cy="256" r="200" fill="none" stroke="url(#ringGrad)" stroke-width="12" filter="url(#glow)"/>
-  <circle cx="256" cy="256" r="175" fill="none" stroke="#EC4899" stroke-width="4" stroke-dasharray="8 6"/>
-
-  <!-- Ornate Crown / Crest Top -->
-  <g transform="translate(256, 50)" text-anchor="middle">
-    <circle cx="0" cy="0" r="32" fill="#EC4899" filter="url(#glow)"/>
-    <text y="14" font-size="34" text-anchor="middle">🪽</text>
+  <!-- Left Diamond Angel Wing -->
+  <g class="wing-l" filter="url(#wingGlow)">
+    <path d="M 120,220 C 70,160 20,130 0,160 C 20,200 60,230 110,250 C 40,260 20,300 30,330 C 60,320 100,300 120,280 Z" fill="url(#wingGrad)" stroke="#FFFFFF" stroke-width="2"/>
   </g>
 
-  <!-- Avatar Placeholder Cutout Center -->
-  <circle cx="256" cy="256" r="145" fill="#0f172a" stroke="#EC4899" stroke-width="4"/>
-
-  <!-- Bottom Badge Tag -->
-  <g transform="translate(256, 450)">
-    <rect x="-80" y="-20" width="160" height="40" rx="20" fill="url(#ringGrad)" stroke="#ffffff" stroke-width="2" filter="url(#glow)"/>
-    <text x="0" y="7" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="900" font-size="14" text-anchor="middle" letter-spacing="1">FRAME</text>
+  <!-- Right Diamond Angel Wing -->
+  <g class="wing-r" filter="url(#wingGlow)">
+    <path d="M 380,220 C 430,160 480,130 500,160 C 480,200 440,230 390,250 C 460,260 480,300 470,330 C 440,320 400,300 380,280 Z" fill="url(#wingGrad)" stroke="#FFFFFF" stroke-width="2"/>
   </g>
 
-  <!-- Sparkles -->
-  <circle cx="80" cy="160" r="5" fill="#EC4899" filter="url(#glow)"/>
-  <circle cx="430" cy="160" r="5" fill="#EC4899" filter="url(#glow)"/>
-  <circle cx="100" cy="380" r="4" fill="#38BDF8" filter="url(#glow)"/>
-  <circle cx="410" cy="380" r="4" fill="#38BDF8" filter="url(#glow)"/>
+  <!-- Center Diamond Halo Ring -->
+  <circle cx="250" cy="250" r="180" fill="none" stroke="url(#wingGrad)" stroke-width="16" filter="url(#wingGlow)"/>
+  <circle cx="250" cy="250" r="168" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+  <circle cx="250" cy="65" r="10" fill="#FFFFFF" filter="url(#wingGlow)"/>
 </svg>

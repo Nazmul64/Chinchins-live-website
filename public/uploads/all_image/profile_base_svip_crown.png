@@ -1,49 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
   <defs>
-    <radialGradient id="baseGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.9"/>
-      <stop offset="60%" stop-color="#8B5CF6" stop-opacity="0.6"/>
-      <stop offset="100%" stop-color="#EC4899" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F59E0B"/>
-      <stop offset="50%" stop-color="#8B5CF6"/>
-      <stop offset="100%" stop-color="#EC4899"/>
+    <linearGradient id="svipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="50%" stop-color="#EC4899"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+    <filter id="svipGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Ambient Aura -->
-  <circle cx="256" cy="256" r="230" fill="url(#baseGlow)"/>
+  <style>
+    @keyframes svipPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+    .svip-anim { transform-origin: 250px 250px; animation: svipPulse 2.2s infinite ease-in-out; }
+  </style>
 
-  <!-- Outer Decorative Ring -->
-  <circle cx="256" cy="256" r="200" fill="none" stroke="url(#ringGrad)" stroke-width="12" filter="url(#glow)"/>
-  <circle cx="256" cy="256" r="175" fill="none" stroke="#F59E0B" stroke-width="4" stroke-dasharray="8 6"/>
+  <g class="svip-anim">
+    <!-- Multi-Color SVIP Ring -->
+    <circle cx="250" cy="250" r="185" fill="none" stroke="url(#svipGrad)" stroke-width="16" filter="url(#svipGlow)"/>
+    <circle cx="250" cy="250" r="172" fill="none" stroke="#FFFFFF" stroke-width="3"/>
 
-  <!-- Ornate Crown / Crest Top -->
-  <g transform="translate(256, 50)" text-anchor="middle">
-    <circle cx="0" cy="0" r="32" fill="#F59E0B" filter="url(#glow)"/>
-    <text y="14" font-size="34" text-anchor="middle">✨</text>
+    <!-- Imperial Tiara Top -->
+    <g transform="translate(250, 45)" filter="url(#svipGlow)">
+      <path d="M -50,30 L -30,-15 L 0,10 L 30,-15 L 50,30 Z" fill="url(#svipGrad)" stroke="#FFFFFF" stroke-width="2"/>
+      <circle cx="0" cy="10" r="8" fill="#FFFFFF"/>
+      <circle cx="-30" cy="-15" r="6" fill="#FDE047"/>
+      <circle cx="30" cy="-15" r="6" fill="#FDE047"/>
+    </g>
   </g>
-
-  <!-- Avatar Placeholder Cutout Center -->
-  <circle cx="256" cy="256" r="145" fill="#0f172a" stroke="#F59E0B" stroke-width="4"/>
-
-  <!-- Bottom Badge Tag -->
-  <g transform="translate(256, 450)">
-    <rect x="-80" y="-20" width="160" height="40" rx="20" fill="url(#ringGrad)" stroke="#ffffff" stroke-width="2" filter="url(#glow)"/>
-    <text x="0" y="7" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="900" font-size="14" text-anchor="middle" letter-spacing="1">FRAME</text>
-  </g>
-
-  <!-- Sparkles -->
-  <circle cx="80" cy="160" r="5" fill="#F59E0B" filter="url(#glow)"/>
-  <circle cx="430" cy="160" r="5" fill="#F59E0B" filter="url(#glow)"/>
-  <circle cx="100" cy="380" r="4" fill="#8B5CF6" filter="url(#glow)"/>
-  <circle cx="410" cy="380" r="4" fill="#8B5CF6" filter="url(#glow)"/>
 </svg>

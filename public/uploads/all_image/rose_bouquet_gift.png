@@ -1,51 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
   <defs>
-    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#FB7185" stop-opacity="0.85"/>
-      <stop offset="50%" stop-color="#E11D48" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#090d16" stop-opacity="0"/>
+    <radialGradient id="roseRed" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FF4D6D"/>
+      <stop offset="50%" stop-color="#C9184A"/>
+      <stop offset="100%" stop-color="#590D22"/>
     </radialGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FB7185"/>
-      <stop offset="50%" stop-color="#E11D48"/>
-      <stop offset="100%" stop-color="#F43F5E"/>
+    <linearGradient id="wrapGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="50%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0F172A"/>
     </linearGradient>
-    <filter id="softGlow">
-      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+    <filter id="roseGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Dark Background Plate with Rounded Corners -->
-  <rect width="512" height="512" rx="64" fill="#0b0f19"/>
-  <circle cx="256" cy="240" r="210" fill="url(#bgGlow)"/>
+  <style>
+    @keyframes roseBloom {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.05) rotate(2deg); }
+    }
+    .rose-anim { transform-origin: 250px 250px; animation: roseBloom 2.8s infinite ease-in-out; }
+  </style>
 
-  <!-- Outer Golden Border -->
-  <rect x="16" y="16" width="480" height="480" rx="52" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.75"/>
+  <g class="rose-anim" filter="url(#roseGlow)">
+    <!-- Paper Wrapper Bottom Cone -->
+    <polygon points="250,470 120,250 380,250" fill="url(#wrapGold)" stroke="#F59E0B" stroke-width="4"/>
 
-  <!-- Sparkling Center Icon / Visual -->
-  <g transform="translate(256, 220) scale(1)" filter="url(#softGlow)">
-    <circle cx="0" cy="0" r="120" fill="url(#goldGrad)" opacity="0.25"/>
-    <text x="0" y="45" font-size="120" text-anchor="middle">🌹</text>
-  </g>
+    <!-- Gold Ribbon Bow -->
+    <circle cx="250" cy="330" r="16" fill="#F59E0B"/>
+    <path d="M 250,330 C 200,300 180,360 250,330 C 320,300 300,360 250,330 Z" fill="#FDE047" stroke="#F59E0B" stroke-width="2"/>
 
-  <!-- Top Badge Ribbon -->
-  <g transform="translate(256, 50)">
-    <rect x="-70" y="-16" width="140" height="32" rx="16" fill="url(#goldGrad)" stroke="#ffffff" stroke-width="1.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="900" font-size="12" text-anchor="middle" letter-spacing="1">ROMANTIC</text>
-  </g>
+    <!-- Clustered Blooming Rose Buds -->
+    <!-- Center Rose -->
+    <circle cx="250" cy="180" r="45" fill="url(#roseRed)" stroke="#FF758F" stroke-width="3"/>
+    <!-- Surrounding Roses -->
+    <circle cx="180" cy="190" r="38" fill="url(#roseRed)" stroke="#FF758F" stroke-width="2"/>
+    <circle cx="320" cy="190" r="38" fill="url(#roseRed)" stroke="#FF758F" stroke-width="2"/>
+    <circle cx="215" cy="125" r="36" fill="url(#roseRed)" stroke="#FF758F" stroke-width="2"/>
+    <circle cx="285" cy="125" r="36" fill="url(#roseRed)" stroke="#FF758F" stroke-width="2"/>
+    <circle cx="140" cy="235" r="32" fill="url(#roseRed)"/>
+    <circle cx="360" cy="235" r="32" fill="url(#roseRed)"/>
+    <circle cx="250" cy="235" r="35" fill="url(#roseRed)"/>
 
-  <!-- Title Plate -->
-  <g transform="translate(256, 420)">
-    <rect x="-170" y="-30" width="340" height="56" rx="28" fill="#1e293b" stroke="url(#goldGrad)" stroke-width="2.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="800" font-size="18" text-anchor="middle">999 Luxury Roses</text>
-  </g>
-
-  <!-- Coin Price Pill -->
-  <g transform="translate(256, 465)">
-    <text x="0" y="0" fill="#FB7185" font-family="'Outfit', sans-serif" font-weight="900" font-size="16" text-anchor="middle">💎 1999 Gems</text>
+    <!-- Rose Petal Swirls -->
+    <path d="M 250,165 C 235,170 235,190 250,195 C 265,190 265,170 250,165 Z" fill="#FF758F"/>
   </g>
 </svg>

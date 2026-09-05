@@ -1,51 +1,100 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
   <defs>
-    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#FDA4AF" stop-opacity="0.85"/>
-      <stop offset="50%" stop-color="#F43F5E" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#090d16" stop-opacity="0"/>
+    <radialGradient id="kissGrad" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FF77A9"/>
+      <stop offset="40%" stop-color="#FF1493"/>
+      <stop offset="85%" stop-color="#C70039"/>
+      <stop offset="100%" stop-color="#900C3F"/>
     </radialGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FDA4AF"/>
-      <stop offset="50%" stop-color="#F43F5E"/>
-      <stop offset="100%" stop-color="#FB7185"/>
+    <radialGradient id="highlightGrad" cx="30%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="70%" stop-color="#FF69B4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="heartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF69B4"/>
+      <stop offset="100%" stop-color="#FF1493"/>
     </linearGradient>
-    <filter id="softGlow">
-      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+    <filter id="kissGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Dark Background Plate with Rounded Corners -->
-  <rect width="512" height="512" rx="64" fill="#0b0f19"/>
-  <circle cx="256" cy="240" r="210" fill="url(#bgGlow)"/>
+  <style>
+    @keyframes mainKissPulse {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      30% { transform: scale(1.15) rotate(-3deg); }
+      60% { transform: scale(0.95) rotate(3deg); }
+    }
+    @keyframes floatHeart1 {
+      0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+      20% { opacity: 1; transform: translate(-30px, -60px) scale(0.7); }
+      80% { opacity: 0.9; transform: translate(-80px, -200px) scale(1.1); }
+      100% { transform: translate(-110px, -280px) scale(1.3); opacity: 0; }
+    }
+    @keyframes floatHeart2 {
+      0% { transform: translate(0, 0) scale(0.2); opacity: 0; }
+      30% { opacity: 1; transform: translate(40px, -70px) scale(0.8); }
+      85% { opacity: 0.85; transform: translate(90px, -230px) scale(1.2); }
+      100% { transform: translate(120px, -300px) scale(1.4); opacity: 0; }
+    }
+    @keyframes floatHeart3 {
+      0% { transform: translate(0, 0) scale(0.2); opacity: 0; }
+      25% { opacity: 1; transform: translate(10px, -50px) scale(0.6); }
+      75% { opacity: 0.9; transform: translate(20px, -180px) scale(1); }
+      100% { transform: translate(30px, -260px) scale(1.2); opacity: 0; }
+    }
+    @keyframes sparkleSpin {
+      0% { transform: rotate(0deg) scale(0.6); opacity: 0.3; }
+      50% { transform: rotate(180deg) scale(1.2); opacity: 1; }
+      100% { transform: rotate(360deg) scale(0.6); opacity: 0.3; }
+    }
+    .main-lips { transform-origin: 250px 280px; animation: mainKissPulse 2.4s infinite ease-in-out; }
+    .heart-1 { transform-origin: 200px 240px; animation: floatHeart1 3.2s infinite ease-out; }
+    .heart-2 { transform-origin: 300px 240px; animation: floatHeart2 3.6s infinite 0.9s ease-out; }
+    .heart-3 { transform-origin: 250px 240px; animation: floatHeart3 2.8s infinite 1.8s ease-out; }
+    .sparkle { transform-origin: center; animation: sparkleSpin 2s infinite ease-in-out; }
+  </style>
 
-  <!-- Outer Golden Border -->
-  <rect x="16" y="16" width="480" height="480" rx="52" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.75"/>
-
-  <!-- Sparkling Center Icon / Visual -->
-  <g transform="translate(256, 220) scale(1)" filter="url(#softGlow)">
-    <circle cx="0" cy="0" r="120" fill="url(#goldGrad)" opacity="0.25"/>
-    <text x="0" y="45" font-size="120" text-anchor="middle">💋</text>
+  <!-- Flying Little Hearts -->
+  <g class="heart-1" filter="url(#kissGlow)">
+    <path d="M200,240 C200,225 180,215 170,225 C160,235 160,250 175,265 L200,290 L225,265 C240,250 240,235 230,225 C220,215 200,225 200,240 Z" fill="url(#heartGrad)"/>
+  </g>
+  <g class="heart-2" filter="url(#kissGlow)">
+    <path d="M300,240 C300,225 280,215 270,225 C260,235 260,250 275,265 L300,290 L325,265 C340,250 340,235 330,225 C320,215 300,225 300,240 Z" fill="url(#heartGrad)"/>
+  </g>
+  <g class="heart-3" filter="url(#kissGlow)">
+    <path d="M250,230 C250,218 235,210 227,218 C219,226 219,238 231,250 L250,270 L269,250 C281,238 281,226 273,218 C265,210 250,218 250,230 Z" fill="#FF1493"/>
   </g>
 
-  <!-- Top Badge Ribbon -->
-  <g transform="translate(256, 50)">
-    <rect x="-70" y="-16" width="140" height="32" rx="16" fill="url(#goldGrad)" stroke="#ffffff" stroke-width="1.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="900" font-size="12" text-anchor="middle" letter-spacing="1">520 LOVE</text>
+  <!-- Sparkles -->
+  <g class="sparkle" style="transform-origin: 140px 180px;">
+    <polygon points="140,165 144,176 155,180 144,184 140,195 136,184 125,180 136,176" fill="#FFF" filter="url(#kissGlow)"/>
+  </g>
+  <g class="sparkle" style="transform-origin: 370px 170px; animation-delay: 1s;">
+    <polygon points="370,155 374,166 385,170 374,174 370,185 366,174 355,170 366,166" fill="#FFF" filter="url(#kissGlow)"/>
   </g>
 
-  <!-- Title Plate -->
-  <g transform="translate(256, 420)">
-    <rect x="-170" y="-30" width="340" height="56" rx="28" fill="#1e293b" stroke="url(#goldGrad)" stroke-width="2.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="800" font-size="18" text-anchor="middle">Passionate Kiss</text>
-  </g>
+  <!-- Main 3D Lips (NO Background, NO text) -->
+  <g class="main-lips" filter="url(#kissGlow)">
+    <!-- Aura Glow Behind Lips -->
+    <ellipse cx="250" cy="280" rx="170" ry="100" fill="#FF1493" opacity="0.35" filter="url(#kissGlow)"/>
 
-  <!-- Coin Price Pill -->
-  <g transform="translate(256, 465)">
-    <text x="0" y="0" fill="#FDA4AF" font-family="'Outfit', sans-serif" font-weight="900" font-size="16" text-anchor="middle">💎 520 Gems</text>
+    <!-- Upper Lip -->
+    <path d="M 100,280 C 130,220 190,190 230,215 C 242,223 250,228 258,223 C 298,190 358,220 388,280 C 340,265 290,260 250,265 C 210,260 160,265 100,280 Z" fill="url(#kissGrad)"/>
+    
+    <!-- Upper Lip Gloss Highlights -->
+    <path d="M 160,235 C 190,215 220,220 235,230 C 220,238 185,242 160,235 Z" fill="url(#highlightGrad)"/>
+    <path d="M 328,235 C 298,215 268,220 253,230 C 268,238 303,242 328,235 Z" fill="url(#highlightGrad)"/>
+
+    <!-- Lower Lip -->
+    <path d="M 100,280 C 145,290 195,300 250,300 C 305,300 355,290 388,280 C 375,340 325,385 250,385 C 175,385 125,340 100,280 Z" fill="url(#kissGrad)"/>
+
+    <!-- Lower Lip Big Plump Gloss -->
+    <ellipse cx="250" cy="335" rx="65" ry="25" fill="url(#highlightGrad)"/>
+    <ellipse cx="220" cy="340" rx="25" ry="10" fill="#FFFFFF" opacity="0.75"/>
   </g>
 </svg>

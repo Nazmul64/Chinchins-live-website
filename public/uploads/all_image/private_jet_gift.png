@@ -1,51 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" width="100%" height="100%">
   <defs>
-    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#FDE047" stop-opacity="0.85"/>
-      <stop offset="50%" stop-color="#F59E0B" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#090d16" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FDE047"/>
-      <stop offset="50%" stop-color="#F59E0B"/>
-      <stop offset="100%" stop-color="#1E293B"/>
+    <linearGradient id="jetGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="40%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
     </linearGradient>
-    <filter id="softGlow">
-      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+    <filter id="jetGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Dark Background Plate with Rounded Corners -->
-  <rect width="512" height="512" rx="64" fill="#0b0f19"/>
-  <circle cx="256" cy="240" r="210" fill="url(#bgGlow)"/>
+  <style>
+    @keyframes jetFlight {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      50% { transform: translate(15px, -15px) rotate(-2deg); }
+    }
+    @keyframes jetTrail {
+      0% { transform: scaleX(0.8); opacity: 0.5; }
+      50% { transform: scaleX(1.2); opacity: 1; }
+      100% { transform: scaleX(0.8); opacity: 0.5; }
+    }
+    .jet-anim { animation: jetFlight 3s infinite ease-in-out; }
+    .trail-anim { animation: jetTrail 1s infinite ease-in-out; }
+  </style>
 
-  <!-- Outer Golden Border -->
-  <rect x="16" y="16" width="480" height="480" rx="52" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.75"/>
+  <g class="jet-anim" filter="url(#jetGlow)">
+    <!-- Contrails Behind Engines -->
+    <g class="trail-anim">
+      <line x1="380" y1="210" x2="580" y2="210" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+      <line x1="380" y1="250" x2="550" y2="250" stroke="#38BDF8" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+    </g>
 
-  <!-- Sparkling Center Icon / Visual -->
-  <g transform="translate(256, 220) scale(1)" filter="url(#softGlow)">
-    <circle cx="0" cy="0" r="120" fill="url(#goldGrad)" opacity="0.25"/>
-    <text x="0" y="45" font-size="120" text-anchor="middle">✈️</text>
-  </g>
+    <!-- Main Swept Wings -->
+    <polygon points="260,225 360,90 410,105 320,235" fill="url(#jetGold)" stroke="#FEF08A" stroke-width="2"/>
+    <polygon points="260,240 380,360 420,345 330,230" fill="url(#jetGold)" stroke="#FEF08A" stroke-width="2"/>
 
-  <!-- Top Badge Ribbon -->
-  <g transform="translate(256, 50)">
-    <rect x="-70" y="-16" width="140" height="32" rx="16" fill="url(#goldGrad)" stroke="#ffffff" stroke-width="1.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="900" font-size="12" text-anchor="middle" letter-spacing="1">AIR</text>
-  </g>
+    <!-- Fuselage Body -->
+    <path d="M 60,230 C 130,200 240,205 450,205 L 510,140 L 535,145 L 490,225 C 490,240 450,255 60,230 Z" fill="url(#jetGold)" stroke="#FEF08A" stroke-width="3"/>
 
-  <!-- Title Plate -->
-  <g transform="translate(256, 420)">
-    <rect x="-170" y="-30" width="340" height="56" rx="28" fill="#1e293b" stroke="url(#goldGrad)" stroke-width="2.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="800" font-size="18" text-anchor="middle">Private Gold Jet</text>
-  </g>
+    <!-- Cockpit Glass -->
+    <path d="M 90,220 C 110,210 140,210 155,225 Z" fill="#0F172A" stroke="#38BDF8" stroke-width="2"/>
 
-  <!-- Coin Price Pill -->
-  <g transform="translate(256, 465)">
-    <text x="0" y="0" fill="#FDE047" font-family="'Outfit', sans-serif" font-weight="900" font-size="16" text-anchor="middle">💎 16000 Gems</text>
+    <!-- Jet Engines -->
+    <rect x="360" y="195" width="55" height="20" rx="8" fill="#1E293B" stroke="#FEF08A" stroke-width="2"/>
+    <circle cx="360" cy="205" r="7" fill="#00F0FF" filter="url(#jetGlow)"/>
   </g>
 </svg>

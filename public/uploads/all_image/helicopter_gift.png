@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="heliBody" x1="0%" y1="0%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="50%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="heliGold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="50%" stop-color="#FDE047"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0284C7" stop-opacity="0.3"/>
+    </linearGradient>
+    <filter id="heliGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes heliFloat {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      25% { transform: translateY(-12px) rotate(-1deg); }
+      75% { transform: translateY(8px) rotate(1.5deg); }
+    }
+    @keyframes mainRotorSpin {
+      0% { transform: scaleX(1); opacity: 0.9; }
+      50% { transform: scaleX(0.08); opacity: 0.4; }
+      100% { transform: scaleX(1); opacity: 0.9; }
+    }
+    @keyframes tailRotorSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes beamPulse {
+      0%, 100% { opacity: 0.3; transform: scaleY(0.9); }
+      50% { opacity: 0.7; transform: scaleY(1.1); }
+    }
+    .heli-group { transform-origin: 300px 250px; animation: heliFloat 3s infinite ease-in-out; }
+    .main-rotor { transform-origin: 260px 145px; animation: mainRotorSpin 0.12s infinite linear; }
+    .tail-rotor { transform-origin: 520px 200px; animation: tailRotorSpin 0.08s infinite linear; }
+    .searchlight { transform-origin: 120px 320px; animation: beamPulse 1.8s infinite ease-in-out; }
+  </style>
+
+  <g class="heli-group">
+    <!-- Downward Searchlight Beam -->
+    <g class="searchlight">
+      <polygon points="120,320 0,480 180,480" fill="url(#glassGrad)" opacity="0.45" filter="url(#heliGlow)"/>
+    </g>
+
+    <!-- Main Rotor Mast -->
+    <rect x="254" y="145" width="12" height="35" rx="3" fill="url(#heliGold)"/>
+
+    <!-- Spinning Main Rotor Blades -->
+    <g class="main-rotor">
+      <ellipse cx="260" cy="145" rx="250" ry="10" fill="url(#heliGold)" opacity="0.85" filter="url(#heliGlow)"/>
+      <line x1="10" y1="145" x2="510" y2="145" stroke="#FFFFFF" stroke-width="4"/>
+    </g>
+
+    <!-- Tail Boom -->
+    <path d="M 320,240 L 520,200 L 520,220 L 320,270 Z" fill="url(#heliBody)"/>
+    <path d="M 320,248 L 520,208" stroke="url(#heliGold)" stroke-width="6"/>
+
+    <!-- Vertical Tail Fin & Stabilizer -->
+    <polygon points="500,210 535,140 550,140 530,240" fill="url(#heliGold)"/>
+
+    <!-- Spinning Tail Rotor -->
+    <g class="tail-rotor">
+      <line x1="520" y1="160" x2="520" y2="240" stroke="#FDE047" stroke-width="6"/>
+      <line x1="480" y1="200" x2="560" y2="200" stroke="#FDE047" stroke-width="6"/>
+      <circle cx="520" cy="200" r="8" fill="#EF4444"/>
+    </g>
+
+    <!-- Main Fuselage Cabin -->
+    <path d="M 120,270 C 110,210 180,180 260,180 C 330,180 360,220 340,290 C 320,320 220,330 140,310 Z" fill="url(#heliBody)" stroke="url(#heliGold)" stroke-width="3.5" filter="url(#heliGlow)"/>
+
+    <!-- Golden Racing Stripe -->
+    <path d="M 125,275 C 190,265 270,265 338,285" stroke="url(#heliGold)" stroke-width="8" fill="none"/>
+
+    <!-- Cockpit Windshield (Glass) -->
+    <path d="M 125,260 C 135,215 190,195 230,195 L 225,260 C 180,265 145,265 125,260 Z" fill="url(#glassGrad)" stroke="#38BDF8" stroke-width="2"/>
+
+    <!-- Passenger Windows -->
+    <rect x="245" y="210" width="35" height="30" rx="6" fill="url(#glassGrad)" stroke="#38BDF8" stroke-width="1.5"/>
+    <rect x="290" y="215" width="35" height="28" rx="6" fill="url(#glassGrad)" stroke="#38BDF8" stroke-width="1.5"/>
+
+    <!-- Landing Skids & Struts -->
+    <path d="M 190,320 L 170,365 M 280,320 L 260,365" stroke="url(#heliGold)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M 110,365 L 330,365 C 345,365 355,355 355,340" fill="none" stroke="url(#heliGold)" stroke-width="8" stroke-linecap="round"/>
+  </g>
+</svg>

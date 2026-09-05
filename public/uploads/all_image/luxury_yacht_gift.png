@@ -1,51 +1,70 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" width="100%" height="100%">
   <defs>
-    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.85"/>
-      <stop offset="50%" stop-color="#3B82F6" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#090d16" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#60A5FA"/>
-      <stop offset="50%" stop-color="#3B82F6"/>
-      <stop offset="100%" stop-color="#F59E0B"/>
+    <linearGradient id="yachtHull" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="70%" stop-color="#E2E8F0"/>
+      <stop offset="100%" stop-color="#0F172A"/>
     </linearGradient>
-    <filter id="softGlow">
-      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+    <linearGradient id="oceanWave" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="50%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0369A1"/>
+    </linearGradient>
+    <filter id="yachtGlow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Dark Background Plate with Rounded Corners -->
-  <rect width="512" height="512" rx="64" fill="#0b0f19"/>
-  <circle cx="256" cy="240" r="210" fill="url(#bgGlow)"/>
+  <style>
+    @keyframes yachtBob {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(1.5deg); }
+    }
+    @keyframes waveMove {
+      0% { transform: translateX(0px); }
+      50% { transform: translateX(-30px); }
+      100% { transform: translateX(0px); }
+    }
+    .yacht-float { animation: yachtBob 3s infinite ease-in-out; }
+    .wave-anim { animation: waveMove 2s infinite ease-in-out; }
+  </style>
 
-  <!-- Outer Golden Border -->
-  <rect x="16" y="16" width="480" height="480" rx="52" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.75"/>
+  <!-- Yacht Structure -->
+  <g class="yacht-float">
+    <!-- Main Hull -->
+    <path d="M 60,280 L 150,330 L 480,330 L 530,260 L 220,260 Z" fill="url(#yachtHull)" stroke="#F59E0B" stroke-width="3" filter="url(#yachtGlow)"/>
 
-  <!-- Sparkling Center Icon / Visual -->
-  <g transform="translate(256, 220) scale(1)" filter="url(#softGlow)">
-    <circle cx="0" cy="0" r="120" fill="url(#goldGrad)" opacity="0.25"/>
-    <text x="0" y="45" font-size="120" text-anchor="middle">🛥️</text>
+    <!-- Gold Waterline Stripe -->
+    <path d="M 120,310 L 490,310" stroke="#F59E0B" stroke-width="6"/>
+
+    <!-- Deck 1 & Windows -->
+    <path d="M 160,260 L 200,210 L 440,210 L 470,260 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <rect x="220" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
+    <rect x="260" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
+    <rect x="300" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
+    <rect x="340" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
+    <rect x="380" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
+
+    <!-- Flybridge / Deck 2 -->
+    <path d="M 230,210 L 260,160 L 390,160 L 410,210 Z" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+    <path d="M 270,175 L 340,175 L 330,195 L 260,195 Z" fill="#38BDF8"/>
+
+    <!-- Radar Mast & Satellite Domes -->
+    <line x1="330" y1="160" x2="330" y2="120" stroke="#F59E0B" stroke-width="4"/>
+    <circle cx="330" cy="115" r="10" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+    <circle cx="355" cy="135" r="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+
+    <!-- Bow Railing -->
+    <path d="M 60,280 L 160,260" stroke="#F59E0B" stroke-width="3"/>
   </g>
 
-  <!-- Top Badge Ribbon -->
-  <g transform="translate(256, 50)">
-    <rect x="-70" y="-16" width="140" height="32" rx="16" fill="url(#goldGrad)" stroke="#ffffff" stroke-width="1.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="900" font-size="12" text-anchor="middle" letter-spacing="1">VIP RIDE</text>
-  </g>
-
-  <!-- Title Plate -->
-  <g transform="translate(256, 420)">
-    <rect x="-170" y="-30" width="340" height="56" rx="28" fill="#1e293b" stroke="url(#goldGrad)" stroke-width="2.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="800" font-size="18" text-anchor="middle">Mega Luxury Yacht</text>
-  </g>
-
-  <!-- Coin Price Pill -->
-  <g transform="translate(256, 465)">
-    <text x="0" y="0" fill="#60A5FA" font-family="'Outfit', sans-serif" font-weight="900" font-size="16" text-anchor="middle">💎 18000 Gems</text>
+  <!-- Animated Ocean Waves at Bottom -->
+  <g class="wave-anim" filter="url(#yachtGlow)">
+    <path d="M -50,340 Q 50,310 150,340 T 350,340 T 550,340 T 700,340 L 700,420 L -50,420 Z" fill="url(#oceanWave)" opacity="0.8"/>
+    <path d="M -30,360 Q 70,330 170,360 T 370,360 T 570,360 T 720,360 L 720,440 L -30,440 Z" fill="#0369A1" opacity="0.9"/>
   </g>
 </svg>

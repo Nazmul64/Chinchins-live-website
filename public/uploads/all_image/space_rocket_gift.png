@@ -1,51 +1,58 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 600" width="100%" height="100%">
   <defs>
-    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#EC4899" stop-opacity="0.85"/>
-      <stop offset="50%" stop-color="#8B5CF6" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#090d16" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#EC4899"/>
-      <stop offset="50%" stop-color="#8B5CF6"/>
-      <stop offset="100%" stop-color="#38BDF8"/>
+    <linearGradient id="rocketBody" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#F1F5F9"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
     </linearGradient>
-    <filter id="softGlow">
-      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+    <linearGradient id="rocketFire" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="30%" stop-color="#FFD700"/>
+      <stop offset="70%" stop-color="#FF4500"/>
+      <stop offset="100%" stop-color="#990000"/>
+    </linearGradient>
+    <filter id="rocketGlow">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Dark Background Plate with Rounded Corners -->
-  <rect width="512" height="512" rx="64" fill="#0b0f19"/>
-  <circle cx="256" cy="240" r="210" fill="url(#bgGlow)"/>
+  <style>
+    @keyframes rocketShake {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      25% { transform: translateY(-15px) rotate(-1deg); }
+      75% { transform: translateY(-5px) rotate(1deg); }
+    }
+    @keyframes fireThrust {
+      0%, 100% { transform: scaleY(1); opacity: 0.9; }
+      50% { transform: scaleY(1.3); opacity: 1; }
+    }
+    .rocket-anim { animation: rocketShake 1.5s infinite ease-in-out; }
+    .flame-anim { transform-origin: 250px 380px; animation: fireThrust 0.15s infinite ease-in-out; }
+  </style>
 
-  <!-- Outer Golden Border -->
-  <rect x="16" y="16" width="480" height="480" rx="52" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.75"/>
+  <g class="rocket-anim" filter="url(#rocketGlow)">
+    <!-- Exhaust Flame Plume -->
+    <g class="flame-anim">
+      <path d="M 215,380 C 200,460 210,540 250,590 C 290,540 300,460 285,380 Z" fill="url(#rocketFire)"/>
+      <ellipse cx="250" cy="430" rx="25" ry="40" fill="#FFFFFF"/>
+    </g>
 
-  <!-- Sparkling Center Icon / Visual -->
-  <g transform="translate(256, 220) scale(1)" filter="url(#softGlow)">
-    <circle cx="0" cy="0" r="120" fill="url(#goldGrad)" opacity="0.25"/>
-    <text x="0" y="45" font-size="120" text-anchor="middle">🚀</text>
-  </g>
+    <!-- Side Fins -->
+    <polygon points="175,340 200,280 200,370 150,390" fill="#EF4444" stroke="#DC2626" stroke-width="2"/>
+    <polygon points="325,340 300,280 300,370 350,390" fill="#EF4444" stroke="#DC2626" stroke-width="2"/>
 
-  <!-- Top Badge Ribbon -->
-  <g transform="translate(256, 50)">
-    <rect x="-70" y="-16" width="140" height="32" rx="16" fill="url(#goldGrad)" stroke="#ffffff" stroke-width="1.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="900" font-size="12" text-anchor="middle" letter-spacing="1">GALACTIC</text>
-  </g>
+    <!-- Main Rocket Fuselage -->
+    <path d="M 250,80 C 200,160 200,330 200,380 L 300,380 C 300,330 300,160 250,80 Z" fill="url(#rocketBody)" stroke="#CBD5E1" stroke-width="3"/>
 
-  <!-- Title Plate -->
-  <g transform="translate(256, 420)">
-    <rect x="-170" y="-30" width="340" height="56" rx="28" fill="#1e293b" stroke="url(#goldGrad)" stroke-width="2.5" filter="url(#softGlow)"/>
-    <text x="0" y="6" fill="#ffffff" font-family="'Outfit', sans-serif" font-weight="800" font-size="18" text-anchor="middle">Space Rocket Launch</text>
-  </g>
+    <!-- Red Nose Cone -->
+    <path d="M 250,80 C 220,130 208,160 208,180 L 292,180 C 292,160 280,130 250,80 Z" fill="#EF4444"/>
 
-  <!-- Coin Price Pill -->
-  <g transform="translate(256, 465)">
-    <text x="0" y="0" fill="#EC4899" font-family="'Outfit', sans-serif" font-weight="900" font-size="16" text-anchor="middle">💎 25000 Gems</text>
+    <!-- Round Porthole Window -->
+    <circle cx="250" cy="240" r="28" fill="#0F172A" stroke="#38BDF8" stroke-width="5"/>
+    <circle cx="250" cy="240" r="18" fill="#38BDF8" opacity="0.8"/>
   </g>
 </svg>
