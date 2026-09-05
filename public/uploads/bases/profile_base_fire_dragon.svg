@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="dragonFlame" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="50%" stop-color="#FF4500"/>
+      <stop offset="100%" stop-color="#990000"/>
+    </linearGradient>
+    <filter id="dragonRingGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes flameFlicker {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px #FF4500); }
+      50% { transform: scale(1.03); filter: drop-shadow(0 0 22px #FFD700); }
+    }
+    .flame-frame { transform-origin: 250px 250px; animation: flameFlicker 2s infinite ease-in-out; }
+  </style>
+
+  <g class="flame-frame">
+    <!-- Outer Flaming Ring -->
+    <circle cx="250" cy="250" r="185" fill="none" stroke="url(#dragonFlame)" stroke-width="16" filter="url(#dragonRingGlow)"/>
+    <circle cx="250" cy="250" r="172" fill="none" stroke="#FFD700" stroke-width="3"/>
+
+    <!-- Dragon Head at Top Right -->
+    <g transform="translate(360, 110) rotate(45)" filter="url(#dragonRingGlow)">
+      <path d="M 0,0 C 20,-20 50,-10 70,10 C 50,30 20,20 0,0 Z" fill="#FFD700"/>
+      <circle cx="35" cy="0" r="4" fill="#FF0000"/>
+    </g>
+
+    <!-- Flame Claws around border -->
+    <path d="M 120,340 C 90,360 80,400 110,410 C 130,390 140,360 120,340 Z" fill="#FF4500" filter="url(#dragonRingGlow)"/>
+    <path d="M 380,340 C 410,360 420,400 390,410 C 370,390 360,360 380,340 Z" fill="#FF4500" filter="url(#dragonRingGlow)"/>
+  </g>
+</svg>

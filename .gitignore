@@ -21,6 +21,10 @@
 !/public/uploads/*/.gitkeep
 !/public/uploads/all_image
 !/public/uploads/all_image/*
+!/public/uploads/bases
+!/public/uploads/bases/*
+!/public/uploads/gifts
+!/public/uploads/gifts/*
 /storage/*.key
 /storage/pail
 /vendor

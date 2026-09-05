@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="svipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="50%" stop-color="#EC4899"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="svipGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes svipPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+    .svip-anim { transform-origin: 250px 250px; animation: svipPulse 2.2s infinite ease-in-out; }
+  </style>
+
+  <g class="svip-anim">
+    <!-- Multi-Color SVIP Ring -->
+    <circle cx="250" cy="250" r="185" fill="none" stroke="url(#svipGrad)" stroke-width="16" filter="url(#svipGlow)"/>
+    <circle cx="250" cy="250" r="172" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+
+    <!-- Imperial Tiara Top -->
+    <g transform="translate(250, 45)" filter="url(#svipGlow)">
+      <path d="M -50,30 L -30,-15 L 0,10 L 30,-15 L 50,30 Z" fill="url(#svipGrad)" stroke="#FFFFFF" stroke-width="2"/>
+      <circle cx="0" cy="10" r="8" fill="#FFFFFF"/>
+      <circle cx="-30" cy="-15" r="6" fill="#FDE047"/>
+      <circle cx="30" cy="-15" r="6" fill="#FDE047"/>
+    </g>
+  </g>
+</svg>

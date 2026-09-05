@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="wingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#E0F2FE"/>
+      <stop offset="80%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <filter id="wingGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes wingFlapL { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-5deg); } }
+    @keyframes wingFlapR { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(5deg); } }
+    .wing-l { transform-origin: 150px 250px; animation: wingFlapL 2s infinite ease-in-out; }
+    .wing-r { transform-origin: 350px 250px; animation: wingFlapR 2s infinite ease-in-out; }
+  </style>
+
+  <!-- Left Diamond Angel Wing -->
+  <g class="wing-l" filter="url(#wingGlow)">
+    <path d="M 120,220 C 70,160 20,130 0,160 C 20,200 60,230 110,250 C 40,260 20,300 30,330 C 60,320 100,300 120,280 Z" fill="url(#wingGrad)" stroke="#FFFFFF" stroke-width="2"/>
+  </g>
+
+  <!-- Right Diamond Angel Wing -->
+  <g class="wing-r" filter="url(#wingGlow)">
+    <path d="M 380,220 C 430,160 480,130 500,160 C 480,200 440,230 390,250 C 460,260 480,300 470,330 C 440,320 400,300 380,280 Z" fill="url(#wingGrad)" stroke="#FFFFFF" stroke-width="2"/>
+  </g>
+
+  <!-- Center Diamond Halo Ring -->
+  <circle cx="250" cy="250" r="180" fill="none" stroke="url(#wingGrad)" stroke-width="16" filter="url(#wingGlow)"/>
+  <circle cx="250" cy="250" r="168" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+  <circle cx="250" cy="65" r="10" fill="#FFFFFF" filter="url(#wingGlow)"/>
+</svg>
