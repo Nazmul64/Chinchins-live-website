@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="castleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBCFE8"/>
+      <stop offset="40%" stop-color="#EC4899"/>
+      <stop offset="80%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </linearGradient>
+    <filter id="castleGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes castleShimmer {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px #EC4899); }
+      50% { transform: scale(1.04); filter: drop-shadow(0 0 30px #F59E0B); }
+    }
+    .castle-anim { transform-origin: 250px 300px; animation: castleShimmer 3s infinite ease-in-out; }
+  </style>
+
+  <g class="castle-anim">
+    <!-- Magical Back Aura -->
+    <circle cx="250" cy="260" r="190" fill="#EC4899" opacity="0.25" filter="url(#castleGlow)"/>
+
+    <!-- Base Walls -->
+    <rect x="130" y="270" width="240" height="150" rx="10" fill="url(#castleGrad)" stroke="#FDE047" stroke-width="3"/>
+    
+    <!-- Left Tower -->
+    <rect x="100" y="200" width="60" height="200" rx="6" fill="url(#castleGrad)" stroke="#FDE047" stroke-width="2"/>
+    <polygon points="130,110 90,200 170,200" fill="#FDE047" stroke="#F59E0B" stroke-width="2"/>
+
+    <!-- Right Tower -->
+    <rect x="340" y="200" width="60" height="200" rx="6" fill="url(#castleGrad)" stroke="#FDE047" stroke-width="2"/>
+    <polygon points="370,110 330,200 410,200" fill="#FDE047" stroke="#F59E0B" stroke-width="2"/>
+
+    <!-- Center Grand Spire -->
+    <rect x="210" y="170" width="80" height="150" rx="8" fill="url(#castleGrad)" stroke="#FDE047" stroke-width="3"/>
+    <polygon points="250,50 195,170 305,170" fill="#FDE047" stroke="#F59E0B" stroke-width="3" filter="url(#castleGlow)"/>
+
+    <!-- Grand Arch Gate -->
+    <path d="M 220,420 L 220,340 C 220,315 280,315 280,340 L 280,420 Z" fill="#0F172A" stroke="#FDE047" stroke-width="3"/>
+
+    <!-- Diamond Star on Peak -->
+    <polygon points="250,25 256,40 270,45 256,50 250,65 244,50 230,45 244,40" fill="#FFFFFF" filter="url(#castleGlow)"/>
+  </g>
+</svg>

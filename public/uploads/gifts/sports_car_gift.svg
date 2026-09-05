@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="carBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="40%" stop-color="#F59E0B"/>
+      <stop offset="85%" stop-color="#DC2626"/>
+      <stop offset="100%" stop-color="#7F1D1D"/>
+    </linearGradient>
+    <linearGradient id="neonCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#0066FF"/>
+    </linearGradient>
+    <linearGradient id="wheelRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <filter id="carGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes wheelRotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes carDrift {
+      0%, 100% { transform: translateY(0px) skewX(0deg); }
+      50% { transform: translateY(-6px) skewX(-1.5deg); }
+    }
+    @keyframes speedTrail {
+      0% { transform: translateX(0px); opacity: 0.8; }
+      50% { transform: translateX(-40px); opacity: 0.3; }
+      100% { transform: translateX(0px); opacity: 0.8; }
+    }
+    .car-chassis { animation: carDrift 1.8s infinite ease-in-out; }
+    .wheel-front { transform-origin: 155px 270px; animation: wheelRotate 0.35s infinite linear; }
+    .wheel-rear { transform-origin: 445px 270px; animation: wheelRotate 0.35s infinite linear; }
+    .speed-lines { animation: speedTrail 0.8s infinite ease-in-out; }
+  </style>
+
+  <g class="car-chassis">
+    <!-- Neon Underglow -->
+    <ellipse cx="300" cy="285" rx="240" ry="22" fill="#00F0FF" opacity="0.6" filter="url(#carGlow)"/>
+
+    <!-- Speed Flame Trails Behind -->
+    <g class="speed-lines" filter="url(#carGlow)">
+      <line x1="520" y1="240" x2="600" y2="240" stroke="#00F0FF" stroke-width="4" stroke-linecap="round"/>
+      <line x1="540" y1="260" x2="590" y2="260" stroke="#FF0055" stroke-width="5" stroke-linecap="round"/>
+      <line x1="510" y1="275" x2="580" y2="275" stroke="#F59E0B" stroke-width="6" stroke-linecap="round"/>
+    </g>
+
+    <!-- Rear Wing Spoiler -->
+    <polygon points="480,170 540,155 535,175 490,185" fill="#7F1D1D" stroke="#F59E0B" stroke-width="2"/>
+    <line x1="500" y1="180" x2="495" y2="215" stroke="#F59E0B" stroke-width="5"/>
+
+    <!-- Main Aerodynamic Car Body Shell -->
+    <path d="M 60,265 C 75,225 120,215 170,215 C 215,160 270,140 370,140 C 440,140 480,180 525,215 C 555,225 565,255 545,275 C 500,285 470,240 420,240 C 370,240 350,285 240,285 C 200,285 180,240 130,240 C 85,240 65,275 60,265 Z" fill="url(#carBody)" stroke="#FDE047" stroke-width="3" filter="url(#carGlow)"/>
+
+    <!-- Cockpit Canopy / Tinted Glass -->
+    <path d="M 230,205 C 265,160 300,150 365,150 C 420,150 445,180 470,205 Z" fill="#0F172A" stroke="#00F0FF" stroke-width="2.5"/>
+
+    <!-- Carbon Fiber Side Air Intake -->
+    <polygon points="360,220 415,220 395,255 350,255" fill="#1E293B" stroke="#F59E0B" stroke-width="1.5"/>
+
+    <!-- Sleek LED Headlights -->
+    <polygon points="75,240 115,235 105,248" fill="#00F0FF" filter="url(#carGlow)"/>
+    <polygon points="535,235 550,245 530,250" fill="#FF0055" filter="url(#carGlow)"/>
+
+    <!-- Front Wheel Assembly -->
+    <g class="wheel-front">
+      <circle cx="155" cy="270" r="42" fill="#0F172A" stroke="url(#neonCyan)" stroke-width="8" filter="url(#carGlow)"/>
+      <circle cx="155" cy="270" r="28" fill="none" stroke="url(#wheelRim)" stroke-width="4"/>
+      <!-- Spokes -->
+      <line x1="155" y1="242" x2="155" y2="298" stroke="url(#wheelRim)" stroke-width="4"/>
+      <line x1="127" y1="270" x2="183" y2="270" stroke="url(#wheelRim)" stroke-width="4"/>
+      <circle cx="155" cy="270" r="8" fill="#FF0055"/>
+    </g>
+
+    <!-- Rear Wheel Assembly -->
+    <g class="wheel-rear">
+      <circle cx="445" cy="270" r="45" fill="#0F172A" stroke="url(#neonCyan)" stroke-width="9" filter="url(#carGlow)"/>
+      <circle cx="445" cy="270" r="30" fill="none" stroke="url(#wheelRim)" stroke-width="4"/>
+      <!-- Spokes -->
+      <line x1="445" y1="240" x2="445" y2="300" stroke="url(#wheelRim)" stroke-width="4"/>
+      <line x1="415" y1="270" x2="475" y2="270" stroke="url(#wheelRim)" stroke-width="4"/>
+      <circle cx="445" cy="270" r="9" fill="#FF0055"/>
+    </g>
+  </g>
+</svg>

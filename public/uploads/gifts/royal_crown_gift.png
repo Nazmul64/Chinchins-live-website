@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="crownGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFBEB"/>
+      <stop offset="30%" stop-color="#FDE047"/>
+      <stop offset="70%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <filter id="crownGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes crownFloat {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-12px) rotate(1.5deg); }
+    }
+    .crown-anim { transform-origin: 250px 220px; animation: crownFloat 2.5s infinite ease-in-out; }
+  </style>
+
+  <g class="crown-anim" filter="url(#crownGlow)">
+    <!-- Glowing Aura -->
+    <ellipse cx="250" cy="220" rx="180" ry="110" fill="#F59E0B" opacity="0.3" filter="url(#crownGlow)"/>
+
+    <!-- Main Crown Structure -->
+    <path d="M 70,280 L 110,130 L 190,210 L 250,90 L 310,210 L 390,130 L 430,280 C 350,305 150,305 70,280 Z" fill="url(#crownGold)" stroke="#FFFFFF" stroke-width="3"/>
+
+    <!-- Crown Base Band -->
+    <path d="M 70,280 C 150,305 350,305 430,280 L 420,320 C 340,345 160,345 80,320 Z" fill="url(#crownGold)" stroke="#B45309" stroke-width="2"/>
+
+    <!-- Jewels on Peaks -->
+    <circle cx="110" cy="130" r="14" fill="#EF4444" stroke="#FFF" stroke-width="2"/>
+    <circle cx="250" cy="90" r="18" fill="#3B82F6" stroke="#FFF" stroke-width="3" filter="url(#crownGlow)"/>
+    <circle cx="390" cy="130" r="14" fill="#10B981" stroke="#FFF" stroke-width="2"/>
+
+    <!-- Inset Rubies & Diamonds along base -->
+    <circle cx="140" cy="305" r="9" fill="#EF4444"/>
+    <circle cx="200" cy="315" r="10" fill="#38BDF8"/>
+    <circle cx="250" cy="318" r="12" fill="#EF4444" stroke="#FFF" stroke-width="1.5"/>
+    <circle cx="300" cy="315" r="10" fill="#38BDF8"/>
+    <circle cx="360" cy="305" r="9" fill="#EF4444"/>
+  </g>
+</svg>

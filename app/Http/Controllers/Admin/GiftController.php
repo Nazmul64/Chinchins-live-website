@@ -50,6 +50,9 @@ class GiftController extends Controller
      */
     public function index(Request $request)
     {
+        // Seed default 27+ live animated gifts if missing
+        Gift::seedDefaultGifts();
+
         $query = Gift::query();
 
         if ($request->filled('category') && $request->category !== 'all') {

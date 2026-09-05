@@ -71,6 +71,8 @@ class GiftApiController extends Controller
      */
     public function getCatalog(Request $request): JsonResponse
     {
+        Gift::seedDefaultGifts();
+
         $query = Gift::where('is_active', true)->orderBy('sort_order')->orderBy('coins', 'desc');
 
         if ($request->filled('category') && $request->category !== 'all') {
