@@ -484,6 +484,23 @@ Route::prefix('admin/vip-cards')->group(function () {
     Route::post('/{id}/delete', [\App\Http\Controllers\Api\VipCardApiController::class, 'destroy']);
 });
 
+// ==========================================
+// 🎖️ Level Badges & Profile Avatar Base Frames
+// ==========================================
+Route::get('/profile-bases', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'index']);
+Route::get('/profile-bases/list', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'index']);
+Route::get('/levels', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'index']);
+Route::get('/levels/list', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'index']);
+Route::get('/profile-frames', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'index']);
+Route::get('/frames', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'index']);
+
+// User Level Status & Progression
+Route::match(['get', 'post'], '/user/level-status', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'levelStatus']);
+Route::match(['get', 'post'], '/profile/level-status', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'levelStatus']);
+Route::match(['get', 'post'], '/profile/level', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'levelStatus']);
+Route::match(['get', 'post'], '/level/status', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'levelStatus']);
+Route::match(['get', 'post'], '/level-status', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'levelStatus']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);

@@ -93,6 +93,13 @@ class User extends Authenticatable
         'country_flag',
         'country_code',
         'display_age',
+        'avatar_frame_url',
+        'base_frame_url',
+        'total_earned_coins',
+        'current_level',
+        'level_info',
+        'badge_color',
+        'badge_icon',
     ];
 
     /**
@@ -656,6 +663,106 @@ class User extends Authenticatable
     }
 
     /**
+     * Accessor for total lifetime earned coins (from calls, gifts, and wallet earnings).
+     */
+    public function getTotalEarnedCoinsAttribute(): int
+    {
+        // 1. Direct wallet earnings if set
+        $walletEarnings = (int) ($this->wallet?->earnings ?? 0);
+
+        // 2. Earnings from call sessions as host/receiver
+        $callEarnings = 0;
+        try {
+            $callEarnings = (int) CallSession::where('receiver_id', $this->id)->sum('host_earned_coins');
+        } catch (\Throwable $e) {}
+
+        // 3. Earnings from gifts received
+        $giftEarnings = 0;
+        try {
+            $giftEarnings = (int) UserGift::where('user_id', $this->id)->sum('coin_value');
+        } catch (\Throwable $e) {}
+
+        $computed = max($walletEarnings, $callEarnings + $giftEarnings);
+
+        // If user already has explicit level set, ensure minimum baseline
+        if ($computed === 0 && !empty($this->level) && (int) $this->level > 0) {
+            $base = ProfileBase::where('level', (int) $this->level)->first();
+            if ($base) {
+                return (int) $base->required_coins;
+            }
+        }
+
+        return $computed;
+    }
+
+    /**
+     * Accessor for user's active ProfileBase model.
+     */
+    public function getProfileBaseAttribute(): ?ProfileBase
+    {
+        $earnedCoins = $this->total_earned_coins;
+        $explicitLevel = !empty($this->level) ? (int) $this->level : null;
+
+        $base = ProfileBase::getBaseForCoins($earnedCoins);
+        if ($explicitLevel !== null && $explicitLevel > 0) {
+            $explicitBase = ProfileBase::where('level', $explicitLevel)->first();
+            if ($explicitBase && ($base === null || $explicitBase->level > $base->level)) {
+                $base = $explicitBase;
+            }
+        }
+
+        return $base ?? ProfileBase::where('level', 0)->first();
+    }
+
+    /**
+     * Accessor for resolved Current Level number.
+     */
+    public function getCurrentLevelAttribute(): int
+    {
+        return (int) ($this->profile_base?->level ?? ($this->level ?: 0));
+    }
+
+    /**
+     * Accessor for full Avatar Frame / Base Image URL.
+     */
+    public function getAvatarFrameUrlAttribute(): ?string
+    {
+        return $this->profile_base?->base_frame_image_url;
+    }
+
+    /**
+     * Alias for Base Frame URL.
+     */
+    public function getBaseFrameUrlAttribute(): ?string
+    {
+        return $this->getAvatarFrameUrlAttribute();
+    }
+
+    /**
+     * Accessor for Badge Color.
+     */
+    public function getBadgeColorAttribute(): string
+    {
+        return $this->profile_base?->badge_color ?? '#f59e0b';
+    }
+
+    /**
+     * Accessor for Badge Icon (e.g. crown, gem, star, fire, bolt).
+     */
+    public function getBadgeIconAttribute(): string
+    {
+        return $this->profile_base?->badge_icon ?? 'star';
+    }
+
+    /**
+     * Accessor for comprehensive Level & Progression summary.
+     */
+    public function getLevelInfoAttribute(): array
+    {
+        return ProfileBase::calculateLevelProgress($this->total_earned_coins, $this->current_level);
+    }
+
+    /**
      * Accessor for user age with fallback.
      */
     public function getDisplayAgeAttribute(): int
@@ -668,6 +775,7 @@ class User extends Authenticatable
         return 20 + ($this->id % 13);
     }
 }
+
 
 
 

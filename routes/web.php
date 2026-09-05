@@ -87,6 +87,14 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/vip-cards/subscriptions', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'subscriptions'])->name('vip-cards.subscriptions');
     Route::post('/vip-cards/floating-banner', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'updateFloatingBanner'])->name('vip-cards.floating-banner');
 
+    // Profile Bases & Level Badges Management
+    Route::get('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'index'])->name('profile-bases.index');
+    Route::post('/profile-bases/batch-update', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'batchUpdate'])->name('profile-bases.batch-update');
+    Route::post('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'store'])->name('profile-bases.store');
+    Route::put('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'update'])->name('profile-bases.update');
+    Route::delete('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'destroy'])->name('profile-bases.destroy');
+    Route::post('/profile-bases/{id}/toggle-status', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'toggleStatus'])->name('profile-bases.toggle-status');
+
     // App Branding & General Settings
     Route::get('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'update'])->name('settings.update');

@@ -83,6 +83,18 @@
             </div>
         </div>
 
+        <!-- Level Badges & Profile Avatar Bases -->
+        <a href="{{ route('admin.profile-bases.index') }}" class="menu-item {{ request()->routeIs('admin.profile-bases.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-certificate" style="color: #f59e0b;"></i>
+                <span>Level Badges & Frames</span>
+            </div>
+            @php
+                $activeBasesTotal = \App\Models\ProfileBase::where('is_active', true)->count();
+            @endphp
+            <span class="badge bg-amber-subtle text-amber rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(245,158,11,0.15); color: #f59e0b;">{{ $activeBasesTotal }} Tiers</span>
+        </a>
+
         <!-- Deposit Requests -->
         @php
             $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count();
