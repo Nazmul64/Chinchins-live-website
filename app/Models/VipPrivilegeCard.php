@@ -145,6 +145,7 @@ class VipPrivilegeCard extends Model
 
     /**
      * Seed default initial cards or update existing if needed.
+     */
     public static function seedDefaultCards(bool $forceUpdate = false): void
     {
         // 0. New User Weekly Card (Screenshot Match 5)
