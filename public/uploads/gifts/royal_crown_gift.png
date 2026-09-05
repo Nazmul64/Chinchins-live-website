@@ -1,48 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="crownGold" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFBEB"/>
-      <stop offset="30%" stop-color="#FDE047"/>
-      <stop offset="70%" stop-color="#F59E0B"/>
-      <stop offset="100%" stop-color="#B45309"/>
+    <linearGradient id="grad_royal_crown_gift" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eab308"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
     </linearGradient>
-    <filter id="crownGlow">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="glow_royal_crown_gift" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
+    <style>
+      @keyframes floatAnim {
+        0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+        50% { transform: translateY(-12px) rotate(2deg) scale(1.05); }
+      }
+      @keyframes pulseAura {
+        0%, 100% { opacity: 0.3; transform: scale(0.95); }
+        50% { opacity: 0.85; transform: scale(1.06); }
+      }
+      @keyframes spinRays {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .gift-core { animation: floatAnim 3s ease-in-out infinite; transform-origin: center; }
+      .gift-aura { animation: pulseAura 2s ease-in-out infinite; transform-origin: center; }
+      .gift-rays { animation: spinRays 12s linear infinite; transform-origin: center; }
+    </style>
   </defs>
 
-  <style>
-    @keyframes crownFloat {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-12px) rotate(1.5deg); }
-    }
-    .crown-anim { transform-origin: 250px 220px; animation: crownFloat 2.5s infinite ease-in-out; }
-  </style>
+  <!-- Ambient Pulsing Glow Aura -->
+  <circle cx="256" cy="256" r="215" fill="url(#grad_royal_crown_gift)" opacity="0.35" filter="url(#glow_royal_crown_gift)" class="gift-aura"/>
+  
+  <!-- Outer Rotating Halo Ring -->
+  <circle cx="256" cy="256" r="225" fill="none" stroke="url(#grad_royal_crown_gift)" stroke-width="6" stroke-dasharray="18 10" opacity="0.6" class="gift-rays"/>
+  <circle cx="256" cy="256" r="195" fill="#0b0f19" stroke="url(#grad_royal_crown_gift)" stroke-width="4" filter="url(#glow_royal_crown_gift)"/>
 
-  <g class="crown-anim" filter="url(#crownGlow)">
-    <!-- Glowing Aura -->
-    <ellipse cx="250" cy="220" rx="180" ry="110" fill="#F59E0B" opacity="0.3" filter="url(#crownGlow)"/>
+  <!-- Core Floating Icon -->
+  <g class="gift-core">
+    <!-- Starbursts -->
+    <path d="M256 68 L264 104 L300 112 L264 120 L256 156 L248 120 L212 112 L248 104 Z" fill="#ffffff" opacity="0.85"/>
+    <path d="M110 330 L115 348 L133 353 L115 358 L110 376 L105 358 L87 353 L105 348 Z" fill="#ffd700" opacity="0.9"/>
+    <path d="M390 330 L395 348 L413 353 L395 358 L390 376 L385 358 L367 353 L385 348 Z" fill="#00f0ff" opacity="0.9"/>
 
-    <!-- Main Crown Structure -->
-    <path d="M 70,280 L 110,130 L 190,210 L 250,90 L 310,210 L 390,130 L 430,280 C 350,305 150,305 70,280 Z" fill="url(#crownGold)" stroke="#FFFFFF" stroke-width="3"/>
-
-    <!-- Crown Base Band -->
-    <path d="M 70,280 C 150,305 350,305 430,280 L 420,320 C 340,345 160,345 80,320 Z" fill="url(#crownGold)" stroke="#B45309" stroke-width="2"/>
-
-    <!-- Jewels on Peaks -->
-    <circle cx="110" cy="130" r="14" fill="#EF4444" stroke="#FFF" stroke-width="2"/>
-    <circle cx="250" cy="90" r="18" fill="#3B82F6" stroke="#FFF" stroke-width="3" filter="url(#crownGlow)"/>
-    <circle cx="390" cy="130" r="14" fill="#10B981" stroke="#FFF" stroke-width="2"/>
-
-    <!-- Inset Rubies & Diamonds along base -->
-    <circle cx="140" cy="305" r="9" fill="#EF4444"/>
-    <circle cx="200" cy="315" r="10" fill="#38BDF8"/>
-    <circle cx="250" cy="318" r="12" fill="#EF4444" stroke="#FFF" stroke-width="1.5"/>
-    <circle cx="300" cy="315" r="10" fill="#38BDF8"/>
-    <circle cx="360" cy="305" r="9" fill="#EF4444"/>
+    <!-- Central Icon Character / Emoji Symbol -->
+    <text x="256" y="275" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Outfit', sans-serif" font-size="120" text-anchor="middle" dominant-baseline="middle" filter="url(#glow_royal_crown_gift)">👑</text>
   </g>
+
+  <!-- Title Ribbon at Bottom -->
+  <rect x="86" y="405" width="340" height="48" rx="24" fill="#1e1b4b" stroke="url(#grad_royal_crown_gift)" stroke-width="2.5" filter="url(#glow_royal_crown_gift)"/>
+  <text x="256" y="436" font-family="'Outfit', 'Inter', sans-serif" font-size="19" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">Royal Sovereign Crown</text>
 </svg>

@@ -1,91 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <radialGradient id="dragonGold" cx="45%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#FFF3B0"/>
-      <stop offset="35%" stop-color="#FFD700"/>
-      <stop offset="75%" stop-color="#FF8C00"/>
-      <stop offset="100%" stop-color="#B8860B"/>
-    </radialGradient>
-    <linearGradient id="fireGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#FF0000"/>
-      <stop offset="40%" stop-color="#FF4500"/>
-      <stop offset="80%" stop-color="#FFD700"/>
-      <stop offset="100%" stop-color="#FFFFFF"/>
+    <linearGradient id="grad_dragon_gift" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="50%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#991b1b"/>
     </linearGradient>
-    <filter id="fireGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="10" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="glow_dragon_gift" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
+    <style>
+      @keyframes floatAnim {
+        0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+        50% { transform: translateY(-12px) rotate(2deg) scale(1.05); }
+      }
+      @keyframes pulseAura {
+        0%, 100% { opacity: 0.3; transform: scale(0.95); }
+        50% { opacity: 0.85; transform: scale(1.06); }
+      }
+      @keyframes spinRays {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .gift-core { animation: floatAnim 3s ease-in-out infinite; transform-origin: center; }
+      .gift-aura { animation: pulseAura 2s ease-in-out infinite; transform-origin: center; }
+      .gift-rays { animation: spinRays 12s linear infinite; transform-origin: center; }
+    </style>
   </defs>
 
-  <style>
-    @keyframes dragonHover {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-20px) rotate(2deg); }
-    }
-    @keyframes fireBreath {
-      0%, 100% { transform: scale(0.9) translate(0,0); opacity: 0.8; }
-      50% { transform: scale(1.15) translate(10px,-10px); opacity: 1; }
-    }
-    @keyframes wingFlap {
-      0%, 100% { transform: rotate(0deg); }
-      50% { transform: rotate(-8deg) skewX(4deg); }
-    }
-    .dragon-body { transform-origin: 300px 300px; animation: dragonHover 3.5s infinite ease-in-out; }
-    .fire-breath { transform-origin: 180px 180px; animation: fireBreath 1.5s infinite ease-in-out; }
-    .dragon-wing { transform-origin: 320px 240px; animation: wingFlap 2s infinite ease-in-out; }
-  </style>
+  <!-- Ambient Pulsing Glow Aura -->
+  <circle cx="256" cy="256" r="215" fill="url(#grad_dragon_gift)" opacity="0.35" filter="url(#glow_dragon_gift)" class="gift-aura"/>
+  
+  <!-- Outer Rotating Halo Ring -->
+  <circle cx="256" cy="256" r="225" fill="none" stroke="url(#grad_dragon_gift)" stroke-width="6" stroke-dasharray="18 10" opacity="0.6" class="gift-rays"/>
+  <circle cx="256" cy="256" r="195" fill="#0b0f19" stroke="url(#grad_dragon_gift)" stroke-width="4" filter="url(#glow_dragon_gift)"/>
 
-  <g class="dragon-body" filter="url(#fireGlow)">
-    <!-- Swirling Flame Aura -->
-    <ellipse cx="300" cy="300" rx="220" ry="180" fill="#FF8C00" opacity="0.3" filter="url(#fireGlow)"/>
+  <!-- Core Floating Icon -->
+  <g class="gift-core">
+    <!-- Starbursts -->
+    <path d="M256 68 L264 104 L300 112 L264 120 L256 156 L248 120 L212 112 L248 104 Z" fill="#ffffff" opacity="0.85"/>
+    <path d="M110 330 L115 348 L133 353 L115 358 L110 376 L105 358 L87 353 L105 348 Z" fill="#ffd700" opacity="0.9"/>
+    <path d="M390 330 L395 348 L413 353 L395 358 L390 376 L385 358 L367 353 L385 348 Z" fill="#00f0ff" opacity="0.9"/>
 
-    <!-- Dragon Wings -->
-    <g class="dragon-wing">
-      <path d="M 320,240 C 370,120 480,80 540,110 C 510,170 470,200 420,220 C 470,240 490,280 470,320 C 420,290 380,270 320,260 Z" fill="url(#dragonGold)" stroke="#FFD700" stroke-width="4"/>
-      <path d="M 340,230 L 520,125 M 345,245 L 450,220 M 345,255 L 450,305" stroke="#FF4500" stroke-width="3"/>
-    </g>
-
-    <!-- Dragon Coiled Serpent Body -->
-    <path d="M 220,180 C 260,140 350,140 380,200 C 410,260 380,340 310,360 C 220,380 140,320 150,240 C 160,160 260,110 360,120 C 460,130 520,230 480,340 C 440,450 310,500 200,480 C 130,460 80,390 100,320 C 110,290 140,280 150,300 C 140,340 170,410 240,430 C 320,450 410,400 430,320 C 450,240 400,180 340,170 C 280,160 210,190 200,240" fill="none" stroke="url(#dragonGold)" stroke-width="42" stroke-linecap="round"/>
-
-    <!-- Dorsal Spines -->
-    <path d="M 240,150 L 250,125 L 265,155 L 285,130 L 295,160 L 320,135 L 330,168 L 360,145 L 365,180" fill="#FF4500"/>
-
-    <!-- Dragon Head & Jaws -->
-    <g transform="translate(180, 160)">
-      <!-- Horns -->
-      <path d="M 30,-10 C 60,-50 110,-70 140,-60 C 120,-40 90,-20 70,-5" fill="url(#dragonGold)" stroke="#FF4500" stroke-width="2"/>
-      <path d="M 10,-5 C 30,-35 70,-50 90,-45 C 75,-30 55,-15 40,-2" fill="url(#dragonGold)"/>
-      
-      <!-- Upper Jaw & Snout -->
-      <path d="M -60,0 C -30,-25 30,-20 60,10 C 40,30 -10,30 -60,0 Z" fill="url(#dragonGold)"/>
-      <!-- Lower Jaw -->
-      <path d="M -40,15 C -20,45 20,40 40,20 C 10,25 -20,25 -40,15 Z" fill="url(#dragonGold)"/>
-
-      <!-- Glowing Eye -->
-      <circle cx="15" cy="-2" r="7" fill="#FF0000"/>
-      <circle cx="17" cy="-3" r="3" fill="#FFFF00"/>
-      
-      <!-- Whiskers / Mane -->
-      <path d="M -20,10 C -60,40 -90,70 -120,90" fill="none" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/>
-      <path d="M -10,15 C -40,50 -60,90 -80,120" fill="none" stroke="#FF8C00" stroke-width="3" stroke-linecap="round"/>
-    </g>
-
-    <!-- Claws -->
-    <g transform="translate(140, 260)">
-      <path d="M 0,0 L -30,20 M 0,5 L -35,35 M 5,10 L -20,45" stroke="#FFD700" stroke-width="8" stroke-linecap="round"/>
-    </g>
+    <!-- Central Icon Character / Emoji Symbol -->
+    <text x="256" y="275" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Outfit', sans-serif" font-size="120" text-anchor="middle" dominant-baseline="middle" filter="url(#glow_dragon_gift)">🐉</text>
   </g>
 
-  <!-- Animated Fire Breath -->
-  <g class="fire-breath" filter="url(#fireGlow)">
-    <path d="M 110,165 C 50,140 -20,110 -90,90 C -40,130 -10,180 -70,220 C 10,190 60,180 110,175 Z" fill="url(#fireGrad)"/>
-    <circle cx="-30" cy="130" r="18" fill="#FFD700"/>
-    <circle cx="-60" cy="180" r="14" fill="#FF4500"/>
-    <circle cx="20" cy="150" r="12" fill="#FFFFFF"/>
-  </g>
+  <!-- Title Ribbon at Bottom -->
+  <rect x="86" y="405" width="340" height="48" rx="24" fill="#1e1b4b" stroke="url(#grad_dragon_gift)" stroke-width="2.5" filter="url(#glow_dragon_gift)"/>
+  <text x="256" y="436" font-family="'Outfit', 'Inter', sans-serif" font-size="19" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">Flaming Fire Dragon</text>
 </svg>

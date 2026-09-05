@@ -1,58 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 600" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="rocketBody" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="50%" stop-color="#F1F5F9"/>
-      <stop offset="100%" stop-color="#94A3B8"/>
+    <linearGradient id="grad_space_rocket_gift" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="50%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#c2410c"/>
     </linearGradient>
-    <linearGradient id="rocketFire" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="30%" stop-color="#FFD700"/>
-      <stop offset="70%" stop-color="#FF4500"/>
-      <stop offset="100%" stop-color="#990000"/>
-    </linearGradient>
-    <filter id="rocketGlow">
-      <feGaussianBlur stdDeviation="10" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="glow_space_rocket_gift" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
+    <style>
+      @keyframes floatAnim {
+        0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+        50% { transform: translateY(-12px) rotate(2deg) scale(1.05); }
+      }
+      @keyframes pulseAura {
+        0%, 100% { opacity: 0.3; transform: scale(0.95); }
+        50% { opacity: 0.85; transform: scale(1.06); }
+      }
+      @keyframes spinRays {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .gift-core { animation: floatAnim 3s ease-in-out infinite; transform-origin: center; }
+      .gift-aura { animation: pulseAura 2s ease-in-out infinite; transform-origin: center; }
+      .gift-rays { animation: spinRays 12s linear infinite; transform-origin: center; }
+    </style>
   </defs>
 
-  <style>
-    @keyframes rocketShake {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      25% { transform: translateY(-15px) rotate(-1deg); }
-      75% { transform: translateY(-5px) rotate(1deg); }
-    }
-    @keyframes fireThrust {
-      0%, 100% { transform: scaleY(1); opacity: 0.9; }
-      50% { transform: scaleY(1.3); opacity: 1; }
-    }
-    .rocket-anim { animation: rocketShake 1.5s infinite ease-in-out; }
-    .flame-anim { transform-origin: 250px 380px; animation: fireThrust 0.15s infinite ease-in-out; }
-  </style>
+  <!-- Ambient Pulsing Glow Aura -->
+  <circle cx="256" cy="256" r="215" fill="url(#grad_space_rocket_gift)" opacity="0.35" filter="url(#glow_space_rocket_gift)" class="gift-aura"/>
+  
+  <!-- Outer Rotating Halo Ring -->
+  <circle cx="256" cy="256" r="225" fill="none" stroke="url(#grad_space_rocket_gift)" stroke-width="6" stroke-dasharray="18 10" opacity="0.6" class="gift-rays"/>
+  <circle cx="256" cy="256" r="195" fill="#0b0f19" stroke="url(#grad_space_rocket_gift)" stroke-width="4" filter="url(#glow_space_rocket_gift)"/>
 
-  <g class="rocket-anim" filter="url(#rocketGlow)">
-    <!-- Exhaust Flame Plume -->
-    <g class="flame-anim">
-      <path d="M 215,380 C 200,460 210,540 250,590 C 290,540 300,460 285,380 Z" fill="url(#rocketFire)"/>
-      <ellipse cx="250" cy="430" rx="25" ry="40" fill="#FFFFFF"/>
-    </g>
+  <!-- Core Floating Icon -->
+  <g class="gift-core">
+    <!-- Starbursts -->
+    <path d="M256 68 L264 104 L300 112 L264 120 L256 156 L248 120 L212 112 L248 104 Z" fill="#ffffff" opacity="0.85"/>
+    <path d="M110 330 L115 348 L133 353 L115 358 L110 376 L105 358 L87 353 L105 348 Z" fill="#ffd700" opacity="0.9"/>
+    <path d="M390 330 L395 348 L413 353 L395 358 L390 376 L385 358 L367 353 L385 348 Z" fill="#00f0ff" opacity="0.9"/>
 
-    <!-- Side Fins -->
-    <polygon points="175,340 200,280 200,370 150,390" fill="#EF4444" stroke="#DC2626" stroke-width="2"/>
-    <polygon points="325,340 300,280 300,370 350,390" fill="#EF4444" stroke="#DC2626" stroke-width="2"/>
-
-    <!-- Main Rocket Fuselage -->
-    <path d="M 250,80 C 200,160 200,330 200,380 L 300,380 C 300,330 300,160 250,80 Z" fill="url(#rocketBody)" stroke="#CBD5E1" stroke-width="3"/>
-
-    <!-- Red Nose Cone -->
-    <path d="M 250,80 C 220,130 208,160 208,180 L 292,180 C 292,160 280,130 250,80 Z" fill="#EF4444"/>
-
-    <!-- Round Porthole Window -->
-    <circle cx="250" cy="240" r="28" fill="#0F172A" stroke="#38BDF8" stroke-width="5"/>
-    <circle cx="250" cy="240" r="18" fill="#38BDF8" opacity="0.8"/>
+    <!-- Central Icon Character / Emoji Symbol -->
+    <text x="256" y="275" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Outfit', sans-serif" font-size="120" text-anchor="middle" dominant-baseline="middle" filter="url(#glow_space_rocket_gift)">🚀</text>
   </g>
+
+  <!-- Title Ribbon at Bottom -->
+  <rect x="86" y="405" width="340" height="48" rx="24" fill="#1e1b4b" stroke="url(#grad_space_rocket_gift)" stroke-width="2.5" filter="url(#glow_space_rocket_gift)"/>
+  <text x="256" y="436" font-family="'Outfit', 'Inter', sans-serif" font-size="19" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">Space Rocket Launch</text>
 </svg>

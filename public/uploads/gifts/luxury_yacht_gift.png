@@ -1,70 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="yachtHull" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="70%" stop-color="#E2E8F0"/>
-      <stop offset="100%" stop-color="#0F172A"/>
+    <linearGradient id="grad_luxury_yacht_gift" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="50%" stop-color="#0369a1"/>
+      <stop offset="100%" stop-color="#075985"/>
     </linearGradient>
-    <linearGradient id="oceanWave" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0284C7"/>
-      <stop offset="50%" stop-color="#38BDF8"/>
-      <stop offset="100%" stop-color="#0369A1"/>
-    </linearGradient>
-    <filter id="yachtGlow">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="glow_luxury_yacht_gift" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
+    <style>
+      @keyframes floatAnim {
+        0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+        50% { transform: translateY(-12px) rotate(2deg) scale(1.05); }
+      }
+      @keyframes pulseAura {
+        0%, 100% { opacity: 0.3; transform: scale(0.95); }
+        50% { opacity: 0.85; transform: scale(1.06); }
+      }
+      @keyframes spinRays {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .gift-core { animation: floatAnim 3s ease-in-out infinite; transform-origin: center; }
+      .gift-aura { animation: pulseAura 2s ease-in-out infinite; transform-origin: center; }
+      .gift-rays { animation: spinRays 12s linear infinite; transform-origin: center; }
+    </style>
   </defs>
 
-  <style>
-    @keyframes yachtBob {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-8px) rotate(1.5deg); }
-    }
-    @keyframes waveMove {
-      0% { transform: translateX(0px); }
-      50% { transform: translateX(-30px); }
-      100% { transform: translateX(0px); }
-    }
-    .yacht-float { animation: yachtBob 3s infinite ease-in-out; }
-    .wave-anim { animation: waveMove 2s infinite ease-in-out; }
-  </style>
+  <!-- Ambient Pulsing Glow Aura -->
+  <circle cx="256" cy="256" r="215" fill="url(#grad_luxury_yacht_gift)" opacity="0.35" filter="url(#glow_luxury_yacht_gift)" class="gift-aura"/>
+  
+  <!-- Outer Rotating Halo Ring -->
+  <circle cx="256" cy="256" r="225" fill="none" stroke="url(#grad_luxury_yacht_gift)" stroke-width="6" stroke-dasharray="18 10" opacity="0.6" class="gift-rays"/>
+  <circle cx="256" cy="256" r="195" fill="#0b0f19" stroke="url(#grad_luxury_yacht_gift)" stroke-width="4" filter="url(#glow_luxury_yacht_gift)"/>
 
-  <!-- Yacht Structure -->
-  <g class="yacht-float">
-    <!-- Main Hull -->
-    <path d="M 60,280 L 150,330 L 480,330 L 530,260 L 220,260 Z" fill="url(#yachtHull)" stroke="#F59E0B" stroke-width="3" filter="url(#yachtGlow)"/>
+  <!-- Core Floating Icon -->
+  <g class="gift-core">
+    <!-- Starbursts -->
+    <path d="M256 68 L264 104 L300 112 L264 120 L256 156 L248 120 L212 112 L248 104 Z" fill="#ffffff" opacity="0.85"/>
+    <path d="M110 330 L115 348 L133 353 L115 358 L110 376 L105 358 L87 353 L105 348 Z" fill="#ffd700" opacity="0.9"/>
+    <path d="M390 330 L395 348 L413 353 L395 358 L390 376 L385 358 L367 353 L385 348 Z" fill="#00f0ff" opacity="0.9"/>
 
-    <!-- Gold Waterline Stripe -->
-    <path d="M 120,310 L 490,310" stroke="#F59E0B" stroke-width="6"/>
-
-    <!-- Deck 1 & Windows -->
-    <path d="M 160,260 L 200,210 L 440,210 L 470,260 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
-    <rect x="220" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
-    <rect x="260" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
-    <rect x="300" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
-    <rect x="340" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
-    <rect x="380" y="225" width="25" height="18" rx="4" fill="#0284C7"/>
-
-    <!-- Flybridge / Deck 2 -->
-    <path d="M 230,210 L 260,160 L 390,160 L 410,210 Z" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
-    <path d="M 270,175 L 340,175 L 330,195 L 260,195 Z" fill="#38BDF8"/>
-
-    <!-- Radar Mast & Satellite Domes -->
-    <line x1="330" y1="160" x2="330" y2="120" stroke="#F59E0B" stroke-width="4"/>
-    <circle cx="330" cy="115" r="10" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
-    <circle cx="355" cy="135" r="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
-
-    <!-- Bow Railing -->
-    <path d="M 60,280 L 160,260" stroke="#F59E0B" stroke-width="3"/>
+    <!-- Central Icon Character / Emoji Symbol -->
+    <text x="256" y="275" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Outfit', sans-serif" font-size="120" text-anchor="middle" dominant-baseline="middle" filter="url(#glow_luxury_yacht_gift)">🛥️</text>
   </g>
 
-  <!-- Animated Ocean Waves at Bottom -->
-  <g class="wave-anim" filter="url(#yachtGlow)">
-    <path d="M -50,340 Q 50,310 150,340 T 350,340 T 550,340 T 700,340 L 700,420 L -50,420 Z" fill="url(#oceanWave)" opacity="0.8"/>
-    <path d="M -30,360 Q 70,330 170,360 T 370,360 T 570,360 T 720,360 L 720,440 L -30,440 Z" fill="#0369A1" opacity="0.9"/>
-  </g>
+  <!-- Title Ribbon at Bottom -->
+  <rect x="86" y="405" width="340" height="48" rx="24" fill="#1e1b4b" stroke="url(#grad_luxury_yacht_gift)" stroke-width="2.5" filter="url(#glow_luxury_yacht_gift)"/>
+  <text x="256" y="436" font-family="'Outfit', 'Inter', sans-serif" font-size="19" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">Mega Luxury Yacht</text>
 </svg>

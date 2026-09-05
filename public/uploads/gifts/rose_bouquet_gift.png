@@ -1,53 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <radialGradient id="roseRed" cx="40%" cy="40%" r="60%">
-      <stop offset="0%" stop-color="#FF4D6D"/>
-      <stop offset="50%" stop-color="#C9184A"/>
-      <stop offset="100%" stop-color="#590D22"/>
-    </radialGradient>
-    <linearGradient id="wrapGold" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1E293B"/>
-      <stop offset="50%" stop-color="#334155"/>
-      <stop offset="100%" stop-color="#0F172A"/>
+    <linearGradient id="grad_rose_bouquet_gift" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="50%" stop-color="#f43f5e"/>
+      <stop offset="100%" stop-color="#be123c"/>
     </linearGradient>
-    <filter id="roseGlow">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="glow_rose_bouquet_gift" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
+    <style>
+      @keyframes floatAnim {
+        0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+        50% { transform: translateY(-12px) rotate(2deg) scale(1.05); }
+      }
+      @keyframes pulseAura {
+        0%, 100% { opacity: 0.3; transform: scale(0.95); }
+        50% { opacity: 0.85; transform: scale(1.06); }
+      }
+      @keyframes spinRays {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .gift-core { animation: floatAnim 3s ease-in-out infinite; transform-origin: center; }
+      .gift-aura { animation: pulseAura 2s ease-in-out infinite; transform-origin: center; }
+      .gift-rays { animation: spinRays 12s linear infinite; transform-origin: center; }
+    </style>
   </defs>
 
-  <style>
-    @keyframes roseBloom {
-      0%, 100% { transform: scale(1) rotate(0deg); }
-      50% { transform: scale(1.05) rotate(2deg); }
-    }
-    .rose-anim { transform-origin: 250px 250px; animation: roseBloom 2.8s infinite ease-in-out; }
-  </style>
+  <!-- Ambient Pulsing Glow Aura -->
+  <circle cx="256" cy="256" r="215" fill="url(#grad_rose_bouquet_gift)" opacity="0.35" filter="url(#glow_rose_bouquet_gift)" class="gift-aura"/>
+  
+  <!-- Outer Rotating Halo Ring -->
+  <circle cx="256" cy="256" r="225" fill="none" stroke="url(#grad_rose_bouquet_gift)" stroke-width="6" stroke-dasharray="18 10" opacity="0.6" class="gift-rays"/>
+  <circle cx="256" cy="256" r="195" fill="#0b0f19" stroke="url(#grad_rose_bouquet_gift)" stroke-width="4" filter="url(#glow_rose_bouquet_gift)"/>
 
-  <g class="rose-anim" filter="url(#roseGlow)">
-    <!-- Paper Wrapper Bottom Cone -->
-    <polygon points="250,470 120,250 380,250" fill="url(#wrapGold)" stroke="#F59E0B" stroke-width="4"/>
+  <!-- Core Floating Icon -->
+  <g class="gift-core">
+    <!-- Starbursts -->
+    <path d="M256 68 L264 104 L300 112 L264 120 L256 156 L248 120 L212 112 L248 104 Z" fill="#ffffff" opacity="0.85"/>
+    <path d="M110 330 L115 348 L133 353 L115 358 L110 376 L105 358 L87 353 L105 348 Z" fill="#ffd700" opacity="0.9"/>
+    <path d="M390 330 L395 348 L413 353 L395 358 L390 376 L385 358 L367 353 L385 348 Z" fill="#00f0ff" opacity="0.9"/>
 
-    <!-- Gold Ribbon Bow -->
-    <circle cx="250" cy="330" r="16" fill="#F59E0B"/>
-    <path d="M 250,330 C 200,300 180,360 250,330 C 320,300 300,360 250,330 Z" fill="#FDE047" stroke="#F59E0B" stroke-width="2"/>
-
-    <!-- Clustered Blooming Rose Buds -->
-    <!-- Center Rose -->
-    <circle cx="250" cy="180" r="45" fill="url(#roseRed)" stroke="#FF758F" stroke-width="3"/>
-    <!-- Surrounding Roses -->
-    <circle cx="180" cy="190" r="38" fill="url(#roseRed)" stroke="#FF758F" stroke-width="2"/>
-    <circle cx="320" cy="190" r="38" fill="url(#roseRed)" stroke="#FF758F" stroke-width="2"/>
-    <circle cx="215" cy="125" r="36" fill="url(#roseRed)" stroke="#FF758F" stroke-width="2"/>
-    <circle cx="285" cy="125" r="36" fill="url(#roseRed)" stroke="#FF758F" stroke-width="2"/>
-    <circle cx="140" cy="235" r="32" fill="url(#roseRed)"/>
-    <circle cx="360" cy="235" r="32" fill="url(#roseRed)"/>
-    <circle cx="250" cy="235" r="35" fill="url(#roseRed)"/>
-
-    <!-- Rose Petal Swirls -->
-    <path d="M 250,165 C 235,170 235,190 250,195 C 265,190 265,170 250,165 Z" fill="#FF758F"/>
+    <!-- Central Icon Character / Emoji Symbol -->
+    <text x="256" y="275" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Outfit', sans-serif" font-size="120" text-anchor="middle" dominant-baseline="middle" filter="url(#glow_rose_bouquet_gift)">🌹</text>
   </g>
+
+  <!-- Title Ribbon at Bottom -->
+  <rect x="86" y="405" width="340" height="48" rx="24" fill="#1e1b4b" stroke="url(#grad_rose_bouquet_gift)" stroke-width="2.5" filter="url(#glow_rose_bouquet_gift)"/>
+  <text x="256" y="436" font-family="'Outfit', 'Inter', sans-serif" font-size="19" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">Rose Bouquet</text>
 </svg>
