@@ -12,6 +12,11 @@ use Illuminate\Support\Str;
 class ProfileBaseAdminController extends Controller
 {
     /**
+     * Target directory for all uploaded base frame images.
+     */
+    protected string $uploadFolder = 'uploads/bases';
+
+    /**
      * Display a listing of all Profile Bases / Level Badges and frame configurations.
      */
     public function index()
@@ -33,13 +38,13 @@ class ProfileBaseAdminController extends Controller
             'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         ];
 
-        // Available pre-made SVGs in uploads/all_image
+        // Available pre-made SVGs in uploads/bases
         $availablePresetFrames = [
-            'uploads/all_image/profile_base_royal_gold.svg'    => 'Royal Gold Crown Frame',
-            'uploads/all_image/profile_base_diamond_wings.svg' => 'Diamond Wings Frame',
-            'uploads/all_image/profile_base_cyber_neon.svg'    => 'Cyber Neon Future Frame',
-            'uploads/all_image/profile_base_fire_dragon.svg'   => 'Fire Dragon Flame Frame',
-            'uploads/all_image/profile_base_svip_crown.svg'    => 'SVIP Supreme Emperor Frame',
+            'uploads/bases/profile_base_royal_gold.svg'    => 'Royal Gold Crown Frame',
+            'uploads/bases/profile_base_diamond_wings.svg' => 'Diamond Wings Frame',
+            'uploads/bases/profile_base_cyber_neon.svg'    => 'Cyber Neon Future Frame',
+            'uploads/bases/profile_base_fire_dragon.svg'   => 'Fire Dragon Flame Frame',
+            'uploads/bases/profile_base_svip_crown.svg'    => 'SVIP Supreme Emperor Frame',
         ];
 
         return view('admin.profile-bases.index', compact(
@@ -54,7 +59,8 @@ class ProfileBaseAdminController extends Controller
     }
 
     /**
-     * Bulk update all level coin requirements, titles, badge icons, colors, and active statuses.
+     * Bulk update all 10+ levels: coin requirements, titles, badge icons, colors, active statuses,
+     * AND handle direct image file uploads per level row simultaneously.
      */
     public function batchUpdate(Request $request)
     {
@@ -62,6 +68,11 @@ class ProfileBaseAdminController extends Controller
 
         if (empty($levelsData) || !is_array($levelsData)) {
             return redirect()->back()->with('error', 'No level data received.');
+        }
+
+        $destinationPath = public_path($this->uploadFolder);
+        if (!File::isDirectory($destinationPath)) {
+            File::makeDirectory($destinationPath, 0777, true, true);
         }
 
         $updatedCount = 0;
@@ -81,17 +92,33 @@ class ProfileBaseAdminController extends Controller
                     $base->base_frame_image = $data['preset_frame'];
                 }
 
+                // Check for individual file upload in batch row
+                // 1. levels[id][frame_image]
+                if ($request->hasFile("levels.{$id}.frame_image")) {
+                    $file = $request->file("levels.{$id}.frame_image");
+                    $filename = 'base_level_' . $base->level . '_' . time() . '_' . Str::random(4) . '.' . $file->getClientOriginalExtension();
+                    $file->move($destinationPath, $filename);
+                    $base->base_frame_image = $this->uploadFolder . '/' . $filename;
+                }
+                // 2. frame_files[id]
+                elseif ($request->hasFile("frame_files.{$id}")) {
+                    $file = $request->file("frame_files.{$id}");
+                    $filename = 'base_level_' . $base->level . '_' . time() . '_' . Str::random(4) . '.' . $file->getClientOriginalExtension();
+                    $file->move($destinationPath, $filename);
+                    $base->base_frame_image = $this->uploadFolder . '/' . $filename;
+                }
+
                 $base->save();
                 $updatedCount++;
             }
         }
 
         return redirect()->route('admin.profile-bases.index')
-            ->with('success', "Successfully updated {$updatedCount} level badge settings!");
+            ->with('success', "Successfully updated {$updatedCount} level badge & frame settings!");
     }
 
     /**
-     * Store a newly created Level Base with optional frame image upload.
+     * Store a newly created Level Base with frame image upload to uploads/bases.
      */
     public function store(Request $request)
     {
@@ -108,20 +135,20 @@ class ProfileBaseAdminController extends Controller
             'is_active'        => 'nullable|boolean',
         ]);
 
-        $frameImagePath = $request->input('preset_frame') ?: 'uploads/all_image/profile_base_royal_gold.svg';
+        $frameImagePath = $request->input('preset_frame') ?: ($this->uploadFolder . '/profile_base_royal_gold.svg');
 
-        // Handle custom image/SVG upload
+        // Handle custom image/SVG upload to uploads/bases
         if ($request->hasFile('frame_image')) {
             $file = $request->file('frame_image');
             $filename = 'base_level_' . $request->level . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $destinationPath = public_path('uploads/all_image');
+            $destinationPath = public_path($this->uploadFolder);
             
             if (!File::isDirectory($destinationPath)) {
                 File::makeDirectory($destinationPath, 0777, true, true);
             }
 
             $file->move($destinationPath, $filename);
-            $frameImagePath = 'uploads/all_image/' . $filename;
+            $frameImagePath = $this->uploadFolder . '/' . $filename;
         }
 
         ProfileBase::create([
@@ -142,7 +169,7 @@ class ProfileBaseAdminController extends Controller
     }
 
     /**
-     * Update an existing Level Base and optionally replace its frame image.
+     * Update an existing Level Base and optionally replace its frame image in uploads/bases.
      */
     public function update(Request $request, $id)
     {
@@ -173,18 +200,18 @@ class ProfileBaseAdminController extends Controller
             $base->base_frame_image = $request->preset_frame;
         }
 
-        // Handle uploaded file
+        // Handle uploaded file to uploads/bases
         if ($request->hasFile('frame_image')) {
             $file = $request->file('frame_image');
             $filename = 'base_level_' . $base->level . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $destinationPath = public_path('uploads/all_image');
+            $destinationPath = public_path($this->uploadFolder);
             
             if (!File::isDirectory($destinationPath)) {
                 File::makeDirectory($destinationPath, 0777, true, true);
             }
 
             $file->move($destinationPath, $filename);
-            $base->base_frame_image = 'uploads/all_image/' . $filename;
+            $base->base_frame_image = $this->uploadFolder . '/' . $filename;
         }
 
         $base->save();

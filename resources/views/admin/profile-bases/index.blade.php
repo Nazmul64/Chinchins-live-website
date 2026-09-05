@@ -16,7 +16,9 @@
                 <i class="fa-solid fa-certificate text-amber" style="color: #f59e0b;"></i>
                 <span>Profile Bases & Level Badges Management</span>
             </h1>
-            <p class="page-subtitle mb-0">Configure required host earning coins for Level 1 to Level 10+, upload custom avatar frame badges (Base), and manage automatic profile picture frame wrapping in the app.</p>
+            <p class="page-subtitle mb-0">
+                Configure required host earning coins for Level 1 to Level 10+, upload custom avatar frame images (Base) directly to <code class="bg-light px-2 py-1 rounded text-primary fw-bold">public/uploads/bases/</code>, and manage automatic profile picture frame wrapping in the mobile app.
+            </p>
         </div>
         <div class="d-flex align-items-center gap-2">
             <button type="button" class="btn btn-outline-secondary" onclick="scrollToPreview()" style="border-radius: 8px; font-weight: 600; font-size: 13px;">
@@ -60,11 +62,11 @@
             <div class="premium-stat-card" style="border-left: 4px solid #3b82f6; background: #ffffff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-muted fw-bold" style="font-size: 11px; text-transform: uppercase;">Max Level Tier</span>
-                        <h3 class="fw-bolder mt-1 mb-0">Level {{ $maxLevel }}</h3>
+                        <span class="text-muted fw-bold" style="font-size: 11px; text-transform: uppercase;">Upload Storage</span>
+                        <h3 class="fw-bolder mt-1 mb-0" style="font-size: 15px; color: #3b82f6;">uploads/bases/</h3>
                     </div>
                     <div class="stat-icon-box d-flex align-items-center justify-content-center rounded-3" style="width: 44px; height: 44px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-size: 20px;">
-                        <i class="fa-solid fa-crown"></i>
+                        <i class="fa-solid fa-folder-open"></i>
                     </div>
                 </div>
             </div>
@@ -101,7 +103,7 @@
                     </p>
                     <div class="d-flex flex-wrap gap-2 align-items-center">
                         <label class="text-white fw-bold mb-0" style="font-size: 13px;">Test Level Preview:</label>
-                        <select class="form-select form-select-sm bg-dark text-white border-secondary" id="previewLevelSelector" style="width: 220px; border-radius: 8px;" onchange="updateLivePreview(this.value)">
+                        <select class="form-select form-select-sm bg-dark text-white border-secondary" id="previewLevelSelector" style="width: 240px; border-radius: 8px;" onchange="updateLivePreview(this.value)">
                             @foreach($bases as $b)
                                 <option value="{{ $b->level }}" 
                                     data-name="{{ $b->name }}" 
@@ -130,7 +132,7 @@
                                 style="width: 96px; height: 96px; object-fit: cover; z-index: 1;">
                             
                             <!-- Overlaid Base Frame (SVG / PNG) -->
-                            <img src="{{ $bases->first()?->base_frame_image_url ?? asset('uploads/all_image/profile_base_royal_gold.svg') }}" 
+                            <img src="{{ $bases->first()?->base_frame_image_url ?? asset('uploads/bases/profile_base_royal_gold.svg') }}" 
                                 alt="Profile Base Frame" 
                                 id="previewBaseFrameImg"
                                 class="position-absolute" 
@@ -164,9 +166,11 @@
         <div class="card-header bg-transparent border-0 pt-4 pb-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h4 class="fw-bold mb-1" style="color: #1e293b;">
-                    <i class="fa-solid fa-sliders text-primary me-2"></i> Level 1 to 10+ Configuration Table
+                    <i class="fa-solid fa-sliders text-primary me-2"></i> Level 1 to 10+ Configuration & Direct Image Upload Table
                 </h4>
-                <p class="text-muted mb-0" style="font-size: 13px;">Modify coins threshold, titles, badge styles, and frame selections. Click "Save All Level Changes" to update all levels at once.</p>
+                <p class="text-muted mb-0" style="font-size: 13px;">
+                    Set coin threshold, level title, and directly upload new custom Base Frame images (stored in <code class="text-primary">uploads/bases/</code>). Click "Save All Level Changes" to update all levels at once.
+                </p>
             </div>
             <button type="submit" form="batchLevelsForm" class="btn-ch-primary">
                 <i class="fa-solid fa-floppy-disk me-1"></i> Save All Level Changes
@@ -174,20 +178,20 @@
         </div>
 
         <div class="card-body p-0">
-            <form action="{{ route('admin.profile-bases.batch-update') }}" method="POST" id="batchLevelsForm">
+            <form action="{{ route('admin.profile-bases.batch-update') }}" method="POST" enctype="multipart/form-data" id="batchLevelsForm">
                 @csrf
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0" style="font-size: 13px;">
                         <thead style="background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: 700;">
                             <tr>
                                 <th class="ps-4" style="width: 80px;">Level</th>
-                                <th style="width: 140px;">Frame Base</th>
-                                <th style="min-width: 180px;">Level Name</th>
-                                <th style="width: 160px;">Required Coins</th>
-                                <th style="width: 150px;">Badge & Icon</th>
-                                <th style="min-width: 220px;">Privilege Description</th>
-                                <th style="width: 100px;" class="text-center">Status</th>
-                                <th class="pe-4 text-end" style="width: 120px;">Action</th>
+                                <th style="width: 240px;">Base Frame & Direct Upload</th>
+                                <th style="min-width: 170px;">Level Name</th>
+                                <th style="width: 170px;">Required Coins</th>
+                                <th style="width: 140px;">Badge & Icon</th>
+                                <th style="min-width: 200px;">Privilege Description</th>
+                                <th style="width: 80px;" class="text-center">Active</th>
+                                <th class="pe-4 text-end" style="width: 110px;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -200,14 +204,21 @@
                                     </span>
                                 </td>
 
-                                <!-- Frame Base Thumbnail & Selector -->
+                                <!-- Frame Base Thumbnail & Direct Upload -->
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
-                                        <div class="position-relative d-flex align-items-center justify-content-center rounded-3 p-1" style="width: 48px; height: 48px; background: #0f172a;">
-                                            <img src="{{ $base->base_frame_image_url }}" alt="Base Frame" style="width: 44px; height: 44px; object-fit: contain;">
+                                        <div class="position-relative d-flex align-items-center justify-content-center rounded-3 p-1" style="width: 52px; height: 52px; background: #0f172a; flex-shrink: 0;">
+                                            <img src="{{ $base->base_frame_image_url }}" alt="Base Frame" id="rowPreview_{{ $base->id }}" style="width: 46px; height: 46px; object-fit: contain;">
                                         </div>
-                                        <div>
-                                            <select name="levels[{{ $base->id }}][preset_frame]" class="form-select form-select-sm" style="font-size: 11px; width: 130px; border-radius: 6px;">
+                                        <div class="d-flex flex-column gap-1">
+                                            <!-- Direct File Upload for this row -->
+                                            <label class="btn btn-sm btn-light border d-flex align-items-center gap-1 mb-0 py-1 px-2" style="font-size: 11px; cursor: pointer; border-radius: 6px;">
+                                                <i class="fa-solid fa-upload text-primary"></i> <span>Upload Image</span>
+                                                <input type="file" name="frame_files[{{ $base->id }}]" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" class="d-none" onchange="previewRowFile(this, 'rowPreview_{{ $base->id }}')">
+                                            </label>
+                                            
+                                            <!-- Preset Dropdown -->
+                                            <select name="levels[{{ $base->id }}][preset_frame]" class="form-select form-select-sm" style="font-size: 10px; width: 140px; border-radius: 6px; padding: 2px 6px;">
                                                 @foreach($availablePresetFrames as $path => $label)
                                                     <option value="{{ $path }}" {{ $base->base_frame_image == $path ? 'selected' : '' }}>
                                                         {{ $label }}
@@ -227,14 +238,14 @@
                                 <td>
                                     <div class="input-group input-group-sm">
                                         <span class="input-group-text bg-light border-end-0" style="color: #f59e0b;"><i class="fa-solid fa-coins"></i></span>
-                                        <input type="number" name="levels[{{ $base->id }}][required_coins]" class="form-control form-control-sm border-start-0" value="{{ $base->required_coins }}" min="0" required style="font-weight: 600;">
+                                        <input type="number" name="levels[{{ $base->id }}][required_coins]" class="form-control form-control-sm border-start-0" value="{{ $base->required_coins }}" min="0" required style="font-weight: 700; color: #0f172a;">
                                     </div>
                                 </td>
 
                                 <!-- Badge Icon & Color -->
                                 <td>
                                     <div class="d-flex align-items-center gap-1">
-                                        <select name="levels[{{ $base->id }}][badge_icon]" class="form-select form-select-sm" style="width: 85px; font-size: 11px; border-radius: 6px;">
+                                        <select name="levels[{{ $base->id }}][badge_icon]" class="form-select form-select-sm" style="width: 80px; font-size: 11px; border-radius: 6px;">
                                             <option value="star" {{ $base->badge_icon == 'star' ? 'selected' : '' }}>⭐ Star</option>
                                             <option value="crown" {{ $base->badge_icon == 'crown' ? 'selected' : '' }}>👑 Crown</option>
                                             <option value="gem" {{ $base->badge_icon == 'gem' ? 'selected' : '' }}>💎 Gem</option>
@@ -243,13 +254,13 @@
                                             <option value="shield" {{ $base->badge_icon == 'shield' ? 'selected' : '' }}>🛡️ Shield</option>
                                             <option value="user" {{ $base->badge_icon == 'user' ? 'selected' : '' }}>👤 User</option>
                                         </select>
-                                        <input type="color" name="levels[{{ $base->id }}][badge_color]" class="form-control form-control-color form-control-sm" value="{{ $base->badge_color }}" title="Choose badge color" style="width: 36px; height: 31px; padding: 2px; border-radius: 6px;">
+                                        <input type="color" name="levels[{{ $base->id }}][badge_color]" class="form-control form-control-color form-control-sm" value="{{ $base->badge_color }}" title="Choose badge color" style="width: 32px; height: 31px; padding: 2px; border-radius: 6px;">
                                     </div>
                                 </td>
 
                                 <!-- Privilege Description -->
                                 <td>
-                                    <input type="text" name="levels[{{ $base->id }}][privilege_text]" class="form-control form-control-sm" value="{{ $base->privilege_text }}" placeholder="Unlocks exclusive frame & perks" style="border-radius: 6px;">
+                                    <input type="text" name="levels[{{ $base->id }}][privilege_text]" class="form-control form-control-sm" value="{{ $base->privilege_text }}" placeholder="Unlocks frame & perks" style="border-radius: 6px;">
                                 </td>
 
                                 <!-- Active Status -->
@@ -262,11 +273,11 @@
                                 <!-- Actions -->
                                 <td class="pe-4 text-end">
                                     <div class="d-flex align-items-center justify-content-end gap-1">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" style="border-radius: 6px;" onclick="openEditBaseModal({{ json_encode($base) }})" title="Upload Custom Frame or Edit">
-                                            <i class="fa-solid fa-arrow-up-from-bracket"></i> Edit
+                                        <button type="button" class="btn btn-sm btn-outline-primary" style="border-radius: 6px; font-size: 11px;" onclick="openEditBaseModal({{ json_encode($base) }})" title="Modal Edit & Frame Upload">
+                                            <i class="fa-solid fa-pen-to-square"></i> Edit
                                         </button>
                                         @if($base->level > 0)
-                                        <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius: 6px;" onclick="confirmDeleteBase({{ $base->id }}, {{ $base->level }})" title="Delete Level">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius: 6px; font-size: 11px;" onclick="confirmDeleteBase({{ $base->id }}, {{ $base->level }})" title="Delete Level">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                         @endif
@@ -286,7 +297,7 @@
 
                 <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-3 bg-light border-top rounded-bottom-4">
                     <span class="text-muted" style="font-size: 13px;">
-                        <i class="fa-solid fa-circle-info text-primary me-1"></i> Tip: Female hosts automatically unlock these level badges and frames as they earn coins in 1-on-1 audio/video calls.
+                        <i class="fa-solid fa-folder-open text-primary me-1"></i> All uploaded images are automatically saved in <code class="text-primary fw-bold">public/uploads/bases/</code>
                     </span>
                     <button type="submit" class="btn-ch-primary px-4">
                         <i class="fa-solid fa-floppy-disk me-1"></i> Save All Level Changes
@@ -310,7 +321,7 @@
                     </div>
                     <div>
                         <h5 class="modal-title fw-bold mb-0">Create New Level Base Frame</h5>
-                        <p class="text-muted mb-0" style="font-size: 12px;">Add a new level threshold, badge icon, and avatar frame image.</p>
+                        <p class="text-muted mb-0" style="font-size: 12px;">Saved directly into <code class="text-primary">public/uploads/bases/</code></p>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -349,7 +360,7 @@
                         <div class="col-12">
                             <label class="form-label fw-bold" style="font-size: 13px;">OR Upload Custom Base Frame Image (SVG / PNG / WebP)</label>
                             <input type="file" name="frame_image" class="form-control" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" style="border-radius: 8px;">
-                            <small class="text-muted" style="font-size: 11px;">Recommended: Transparent PNG or SVG with circular center opening (e.g. 512x512 px).</small>
+                            <small class="text-muted" style="font-size: 11px;">Image will be uploaded to <code>public/uploads/bases/</code>.</small>
                         </div>
 
                         <div class="col-12 col-md-4">
@@ -414,7 +425,7 @@
                     </div>
                     <div>
                         <h5 class="modal-title fw-bold mb-0" id="editModalTitle">Edit Level Base</h5>
-                        <p class="text-muted mb-0" style="font-size: 12px;">Upload custom avatar frame image or adjust parameters.</p>
+                        <p class="text-muted mb-0" style="font-size: 12px;">Upload custom avatar frame image to <code class="text-primary">public/uploads/bases/</code>.</p>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -459,7 +470,7 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <input type="file" name="frame_image" class="form-control" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" style="border-radius: 8px;">
-                                    <small class="text-muted" style="font-size: 11px;">Upload high-res transparent SVG or PNG frame image.</small>
+                                    <small class="text-muted" style="font-size: 11px;">Uploads directly to <code>public/uploads/bases/</code>.</small>
                                 </div>
                             </div>
                         </div>
@@ -523,7 +534,19 @@
 
 @push('scripts')
 <script>
-    // Live Preview Switcher
+    // Live Preview for file inputs in table rows
+    function previewRowFile(input, targetImgId) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById(targetImgId);
+                if (img) img.src = e.target.result;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // Live Preview Switcher in Header Section
     function updateLivePreview(level) {
         const select = document.getElementById('previewLevelSelector');
         const opt = select.options[select.selectedIndex];
