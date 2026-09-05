@@ -145,42 +145,109 @@ class VipPrivilegeCard extends Model
 
     /**
      * Seed default initial cards or update existing if needed.
-     */
     public static function seedDefaultCards(bool $forceUpdate = false): void
     {
-        if (static::count() > 0 && !$forceUpdate) {
-            // Update original prices if missing
-            $luxury = static::where('card_type', 'luxury_monthly')->first();
-            if ($luxury && !$luxury->original_price_bdt) {
-                $luxury->update([
-                    'original_price_bdt'  => 4800.00,
-                    'instant_reward_text' => 'Gems in total 66600',
-                    'daily_checkin_text'  => 'Gems in total 87110',
-                ]);
-            }
+        // 0. New User Weekly Card (Screenshot Match 5)
+        static::updateOrCreate(
+            ['card_type' => 'new_user_weekly'],
+            [
+                'name'                      => 'New User Weekly Card',
+                'category_name'             => 'New User Weekly Card',
+                'badge_text'                => '60% OFF',
+                'original_price_bdt'        => 750.00,
+                'price_bdt'                 => 300.00,
+                'price_coins'               => 8100,
+                'duration_days'             => 7,
+                'instant_reward_coins'      => 8100,
+                'instant_reward_text'       => 'Gems in total 8100',
+                'daily_checkin_total_coins' => 2020,
+                'daily_checkin_text'        => 'Gems in total 2020',
+                'total_return_coins'        => 10120,
+                'card_color'                => '#EC4899',
+                'banner_tag'                => 'New User Weekly Card: 10,120 Gems + New Star 3D Avatar Frame!',
+                'daily_schedule'            => [
+                    ['day' => 1, 'coins' => 8100, 'extra' => 'NEW STAR Avatar Frame'],
+                    ['day' => 2, 'coins' => 300,  'extra' => null],
+                    ['day' => 3, 'coins' => 210,  'extra' => null],
+                    ['day' => 4, 'coins' => 500,  'extra' => null],
+                    ['day' => 5, 'coins' => 300,  'extra' => null],
+                    ['day' => 6, 'coins' => 210,  'extra' => null],
+                    ['day' => 7, 'coins' => 500,  'extra' => 'New Star Title Badge'],
+                ],
+                'extra_rewards'             => [
+                    ['title' => '7 Days NEW STAR Frame', 'tag' => '7days', 'validity' => '7days', 'icon' => 'frame_diamond', 'image' => 'assets/images/vip/new_star_frame.png'],
+                    ['title' => '7 Days Newbie Glow',   'tag' => '7days', 'validity' => '7days', 'icon' => 'chat_bubble',   'image' => null],
+                    ['title' => 'Bonus Lucky Cards x7', 'tag' => 'x7',    'validity' => 'x7',    'icon' => 'lucky_card',    'image' => null],
+                ],
+                'description'               => 'New User Weekly Card: 8,100 Instant Gems + 2,020 Daily Check-in Gems + 7D NEW STAR Frame',
+                'sort_order'                => 1,
+                'is_active'                 => true,
+            ]
+        );
 
-            $superWeekly = static::where('card_type', 'super_weekly')->first();
-            if ($superWeekly && !$superWeekly->original_price_bdt) {
-                $superWeekly->update([
-                    'original_price_bdt'  => 642.86,
-                    'instant_reward_text' => 'Gems in total 12150',
-                    'daily_checkin_text'  => 'Gems in total 2540',
-                ]);
-            }
+        // 1. Super Monthly Card (Screenshot Match 2)
+        static::updateOrCreate(
+            ['card_type' => 'super_monthly'],
+            [
+                'name'                      => 'Super Monthly Card',
+                'category_name'             => 'Super Monthly Card',
+                'badge_text'                => '50% OFF',
+                'original_price_bdt'        => 2400.00,
+                'price_bdt'                 => 1200.00,
+                'price_coins'               => 32940,
+                'duration_days'             => 30,
+                'instant_reward_coins'      => 32940,
+                'instant_reward_text'       => 'Gems in total 32940',
+                'daily_checkin_total_coins' => 26330,
+                'daily_checkin_text'        => 'Gems in total 26330',
+                'total_return_coins'        => 59270,
+                'card_color'                => '#7C4DFF',
+                'banner_tag'                => 'Super Monthly Card: 59,270 Gems + Outfits & Rewards!',
+                'daily_schedule'            => [
+                    ['day' => 1, 'coins' => 32940, 'extra' => 'Gold Frame'],
+                    ['day' => 2, 'coins' => 1790,  'extra' => null],
+                    ['day' => 3, 'coins' => 1210,  'extra' => null],
+                    ['day' => 4, 'coins' => 1790,  'extra' => null],
+                    ['day' => 5, 'coins' => 1210,  'extra' => null],
+                    ['day' => 6, 'coins' => 1790,  'extra' => null],
+                    ['day' => 7, 'coins' => 1790,  'extra' => null],
+                    ['day' => 8, 'coins' => 656,   'extra' => null],
+                    ['day' => 9, 'coins' => 656,   'extra' => null],
+                    ['day' => 10, 'coins' => 656,  'extra' => null],
+                    ['day' => 11, 'coins' => 656,  'extra' => null],
+                    ['day' => 12, 'coins' => 656,  'extra' => null],
+                    ['day' => 13, 'coins' => 656,  'extra' => null],
+                    ['day' => 14, 'coins' => 656,  'extra' => 'Bonus Card'],
+                    ['day' => 15, 'coins' => 656,  'extra' => null],
+                    ['day' => 16, 'coins' => 656,  'extra' => null],
+                    ['day' => 17, 'coins' => 656,  'extra' => null],
+                    ['day' => 18, 'coins' => 656,  'extra' => null],
+                    ['day' => 19, 'coins' => 656,  'extra' => null],
+                    ['day' => 20, 'coins' => 656,  'extra' => null],
+                    ['day' => 21, 'coins' => 656,  'extra' => null],
+                    ['day' => 22, 'coins' => 656,  'extra' => null],
+                    ['day' => 23, 'coins' => 656,  'extra' => null],
+                    ['day' => 24, 'coins' => 656,  'extra' => null],
+                    ['day' => 25, 'coins' => 656,  'extra' => null],
+                    ['day' => 26, 'coins' => 656,  'extra' => null],
+                    ['day' => 27, 'coins' => 656,  'extra' => null],
+                    ['day' => 28, 'coins' => 656,  'extra' => null],
+                    ['day' => 29, 'coins' => 656,  'extra' => null],
+                    ['day' => 30, 'coins' => 656,  'extra' => 'SVIP 30D'],
+                ],
+                'extra_rewards'             => [
+                    ['title' => '30 Days Gold Frame',     'tag' => '30days', 'validity' => '30days', 'icon' => 'frame_gold',   'image' => null],
+                    ['title' => '30 Days Luxury Bubble',  'tag' => '30days', 'validity' => '30days', 'icon' => 'chat_bubble',  'image' => null],
+                    ['title' => '30 Days Privilege Badge', 'tag' => '30days', 'validity' => '30days', 'icon' => 'badge_svip',   'image' => null],
+                    ['title' => 'Bonus Lucky Cards x15',  'tag' => 'x15',    'validity' => 'x15',    'icon' => 'lucky_card',  'image' => null],
+                ],
+                'description'               => 'Super Monthly Card: 32,940 Instant Gems + 26,330 Daily Check-in Gems + Outfits',
+                'sort_order'                => 2,
+                'is_active'                 => true,
+            ]
+        );
 
-            $superMonthly = static::where('card_type', 'super_monthly')->first();
-            if ($superMonthly && !$superMonthly->original_price_bdt) {
-                $superMonthly->update([
-                    'original_price_bdt'  => 2400.00,
-                    'instant_reward_text' => 'Gems in total 32940',
-                    'daily_checkin_text'  => 'Gems in total 26330',
-                ]);
-            }
-
-            return;
-        }
-
-        // 1. Luxury Monthly Card (Screenshot Match 1)
+        // 2. Luxury Monthly Card (Screenshot Match 3)
         static::updateOrCreate(
             ['card_type' => 'luxury_monthly'],
             [
@@ -208,27 +275,27 @@ class VipPrivilegeCard extends Model
                     ['day' => 7, 'coins' => 3500,  'extra' => null],
                     ['day' => 8, 'coins' => 2953,  'extra' => null],
                     ['day' => 9, 'coins' => 2953,  'extra' => null],
-                    ['day' => 10, 'coins' => 2953, 'extra' => null],
-                    ['day' => 11, 'coins' => 2953, 'extra' => null],
-                    ['day' => 12, 'coins' => 2953, 'extra' => null],
-                    ['day' => 13, 'coins' => 2953, 'extra' => null],
-                    ['day' => 14, 'coins' => 2953, 'extra' => 'Super Card x2'],
-                    ['day' => 15, 'coins' => 2953, 'extra' => null],
-                    ['day' => 16, 'coins' => 2953, 'extra' => null],
-                    ['day' => 17, 'coins' => 2953, 'extra' => null],
-                    ['day' => 18, 'coins' => 2953, 'extra' => null],
-                    ['day' => 19, 'coins' => 2953, 'extra' => null],
-                    ['day' => 20, 'coins' => 2953, 'extra' => null],
-                    ['day' => 21, 'coins' => 2953, 'extra' => null],
-                    ['day' => 22, 'coins' => 2953, 'extra' => null],
-                    ['day' => 23, 'coins' => 2953, 'extra' => null],
-                    ['day' => 24, 'coins' => 2953, 'extra' => null],
-                    ['day' => 25, 'coins' => 2953, 'extra' => null],
-                    ['day' => 26, 'coins' => 2953, 'extra' => null],
-                    ['day' => 27, 'coins' => 2953, 'extra' => null],
-                    ['day' => 28, 'coins' => 2953, 'extra' => null],
-                    ['day' => 29, 'coins' => 2953, 'extra' => null],
-                    ['day' => 30, 'coins' => 2953, 'extra' => 'Luxury SVIP Crown'],
+                    ['day' => 10, 'coins' => 2953,  'extra' => null],
+                    ['day' => 11, 'coins' => 2953,  'extra' => null],
+                    ['day' => 12, 'coins' => 2953,  'extra' => null],
+                    ['day' => 13, 'coins' => 2953,  'extra' => null],
+                    ['day' => 14, 'coins' => 2953,  'extra' => 'Super Card x2'],
+                    ['day' => 15, 'coins' => 2953,  'extra' => null],
+                    ['day' => 16, 'coins' => 2953,  'extra' => null],
+                    ['day' => 17, 'coins' => 2953,  'extra' => null],
+                    ['day' => 18, 'coins' => 2953,  'extra' => null],
+                    ['day' => 19, 'coins' => 2953,  'extra' => null],
+                    ['day' => 20, 'coins' => 2953,  'extra' => null],
+                    ['day' => 21, 'coins' => 2953,  'extra' => null],
+                    ['day' => 22, 'coins' => 2953,  'extra' => null],
+                    ['day' => 23, 'coins' => 2953,  'extra' => null],
+                    ['day' => 24, 'coins' => 2953,  'extra' => null],
+                    ['day' => 25, 'coins' => 2953,  'extra' => null],
+                    ['day' => 26, 'coins' => 2953,  'extra' => null],
+                    ['day' => 27, 'coins' => 2953,  'extra' => null],
+                    ['day' => 28, 'coins' => 2953,  'extra' => null],
+                    ['day' => 29, 'coins' => 2953,  'extra' => null],
+                    ['day' => 30, 'coins' => 2953,  'extra' => 'Luxury SVIP Crown'],
                 ],
                 'extra_rewards'             => [
                     ['title' => '30 Days Diamond Frame', 'tag' => '30days', 'validity' => '30days', 'icon' => 'frame_diamond', 'image' => null],
@@ -237,18 +304,18 @@ class VipPrivilegeCard extends Model
                     ['title' => 'Bonus Lucky Cards x30', 'tag' => 'x30',    'validity' => 'x30',    'icon' => 'lucky_card',    'image' => null],
                 ],
                 'description'               => 'Luxury Monthly Card: 66,600 Instant Gems + 87,110 Daily Check-in Gems + Outfits & Rewards',
-                'sort_order'                => 1,
+                'sort_order'                => 3,
                 'is_active'                 => true,
             ]
         );
 
-        // 2. Super Weekly Card (Screenshot Match 2)
+        // 3. Super Weekly Card (Screenshot Match 4)
         static::updateOrCreate(
             ['card_type' => 'super_weekly'],
             [
                 'name'                      => 'Super Weekly Card',
                 'category_name'             => 'Super Weekly Card',
-                'badge_text'                => 'HOT',
+                'badge_text'                => '30% OFF',
                 'original_price_bdt'        => 642.86,
                 'price_bdt'                 => 450.00,
                 'price_coins'               => 12150,
@@ -259,14 +326,14 @@ class VipPrivilegeCard extends Model
                 'daily_checkin_text'        => 'Gems in total 2540',
                 'total_return_coins'        => 14690,
                 'card_color'                => '#FF4081',
-                'banner_tag'                => 'Super Weekly Card: 14,690 Gems + Outfits + Free Cards!',
+                'banner_tag'                => 'Super Weekly Card: 14,690 Gems + Outfits!',
                 'daily_schedule'            => [
                     ['day' => 1, 'coins' => 12150, 'extra' => '7D Emerald Frame'],
-                    ['day' => 2, 'coins' => 420,   'extra' => null],
-                    ['day' => 3, 'coins' => 350,   'extra' => null],
+                    ['day' => 2, 'coins' => 240,   'extra' => null],
+                    ['day' => 3, 'coins' => 400,   'extra' => null],
                     ['day' => 4, 'coins' => 500,   'extra' => null],
-                    ['day' => 5, 'coins' => 420,   'extra' => null],
-                    ['day' => 6, 'coins' => 350,   'extra' => null],
+                    ['day' => 5, 'coins' => 600,   'extra' => null],
+                    ['day' => 6, 'coins' => 300,   'extra' => null],
                     ['day' => 7, 'coins' => 500,   'extra' => 'Weekly Card Badge'],
                 ],
                 'extra_rewards'             => [
@@ -276,69 +343,7 @@ class VipPrivilegeCard extends Model
                     ['title' => 'Bonus Lucky Cards x7',  'tag' => 'x7',    'validity' => 'x7',    'icon' => 'lucky_card',  'image' => null],
                 ],
                 'description'               => 'Super Weekly Card: 12,150 Instant Gems + 2,540 Daily Check-in Gems + Outfits',
-                'sort_order'                => 2,
-                'is_active'                 => true,
-            ]
-        );
-
-        // 3. Super Monthly Card
-        static::updateOrCreate(
-            ['card_type' => 'super_monthly'],
-            [
-                'name'                      => 'Super Monthly Card',
-                'category_name'             => 'Super Monthly Card',
-                'badge_text'                => 'BEST VALUE',
-                'original_price_bdt'        => 2400.00,
-                'price_bdt'                 => 1200.00,
-                'price_coins'               => 32940,
-                'duration_days'             => 30,
-                'instant_reward_coins'      => 32940,
-                'instant_reward_text'       => 'Gems in total 32940',
-                'daily_checkin_total_coins' => 26330,
-                'daily_checkin_text'        => 'Gems in total 26330',
-                'total_return_coins'        => 59270,
-                'card_color'                => '#7C4DFF',
-                'banner_tag'                => 'Super Monthly Card: 59,270 Gems + Outfits + Free Cards!',
-                'daily_schedule'            => [
-                    ['day' => 1, 'coins' => 32940, 'extra' => 'Gold Frame'],
-                    ['day' => 2, 'coins' => 1790,  'extra' => null],
-                    ['day' => 3, 'coins' => 1210,  'extra' => null],
-                    ['day' => 4, 'coins' => 1790,  'extra' => null],
-                    ['day' => 5, 'coins' => 1210,  'extra' => null],
-                    ['day' => 6, 'coins' => 1790,  'extra' => null],
-                    ['day' => 7, 'coins' => 1790,  'extra' => null],
-                    ['day' => 8, 'coins' => 656,   'extra' => null],
-                    ['day' => 9, 'coins' => 656,   'extra' => null],
-                    ['day' => 10, 'coins' => 656,  'extra' => null],
-                    ['day' => 11, 'coins' => 656,  'extra' => null],
-                    ['day' => 12, 'coins' => 656,  'extra' => null],
-                    ['day' => 13, 'coins' => 656,  'extra' => null],
-                    ['day' => 14, 'coins' => 656,  'extra' => 'Bonus Card'],
-                    ['day' => 15, 'coins' => 656,  'extra' => null],
-                    ['day' => 16, 'coins' => 656,  'extra' => null],
-                    ['day' => 17, 'coins' => 656,  'extra' => null],
-                    ['day' => 18, 'coins' => 656,  'extra' => null],
-                    ['day' => 19, 'coins' => 656,  'extra' => null],
-                    ['day' => 20, 'coins' => 656,  'extra' => null],
-                    ['day' => 21, 'coins' => 656,  'extra' => null],
-                    ['day' => 22, 'coins' => 656,  'extra' => null],
-                    ['day' => 23, 'coins' => 656,  'extra' => null],
-                    ['day' => 24, 'coins' => 2953, 'extra' => null],
-                    ['day' => 25, 'coins' => 656,  'extra' => null],
-                    ['day' => 26, 'coins' => 656,  'extra' => null],
-                    ['day' => 27, 'coins' => 656,  'extra' => null],
-                    ['day' => 28, 'coins' => 656,  'extra' => null],
-                    ['day' => 29, 'coins' => 656,  'extra' => null],
-                    ['day' => 30, 'coins' => 656,  'extra' => 'SVIP 30D'],
-                ],
-                'extra_rewards'             => [
-                    ['title' => '30 Days Gold Frame',     'tag' => '30days', 'validity' => '30days', 'icon' => 'frame_gold',   'image' => null],
-                    ['title' => '30 Days Luxury Bubble',  'tag' => '30days', 'validity' => '30days', 'icon' => 'chat_bubble',  'image' => null],
-                    ['title' => '30 Days Privilege Badge', 'tag' => '30days', 'validity' => '30days', 'icon' => 'badge_svip',   'image' => null],
-                    ['title' => 'Bonus Lucky Cards x15',  'tag' => 'x15',    'validity' => 'x15',    'icon' => 'lucky_card',  'image' => null],
-                ],
-                'description'               => 'Super Monthly Card: 32,940 Instant Gems + 26,330 Daily Check-in Gems + Outfits',
-                'sort_order'                => 3,
+                'sort_order'                => 4,
                 'is_active'                 => true,
             ]
         );

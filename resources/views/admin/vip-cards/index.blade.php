@@ -221,20 +221,23 @@
                         @endif
 
                         <!-- Action Buttons -->
-                        <div class="d-flex gap-2 justify-content-center mt-3 pt-3 border-top">
+                        <div class="d-flex flex-wrap gap-2 justify-content-center mt-3 pt-3 border-top">
+                            <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3" onclick='previewCardRewards(@json($card))' title="Preview Avatar Frame & Animated Rewards Modal">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Preview Frame
+                            </button>
                             <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick='openEditCardModal(@json($card))'>
                                 <i class="fa-solid fa-pen-to-square me-1"></i> Edit
                             </button>
                             <form action="{{ route('admin.vip-cards.toggle-status', $card->id) }}" method="POST" class="d-inline">
                                 @csrf
-                                <button type="submit" class="btn btn-sm {{ $card->is_active ? 'btn-outline-warning' : 'btn-outline-success' }} rounded-pill px-3">
+                                <button type="submit" class="btn btn-sm {{ $card->is_active ? 'btn-outline-secondary' : 'btn-outline-success' }} rounded-pill px-3">
                                     <i class="fa-solid {{ $card->is_active ? 'fa-eye-slash' : 'fa-eye' }} me-1"></i> {{ $card->is_active ? 'Disable' : 'Enable' }}
                                 </button>
                             </form>
                             <form action="{{ route('admin.vip-cards.destroy', $card->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this VIP Card?');">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </form>
@@ -252,6 +255,63 @@
         @endforelse
     </div>
 </div>
+
+<!-- Extra Rewards & Avatar Frame Preview Modal (Matching Screenshot 5) -->
+<div class="modal fade" id="framePreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg text-white" style="background: radial-gradient(circle at center, #1e1b4b 0%, #09090b 100%); border: 2px solid rgba(245, 158, 11, 0.4) !important;">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning text-dark fw-bold px-3 py-1 rounded-pill" id="previewBadgeText" style="font-size: 11px;">REWARD PREVIEW</span>
+                    <h6 class="modal-title fw-bold text-light mb-0" id="previewCardTitle">Card Outfits & Rewards</h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <div class="position-relative d-inline-block my-3">
+                    <!-- Glow effect halo behind frame -->
+                    <div class="position-absolute top-50 start-50 translate-middle rounded-circle" style="width: 200px; height: 200px; background: radial-gradient(circle, rgba(236,72,153,0.35) 0%, rgba(245,158,11,0.15) 50%, transparent 70%); filter: blur(15px); pointer-events: none;"></div>
+                    
+                    <!-- Avatar Frame & Placeholder Profile -->
+                    <div class="position-relative d-flex align-items-center justify-content-center" style="width: 240px; height: 240px;">
+                        <!-- User Avatar in center -->
+                        <div class="rounded-circle overflow-hidden shadow-lg position-relative" style="width: 100px; height: 100px; background: #334155; border: 3px solid #f59e0b;">
+                            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80" alt="Avatar Preview" class="w-100 h-100 object-fit-cover">
+                        </div>
+                        <!-- Animated Frame Overlay -->
+                        <img id="previewFrameImage" src="{{ asset('assets/images/vip/new_star_frame.png') }}" alt="Frame Preview" class="position-absolute top-0 start-0 w-100 h-100" style="object-fit: contain; pointer-events: none; animation: pulseGlow 3s infinite alternate;">
+                    </div>
+                </div>
+
+                <h5 class="fw-bolder text-warning mt-2 mb-1" id="previewFrameTitle">7 Days NEW STAR Frame</h5>
+                <p class="text-secondary small mb-3" id="previewValidityText">Active on user profile for 7 Days upon purchase</p>
+
+                <!-- Perks List in Modal -->
+                <div class="p-3 rounded-3 text-start mb-3" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                    <div class="small fw-bold text-warning mb-2"><i class="fa-solid fa-gift me-1"></i> Included Extra Outfits & Perks:</div>
+                    <div id="previewPerksList" class="d-flex flex-column gap-2" style="font-size: 12px;"></div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center p-2 rounded-3" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3);">
+                    <span class="small fw-bold text-light">Card Selling Price:</span>
+                    <span class="fs-6 fw-bold text-warning" id="previewPriceText">BDT 300.00</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 text-center justify-content-center">
+                <button type="button" class="btn btn-warning text-dark fw-bold rounded-pill px-4" data-bs-dismiss="modal">
+                    <i class="fa-solid fa-check me-1"></i> Got it
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes pulseGlow {
+    0% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(245,158,11,0.6)); }
+    100% { transform: scale(1.03); filter: drop-shadow(0 0 18px rgba(236,72,153,0.8)); }
+}
+</style>
 
 <!-- Add / Edit VIP Privilege Card Modal -->
 <div class="modal fade" id="vipCardModal" tabindex="-1" aria-labelledby="vipCardModalLabel" aria-hidden="true">
@@ -280,11 +340,14 @@
                             </div>
                             <div class="col-12 col-md-6">
                                 <label class="form-label fw-semibold" style="font-size: 13px;">Card Type Key <span class="text-danger">*</span></label>
-                                <select name="card_type" id="cardType" class="form-select" required>
+                                <select name="card_type" id="cardType" class="form-select" required onchange="onCardTypeChange()">
+                                    <option value="new_user_weekly">New User Weekly (new_user_weekly)</option>
+                                    <option value="super_monthly">Super Monthly (super_monthly)</option>
                                     <option value="luxury_monthly">Luxury Monthly (luxury_monthly)</option>
                                     <option value="super_weekly">Super Weekly (super_weekly)</option>
-                                    <option value="super_monthly">Super Monthly (super_monthly)</option>
-                                    <option value="new_user">New User Weekly (new_user)</option>
+                                    <option value="trial_starter">Trial 3-Day Starter (trial_starter)</option>
+                                    <option value="svip_quarterly">SVIP 90-Day Pass (svip_quarterly)</option>
+                                    <option value="royal_semi_annual">Royal Sovereign 180-Day (royal_semi_annual)</option>
                                     <option value="custom_vip">Custom VIP Package (custom_vip)</option>
                                 </select>
                             </div>
@@ -546,6 +609,96 @@ function syncScheduleSumToForm() {
     calculateTotalReturn();
 }
 
+function onCardTypeChange() {
+    const cardType = document.getElementById('cardType').value;
+    if (cardType === 'new_user_weekly') {
+        document.getElementById('cardName').value = 'New User Weekly Card';
+        document.getElementById('cardPriceBdt').value = '300.00';
+        document.getElementById('cardOriginalPriceBdt').value = '750.00';
+        document.getElementById('cardPriceCoins').value = '8100';
+        document.getElementById('cardDurationDays').value = '7';
+        document.getElementById('cardInstantCoins').value = '8100';
+        document.getElementById('cardInstantRewardText').value = 'Gems in total 8100';
+        document.getElementById('cardDailyBonusCoins').value = '2020';
+        document.getElementById('cardDailyCheckinText').value = 'Gems in total 2020';
+        document.getElementById('cardTotalReturnCoins').value = '10120';
+        document.getElementById('cardBadgeText').value = '60% OFF';
+        document.getElementById('cardColor').value = '#EC4899';
+        document.getElementById('cardColorPicker').value = '#EC4899';
+        document.getElementById('cardBannerTag').value = 'New User Weekly Card: 10,120 Gems + New Star 3D Avatar Frame!';
+        
+        // Reset Perks
+        document.getElementById('perksContainer').innerHTML = '';
+        addPerkRow('7 Days NEW STAR Frame', '7days', '7days', 'frame_diamond', 'assets/images/vip/new_star_frame.png');
+        addPerkRow('7 Days Newbie Glow', '7days', '7days', 'chat_bubble');
+        addPerkRow('Bonus Lucky Cards x7', 'x7', 'x7', 'lucky_card');
+    } else if (cardType === 'super_monthly') {
+        document.getElementById('cardName').value = 'Super Monthly Card';
+        document.getElementById('cardPriceBdt').value = '1200.00';
+        document.getElementById('cardOriginalPriceBdt').value = '2400.00';
+        document.getElementById('cardPriceCoins').value = '32940';
+        document.getElementById('cardDurationDays').value = '30';
+        document.getElementById('cardInstantCoins').value = '32940';
+        document.getElementById('cardInstantRewardText').value = 'Gems in total 32940';
+        document.getElementById('cardDailyBonusCoins').value = '26330';
+        document.getElementById('cardDailyCheckinText').value = 'Gems in total 26330';
+        document.getElementById('cardTotalReturnCoins').value = '59270';
+        document.getElementById('cardBadgeText').value = '50% OFF';
+        document.getElementById('cardColor').value = '#7C4DFF';
+        document.getElementById('cardColorPicker').value = '#7C4DFF';
+        document.getElementById('cardBannerTag').value = 'Super Monthly Card: 59,270 Gems + Outfits & Rewards!';
+        
+        document.getElementById('perksContainer').innerHTML = '';
+        addPerkRow('30 Days Gold Frame', '30days', '30days', 'frame_gold');
+        addPerkRow('30 Days Luxury Bubble', '30days', '30days', 'chat_bubble');
+        addPerkRow('30 Days Privilege Badge', '30days', '30days', 'badge_svip');
+        addPerkRow('Bonus Lucky Cards x15', 'x15', 'x15', 'lucky_card');
+    } else if (cardType === 'luxury_monthly') {
+        document.getElementById('cardName').value = 'Luxury Monthly Card';
+        document.getElementById('cardPriceBdt').value = '2400.00';
+        document.getElementById('cardOriginalPriceBdt').value = '4800.00';
+        document.getElementById('cardPriceCoins').value = '66600';
+        document.getElementById('cardDurationDays').value = '30';
+        document.getElementById('cardInstantCoins').value = '66600';
+        document.getElementById('cardInstantRewardText').value = 'Gems in total 66600';
+        document.getElementById('cardDailyBonusCoins').value = '87110';
+        document.getElementById('cardDailyCheckinText').value = 'Gems in total 87110';
+        document.getElementById('cardTotalReturnCoins').value = '153710';
+        document.getElementById('cardBadgeText').value = '50% OFF';
+        document.getElementById('cardColor').value = '#2979FF';
+        document.getElementById('cardColorPicker').value = '#2979FF';
+        document.getElementById('cardBannerTag').value = 'Luxury Monthly Card: 153,710 Gems + Outfits + Free Cards!';
+        
+        document.getElementById('perksContainer').innerHTML = '';
+        addPerkRow('30 Days Diamond Frame', '30days', '30days', 'frame_diamond');
+        addPerkRow('30 Days Chat Bubble', '30days', '30days', 'chat_bubble');
+        addPerkRow('30 Days VIP Title', '30days', '30days', 'svip_crown');
+        addPerkRow('Bonus Lucky Cards x30', 'x30', 'x30', 'lucky_card');
+    } else if (cardType === 'super_weekly') {
+        document.getElementById('cardName').value = 'Super Weekly Card';
+        document.getElementById('cardPriceBdt').value = '450.00';
+        document.getElementById('cardOriginalPriceBdt').value = '642.86';
+        document.getElementById('cardPriceCoins').value = '12150';
+        document.getElementById('cardDurationDays').value = '7';
+        document.getElementById('cardInstantCoins').value = '12150';
+        document.getElementById('cardInstantRewardText').value = 'Gems in total 12150';
+        document.getElementById('cardDailyBonusCoins').value = '2540';
+        document.getElementById('cardDailyCheckinText').value = 'Gems in total 2540';
+        document.getElementById('cardTotalReturnCoins').value = '14690';
+        document.getElementById('cardBadgeText').value = '30% OFF';
+        document.getElementById('cardColor').value = '#FF4081';
+        document.getElementById('cardColorPicker').value = '#FF4081';
+        document.getElementById('cardBannerTag').value = 'Super Weekly Card: 14,690 Gems + Outfits!';
+        
+        document.getElementById('perksContainer').innerHTML = '';
+        addPerkRow('7 Days Emerald Frame', '7days', '7days', 'frame_avatar');
+        addPerkRow('7 Days Chat Bubble', '7days', '7days', 'chat_bubble');
+        addPerkRow('7 Days VIP Badge', '7days', '7days', 'badge_svip');
+        addPerkRow('Bonus Lucky Cards x7', 'x7', 'x7', 'lucky_card');
+    }
+    autoGenerateSchedule();
+}
+
 function onDurationChange() {
     const duration = parseInt(document.getElementById('cardDurationDays').value || 7, 10);
     const rows = document.querySelectorAll('#scheduleRowsContainer tr');
@@ -559,20 +712,45 @@ function autoGenerateSchedule() {
     const cardType = document.getElementById('cardType').value;
     clearScheduleRows();
 
-    if (duration === 30 && cardType === 'luxury_monthly') {
-        addScheduleRow(1, 66600, 'Diamond Frame');
-        for (let d = 2; d <= 30; d++) {
-            let coins = d <= 7 ? (d % 2 === 0 ? 3500 : 1790) : 2953;
-            let extra = d === 14 ? 'Super Card x2' : (d === 30 ? 'Luxury SVIP Crown' : '');
-            addScheduleRow(d, coins, extra);
-        }
-    } else if (duration === 7) {
-        addScheduleRow(1, 12150, '7D Emerald Frame');
-        addScheduleRow(2, 420, '');
-        addScheduleRow(3, 350, '');
+    if (cardType === 'new_user_weekly') {
+        addScheduleRow(1, 8100, 'NEW STAR Avatar Frame');
+        addScheduleRow(2, 300, '');
+        addScheduleRow(3, 210, '');
         addScheduleRow(4, 500, '');
-        addScheduleRow(5, 420, '');
-        addScheduleRow(6, 350, '');
+        addScheduleRow(5, 300, '');
+        addScheduleRow(6, 210, '');
+        addScheduleRow(7, 500, 'New Star Title Badge');
+    } else if (cardType === 'super_monthly') {
+        addScheduleRow(1, 32940, 'Gold Frame');
+        addScheduleRow(2, 1790, '');
+        addScheduleRow(3, 1210, '');
+        addScheduleRow(4, 1790, '');
+        addScheduleRow(5, 1210, '');
+        addScheduleRow(6, 1790, '');
+        addScheduleRow(7, 1790, '');
+        for (let d = 8; d <= 30; d++) {
+            let extra = d === 14 ? 'Bonus Card' : (d === 30 ? 'SVIP 30D' : '');
+            addScheduleRow(d, 656, extra);
+        }
+    } else if (cardType === 'luxury_monthly') {
+        addScheduleRow(1, 66600, 'Diamond Frame');
+        addScheduleRow(2, 3500, '');
+        addScheduleRow(3, 1790, '');
+        addScheduleRow(4, 3500, '');
+        addScheduleRow(5, 1790, '');
+        addScheduleRow(6, 3500, '');
+        addScheduleRow(7, 3500, '');
+        for (let d = 8; d <= 30; d++) {
+            let extra = d === 14 ? 'Super Card x2' : (d === 30 ? 'Luxury SVIP Crown' : '');
+            addScheduleRow(d, 2953, extra);
+        }
+    } else if (cardType === 'super_weekly') {
+        addScheduleRow(1, 12150, '7D Emerald Frame');
+        addScheduleRow(2, 240, '');
+        addScheduleRow(3, 400, '');
+        addScheduleRow(4, 500, '');
+        addScheduleRow(5, 600, '');
+        addScheduleRow(6, 300, '');
         addScheduleRow(7, 500, 'Weekly Card Badge');
     } else {
         const instantCoins = parseInt(document.getElementById('cardInstantCoins').value || 1000, 10);
@@ -588,6 +766,53 @@ function calculateTotalReturn() {
     const instant = parseInt(document.getElementById('cardInstantCoins').value || 0, 10);
     const daily = parseInt(document.getElementById('cardDailyBonusCoins').value || 0, 10);
     document.getElementById('cardTotalReturnCoins').value = instant + daily;
+}
+
+function previewCardRewards(card) {
+    document.getElementById('previewBadgeText').innerText = card.badge_text || 'EXTRA REWARDS';
+    document.getElementById('previewCardTitle').innerText = card.name || 'VIP Package';
+    document.getElementById('previewPriceText').innerText = card.formatted_price_bdt || ('৳ ' + card.price_bdt);
+    
+    // Check if custom frame image exists or fallback to new_star_frame
+    let frameImg = "{{ asset('assets/images/vip/new_star_frame.png') }}";
+    let frameTitle = 'Special VIP Avatar Frame';
+    let validityText = `Active on user profile for ${card.duration_days || 7} Days upon purchase`;
+    
+    if (Array.isArray(card.extra_rewards) && card.extra_rewards.length > 0) {
+        const firstPerk = card.extra_rewards[0];
+        frameTitle = firstPerk.title || `${card.duration_days} Days Avatar Frame`;
+        if (firstPerk.image) {
+            frameImg = firstPerk.image.startsWith('http') ? firstPerk.image : `/${firstPerk.image.replace(/^\//, '')}`;
+        }
+    }
+    
+    document.getElementById('previewFrameImage').src = frameImg;
+    document.getElementById('previewFrameTitle').innerText = frameTitle;
+    document.getElementById('previewValidityText').innerText = validityText;
+
+    // Populate perks list
+    const perksList = document.getElementById('previewPerksList');
+    perksList.innerHTML = '';
+    
+    if (Array.isArray(card.extra_rewards) && card.extra_rewards.length > 0) {
+        card.extra_rewards.forEach(p => {
+            const row = document.createElement('div');
+            row.className = 'd-flex align-items-center justify-content-between p-2 rounded';
+            row.style.background = 'rgba(255,255,255,0.07)';
+            row.innerHTML = `
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning text-dark">${p.validity || p.tag || 'VIP'}</span>
+                    <span class="text-light fw-semibold">${p.title || 'Privilege Outfit'}</span>
+                </div>
+                <i class="fa-solid fa-circle-check text-success"></i>
+            `;
+            perksList.appendChild(row);
+        });
+    } else {
+        perksList.innerHTML = `<div class="text-muted small">No extra perks specified for this package.</div>`;
+    }
+
+    new bootstrap.Modal(document.getElementById('framePreviewModal')).show();
 }
 
 function addPerkRow(title = '', tag = '30days', validity = '30days', icon = 'frame_diamond', image = '') {

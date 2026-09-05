@@ -56,25 +56,25 @@
             <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(244,63,94,0.15); color: #f43f5e;">{{ $activeGiftsTotal }}</span>
         </a>
 
-        <!-- Premium VIP System & Privilege Cards -->
+        <!-- Spend Less, Get More Gems / Monthly Cards & Extra Rewards -->
         <div class="menu-item-group {{ request()->routeIs('admin.vip-cards.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.vip-cards.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
-                    <i class="fa-solid fa-crown" style="color: #f59e0b;"></i>
-                    <span>Premium VIP</span>
+                    <i class="fa-solid fa-gem" style="color: #f59e0b;"></i>
+                    <span>Spend Less, Get More</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
                     @php
                         $activeVipCardsCount = \App\Models\VipPrivilegeCard::where('is_active', true)->count();
                     @endphp
-                    <span class="badge bg-warning-subtle text-warning rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $activeVipCardsCount }} Cards</span>
+                    <span class="badge bg-warning-subtle text-warning rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(245,158,11,0.15); color: #f59e0b;">{{ $activeVipCardsCount }} Cards</span>
                     <i class="fa-solid fa-chevron-right menu-arrow"></i>
                 </div>
             </button>
             <div class="submenu" style="{{ request()->routeIs('admin.vip-cards.*') ? 'display: block;' : '' }}">
                 <a href="{{ route('admin.vip-cards.index') }}" class="submenu-item {{ request()->routeIs('admin.vip-cards.index') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
-                    <span>VIP Packages & Banner</span>
+                    <span>Monthly & Extra Rewards</span>
                 </a>
                 <a href="{{ route('admin.vip-cards.subscriptions') }}" class="submenu-item {{ request()->routeIs('admin.vip-cards.subscriptions') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>

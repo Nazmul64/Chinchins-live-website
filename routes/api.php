@@ -462,13 +462,29 @@ Route::prefix('premium-vip')->group(function () {
     Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
 });
 
-// Mobile Aliases for Monthly Cards
+// Mobile Aliases for Monthly Cards & Spend Less Get More
 Route::prefix('monthly-cards')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
     Route::get('/banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
     Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
     Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
     Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+});
+
+// Spend Less Get More Gems (Direct UI Match)
+Route::prefix('spend-less-get-more')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/cards', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+    Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
+    Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
+    Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+});
+
+// Extra Rewards & Outfits
+Route::prefix('extra-rewards')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/packages', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
 });
 
 // In-Call Recharge Promo Aliases
