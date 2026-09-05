@@ -87,6 +87,14 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/vip-cards/subscriptions', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'subscriptions'])->name('vip-cards.subscriptions');
     Route::post('/vip-cards/floating-banner', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'updateFloatingBanner'])->name('vip-cards.floating-banner');
 
+    // Spend Less, Get More Gems (Monthly & Weekly Cards & Extra Reward) Management
+    Route::get('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'index'])->name('spend-less-cards.index');
+    Route::post('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'store'])->name('spend-less-cards.store');
+    Route::put('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'update'])->name('spend-less-cards.update');
+    Route::delete('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'destroy'])->name('spend-less-cards.destroy');
+    Route::post('/spend-less-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'toggleStatus'])->name('spend-less-cards.toggle-status');
+    Route::get('/spend-less-cards/subscriptions', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'subscriptions'])->name('spend-less-cards.subscriptions');
+
     // Profile Bases & Level Badges Management
     Route::get('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'index'])->name('profile-bases.index');
     Route::post('/profile-bases/batch-update', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'batchUpdate'])->name('profile-bases.batch-update');

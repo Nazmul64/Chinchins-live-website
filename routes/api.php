@@ -464,27 +464,25 @@ Route::prefix('premium-vip')->group(function () {
 
 // Mobile Aliases for Monthly Cards & Spend Less Get More
 Route::prefix('monthly-cards')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
-    Route::get('/banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
-    Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
-    Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
-    Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+    Route::get('/', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'index']);
+    Route::get('/my', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'mySubscriptions']);
+    Route::post('/purchase', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'purchase']);
+    Route::post('/claim', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'claimDaily']);
 });
 
 // Spend Less Get More Gems (Direct UI Match)
 Route::prefix('spend-less-get-more')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
-    Route::get('/cards', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
-    Route::get('/banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
-    Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
-    Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
-    Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+    Route::get('/', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'index']);
+    Route::get('/cards', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'index']);
+    Route::get('/my', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'mySubscriptions']);
+    Route::post('/purchase', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'purchase']);
+    Route::post('/claim', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'claimDaily']);
 });
 
 // Extra Rewards & Outfits
 Route::prefix('extra-rewards')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
-    Route::get('/packages', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'index']);
+    Route::get('/packages', [\App\Http\Controllers\Api\SpendLessCardApiController::class, 'index']);
 });
 
 // In-Call Recharge Promo Aliases
@@ -498,6 +496,14 @@ Route::prefix('admin/vip-cards')->group(function () {
     Route::match(['put', 'patch'], '/{id}', [\App\Http\Controllers\Api\VipCardApiController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\Api\VipCardApiController::class, 'destroy']);
     Route::post('/{id}/delete', [\App\Http\Controllers\Api\VipCardApiController::class, 'destroy']);
+});
+
+// Admin Spend Less Cards CRUD
+Route::prefix('admin/spend-less-cards')->group(function () {
+    Route::post('/', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'store']);
+    Route::post('/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'update']);
+    Route::match(['put', 'patch'], '/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'destroy']);
 });
 
 // ==========================================

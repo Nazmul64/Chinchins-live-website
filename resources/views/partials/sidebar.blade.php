@@ -56,12 +56,12 @@
             <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(244,63,94,0.15); color: #f43f5e;">{{ $activeGiftsTotal }}</span>
         </a>
 
-        <!-- Spend Less, Get More Gems / Monthly Cards & Extra Rewards -->
+        <!-- Premium VIP System & Privilege Cards -->
         <div class="menu-item-group {{ request()->routeIs('admin.vip-cards.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.vip-cards.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
-                    <i class="fa-solid fa-gem" style="color: #f59e0b;"></i>
-                    <span>Spend Less, Get More</span>
+                    <i class="fa-solid fa-crown" style="color: #f59e0b;"></i>
+                    <span>Premium VIP</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
                     @php
@@ -74,9 +74,36 @@
             <div class="submenu" style="{{ request()->routeIs('admin.vip-cards.*') ? 'display: block;' : '' }}">
                 <a href="{{ route('admin.vip-cards.index') }}" class="submenu-item {{ request()->routeIs('admin.vip-cards.index') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
-                    <span>Monthly & Extra Rewards</span>
+                    <span>VIP Packages & Banner</span>
                 </a>
                 <a href="{{ route('admin.vip-cards.subscriptions') }}" class="submenu-item {{ request()->routeIs('admin.vip-cards.subscriptions') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>User Subscriptions</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Spend Less, Get More Gems (Monthly & Weekly Cards & Extra Reward) -->
+        <div class="menu-item-group {{ request()->routeIs('admin.spend-less-cards.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.spend-less-cards.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-gem" style="color: #ec4899;"></i>
+                    <span>Spend Less, Get More</span>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    @php
+                        $activeSpendLessCount = \App\Models\SpendLessCard::where('is_active', true)->count();
+                    @endphp
+                    <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(236,72,153,0.15); color: #ec4899;">{{ $activeSpendLessCount }} Cards</span>
+                    <i class="fa-solid fa-chevron-right menu-arrow"></i>
+                </div>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.spend-less-cards.*') ? 'display: block;' : '' }}">
+                <a href="{{ route('admin.spend-less-cards.index') }}" class="submenu-item {{ request()->routeIs('admin.spend-less-cards.index') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Monthly & Weekly Cards</span>
+                </a>
+                <a href="{{ route('admin.spend-less-cards.subscriptions') }}" class="submenu-item {{ request()->routeIs('admin.spend-less-cards.subscriptions') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
                     <span>User Subscriptions</span>
                 </a>
