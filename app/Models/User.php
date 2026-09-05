@@ -90,6 +90,9 @@ class User extends Authenticatable
         'photos',
         'gallery',
         'kyc_status',
+        'country_flag',
+        'country_code',
+        'display_age',
     ];
 
     /**
@@ -573,6 +576,96 @@ class User extends Authenticatable
             ]);
         }
         return $wallet;
+    }
+
+    /**
+     * Convert country name or code to 2-letter ISO code.
+     */
+    public static function countryNameToIso(?string $country): string
+    {
+        if (empty($country)) {
+            return 'BD'; // Default Bangladesh
+        }
+
+        $c = trim($country);
+        if (strlen($c) === 2) {
+            return strtoupper($c);
+        }
+
+        $map = [
+            'bangladesh'           => 'BD',
+            'philippines'          => 'PH',
+            'india'                => 'IN',
+            'pakistan'             => 'PK',
+            'indonesia'            => 'ID',
+            'vietnam'              => 'VN',
+            'thailand'             => 'TH',
+            'nepal'                => 'NP',
+            'united states'        => 'US',
+            'usa'                  => 'US',
+            'united kingdom'       => 'GB',
+            'uk'                   => 'GB',
+            'malaysia'             => 'MY',
+            'saudi arabia'         => 'SA',
+            'uae'                  => 'AE',
+            'united arab emirates' => 'AE',
+            'brazil'               => 'BR',
+            'colombia'             => 'CO',
+            'russia'               => 'RU',
+            'singapore'            => 'SG',
+            'japan'                => 'JP',
+            'south korea'          => 'KR',
+            'korea'                => 'KR',
+            'china'                => 'CN',
+            'canada'               => 'CA',
+            'australia'            => 'AU',
+        ];
+
+        return $map[strtolower($c)] ?? 'BD';
+    }
+
+    /**
+     * Convert 2-letter ISO Country Code to Flag Emoji.
+     */
+    public static function countryCodeToEmoji(string $code): string
+    {
+        $code = strtoupper(trim($code));
+        if (strlen($code) !== 2 || !ctype_alpha($code)) {
+            return '🇧🇩';
+        }
+
+        $firstChar = mb_chr(ord($code[0]) - ord('A') + 0x1F1E6, 'UTF-8');
+        $secondChar = mb_chr(ord($code[1]) - ord('A') + 0x1F1E6, 'UTF-8');
+        return $firstChar . $secondChar;
+    }
+
+    /**
+     * Accessor for 2-letter Country Code.
+     */
+    public function getCountryCodeAttribute(): string
+    {
+        return static::countryNameToIso($this->country);
+    }
+
+    /**
+     * Accessor for Country Flag Emoji (e.g. 🇧🇩, 🇵🇭, 🇮🇳).
+     */
+    public function getCountryFlagAttribute(): string
+    {
+        return static::countryCodeToEmoji($this->getCountryCodeAttribute());
+    }
+
+    /**
+     * Accessor for user age with fallback.
+     */
+    public function getDisplayAgeAttribute(): int
+    {
+        if (!empty($this->age) && (int) $this->age > 0) {
+            return (int) $this->age;
+        }
+
+        // Deterministic age based on ID for consistent UI display (20 - 32)
+        return 20 + ($this->id % 13);
     }
 }
 

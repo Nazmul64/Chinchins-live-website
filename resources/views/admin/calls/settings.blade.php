@@ -211,6 +211,60 @@
                     </div>
                 </div>
 
+                <!-- 2.5 In-Call 16s Preview & Quick Promo Recharge Package (16 সেকেন্ড ইন-কল রিচার্জ মডেল) -->
+                <div class="card mb-4" style="border-radius: 16px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                        <h5 class="fw-bold text-dark mb-1">
+                            <i class="fa-solid fa-bolt-lightning text-warning me-2"></i> In-Call 16s Preview & Quick Promo Recharge Modal (ইন-কল কুইক রিচার্জ প্যাকেজ)
+                        </h5>
+                        <p class="text-muted mb-0" style="font-size: 13px;">Configures the popup that appears after 16s preview (or low balance) with the host profile picture, diamonds amount, and price.</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-gem text-warning me-1"></i> Promo Gems Amount (💎)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">💎</span>
+                                    <input type="number" name="in_call_promo_coins" class="form-control fw-bold" value="{{ $config['in_call_recharge_offer']['promo_coins'] ?? 7560 }}" placeholder="7560">
+                                </div>
+                                <small class="text-muted">e.g. 7,560 Gems</small>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-bangladeshi-taka-sign text-success me-1"></i> Promo Price (BDT)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">৳</span>
+                                    <input type="number" step="0.01" name="in_call_promo_price_bdt" class="form-control fw-bold text-success" value="{{ $config['in_call_recharge_offer']['promo_price_bdt'] ?? 150.00 }}" placeholder="150.00">
+                                </div>
+                                <small class="text-muted">e.g. BDT 150.00</small>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-tag text-secondary me-1"></i> Original Price (BDT)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">৳</span>
+                                    <input type="number" step="0.01" name="in_call_promo_original_price_bdt" class="form-control text-secondary" value="{{ $config['in_call_recharge_offer']['promo_original_price_bdt'] ?? 300.00 }}" placeholder="300.00">
+                                </div>
+                                <small class="text-muted">Strikethrough in app (e.g. BDT 300.00)</small>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-quote-left text-primary me-1"></i> Modal Teaser / Waiting Message
+                                </label>
+                                <input type="text" name="in_call_promo_teaser" class="form-control" value="{{ $config['in_call_recharge_offer']['teaser_text'] ?? 'Girls are still eagerly waiting for your reply. Recharge and enjoy happy time with her now~' }}" placeholder="Girls are still eagerly waiting for your reply...">
+                                <small class="text-muted">Text shown directly below the host avatar and diamond graphic.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 3. Custom Ringtone & Dial Tone Audio Card -->
                 <div class="card mb-4" style="border-radius: 16px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
                     <div class="card-header bg-white border-0 pt-4 px-4 pb-0">

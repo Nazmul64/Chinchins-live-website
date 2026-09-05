@@ -170,33 +170,44 @@ class VipCardApiController extends Controller
             $formattedSchedule = static::formatDailySchedule($card->daily_schedule ?? []);
             $formattedRewards = static::formatExtraRewards($card->extra_rewards ?? []);
 
+            $instantCoins = (int) $card->instant_reward_coins;
+            $dailyCoins = (int) $card->daily_checkin_total_coins;
+            $instantText = $card->instant_reward_text ?: ('Gems in total ' . number_format($instantCoins));
+            $dailyText = $card->daily_checkin_text ?: ('Gems in total ' . number_format($dailyCoins));
+
             return [
-                'id'                        => $card->id,
-                'card_type'                 => $card->card_type,
-                'name'                      => $card->name,
-                'badge_text'                => $card->badge_text,
-                'price_bdt'                 => (float) $card->price_bdt,
-                'formatted_price_bdt'       => 'BDT ' . number_format($card->price_bdt, 2),
-                'price_coins'               => (int) $card->price_coins,
-                'duration_days'             => (int) $card->duration_days,
-                'instant_reward_coins'      => (int) $card->instant_reward_coins,
-                'daily_checkin_total_coins' => (int) $card->daily_checkin_total_coins,
-                'total_return_coins'        => (int) $card->total_return_coins,
-                'card_color'                => $card->card_color ?? '#FF4081',
-                'banner_tag'                => $card->banner_tag ?? 'Spend Less, Get More Gems!',
-                'icon_url'                  => $card->icon_url,
-                'icon_full_url'             => $card->icon_full_url,
-                'animation_url'             => $card->animation_url,
-                'animation_full_url'        => $card->animation_full_url,
-                'bg_image_url'              => $card->bg_image_url,
-                'bg_image_full_url'         => $card->bg_image_full_url,
-                'format'                    => $card->format ?? 'lottie',
-                'description'               => $card->description,
-                'countdown_seconds'         => $displayCountdownSeconds,
-                'countdown_timer'           => $countdownFormatted,
-                'daily_schedule'            => $formattedSchedule,
-                'extra_rewards'             => $formattedRewards,
-                'user_subscription'         => [
+                'id'                            => $card->id,
+                'card_type'                     => $card->card_type,
+                'name'                          => $card->name,
+                'category_name'                 => $card->category_name ?? $card->name,
+                'badge_text'                    => $card->badge_text,
+                'price_bdt'                     => (float) $card->price_bdt,
+                'original_price_bdt'            => $card->original_price_bdt ? (float) $card->original_price_bdt : null,
+                'formatted_price_bdt'           => $card->formatted_price_bdt,
+                'formatted_original_price_bdt'  => $card->formatted_original_price_bdt,
+                'discount_percent'              => $card->discount_percent,
+                'price_coins'                   => (int) $card->price_coins,
+                'duration_days'                 => (int) $card->duration_days,
+                'instant_reward_coins'          => $instantCoins,
+                'instant_reward_text'           => $instantText,
+                'daily_checkin_total_coins'     => $dailyCoins,
+                'daily_checkin_text'            => $dailyText,
+                'total_return_coins'            => (int) $card->total_return_coins,
+                'card_color'                    => $card->card_color ?? '#FF4081',
+                'banner_tag'                    => $card->banner_tag ?? 'Spend Less, Get More Gems!',
+                'icon_url'                      => $card->icon_url,
+                'icon_full_url'                 => $card->icon_full_url,
+                'animation_url'                 => $card->animation_url,
+                'animation_full_url'            => $card->animation_full_url,
+                'bg_image_url'                  => $card->bg_image_url,
+                'bg_image_full_url'             => $card->bg_image_full_url,
+                'format'                        => $card->format ?? 'lottie',
+                'description'                   => $card->description,
+                'countdown_seconds'             => $displayCountdownSeconds,
+                'countdown_timer'               => $countdownFormatted,
+                'daily_schedule'                => $formattedSchedule,
+                'extra_rewards'                 => $formattedRewards,
+                'user_subscription'             => [
                     'is_subscribed'     => $isSubscribed,
                     'subscription_id'   => $sub?->id,
                     'started_at'        => $sub?->started_at?->toIso8601String(),
@@ -210,16 +221,40 @@ class VipCardApiController extends Controller
             ];
         });
 
+        $appConfig = \App\Models\AppSetting::getAppConfig();
+
         return response()->json([
             'status'  => true,
-            'message' => 'Monthly and weekly VIP privilege cards retrieved successfully.',
+            'message' => 'Premium VIP cards and privileges retrieved successfully.',
             'data'    => [
                 'banner' => [
                     'title'       => 'Spend Less, Get More Gems!',
                     'subtitle'    => 'Update to New User Weekly Card',
-                    'action_type' => 'OPEN_VIP_CARDS',
+                    'action_type' => 'OPEN_PREMIUM_VIP',
                 ],
-                'cards'  => $formattedCards,
+                'floating_banner' => $appConfig['floating_vip_banner'] ?? null,
+                'cards'           => $formattedCards,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get Floating Extra Gems Home Screen Banner configuration.
+     * GET /api/vip-cards/banner or GET /api/premium-vip/banner
+     */
+    public function getFloatingBanner(Request $request): JsonResponse
+    {
+        $appConfig = \App\Models\AppSetting::getAppConfig();
+        return response()->json([
+            'status'  => true,
+            'message' => 'Floating VIP banner retrieved successfully.',
+            'data'    => $appConfig['floating_vip_banner'] ?? [
+                'is_enabled'    => true,
+                'title'         => 'Extra Gems',
+                'tag'           => 'Monthly Card',
+                'image_url'     => asset('assets/images/vip/floating_extra_gems.png'),
+                'action_type'   => 'OPEN_PREMIUM_VIP',
+                'target_screen' => '/premium-vip',
             ],
         ], 200);
     }

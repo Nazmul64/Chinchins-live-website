@@ -27,9 +27,14 @@ class AppSetting extends Model
             'app_logo'             => 'assets/images/branding/logo.png',
             'app_icon'             => 'assets/images/branding/icon.png',
             'app_version'          => '1.0.0',
-            'free_messages_limit'  => '5',
-            'message_coin_cost'    => '5',
-            'currency_symbol'      => 'BDT',
+            'free_messages_limit'         => '5',
+            'message_coin_cost'           => '5',
+            'currency_symbol'             => 'BDT',
+            'floating_vip_banner_enabled' => '1',
+            'floating_vip_banner_title'   => 'Extra Gems',
+            'floating_vip_banner_tag'     => 'Monthly Card',
+            'floating_vip_banner_image'   => 'assets/images/vip/floating_extra_gems.png',
+            'floating_vip_banner_action'  => 'OPEN_PREMIUM_VIP',
         ];
     }
 
@@ -76,15 +81,29 @@ class AppSetting extends Model
             $logoUrl = $appLogo;
         }
 
+        $floatingBannerImage = static::get('floating_vip_banner_image', 'assets/images/vip/floating_extra_gems.png');
+        $floatingBannerImageUrl = asset(ltrim($floatingBannerImage, '/'));
+        if (str_starts_with($floatingBannerImage, 'http://') || str_starts_with($floatingBannerImage, 'https://')) {
+            $floatingBannerImageUrl = $floatingBannerImage;
+        }
+
         return [
-            'app_name'            => $appName,
-            'app_tagline'         => $appTagline,
-            'app_logo_url'        => $logoUrl,
-            'app_icon_url'        => asset(ltrim(static::get('app_icon', 'assets/images/branding/icon.png'), '/')),
-            'app_version'         => static::get('app_version', '1.0.0'),
-            'free_messages_limit' => (int) static::get('free_messages_limit', 5),
-            'message_coin_cost'   => (int) static::get('message_coin_cost', 5),
-            'currency_symbol'     => static::get('currency_symbol', 'BDT'),
+            'app_name'                    => $appName,
+            'app_tagline'                 => $appTagline,
+            'app_logo_url'                => $logoUrl,
+            'app_icon_url'                => asset(ltrim(static::get('app_icon', 'assets/images/branding/icon.png'), '/')),
+            'app_version'                 => static::get('app_version', '1.0.0'),
+            'free_messages_limit'         => (int) static::get('free_messages_limit', 5),
+            'message_coin_cost'           => (int) static::get('message_coin_cost', 5),
+            'currency_symbol'             => static::get('currency_symbol', 'BDT'),
+            'floating_vip_banner'         => [
+                'is_enabled'    => (bool) filter_var(static::get('floating_vip_banner_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+                'title'         => static::get('floating_vip_banner_title', 'Extra Gems'),
+                'tag'           => static::get('floating_vip_banner_tag', 'Monthly Card'),
+                'image_url'     => $floatingBannerImageUrl,
+                'action_type'   => static::get('floating_vip_banner_action', 'OPEN_PREMIUM_VIP'),
+                'target_screen' => '/premium-vip',
+            ],
         ];
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\UserVipCardSubscription;
 use App\Models\VipPrivilegeCard;
 use Illuminate\Http\Request;
@@ -12,11 +13,11 @@ use Illuminate\Support\Str;
 class VipCardAdminController extends Controller
 {
     /**
-     * Display listing of all VIP / Monthly Card Packages.
+     * Display listing of all VIP / Monthly Card Packages and Floating Banner settings.
      */
     public function index()
     {
-        // Seed default 4 cards if empty
+        // Seed default cards if empty or update missing fields
         VipPrivilegeCard::seedDefaultCards();
 
         $cards = VipPrivilegeCard::orderBy('sort_order', 'asc')->get();
@@ -27,12 +28,22 @@ class VipCardAdminController extends Controller
             ->where('expires_at', '>', now())
             ->count();
 
+        $floatingBannerConfig = AppSetting::getAppConfig()['floating_vip_banner'] ?? [
+            'is_enabled'    => true,
+            'title'         => 'Extra Gems',
+            'tag'           => 'Monthly Card',
+            'image_url'     => asset('assets/images/vip/floating_extra_gems.png'),
+            'action_type'   => 'OPEN_PREMIUM_VIP',
+            'target_screen' => '/premium-vip',
+        ];
+
         return view('admin.vip-cards.index', compact(
             'cards',
             'totalCards',
             'activeCards',
             'totalSubscriptions',
-            'activeSubscriptions'
+            'activeSubscriptions',
+            'floatingBannerConfig'
         ));
     }
 
@@ -88,6 +99,7 @@ class VipCardAdminController extends Controller
             $titles = $request->input('perk_title', []);
             $tags = $request->input('perk_tag', []);
             $icons = $request->input('perk_icon', []);
+            $validities = $request->input('perk_validity', []);
             $imageUrls = $request->input('perk_image_url', []);
             $existingImages = $request->input('perk_existing_image', []);
 
@@ -102,6 +114,7 @@ class VipCardAdminController extends Controller
                 if ($titleStr === '') continue;
 
                 $tagStr = isset($tags[$idx]) ? trim($tags[$idx]) : '';
+                $validityStr = isset($validities[$idx]) ? trim($validities[$idx]) : ($tagStr ?: '30days');
                 $iconStr = isset($icons[$idx]) ? trim($icons[$idx]) : 'frame_avatar';
                 $imageUrlStr = isset($imageUrls[$idx]) ? trim($imageUrls[$idx]) : null;
                 $currentImage = isset($existingImages[$idx]) ? trim($existingImages[$idx]) : null;
@@ -124,10 +137,11 @@ class VipCardAdminController extends Controller
                 $finalImage = $uploadedFilePath ?: ($imageUrlStr ?: $currentImage);
 
                 $rewards[] = [
-                    'title' => $titleStr,
-                    'tag'   => $tagStr,
-                    'icon'  => $iconStr,
-                    'image' => $finalImage,
+                    'title'    => $titleStr,
+                    'tag'      => $tagStr ?: $validityStr,
+                    'validity' => $validityStr,
+                    'icon'     => $iconStr,
+                    'image'    => $finalImage,
                 ];
             }
 
@@ -153,12 +167,16 @@ class VipCardAdminController extends Controller
         $request->validate([
             'card_type'                 => 'required|string|max:50',
             'name'                      => 'required|string|max:100',
+            'category_name'             => 'nullable|string|max:100',
             'badge_text'                => 'nullable|string|max:50',
             'price_bdt'                 => 'required|numeric|min:0',
+            'original_price_bdt'        => 'nullable|numeric|min:0',
             'price_coins'               => 'required|integer|min:0',
             'duration_days'             => 'required|integer|min:1',
             'instant_reward_coins'      => 'required|integer|min:0',
+            'instant_reward_text'       => 'nullable|string|max:100',
             'daily_checkin_total_coins' => 'nullable|integer|min:0',
+            'daily_checkin_text'        => 'nullable|string|max:100',
             'total_return_coins'        => 'nullable|integer|min:0',
             'card_color'                => 'nullable|string|max:20',
             'banner_tag'                => 'nullable|string|max:255',
@@ -234,12 +252,16 @@ class VipCardAdminController extends Controller
         VipPrivilegeCard::create([
             'card_type'                 => $request->input('card_type'),
             'name'                      => $request->input('name'),
+            'category_name'             => $request->input('category_name') ?: $request->input('name'),
             'badge_text'                => $request->input('badge_text', 'HOT'),
             'price_bdt'                 => $request->input('price_bdt'),
+            'original_price_bdt'        => $request->input('original_price_bdt'),
             'price_coins'               => $request->input('price_coins'),
             'duration_days'             => $request->input('duration_days', 7),
             'instant_reward_coins'      => $instantCoins,
+            'instant_reward_text'       => $request->input('instant_reward_text') ?: ('Gems in total ' . number_format($instantCoins)),
             'daily_checkin_total_coins' => $dailyBonusCoins,
+            'daily_checkin_text'        => $request->input('daily_checkin_text') ?: ('Gems in total ' . number_format($dailyBonusCoins)),
             'total_return_coins'        => $totalReturnCoins,
             'card_color'                => $request->input('card_color', '#FF4081'),
             'banner_tag'                => $request->input('banner_tag', 'Spend Less, Get More Gems!'),
@@ -268,12 +290,16 @@ class VipCardAdminController extends Controller
         $request->validate([
             'card_type'                 => 'required|string|max:50',
             'name'                      => 'required|string|max:100',
+            'category_name'             => 'nullable|string|max:100',
             'badge_text'                => 'nullable|string|max:50',
             'price_bdt'                 => 'required|numeric|min:0',
+            'original_price_bdt'        => 'nullable|numeric|min:0',
             'price_coins'               => 'required|integer|min:0',
             'duration_days'             => 'required|integer|min:1',
             'instant_reward_coins'      => 'required|integer|min:0',
+            'instant_reward_text'       => 'nullable|string|max:100',
             'daily_checkin_total_coins' => 'nullable|integer|min:0',
+            'daily_checkin_text'        => 'nullable|string|max:100',
             'total_return_coins'        => 'nullable|integer|min:0',
             'card_color'                => 'nullable|string|max:20',
             'banner_tag'                => 'nullable|string|max:255',
@@ -362,12 +388,16 @@ class VipCardAdminController extends Controller
         $card->update([
             'card_type'                 => $request->input('card_type'),
             'name'                      => $request->input('name'),
+            'category_name'             => $request->input('category_name') ?: $request->input('name'),
             'badge_text'                => $request->input('badge_text'),
             'price_bdt'                 => $request->input('price_bdt'),
+            'original_price_bdt'        => $request->input('original_price_bdt'),
             'price_coins'               => $request->input('price_coins'),
             'duration_days'             => $request->input('duration_days'),
             'instant_reward_coins'      => $instantCoins,
+            'instant_reward_text'       => $request->input('instant_reward_text') ?: ('Gems in total ' . number_format($instantCoins)),
             'daily_checkin_total_coins' => $dailyBonusCoins,
+            'daily_checkin_text'        => $request->input('daily_checkin_text') ?: ('Gems in total ' . number_format($dailyBonusCoins)),
             'total_return_coins'        => $totalReturnCoins,
             'card_color'                => $request->input('card_color'),
             'banner_tag'                => $request->input('banner_tag'),
@@ -380,6 +410,52 @@ class VipCardAdminController extends Controller
 
         return redirect()->route('admin.vip-cards.index')
             ->with('success', "{$card->name} updated successfully!");
+    }
+
+    /**
+     * Update Floating Home Screen Banner Settings.
+     */
+    public function updateFloatingBanner(Request $request)
+    {
+        $request->validate([
+            'floating_vip_banner_title'  => 'nullable|string|max:100',
+            'floating_vip_banner_tag'    => 'nullable|string|max:100',
+            'floating_vip_banner_action' => 'nullable|string|max:100',
+            'floating_banner_file'       => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+        ]);
+
+        AppSetting::set(
+            'floating_vip_banner_enabled',
+            $request->boolean('floating_vip_banner_enabled') ? '1' : '0',
+            'vip',
+            'Show floating Extra Gems VIP banner on Home Screen'
+        );
+
+        if ($request->filled('floating_vip_banner_title')) {
+            AppSetting::set('floating_vip_banner_title', $request->input('floating_vip_banner_title'), 'vip');
+        }
+
+        if ($request->filled('floating_vip_banner_tag')) {
+            AppSetting::set('floating_vip_banner_tag', $request->input('floating_vip_banner_tag'), 'vip');
+        }
+
+        if ($request->filled('floating_vip_banner_action')) {
+            AppSetting::set('floating_vip_banner_action', $request->input('floating_vip_banner_action'), 'vip');
+        }
+
+        if ($request->hasFile('floating_banner_file')) {
+            $dest = public_path('uploads/vip_cards');
+            if (!File::exists($dest)) {
+                File::makeDirectory($dest, 0777, true, true);
+            }
+            $file = $request->file('floating_banner_file');
+            $filename = 'floating_banner_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($dest, $filename);
+            AppSetting::set('floating_vip_banner_image', 'uploads/vip_cards/' . $filename, 'vip');
+        }
+
+        return redirect()->route('admin.vip-cards.index')
+            ->with('success', 'Home screen floating VIP banner updated successfully!');
     }
 
     /**

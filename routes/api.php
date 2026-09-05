@@ -433,13 +433,29 @@ Route::match(['get', 'post'], '/auth/verify', [AuthController::class, 'me']);
 Route::match(['get', 'post'], '/me', [AuthController::class, 'me']);
 
 // ==========================================
-// 💳 Monthly & Weekly VIP Privilege Cards & Daily Check-in Rewards
+// 💳 Monthly & Weekly Premium VIP Cards & Daily Check-in Rewards
 // ==========================================
 Route::prefix('vip-cards')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
     Route::get('/list', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+    Route::get('/floating-banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
     Route::get('/my-subscriptions', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
     Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
+    Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
+    Route::post('/buy', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
+    Route::post('/claim-daily', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+    Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
+});
+
+// Premium VIP Aliases for Mobile Clients
+Route::prefix('premium-vip')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/cards', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+    Route::get('/floating-banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+    Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
+    Route::get('/my-status', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
     Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
     Route::post('/buy', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
     Route::post('/claim-daily', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
@@ -449,10 +465,15 @@ Route::prefix('vip-cards')->group(function () {
 // Mobile Aliases for Monthly Cards
 Route::prefix('monthly-cards')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\VipCardApiController::class, 'index']);
+    Route::get('/banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
     Route::get('/my', [\App\Http\Controllers\Api\VipCardApiController::class, 'mySubscriptions']);
     Route::post('/purchase', [\App\Http\Controllers\Api\VipCardApiController::class, 'purchase']);
     Route::post('/claim', [\App\Http\Controllers\Api\VipCardApiController::class, 'claimDaily']);
 });
+
+// In-Call Recharge Promo Aliases
+Route::match(['get', 'post'], '/call/in-call-recharge-offer', [\App\Http\Controllers\Api\CallController::class, 'getConfig']);
+Route::match(['get', 'post'], '/call/recharge-offer', [\App\Http\Controllers\Api\CallController::class, 'getConfig']);
 
 // Admin VIP Cards CRUD
 Route::prefix('admin/vip-cards')->group(function () {

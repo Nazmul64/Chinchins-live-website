@@ -117,6 +117,26 @@ class CallAdminController extends Controller
             CallSetting::set('call_recharge_teaser_text', $request->input('call_recharge_teaser_text'), 'Teaser text shown on Recharge Gem sheet during call');
         }
 
+        if ($request->filled('in_call_promo_coins')) {
+            CallSetting::set('in_call_promo_coins', $request->input('in_call_promo_coins'), 'Promo Gems in 16s preview popup (e.g. 7560)');
+        }
+
+        if ($request->filled('in_call_promo_price_bdt')) {
+            CallSetting::set('in_call_promo_price_bdt', $request->input('in_call_promo_price_bdt'), 'Promo Price in BDT (e.g. 150.00)');
+        }
+
+        if ($request->filled('in_call_promo_original_price_bdt')) {
+            CallSetting::set('in_call_promo_original_price_bdt', $request->input('in_call_promo_original_price_bdt'), 'Original Strikethrough Price in BDT (e.g. 300.00)');
+        }
+
+        if ($request->filled('in_call_promo_teaser')) {
+            CallSetting::set('in_call_promo_teaser', $request->input('in_call_promo_teaser'), 'Teaser text in 16s preview modal');
+        }
+
+        if ($request->filled('in_call_promo_badge')) {
+            CallSetting::set('in_call_promo_badge', $request->input('in_call_promo_badge'), 'Badge text (e.g. 50% OFF)');
+        }
+
         if ($request->filled('call_top_badge_text')) {
             CallSetting::set('call_top_badge_text', $request->input('call_top_badge_text'), 'Top badge text shown on incoming call screen');
         }
