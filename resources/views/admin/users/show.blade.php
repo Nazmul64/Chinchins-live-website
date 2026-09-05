@@ -69,6 +69,30 @@
                         </div>
                     </div>
 
+                    <!-- Free Host Calling Privilege Card -->
+                    <div class="p-3 rounded-4 mb-3 text-start" style="background: {{ $user->is_free_caller ? 'rgba(254, 240, 138, 0.35)' : 'rgba(241, 245, 249, 0.8)' }}; border: 1px solid {{ $user->is_free_caller ? '#f59e0b' : '#cbd5e1' }};">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold" style="font-size: 12px; color: {{ $user->is_free_caller ? '#b45309' : '#64748b' }}; text-transform: uppercase;">
+                                <i class="fa-solid fa-star me-1"></i> Free Calling Permission
+                            </span>
+                            <span class="badge {{ $user->is_free_caller ? 'bg-warning text-dark' : 'bg-secondary' }}" style="font-weight: 700;">
+                                {{ $user->is_free_caller ? 'ACTIVE FREE HOST' : 'STANDARD USER' }}
+                            </span>
+                        </div>
+                        <small class="text-muted d-block mb-2" style="font-size: 12px;">
+                            {{ $user->is_free_caller 
+                                ? 'This host can call any user for free with 0 balance. When user answers, 16s free preview applies, then user is billed 100 c/min (50% credited to this host).' 
+                                : 'Regular user. Requires coins to call or standard new registration free trial.' }}
+                        </small>
+                        <form action="{{ route('admin.users.toggle-free-caller', $user->id) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-sm {{ $user->is_free_caller ? 'btn-danger' : 'btn-warning text-dark' }} w-100 fw-bold" style="border-radius: 8px;">
+                                <i class="fa-solid {{ $user->is_free_caller ? 'fa-ban' : 'fa-star' }} me-1"></i>
+                                {{ $user->is_free_caller ? 'Revoke Free Calling Privilege' : 'Make Free Host (Unlimited 0 Bal Calls)' }}
+                            </button>
+                        </form>
+                    </div>
+
                     <!-- Action Button -->
                     <button type="button" class="btn-ch-gold w-100 justify-content-center py-2 mb-3" onclick="openAdjustCoinModal('{{ $user->id }}', '{{ addslashes($user->display_name) }}', '{{ $user->coins }}', '{{ $user->avatar_url }}')">
                         <i class="fa-solid fa-plus-minus me-1"></i> Add / Deduct Coins
@@ -99,6 +123,12 @@
                             <li class="d-flex justify-content-between py-1 border-bottom" style="border-color: var(--border-color) !important;">
                                 <span class="text-muted">Video Call Rate:</span>
                                 <span class="badge bg-light text-dark border">{{ $user->video_call_rate ?: 100 }} coins / min</span>
+                            </li>
+                            <li class="d-flex justify-content-between py-1 border-bottom" style="border-color: var(--border-color) !important;">
+                                <span class="text-muted">Free Host Status:</span>
+                                <span class="badge {{ $user->is_free_caller ? 'bg-warning text-dark' : 'bg-secondary' }}">
+                                    {{ $user->is_free_caller ? 'Free Calling Active' : 'Regular' }}
+                                </span>
                             </li>
                             <li class="d-flex justify-content-between py-1">
                                 <span class="text-muted">Member Since:</span>

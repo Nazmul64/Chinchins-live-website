@@ -240,6 +240,13 @@ Route::prefix('call')->group(function () {
     Route::post('/pulse', [CallController::class, 'deductInterval']);
     Route::post('/bill', [CallController::class, 'deductInterval']);
 
+    // In-Call Recharge Modal & Quick Chat Messages
+    Route::match(['get', 'post'], '/recharge-sheet', [CallController::class, 'getRechargeSheet']);
+    Route::match(['get', 'post'], '/deposit-sheet', [CallController::class, 'getRechargeSheet']);
+    Route::match(['get', 'post'], '/quick-messages', [CallController::class, 'getQuickMessages']);
+    Route::post('/send-quick-message', [CallController::class, 'sendQuickMessage']);
+    Route::post('/quick-message', [CallController::class, 'sendQuickMessage']);
+
     // End Call & History
     Route::match(['get', 'post'], '/end', [CallController::class, 'end']);
     Route::match(['get', 'post'], '/finish', [CallController::class, 'end']);

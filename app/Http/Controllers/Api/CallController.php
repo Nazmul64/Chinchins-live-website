@@ -122,6 +122,7 @@ class CallController extends Controller
 
         $userData = null;
         if ($user) {
+            $isCallerFree = $user->isFreeCaller();
             $isEligibleForFree = $user->isEligibleForFreeCall();
             $videoRate = $config['video_call_rate_per_minute'];
             $audioRate = $config['audio_call_rate_per_minute'];
@@ -131,17 +132,19 @@ class CallController extends Controller
                 'user_id' => $user->id,
                 'account_id' => $user->account_id,
                 'display_name' => $user->display_name,
-                'gender' => $user->gender ?: 'male',
+                'gender' => $user->gender ?: 'female',
+                'is_free_caller' => $isCallerFree,
                 'coins' => $coins,
                 'formatted_coins' => number_format($coins) . ' Coins',
                 'free_calls_used' => (int) ($user->free_calls_used ?: 0),
-                'free_calls_remaining' => max(0, $config['free_calls_per_user'] - (int) ($user->free_calls_used ?: 0)),
+                'free_calls_remaining' => $isCallerFree ? 999999 : max(0, $config['free_calls_per_user'] - (int) ($user->free_calls_used ?: 0)),
                 'is_eligible_for_free_call' => $isEligibleForFree,
                 'free_trial_duration_seconds' => $isEligibleForFree ? $config['free_call_duration_seconds'] : 0,
-                'can_make_video_call' => ($isEligibleForFree || $coins >= $videoRate),
-                'can_make_audio_call' => ($isEligibleForFree || $coins >= $audioRate),
-                'max_video_minutes' => (int) floor($coins / ($videoRate ?: 100)),
-                'max_audio_minutes' => (int) floor($coins / ($audioRate ?: 60)),
+                'free_message_chances' => (int) ($config['free_message_chances'] ?? 2),
+                'can_make_video_call' => ($isCallerFree || $isEligibleForFree || $coins >= $videoRate),
+                'can_make_audio_call' => ($isCallerFree || $isEligibleForFree || $coins >= $audioRate),
+                'max_video_minutes' => $isCallerFree ? 999999 : (int) floor($coins / ($videoRate ?: 100)),
+                'max_audio_minutes' => $isCallerFree ? 999999 : (int) floor($coins / ($audioRate ?: 60)),
             ];
         }
 
@@ -153,10 +156,14 @@ class CallController extends Controller
                 'is_free_call_enabled' => $config['is_free_call_enabled'],
                 'free_call_duration_seconds' => $config['free_call_duration_seconds'],
                 'free_calls_per_user' => $config['free_calls_per_user'],
+                'free_message_chances' => $config['free_message_chances'] ?? 2,
                 'video_call_rate_per_minute' => $config['video_call_rate_per_minute'],
                 'audio_call_rate_per_minute' => $config['audio_call_rate_per_minute'],
                 'host_earning_percent' => $config['host_earning_percent'],
                 'admin_commission_percent' => $config['admin_commission_percent'],
+                'call_recharge_teaser_text' => $config['call_recharge_teaser_text'],
+                'call_top_badge_text' => $config['call_top_badge_text'],
+                'call_quick_messages' => $config['call_quick_messages'],
                 'incoming_ringtone_url' => $config['incoming_ringtone_url'],
                 'outgoing_ringtone_url' => $config['outgoing_ringtone_url'],
                 'video_split' => [
@@ -360,7 +367,8 @@ class CallController extends Controller
         }
 
         $callType = strtolower($data['call_type'] ?? $request->input('call_type', 'video'));
-        $isEligibleForFree = $caller->isEligibleForFreeCall();
+        $isCallerFree = $caller->isFreeCaller();
+        $isEligibleForFree = $isCallerFree || $caller->isEligibleForFreeCall();
 
         $ratePerMinute = ($callType === 'audio')
             ? (int) $config['audio_call_rate_per_minute']
@@ -370,8 +378,9 @@ class CallController extends Controller
             $ratePerMinute = 100;
         }
 
-        // Check balance IF not eligible for free trial
-        if (!$isEligibleForFree && $caller->coins < $ratePerMinute) {
+        // Check balance IF not a free host and not eligible for free trial
+        if (!$isCallerFree && !$isEligibleForFree && $caller->coins < $ratePerMinute) {
+            $packages = \App\Models\CoinPackage::where('is_active', true)->orderBy('sort_order', 'asc')->get();
             return response()->json([
                 'status' => false,
                 'code' => 'LOW_BALANCE_DEPOSIT_REQUIRED',
@@ -379,12 +388,15 @@ class CallController extends Controller
                 'current_coins' => (int) $caller->coins,
                 'required_coins' => $ratePerMinute,
                 'is_low_balance' => true,
+                'show_recharge_sheet' => true,
+                'teaser_text' => $config['call_recharge_teaser_text'],
+                'packages' => $packages,
                 'redirect_to_deposit' => true,
                 'deposit_url' => '/deposit',
             ], 200); // Return 200 to prevent Flutter auth interceptor from triggering logout
         }
 
-        $freeDuration = $isEligibleForFree ? $config['free_call_duration_seconds'] : 0;
+        $freeDuration = $isEligibleForFree ? (int) $config['free_call_duration_seconds'] : 0;
         $channelName = 'call_' . $callType . '_' . $caller->id . '_' . $receiver->id . '_' . time() . '_' . Str::random(4);
 
         $call = CallSession::create([
@@ -395,6 +407,8 @@ class CallController extends Controller
             'status' => 'ringing',
             'rate_per_minute' => $ratePerMinute,
             'is_free_trial' => $isEligibleForFree,
+            'is_caller_free' => $isCallerFree,
+            'charged_user_id' => $isCallerFree ? $receiver->id : $caller->id,
             'free_duration_seconds' => $freeDuration,
             'is_random_match' => filter_var($data['is_random_match'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ]);
@@ -406,12 +420,12 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Log::error("Incoming call push notification error: " . $e->getMessage());
         }
 
-        $maxMinutes = $ratePerMinute > 0 ? (int) floor($caller->coins / $ratePerMinute) : 0;
+        $maxMinutes = $ratePerMinute > 0 ? ($isCallerFree ? 999999 : (int) floor($caller->coins / $ratePerMinute)) : 0;
 
         return response()->json([
             'status' => true,
             'message' => $isEligibleForFree 
-                ? "Free trial call initiated! Ringing receiver... You have {$freeDuration} seconds of free calling."
+                ? "Free trial call initiated! Ringing receiver... You have {$freeDuration} seconds of free preview calling."
                 : "Call initiated! Ringing receiver...",
             'data' => [
                 'call_id' => $call->id,
@@ -420,7 +434,12 @@ class CallController extends Controller
                 'status' => 'ringing',
                 'rate_per_minute' => $ratePerMinute,
                 'is_free_trial' => $isEligibleForFree,
+                'is_caller_free' => $isCallerFree,
                 'free_duration_seconds' => $freeDuration,
+                'free_message_chances' => (int) ($config['free_message_chances'] ?? 2),
+                'call_recharge_teaser_text' => $config['call_recharge_teaser_text'],
+                'call_top_badge_text' => $config['call_top_badge_text'],
+                'call_quick_messages' => $config['call_quick_messages'],
                 'caller_coins' => (int) $caller->coins,
                 'max_call_minutes' => $maxMinutes,
                 'max_call_seconds' => $isEligibleForFree ? $freeDuration : ($maxMinutes * 60),
@@ -432,6 +451,7 @@ class CallController extends Controller
                     'name' => $receiver->display_name,
                     'gender' => $receiver->gender ?: 'female',
                     'avatar' => $receiver->avatar_url,
+                    'country' => $receiver->country ?: 'Bangladesh',
                 ],
             ],
         ], 200);
@@ -450,7 +470,7 @@ class CallController extends Controller
         $receiverId = $request->input('user_id') 
                    ?? $request->input('receiver_id') 
                    ?? $request->input('to_user_id') 
-                   ?? $request->input('userId')
+                   ?? $request->input('userId') 
                    ?? $user?->id;
 
         $receiverAccount = $request->input('account_id') ?? $request->input('accountId') ?? $user?->account_id;
@@ -521,8 +541,13 @@ class CallController extends Controller
                 'call_type' => $incoming->call_type,
                 'status' => $incoming->status,
                 'is_free_trial' => (bool) $incoming->is_free_trial,
+                'is_caller_free' => (bool) $incoming->is_caller_free,
                 'free_duration_seconds' => (int) $incoming->free_duration_seconds,
                 'rate_per_minute' => (int) $incoming->rate_per_minute,
+                'free_message_chances' => (int) ($config['free_message_chances'] ?? 2),
+                'call_recharge_teaser_text' => $config['call_recharge_teaser_text'],
+                'call_top_badge_text' => $config['call_top_badge_text'],
+                'call_quick_messages' => $config['call_quick_messages'],
                 'ring_elapsed_seconds' => $elapsedSeconds,
                 'ring_timeout_seconds' => max(0, 45 - $elapsedSeconds),
                 'incoming_ringtone_url' => $config['incoming_ringtone_url'],
@@ -531,8 +556,11 @@ class CallController extends Controller
                     'account_id' => $incoming->caller?->account_id,
                     'name' => $incoming->caller?->display_name,
                     'avatar' => $incoming->caller?->avatar_url,
-                    'gender' => $incoming->caller?->gender ?: 'male',
+                    'gender' => $incoming->caller?->gender ?: 'female',
+                    'country' => $incoming->caller?->country ?: 'Bangladesh',
+                    'city' => $incoming->caller?->city ?: 'Dhaka',
                     'level' => $incoming->caller?->level ?: 'Lv1',
+                    'is_free_caller' => (bool) $incoming->caller?->is_free_caller,
                 ],
             ],
         ], 200);
@@ -584,6 +612,10 @@ class CallController extends Controller
             $duration = (int) $call->duration_seconds;
         }
 
+        $config = CallSetting::getAllConfig();
+        $isFreeActive = ($call->is_free_trial && $duration < (int) $call->free_duration_seconds);
+        $freeRemaining = max(0, (int) $call->free_duration_seconds - $duration);
+
         return response()->json([
             'status' => true,
             'data' => [
@@ -600,7 +632,14 @@ class CallController extends Controller
                 'duration_formatted' => sprintf('%02d:%02d', floor($duration / 60), $duration % 60),
                 'rate_per_minute' => (int) $call->rate_per_minute,
                 'is_free_trial' => (bool) $call->is_free_trial,
+                'is_caller_free' => (bool) $call->is_caller_free,
+                'is_free_trial_active' => $isFreeActive,
                 'free_duration_seconds' => (int) $call->free_duration_seconds,
+                'free_seconds_remaining' => $freeRemaining,
+                'free_message_chances' => (int) ($config['free_message_chances'] ?? 2),
+                'call_recharge_teaser_text' => $config['call_recharge_teaser_text'],
+                'call_top_badge_text' => $config['call_top_badge_text'],
+                'call_quick_messages' => $config['call_quick_messages'],
                 'coins_deducted' => (int) $call->coins_deducted,
                 'host_earned_coins' => (int) $call->host_earned_coins,
                 'caller' => [
@@ -609,6 +648,7 @@ class CallController extends Controller
                     'name' => $call->caller?->display_name,
                     'avatar' => $call->caller?->avatar_url,
                     'coins' => (int) ($call->caller?->coins ?? 0),
+                    'is_free_caller' => (bool) ($call->caller?->is_free_caller ?? false),
                 ],
                 'receiver' => [
                     'id' => $call->receiver?->id,
@@ -616,6 +656,7 @@ class CallController extends Controller
                     'name' => $call->receiver?->display_name,
                     'avatar' => $call->receiver?->avatar_url,
                     'coins' => (int) ($call->receiver?->coins ?? 0),
+                    'is_free_caller' => (bool) ($call->receiver?->is_free_caller ?? false),
                 ],
             ],
         ], 200);
@@ -951,19 +992,20 @@ class CallController extends Controller
             ], 200);
         }
 
-        // Caller resolution fallback to session caller
-        if (!$caller) {
-            $caller = $call->caller;
-        }
+        // Determine Payer and Host:
+        // If caller is designated as Free Caller / Free Host, the receiver is the paying customer!
+        $isCallerFree = (bool) ($call->is_caller_free || $call->caller?->is_free_caller);
+        $payer = $isCallerFree ? $call->receiver : ($caller ?: $call->caller);
+        $host = $isCallerFree ? $call->caller : $call->receiver;
 
-        if (!$caller) {
+        if (!$payer) {
             return response()->json([
                 'status' => false,
-                'message' => 'Caller not identified.',
+                'message' => 'Payer user not identified.',
             ], 200);
         }
 
-        // If call is NOT connected (e.g. still ringing, cancelled, ended, rejected), DO NOT DEDUCT AND DO NOT FORCE STATUS TO CONNECTED
+        // If call is NOT connected (e.g. still ringing, cancelled, ended, rejected), DO NOT DEDUCT
         if ($call->status !== 'connected') {
             return response()->json([
                 'status' => false,
@@ -978,7 +1020,7 @@ class CallController extends Controller
         $ratePerSecond = round($ratePerMinute / 60, 4);
         $hostPercent = (float) ($config['host_earning_percent'] ?? 50.0);
 
-        // 1. Check if Call is in Free Trial window
+        // 1. Check if Call is in Free Preview window
         if ($call->is_free_trial && $call->free_duration_seconds > 0) {
             if ($elapsedSeconds < $call->free_duration_seconds) {
                 // Free trial is still active!
@@ -987,20 +1029,25 @@ class CallController extends Controller
                     'status' => true,
                     'is_free_trial' => true,
                     'free_seconds_remaining' => $remainingSecs,
-                    'message' => "Free trial active ({$remainingSecs}s remaining).",
+                    'free_duration_seconds' => (int) $call->free_duration_seconds,
+                    'should_blur_video' => false,
+                    'is_video_blurred' => false,
+                    'message' => "Free preview active ({$remainingSecs}s remaining).",
                     'data' => [
-                        'current_coins' => (int) $caller->coins,
+                        'payer_id' => $payer->id,
+                        'current_coins' => (int) $payer->coins,
                         'coins_deducted' => 0,
                         'rate_per_minute' => $ratePerMinute,
                         'rate_per_second' => $ratePerSecond,
                         'can_continue' => true,
                         'should_terminate_call' => false,
+                        'should_blur_video' => false,
                     ],
                 ], 200);
             } else {
-                // Free trial duration just ended! Mark user's free call as consumed
-                if ($caller->isEligibleForFreeCall()) {
-                    $caller->markFreeCallUsed();
+                // Free trial duration just ended!
+                if (!$isCallerFree && $payer->isEligibleForFreeCall()) {
+                    $payer->markFreeCallUsed();
                 }
                 $call->is_free_trial = false;
                 $call->save();
@@ -1020,35 +1067,43 @@ class CallController extends Controller
             $coinsToDeduct = $ratePerMinute ?: 100;
         }
 
-        if ($caller->coins < $coinsToDeduct) {
+        if ($payer->coins < $coinsToDeduct) {
+            $packages = \App\Models\CoinPackage::where('is_active', true)->orderBy('sort_order', 'asc')->get();
             return response()->json([
                 'status' => false,
                 'code' => 'LOW_BALANCE_DEPOSIT_REQUIRED',
-                'message' => "Your balance is insufficient to continue calling. Please deposit/recharge coins now.",
-                'current_coins' => (int) $caller->coins,
+                'message' => "Free preview ended. Your balance is insufficient to continue calling. Please deposit/recharge coins now.",
+                'current_coins' => (int) $payer->coins,
                 'required_coins' => $coinsToDeduct,
                 'rate_per_minute' => $ratePerMinute,
                 'rate_per_second' => $ratePerSecond,
-                'should_terminate_call' => true,
+                'should_terminate_call' => false,
+                'should_blur_video' => true,
+                'is_video_blurred' => true,
+                'should_mute_audio' => true,
+                'show_recharge_sheet' => true,
                 'redirect_to_deposit' => true,
                 'deposit_url' => '/deposit',
+                'teaser_text' => $config['call_recharge_teaser_text'],
+                'host_avatar' => $host?->avatar_url,
+                'packages' => $packages,
                 'data' => [
-                    'caller_id' => $caller->id,
+                    'payer_id' => $payer->id,
                     'call_id' => $call->id,
-                    'current_coins' => (int) $caller->coins,
+                    'current_coins' => (int) $payer->coins,
                     'required_coins' => $coinsToDeduct,
                 ],
             ], 200); // Returns 200 OK with explicit code so mobile interceptor never forces logout
         }
 
-        // 3. Atomically Deduct from Caller & Credit Host 50% Share
+        // 3. Atomically Deduct from Payer & Credit Host 50% Share
         DB::beginTransaction();
         try {
-            // Deduct from caller
-            $caller->deductCoins(
+            // Deduct from paying user
+            $payer->deductCoins(
                 $coinsToDeduct,
                 'video_call_spent',
-                "Call pulse ({$coinsToDeduct} coins) with {$call->receiver?->display_name} (Call #{$call->id})",
+                "Call pulse ({$coinsToDeduct} coins) with {$host?->display_name} (Call #{$call->id})",
                 "call_pulse_#{$call->id}_" . time()
             );
 
@@ -1056,12 +1111,12 @@ class CallController extends Controller
             $hostEarned = (int) round($coinsToDeduct * ($hostPercent / 100));
             $adminRevenue = $coinsToDeduct - $hostEarned;
 
-            // Credit Host (Female/Receiver)
-            if ($call->receiver && $hostEarned > 0) {
-                $call->receiver->addCoins(
+            // Credit Host (Female user / Girl)
+            if ($host && $hostEarned > 0) {
+                $host->addCoins(
                     $hostEarned,
                     'video_call_earned',
-                    "Earned {$hostEarned} coins from {$call->call_type} call with {$caller->display_name}",
+                    "Earned {$hostEarned} coins from {$call->call_type} call with {$payer->display_name}",
                     "host_earn_#{$call->id}_" . time()
                 );
             }
@@ -1070,24 +1125,27 @@ class CallController extends Controller
             $call->increment('coins_deducted', $coinsToDeduct);
             $call->increment('host_earned_coins', $hostEarned);
             $call->increment('admin_revenue_coins', $adminRevenue);
-            $call->caller_balance_after = $caller->coins;
+            $call->caller_balance_after = $payer->coins;
             $call->save();
 
             DB::commit();
 
             return response()->json([
                 'status' => true,
+                'should_blur_video' => false,
+                'is_video_blurred' => false,
                 'message' => "Deducted {$coinsToDeduct} coins (Rate: {$ratePerMinute} coins/min, {$ratePerSecond} coins/sec). Host earned {$hostEarned} coins (50%). Admin revenue {$adminRevenue} coins (50%).",
                 'data' => [
-                    'current_coins' => (int) $caller->coins,
+                    'current_coins' => (int) $payer->coins,
                     'coins_deducted' => $coinsToDeduct,
                     'host_earned_coins' => $hostEarned,
                     'admin_revenue_coins' => $adminRevenue,
                     'total_call_coins_deducted' => (int) $call->coins_deducted,
                     'rate_per_minute' => $ratePerMinute,
                     'rate_per_second' => $ratePerSecond,
-                    'can_continue' => $caller->coins >= max(1, (int) round($ratePerMinute / 60)),
+                    'can_continue' => $payer->coins >= max(1, (int) round($ratePerMinute / 60)),
                     'should_terminate_call' => false,
+                    'should_blur_video' => false,
                 ],
             ], 200);
         } catch (\Exception $e) {
@@ -1573,6 +1631,180 @@ class CallController extends Controller
                 'current_page' => $calls->currentPage(),
                 'last_page' => $calls->lastPage(),
                 'total' => $calls->total(),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get In-Call Recharge / Deposit Sheet Modal Data.
+     * Displays host teaser message, host avatar, coin packages grid with discounts, and user gem balance.
+     * GET /api/call/recharge-sheet (or POST /api/call/recharge-sheet)
+     */
+    public function getRechargeSheet(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        $hostId = $request->input('host_id') ?? $request->input('receiver_id') ?? $request->input('partner_id');
+        $host = $hostId ? (User::find($hostId) ?? User::where('account_id', $hostId)->first()) : null;
+
+        $config = CallSetting::getAllConfig();
+        $packages = \App\Models\CoinPackage::where('is_active', true)->orderBy('sort_order', 'asc')->get();
+
+        $userCoins = $user ? (int) $user->coins : 0;
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Recharge sheet data retrieved successfully.',
+            'data' => [
+                'teaser_text' => $config['call_recharge_teaser_text'],
+                'user_gems' => $userCoins,
+                'formatted_user_gems' => 'My Gems: ' . number_format($userCoins),
+                'host' => [
+                    'id' => $host?->id,
+                    'account_id' => $host?->account_id,
+                    'name' => $host?->display_name,
+                    'avatar_url' => $host?->avatar_url,
+                ],
+                'packages' => $packages->map(function ($p) {
+                    return [
+                        'id' => $p->id,
+                        'title' => $p->title,
+                        'coins' => (int) $p->coins,
+                        'total_coins' => (int) $p->total_coins,
+                        'price' => (float) $p->price,
+                        'formatted_price' => 'BDT ' . number_format($p->price, 2),
+                        'badge' => $p->badge,
+                        'badge_color' => $p->badge_color,
+                        'is_popular' => (bool) $p->is_popular,
+                        'icon_url' => $p->icon_full_url,
+                        'tag' => $p->is_popular ? 'ONCE' : null,
+                    ];
+                }),
+                'rate_per_minute' => (int) ($config['video_call_rate_per_minute'] ?? 100),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get In-Call Quick Icebreaker Messages and Free Chances.
+     * GET /api/call/quick-messages (or POST /api/call/quick-messages)
+     */
+    public function getQuickMessages(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        $config = CallSetting::getAllConfig();
+
+        $freeLimit = (int) ($config['free_message_chances'] ?? 2);
+        $used = $user ? (int) ($user->free_messages_used ?: 0) : 0;
+        $remaining = max(0, $freeLimit - $used);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'In-call quick messages retrieved successfully.',
+            'data' => [
+                'messages' => $config['call_quick_messages'],
+                'free_chances_total' => $freeLimit,
+                'free_chances_used' => $used,
+                'free_chances_remaining' => $remaining,
+                'free_chances_label' => "You have {$remaining} free message chances",
+                'user_coins' => $user ? (int) $user->coins : 0,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Send Quick Icebreaker Message during Active Call.
+     * POST /api/call/send-quick-message
+     */
+    public function sendQuickMessage(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $data = $this->getRequestData($request);
+        $callId = $data['call_id'] ?? $request->input('call_id');
+        $message = trim($data['message'] ?? $request->input('message', ''));
+        $receiverId = $data['receiver_id'] ?? $request->input('receiver_id');
+
+        if (empty($message)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Message text is required.',
+            ], 422);
+        }
+
+        $call = $callId ? CallSession::find($callId) : null;
+        if (!$receiverId && $call) {
+            $receiverId = ($call->caller_id == $user->id) ? $call->receiver_id : $call->caller_id;
+        }
+
+        if (!$receiverId) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Receiver ID required.',
+            ], 422);
+        }
+
+        $config = CallSetting::getAllConfig();
+        $freeLimit = (int) ($config['free_message_chances'] ?? 2);
+        $used = (int) ($user->free_messages_used ?: 0);
+        $isFree = ($used < $freeLimit);
+
+        if (!$isFree && $user->coins < 5) {
+            return response()->json([
+                'status' => false,
+                'code' => 'INSUFFICIENT_COINS',
+                'message' => 'You have used all free message chances. Recharge coins to continue messaging.',
+            ], 200);
+        }
+
+        if ($isFree) {
+            $user->increment('free_messages_used');
+        } else {
+            $user->deductCoins(5, 'chat_message_spent', "In-call quick chat message: {$message}");
+        }
+
+        // Broadcast WebRTC Signal or Chat Message
+        try {
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call?->id,
+                'channel_name' => $call?->channel_name,
+                'sender_id' => $user->id,
+                'receiver_id' => $receiverId,
+                'type' => 'quick_message',
+                'payload' => [
+                    'message' => $message,
+                    'sender_name' => $user->display_name,
+                    'sender_avatar' => $user->avatar_url,
+                    'sent_at' => now()->toIso8601String(),
+                ],
+                'is_read' => false,
+            ]);
+
+            \App\Models\ChatMessage::create([
+                'sender_id' => $user->id,
+                'receiver_id' => $receiverId,
+                'message' => $message,
+                'type' => 'text',
+                'is_free' => $isFree,
+                'coin_cost' => $isFree ? 0 : 5,
+            ]);
+        } catch (\Throwable $e) {}
+
+        $newRemaining = max(0, $freeLimit - (int) $user->free_messages_used);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Message sent successfully!',
+            'data' => [
+                'message' => $message,
+                'is_free' => $isFree,
+                'free_chances_remaining' => $newRemaining,
+                'user_coins' => (int) $user->coins,
             ],
         ], 200);
     }

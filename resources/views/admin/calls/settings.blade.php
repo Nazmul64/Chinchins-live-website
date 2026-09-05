@@ -159,6 +159,58 @@
                     </div>
                 </div>
 
+                <!-- 2. In-Call Teaser Banner, Quick Messages & Free Chances Card -->
+                <div class="card mb-4" style="border-radius: 16px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                        <h5 class="fw-bold text-dark mb-1">
+                            <i class="fa-solid fa-comment-dots text-pink me-2" style="color: #ec4899;"></i> In-Call Screen Banners & Quick Icebreaker Chat (ইন-কল ব্যানার ও কুইক মেসেজ)
+                        </h5>
+                        <p class="text-muted mb-0" style="font-size: 13px;">Configure teaser messages for recharge sheets, top notification banner on calling screen, and quick greeting chips.</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <!-- Recharge Sheet Teaser Text -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-heart text-danger me-1"></i> Recharge Modal Teaser Text (রিচার্জ মডেল টেক্সট)
+                                </label>
+                                <input type="text" name="call_recharge_teaser_text" class="form-control" value="{{ $config['call_recharge_teaser_text'] }}" placeholder="Let's play baby! Recharge and call me..." style="font-size: 14px;">
+                                <small class="text-muted">Shown alongside the host's avatar on the gems deposit sheet during calls.</small>
+                            </div>
+
+                            <!-- Incoming Call Top Badge Text -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-bell text-warning me-1"></i> Incoming Calling Top Badge Text
+                                </label>
+                                <input type="text" name="call_top_badge_text" class="form-control" value="{{ $config['call_top_badge_text'] }}" placeholder="VIDEO NOW! Sexy Girl request video chat!" style="font-size: 14px;">
+                                <small class="text-muted">Shown on the incoming call popup overlay.</small>
+                            </div>
+
+                            <!-- Free Message Chances -->
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-comments text-info me-1"></i> Free Message Chances per Call
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" name="free_message_chances" class="form-control" value="{{ $config['free_message_chances'] ?? 2 }}" min="0" max="20" style="font-weight: 700;">
+                                    <span class="input-group-text bg-light">Messages</span>
+                                </div>
+                                <small class="text-muted">e.g. "You have 2 free message chances"</small>
+                            </div>
+
+                            <!-- Quick Icebreaker Message Chips -->
+                            <div class="col-12 col-md-8">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-list-check text-success me-1"></i> In-Call Quick Message Chips (1 per line)
+                                </label>
+                                <textarea name="call_quick_messages" class="form-control" rows="3" placeholder="Be my girlfriend&#10;Hi , what's up babe?&#10;Can we talk privately?" style="font-size: 13px;">{{ is_array($config['call_quick_messages']) ? implode("\n", $config['call_quick_messages']) : $config['call_quick_messages'] }}</textarea>
+                                <small class="text-muted">Enter each quick chip option on a new line (e.g. "Be my girlfriend", "Hi , what's up babe?").</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 3. Custom Ringtone & Dial Tone Audio Card -->
                 <div class="card mb-4" style="border-radius: 16px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
                     <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
@@ -302,12 +354,14 @@
                         <div class="p-3" style="background: rgba(245, 158, 11, 0.08); border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.2);">
                             <div class="d-flex align-items-center gap-2 mb-2">
                                 <i class="fa-solid fa-gift text-warning"></i>
-                                <span class="fw-bold text-dark" style="font-size: 13px;">Free Trial Workflow:</span>
+                                <span class="fw-bold text-dark" style="font-size: 13px;">Free Preview & Calling Workflow:</span>
                             </div>
                             <ul class="text-muted ps-3 mb-0" style="font-size: 12px; line-height: 1.6;">
-                                <li>New users get <strong id="previewFreeSecs" class="text-dark">10 seconds</strong> of free call.</li>
-                                <li>Rate is <strong>100 coins/min</strong> (~1.67 coins/sec).</li>
-                                <li>When timer hits 0s and wallet has 0 coins, call terminates with <code>LOW_BALANCE_DEPOSIT_REQUIRED</code> and opens <strong>Deposit / Recharge Coins</strong>.</li>
+                                <li>Users get <strong id="previewFreeSecs" class="text-dark">{{ $config['free_call_duration_seconds'] }} seconds</strong> of free preview.</li>
+                                <li>Rate is <strong>{{ $config['video_call_rate_per_minute'] }} coins/min</strong> (~1.67 coins/sec).</li>
+                                <li>Free Hosts can call any user with <strong>0 balance</strong>.</li>
+                                <li>When timer hits 16s and wallet has 0 coins, the in-call video blurs/pauses and opens <strong>Gems Recharge Sheet</strong>.</li>
+                                <li>50% of call coins are credited directly to host wallet, and 50% to Admin platform.</li>
                             </ul>
                         </div>
                     </div>

@@ -87,9 +87,13 @@ class CallAdminController extends Controller
             'is_free_call_enabled' => 'nullable|boolean',
             'free_call_duration_seconds' => 'required|integer|min:1|max:300',
             'free_calls_per_user' => 'required|integer|min:0|max:10',
+            'free_message_chances' => 'nullable|integer|min:0|max:100',
             'video_call_rate_per_minute' => 'required|integer|min:1',
             'audio_call_rate_per_minute' => 'required|integer|min:1',
             'host_earning_percent' => 'required|numeric|min:0|max:100',
+            'call_recharge_teaser_text' => 'nullable|string|max:500',
+            'call_top_badge_text' => 'nullable|string|max:500',
+            'call_quick_messages' => 'nullable|string',
             'incoming_ringtone_file' => 'nullable|file|mimes:mp3,wav,ogg,m4a,aac|max:10240',
             'outgoing_ringtone_file' => 'nullable|file|mimes:mp3,wav,ogg,m4a,aac|max:10240',
             'incoming_ringtone_url' => 'nullable|string|max:500',
@@ -101,12 +105,29 @@ class CallAdminController extends Controller
 
         CallSetting::set('is_call_enabled', $request->boolean('is_call_enabled') ? '1' : '0', 'Global toggle for Audio and Video calling');
         CallSetting::set('is_free_call_enabled', $request->boolean('is_free_call_enabled') ? '1' : '0', 'Enable or disable free trial calling for new registrations');
-        CallSetting::set('free_call_duration_seconds', $request->input('free_call_duration_seconds'), 'Free trial duration in seconds (e.g. 10s, 30s)');
+        CallSetting::set('free_call_duration_seconds', $request->input('free_call_duration_seconds'), 'Free trial duration in seconds (e.g. 16s, 30s)');
         CallSetting::set('free_calls_per_user', $request->input('free_calls_per_user'), 'Number of free trial calls per new user');
+        CallSetting::set('free_message_chances', $request->input('free_message_chances', 2), 'Free quick messages chances during in-call chat');
         CallSetting::set('video_call_rate_per_minute', $request->input('video_call_rate_per_minute'), 'Default video call rate in coins per minute');
         CallSetting::set('audio_call_rate_per_minute', $request->input('audio_call_rate_per_minute'), 'Default audio call rate in coins per minute');
         CallSetting::set('host_earning_percent', $hostPercent, 'Percentage of call coins credited to Host (female user)');
         CallSetting::set('admin_commission_percent', $adminPercent, 'Percentage of call coins kept as Admin Platform Revenue');
+
+        if ($request->filled('call_recharge_teaser_text')) {
+            CallSetting::set('call_recharge_teaser_text', $request->input('call_recharge_teaser_text'), 'Teaser text shown on Recharge Gem sheet during call');
+        }
+
+        if ($request->filled('call_top_badge_text')) {
+            CallSetting::set('call_top_badge_text', $request->input('call_top_badge_text'), 'Top badge text shown on incoming call screen');
+        }
+
+        if ($request->filled('call_quick_messages')) {
+            $rawMessages = $request->input('call_quick_messages');
+            $messagesList = array_values(array_filter(array_map('trim', explode("\n", str_replace("\r", "", $rawMessages)))));
+            if (!empty($messagesList)) {
+                CallSetting::set('call_quick_messages', json_encode($messagesList), 'In-call quick icebreaker message chips');
+            }
+        }
 
         // Handle Incoming Call Ringtone Upload
         if ($request->hasFile('incoming_ringtone_file')) {

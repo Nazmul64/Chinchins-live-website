@@ -34,6 +34,11 @@ class UserController extends Controller
             $query->where('is_active', $request->boolean('status'));
         }
 
+        // Filter by Free Caller / Free Host Status
+        if ($request->filled('free_caller')) {
+            $query->where('is_free_caller', $request->boolean('free_caller'));
+        }
+
         // Filter by Gender
         if ($request->filled('gender')) {
             $query->where('gender', $request->gender);
@@ -55,6 +60,7 @@ class UserController extends Controller
             'active_users' => User::where('is_active', true)->count(),
             'total_coins' => User::sum('coins'),
             'verified_users' => User::where('is_verified', true)->count(),
+            'total_free_callers' => User::where('is_free_caller', true)->count(),
         ];
 
         return view('admin.users.index', compact('users', 'stats'));
@@ -152,5 +158,22 @@ class UserController extends Controller
 
         $lockStr = $user->is_locked ? 'Locked' : 'Unlocked';
         return back()->with('success', "User {$user->display_name} account has been {$lockStr}.");
+    }
+
+    /**
+     * Toggle Free Caller / Free Host status of user.
+     * When active, user can call anyone for free even with 0 coins.
+     */
+    public function toggleFreeCaller($id)
+    {
+        $user = User::findOrFail($id);
+        $user->is_free_caller = !$user->is_free_caller;
+        $user->save();
+
+        $freeStr = $user->is_free_caller 
+            ? "designated as Free Host (can make unlimited calls with 0 coin balance)" 
+            : "Free Host permission revoked";
+
+        return back()->with('success', "User {$user->display_name} has been {$freeStr}.");
     }
 }

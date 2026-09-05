@@ -58,6 +58,7 @@ class User extends Authenticatable
         'free_messages_limit',
         'is_busy',
         'auto_call_enabled',
+        'is_free_caller',
         'close_friends_count',
     ];
 
@@ -234,31 +235,48 @@ class User extends Authenticatable
             'video_call_rate'     => 'integer',
             'coins'               => 'integer',
             'free_calls_used'     => 'integer',
+            'is_free_caller'      => 'boolean',
             'close_friends_count' => 'integer',
         ];
     }
 
     /**
-     * Check if user is eligible for free trial call.
+     * Check if user is designated as Free Caller / Free Host.
+     */
+    public function isFreeCaller(): bool
+    {
+        return (bool) ($this->is_free_caller ?? false);
+    }
+
+    /**
+     * Check if user is eligible for free trial call or is a designated Free Host.
      */
     public function isEligibleForFreeCall(): bool
     {
+        // 1. If designated as Free Caller / Free Host by Admin, always eligible
+        if ($this->isFreeCaller()) {
+            return true;
+        }
+
+        // 2. Otherwise check global free trial settings for new users
         $config = CallSetting::getAllConfig();
         if (!$config['is_free_call_enabled']) {
             return false;
         }
 
-        $limit = (int) $config['free_calls_per_user'];
+        $limit = (int) ($config['free_calls_per_user'] ?? 1);
         return ($this->free_calls_used ?: 0) < $limit;
     }
 
     /**
-     * Mark a free trial call as used.
+     * Mark a free trial call as used (only for regular users, not free hosts).
      */
     public function markFreeCallUsed(): void
     {
-        $this->increment('free_calls_used');
-        $this->refresh();
+        if (!$this->isFreeCaller()) {
+            $this->increment('free_calls_used');
+            $this->refresh();
+        }
     }
 
     /**

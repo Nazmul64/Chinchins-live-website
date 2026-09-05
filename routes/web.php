@@ -27,6 +27,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/users/{id}/coins', [UserController::class, 'adjustCoins'])->name('users.adjust-coins');
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::post('/users/{id}/toggle-lock', [UserController::class, 'toggleLock'])->name('users.toggle-lock');
+    Route::post('/users/{id}/toggle-free-caller', [UserController::class, 'toggleFreeCaller'])->name('users.toggle-free-caller');
 
     // Payment Methods Management
     Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');

@@ -91,31 +91,38 @@
     <!-- Search & Filter Card -->
     <div class="filter-card-wrapper">
         <form action="{{ route('admin.users.index') }}" method="GET" class="row g-2 align-items-center">
-            <div class="col-12 col-lg-5">
+            <div class="col-12 col-lg-4">
                 <div class="search-pill-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" name="search" class="search-pill-input" placeholder="Search by name, phone number, 10-digit Account ID, or email..." value="{{ request('search') }}">
+                    <input type="text" name="search" class="search-pill-input" placeholder="Search by name, phone number, Account ID..." value="{{ request('search') }}">
                 </div>
             </div>
-            <div class="col-6 col-lg-3">
+            <div class="col-6 col-lg-2">
                 <select name="status" class="custom-select-pill" onchange="this.form.submit()">
-                    <option value="">Status: All Users</option>
-                    <option value="1" {{ request('status') === '1' ? 'selected' : '' }}>Active / Online Only</option>
-                    <option value="0" {{ request('status') === '0' ? 'selected' : '' }}>Inactive / Offline Only</option>
+                    <option value="">Status: All</option>
+                    <option value="1" {{ request('status') === '1' ? 'selected' : '' }}>Active / Online</option>
+                    <option value="0" {{ request('status') === '0' ? 'selected' : '' }}>Inactive / Offline</option>
+                </select>
+            </div>
+            <div class="col-6 col-lg-2">
+                <select name="free_caller" class="custom-select-pill" onchange="this.form.submit()">
+                    <option value="">Calling: All Users</option>
+                    <option value="1" {{ request('free_caller') === '1' ? 'selected' : '' }}>⭐ Free Hosts Only</option>
+                    <option value="0" {{ request('free_caller') === '0' ? 'selected' : '' }}>Regular Users</option>
                 </select>
             </div>
             <div class="col-6 col-lg-2">
                 <select name="sort" class="custom-select-pill" onchange="this.form.submit()">
-                    <option value="latest" {{ request('sort') == 'latest' ? 'selected' : '' }}>Sort: Newest First</option>
+                    <option value="latest" {{ request('sort') == 'latest' ? 'selected' : '' }}>Sort: Newest</option>
                     <option value="coins_high" {{ request('sort') == 'coins_high' ? 'selected' : '' }}>Sort: Most Coins</option>
                     <option value="coins_low" {{ request('sort') == 'coins_low' ? 'selected' : '' }}>Sort: Least Coins</option>
                 </select>
             </div>
-            <div class="col-12 col-lg-2 d-flex gap-2">
+            <div class="col-6 col-lg-2 d-flex gap-2">
                 <button type="submit" class="btn-ch-primary w-100 justify-content-center">
                     <i class="fa-solid fa-filter"></i> Filter
                 </button>
-                @if(request()->hasAny(['search', 'status', 'sort', 'gender']))
+                @if(request()->hasAny(['search', 'status', 'sort', 'gender', 'free_caller']))
                     <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary d-flex align-items-center justify-content-center" style="border-radius: 10px; width: 44px;" title="Reset Filters">
                         <i class="fa-solid fa-rotate-left"></i>
                     </a>
@@ -132,6 +139,11 @@
                     Registered Users Directory
                 </h5>
                 <span class="badge bg-primary rounded-pill px-2 py-1" style="font-size: 12px;">{{ $users->total() }}</span>
+                @if(isset($stats['total_free_callers']) && $stats['total_free_callers'] > 0)
+                    <span class="badge bg-warning text-dark rounded-pill px-2 py-1" style="font-size: 11px; font-weight: 700;">
+                        <i class="fa-solid fa-star text-dark me-1"></i> {{ $stats['total_free_callers'] }} Free Hosts
+                    </span>
+                @endif
             </div>
             <small class="text-muted">Showing {{ $users->firstItem() ?? 0 }}-{{ $users->lastItem() ?? 0 }} of {{ $users->total() }}</small>
         </div>
@@ -143,7 +155,7 @@
                         <th>Account ID</th>
                         <th>Phone Number</th>
                         <th>Coin Balance</th>
-                        <th>Call Rate</th>
+                        <th>Calling Privilege</th>
                         <th>Status</th>
                         <th>Joined</th>
                         <th style="text-align: right;">Quick Actions</th>
@@ -167,6 +179,11 @@
                                             </a>
                                             @if($user->is_verified)
                                                 <i class="fa-solid fa-circle-check text-primary" title="Verified Streamer" style="font-size: 13px;"></i>
+                                            @endif
+                                            @if($user->is_free_caller)
+                                                <span class="badge bg-warning text-dark px-2 py-0" style="font-size: 10px; font-weight: 700;" title="Free Caller: Can call with 0 balance">
+                                                    <i class="fa-solid fa-star text-dark"></i> Free Host
+                                                </span>
                                             @endif
                                             <span class="badge bg-secondary" style="font-size: 10px; font-weight: 600;">{{ $user->level ?: 'Lv1' }}</span>
                                         </div>
@@ -195,9 +212,21 @@
                                 </div>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark border" style="font-size: 12px; font-weight: 600;">
-                                    <i class="fa-solid fa-video text-primary me-1"></i> {{ $user->video_call_rate ?: 100 }} c/min
-                                </span>
+                                @if($user->is_free_caller)
+                                    <form action="{{ route('admin.users.toggle-free-caller', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="badge bg-warning text-dark border-0 p-2 text-decoration-none d-inline-flex align-items-center gap-1" style="border-radius: 8px; font-weight: 700; cursor: pointer;" title="Click to revoke Free Calling">
+                                            <i class="fa-solid fa-star text-dark"></i> Free Host (0 Bal)
+                                        </button>
+                                    </form>
+                                @else
+                                    <form action="{{ route('admin.users.toggle-free-caller', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="badge bg-light text-muted border p-2 text-decoration-none d-inline-flex align-items-center gap-1" style="border-radius: 8px; font-weight: 600; cursor: pointer;" title="Click to make Free Host (can call with 0 coins)">
+                                            <i class="fa-solid fa-video text-primary"></i> {{ $user->video_call_rate ?: 100 }} c/min
+                                        </button>
+                                    </form>
+                                @endif
                             </td>
                             <td>
                                 <form action="{{ route('admin.users.toggle-status', $user->id) }}" method="POST" class="d-inline">
@@ -215,6 +244,18 @@
                             </td>
                             <td style="text-align: right;">
                                 <div class="d-inline-flex gap-2">
+                                    <!-- Toggle Free Host -->
+                                    <form action="{{ route('admin.users.toggle-free-caller', $user->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" 
+                                                class="btn btn-sm {{ $user->is_free_caller ? 'btn-warning' : 'btn-outline-secondary' }}" 
+                                                style="border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600;" 
+                                                title="{{ $user->is_free_caller ? 'Revoke Free Calling' : 'Make Free Host (Can call with 0 balance)' }}">
+                                            <i class="fa-solid fa-star {{ $user->is_free_caller ? 'text-dark' : 'text-warning' }}"></i>
+                                            <span>{{ $user->is_free_caller ? 'Free Host' : 'Set Free' }}</span>
+                                        </button>
+                                    </form>
+
                                     <!-- Adjust Coins Button -->
                                     <button type="button" 
                                             class="btn-ch-gold" 
