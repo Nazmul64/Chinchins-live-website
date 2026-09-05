@@ -19,6 +19,8 @@
 /public/uploads/*
 !/public/uploads/.gitkeep
 !/public/uploads/*/.gitkeep
+!/public/uploads/all_image
+!/public/uploads/all_image/*
 /storage/*.key
 /storage/pail
 /vendor
