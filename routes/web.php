@@ -128,6 +128,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/settings/version', [\App\Http\Controllers\Admin\AppSettingController::class, 'publishVersion'])->name('settings.version.publish');
     Route::post('/settings/push-broadcast', [\App\Http\Controllers\Admin\AppSettingController::class, 'sendPushBroadcast'])->name('settings.push.broadcast');
 
+    // ⚡ Streaming & Video Calling Engine Management (Agora Cloud vs VPS WebRTC)
+    Route::get('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'index'])->name('settings.streaming.index');
+    Route::post('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'update'])->name('settings.streaming.update');
+
     // Coin Transaction Ledger
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
 });

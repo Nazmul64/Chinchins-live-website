@@ -27,8 +27,16 @@ class AppSettingController extends Controller
         $allVersions = AppVersion::orderBy('version_code', 'desc')->get();
         $registeredDevicesCount = DeviceRegistration::where('is_active', true)->count();
         $totalPushTokensCount = User::whereNotNull('fcm_token')->count();
+        $streamingSetting = \App\Models\StreamingSetting::getSettings();
 
-        return view('admin.settings.index', compact('merged', 'latestVersion', 'allVersions', 'registeredDevicesCount', 'totalPushTokensCount'));
+        return view('admin.settings.index', compact(
+            'merged',
+            'latestVersion',
+            'allVersions',
+            'registeredDevicesCount',
+            'totalPushTokensCount',
+            'streamingSetting'
+        ));
     }
 
     /**

@@ -93,6 +93,11 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 py-2 fw-semibold" id="streaming-tab" data-bs-toggle="tab" data-bs-target="#streaming" type="button" role="tab" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(236, 72, 153, 0.15)); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b;">
+                <i class="fa-solid fa-bolt me-2"></i> ⚡ Streaming Engine (Agora vs VPS)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link rounded-pill px-4 py-2 fw-semibold" id="api-tab" data-bs-toggle="tab" data-bs-target="#api" type="button" role="tab">
                 <i class="fa-solid fa-code me-2"></i> Mobile API Docs
             </button>
@@ -520,6 +525,188 @@
                     <div class="d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary rounded-pill px-4">
                             <i class="fa-solid fa-floppy-disk me-1"></i> Save Legal & About Pages
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB 6: ⚡ Dynamic Dual-Engine Streaming (Agora vs VPS WebRTC) -->
+        <div class="tab-pane fade" id="streaming" role="tabpanel">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4" style="background: var(--card-bg, #ffffff);">
+                <form action="{{ route('admin.settings.streaming.update') }}" method="POST">
+                    @csrf
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-3 border-bottom">
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge {{ ($streamingSetting->active_driver ?? 'vps_webrtc') === 'agora' ? 'bg-info' : 'bg-primary' }} px-3 py-1 rounded-pill" style="font-size: 12px;">
+                                    Active: {{ ($streamingSetting->active_driver ?? 'vps_webrtc') === 'agora' ? 'Agora Cloud RTC/RTM' : 'Hostinger VPS WebRTC + Reverb' }}
+                                </span>
+                            </div>
+                            <h4 class="fw-bold mt-2 mb-1">
+                                <i class="fa-solid fa-bolt text-warning me-2"></i> Real-Time Video/Audio Calling & Live Streaming Engine
+                            </h4>
+                            <p class="text-muted small mb-0">Switch between Hostinger VPS Self-Hosted WebRTC (Reverb WebSocket) and Agora Cloud RTC/RTM with 1 click. No APK rebuild required.</p>
+                        </div>
+                        <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm" style="color: #000;">
+                            <i class="fa-solid fa-circle-check me-1"></i> Save Engine Configurations
+                        </button>
+                    </div>
+
+                    <!-- 1. Engine Selection Radio Cards -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold mb-3" style="font-size: 15px;">1. Select Active Streaming & Calling Engine</label>
+                        <div class="row g-3">
+                            <!-- Option A: Hostinger VPS WebRTC + Reverb -->
+                            <div class="col-12 col-md-6">
+                                <div class="card border h-100 rounded-4 p-3 position-relative cursor-pointer {{ ($streamingSetting->active_driver ?? 'vps_webrtc') !== 'agora' ? 'border-primary bg-primary-subtle shadow-sm' : '' }}" onclick="document.getElementById('engine_vps').checked = true;">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <input class="form-check-input mt-1" type="radio" name="active_driver" id="engine_vps" value="vps_webrtc" {{ ($streamingSetting->active_driver ?? 'vps_webrtc') !== 'agora' ? 'checked' : '' }}>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="fw-bold text-primary mb-1"><i class="fa-solid fa-server me-1"></i> Hostinger VPS (WebRTC + Reverb)</h6>
+                                                <span class="badge bg-primary text-white rounded-pill" style="font-size: 10px;">Self-Hosted</span>
+                                            </div>
+                                            <p class="text-muted small mb-2">100% Free, unlimited call minutes, hosted directly on your Hostinger VPS via Laravel Reverb WebSocket signaling.</p>
+                                            <ul class="small text-muted mb-0 ps-3">
+                                                <li>No third-party billing or API minute charges.</li>
+                                                <li>End-to-End encrypted WebRTC peer-to-peer audio/video.</li>
+                                                <li>Uses Reverb WebSocket signaling on port 443/8080.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Option B: Agora Cloud Engine -->
+                            <div class="col-12 col-md-6">
+                                <div class="card border h-100 rounded-4 p-3 position-relative cursor-pointer {{ ($streamingSetting->active_driver ?? 'vps_webrtc') === 'agora' ? 'border-info bg-info-subtle shadow-sm' : '' }}" onclick="document.getElementById('engine_agora').checked = true;">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <input class="form-check-input mt-1" type="radio" name="active_driver" id="engine_agora" value="agora" {{ ($streamingSetting->active_driver ?? 'vps_webrtc') === 'agora' ? 'checked' : '' }}>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="fw-bold text-info mb-1"><i class="fa-solid fa-cloud me-1"></i> Agora Cloud Engine (RTC / RTM)</h6>
+                                                <span class="badge bg-info text-dark rounded-pill" style="font-size: 10px;">Global Enterprise Cloud</span>
+                                            </div>
+                                            <p class="text-muted small mb-2">Ultra low-latency global SD-RTN™ edge network with AI noise suppression and HD 1080p 60fps video quality.</p>
+                                            <ul class="small text-muted mb-0 ps-3">
+                                                <li>Automatic failover and crystal-clear worldwide calls.</li>
+                                                <li>Generates dynamic HMAC-SHA256 RTC Tokens per session.</li>
+                                                <li>Requires App ID & Primary Certificate from Agora Console.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Agora Console Credentials -->
+                    <div class="card bg-light border-0 rounded-4 p-4 mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <i class="fa-solid fa-key text-warning fs-5"></i>
+                            <h5 class="fw-bold mb-0">2. Agora Console Credentials (Required for Agora Cloud Mode)</h5>
+                        </div>
+                        <p class="text-muted small mb-3">Obtain these three fields from your <a href="https://console.agora.io" target="_blank" class="fw-bold text-primary">Agora Developer Console &rarr; Project Management</a>.</p>
+
+                        <div class="row g-3">
+                            <!-- Project Name -->
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-semibold" style="font-size: 13px;">Agora Project Name (Optional)</label>
+                                <input type="text" name="agora_project_name" class="form-control" placeholder="e.g. Default Project" value="{{ old('agora_project_name', $streamingSetting->agora_project_name ?? 'Default Project') }}">
+                                <small class="text-muted" style="font-size: 11px;">Identifies project in your dashboard</small>
+                            </div>
+
+                            <!-- App ID -->
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-semibold" style="font-size: 13px;">Agora App ID <span class="text-danger">*</span></label>
+                                <input type="text" name="agora_app_id" class="form-control font-monospace" placeholder="Paste App ID from Basic Settings" value="{{ old('agora_app_id', $streamingSetting->agora_app_id ?? '') }}">
+                                <small class="text-muted" style="font-size: 11px;">Primary Key for Flutter App & Token Builder</small>
+                            </div>
+
+                            <!-- Primary Certificate -->
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-semibold" style="font-size: 13px;">Agora Primary Certificate <span class="text-danger">*</span></label>
+                                <input type="password" name="agora_app_certificate" class="form-control font-monospace" placeholder="Paste Primary Certificate from Security" value="{{ old('agora_app_certificate', $streamingSetting->agora_app_certificate ?? '') }}">
+                                <small class="text-muted" style="font-size: 11px;">Kept secret on server (never exposed to client app)</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Feature Toggles & Token Duration -->
+                    <div class="row g-4 mb-4">
+                        <div class="col-12 col-md-6">
+                            <h6 class="fw-bold mb-3">3. Communication Feature Toggles</h6>
+                            <div class="d-flex flex-column gap-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="enable_video_call" id="enable_video_call" value="1" {{ ($streamingSetting->enable_video_call ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold" for="enable_video_call">Enable 1-on-1 Video Calling</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="enable_audio_call" id="enable_audio_call" value="1" {{ ($streamingSetting->enable_audio_call ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold" for="enable_audio_call">Enable 1-on-1 Audio Calling</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="enable_live_stream" id="enable_live_stream" value="1" {{ ($streamingSetting->enable_live_stream ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold" for="enable_live_stream">Enable Live Streaming Broadcasting</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <h6 class="fw-bold mb-3">4. Security & Reverb Host Config</h6>
+                            <div class="row g-2">
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small fw-semibold">Token Expiry Duration (Seconds)</label>
+                                    <input type="number" name="token_expire_seconds" class="form-control form-control-sm" value="{{ old('token_expire_seconds', $streamingSetting->token_expire_seconds ?? 86400) }}" min="300" max="604800">
+                                    <small class="text-muted">Default: 86400s (24 Hours)</small>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small fw-semibold">Reverb Signaling Host</label>
+                                    <input type="text" name="reverb_host" class="form-control form-control-sm" placeholder="chinchins.live" value="{{ old('reverb_host', $streamingSetting->reverb_host ?? '') }}">
+                                    <small class="text-muted">VPS Domain for Reverb</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Unified API Integration Box for Developers -->
+                    <div class="border rounded-4 p-3 bg-dark text-white mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-success">UNIFIED API ENDPOINT</span>
+                            <span class="text-muted small">POST /api/stream/session-token</span>
+                        </div>
+                        <p class="small text-white-50 mb-2">Flutter App automatically receives the active driver and credentials on every call initialization:</p>
+                        <pre class="bg-black text-warning p-2 rounded-3 small mb-0 font-monospace"><code>// Request:
+{
+  "channel_name": "call_room_849201",
+  "call_type": "video", // audio, video, live
+  "role": "publisher"
+}
+
+// Current Dynamic Response:
+{
+  "success": true,
+  "driver": "{{ $streamingSetting->active_driver ?? 'vps_webrtc' }}",
+  "channel_name": "call_room_849201",
+  @if(($streamingSetting->active_driver ?? 'vps_webrtc') === 'agora')
+  "agora_app_id": "{{ $streamingSetting->agora_app_id ?? 'your_agora_app_id' }}",
+  "agora_token": "006eyAiYWxnIj...",
+  "agora_uid": 14,
+  "message": "Connected via Agora Cloud Engine"
+  @else
+  "signaling_host": "{{ $streamingSetting->reverb_host ?: 'chinchins.live' }}",
+  "signaling_port": 443,
+  "auth_endpoint": "https://chinchins.live/api/broadcasting/auth",
+  "message": "Connected via VPS WebRTC Engine"
+  @endif
+}</code></pre>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-warning rounded-pill px-5 fw-bold" style="color: #000;">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Engine Configurations
                         </button>
                     </div>
                 </form>

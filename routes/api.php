@@ -27,6 +27,18 @@ Route::get('/settings', [\App\Http\Controllers\Api\AppUpdateApiController::class
 Route::get('/app/settings', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
 Route::get('/app/remote-config', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
 
+// ==========================================
+// ⚡ Dynamic Dual-Engine Streaming & Calling Router (Agora vs VPS WebRTC)
+// ==========================================
+Route::match(['get', 'post'], '/stream/session-token', [\App\Http\Controllers\Api\StreamingController::class, 'getSessionToken']);
+Route::match(['get', 'post'], '/v1/stream/initialize', [\App\Http\Controllers\Api\StreamingController::class, 'getSessionToken']);
+Route::match(['get', 'post'], '/stream/initialize', [\App\Http\Controllers\Api\StreamingController::class, 'getSessionToken']);
+Route::match(['get', 'post'], '/stream/token', [\App\Http\Controllers\Api\StreamingController::class, 'getSessionToken']);
+
+Route::get('/stream/driver', [\App\Http\Controllers\Api\StreamingController::class, 'getDriverConfig']);
+Route::get('/v1/config/streaming-driver', [\App\Http\Controllers\Api\StreamingController::class, 'getDriverConfig']);
+Route::get('/stream/config', [\App\Http\Controllers\Api\StreamingController::class, 'getDriverConfig']);
+
 // 🚀 In-App OTA Update Engine & Version Check (Dynamic Features without manual APK rebuild)
 Route::match(['get', 'post'], '/app/check-update', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'checkUpdate']);
 Route::match(['get', 'post'], '/app/version-check', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'checkUpdate']);
