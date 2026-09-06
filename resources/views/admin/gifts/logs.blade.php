@@ -51,7 +51,7 @@
                             </td>
                             <td>
                                 <div class="d-flex align-items-center gap-2">
-                                    <img src="{{ $log->gift ? $log->gift->image_url : asset('assets/images/gifts/gift-box-default.png') }}" class="rounded-3" style="width: 38px; height: 38px; object-fit: contain; background: rgba(0,0,0,0.03);" onerror="this.src='{{ asset('assets/images/gifts/gift-box-default.png') }}'">
+                                    <img src="{{ $log->gift ? $log->gift->image_url : asset('assets/images/gifts/gift-box-default.png') }}" loading="lazy" class="rounded-3" style="width: 38px; height: 38px; object-fit: contain; background: rgba(0,0,0,0.03);" onerror="this.src='{{ asset('assets/images/gifts/gift-box-default.png') }}'">
                                     <div>
                                         <div class="fw-bold" style="font-size: 13px;">{{ $log->gift ? $log->gift->name : 'Unknown Gift' }}</div>
                                         <span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size: 10px;">{{ $log->gift ? $log->gift->category : 'gift' }}</span>

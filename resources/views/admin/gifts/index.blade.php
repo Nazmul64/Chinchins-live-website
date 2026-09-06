@@ -187,7 +187,7 @@
 
                     <!-- Gift Icon Preview -->
                     <div class="my-2 d-flex justify-content-center align-items-center" style="min-height: 80px;">
-                        <img src="{{ $gift->image_url }}" alt="{{ $gift->name }}" class="img-fluid rounded-3" style="max-height: 72px; width: 72px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(244, 63, 94, 0.25));" onerror="this.src='{{ asset('assets/images/gifts/gift-box-default.png') }}'">
+                        <img src="{{ $gift->image_url }}" alt="{{ $gift->name }}" loading="lazy" class="img-fluid rounded-3" style="max-height: 72px; width: 72px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(244, 63, 94, 0.25));" onerror="this.src='{{ asset('assets/images/gifts/gift-box-default.png') }}'">
                     </div>
 
                     <!-- Gift Name -->
