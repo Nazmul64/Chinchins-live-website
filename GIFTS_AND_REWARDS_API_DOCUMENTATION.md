@@ -47,20 +47,21 @@ Returns the list of active gifts, user coin balance, and category metadata.
       "formatted_coins": "45K"
     },
     "selected_category": "hot",
+    "total_gifts": 71,
     "categories_list": [
-      { "key": "all", "label": "All", "emoji": "🎁", "icon": "fa-gift", "color": "#64748b", "count": 172, "is_active": false },
-      { "key": "hot", "label": "Hot", "emoji": "🔥", "icon": "fa-fire", "color": "#f43f5e", "count": 16, "is_active": true },
-      { "key": "lucky", "label": "Lucky", "emoji": "🍀", "icon": "fa-clover", "color": "#10b981", "count": 6, "is_active": false },
-      { "key": "svip", "label": "SVIP", "emoji": "👑", "icon": "fa-crown", "color": "#f59e0b", "count": 9, "is_active": false },
-      { "key": "intimacy", "label": "Intimacy", "emoji": "💖", "icon": "fa-heart", "color": "#ec4899", "count": 7, "is_active": false },
+      { "key": "all", "label": "All", "emoji": "🎁", "icon": "fa-gift", "color": "#64748b", "count": 160, "is_active": false },
+      { "key": "hot", "label": "Hot", "emoji": "🔥", "icon": "fa-fire", "color": "#f43f5e", "count": 71, "is_active": true },
+      { "key": "lucky", "label": "Lucky", "emoji": "🍀", "icon": "fa-clover", "color": "#10b981", "count": 20, "is_active": false },
+      { "key": "svip", "label": "SVIP", "emoji": "👑", "icon": "fa-crown", "color": "#f59e0b", "count": 12, "is_active": false },
+      { "key": "intimacy", "label": "Intimacy", "emoji": "💖", "icon": "fa-heart", "color": "#ec4899", "count": 10, "is_active": false },
       { "key": "wealth", "label": "Wealth", "emoji": "💰", "icon": "fa-coins", "color": "#eab308", "count": 8, "is_active": false },
-      { "key": "festival", "label": "Festival", "emoji": "🎉", "icon": "fa-champagne-glasses", "color": "#8b5cf6", "count": 5, "is_active": false },
-      { "key": "bag", "label": "Bag", "emoji": "🎒", "icon": "fa-bag-shopping", "color": "#06b6d4", "count": 3, "is_active": false },
-      { "key": "popular", "label": "Popular", "emoji": "⭐", "icon": "fa-star", "color": "#3b82f6", "count": 10, "is_active": false },
-      { "key": "romantic", "label": "Romantic", "emoji": "💕", "icon": "fa-heart-circle-bolt", "color": "#fb7185", "count": 12, "is_active": false },
-      { "key": "luxury", "label": "Luxury", "emoji": "💎", "icon": "fa-gem", "color": "#6366f1", "count": 14, "is_active": false },
-      { "key": "effects", "label": "Effects/3D", "emoji": "⚡", "icon": "fa-bolt", "color": "#14b8a6", "count": 19, "is_active": false },
-      { "key": "vip", "label": "VIP", "emoji": "🌟", "icon": "fa-award", "color": "#a855f7", "count": 12, "is_active": false }
+      { "key": "festival", "label": "Festival", "emoji": "🎉", "icon": "fa-champagne-glasses", "color": "#8b5cf6", "count": 10, "is_active": false },
+      { "key": "bag", "label": "Bag", "emoji": "🎒", "icon": "fa-bag-shopping", "color": "#06b6d4", "count": 5, "is_active": false },
+      { "key": "popular", "label": "Popular", "emoji": "⭐", "icon": "fa-star", "color": "#3b82f6", "count": 5, "is_active": false },
+      { "key": "romantic", "label": "Romantic", "emoji": "💕", "icon": "fa-heart-circle-bolt", "color": "#fb7185", "count": 5, "is_active": false },
+      { "key": "luxury", "label": "Luxury", "emoji": "💎", "icon": "fa-gem", "color": "#6366f1", "count": 5, "is_active": false },
+      { "key": "effects", "label": "Effects/3D", "emoji": "⚡", "icon": "fa-bolt", "color": "#14b8a6", "count": 5, "is_active": false },
+      { "key": "vip", "label": "VIP", "emoji": "🌟", "icon": "fa-award", "color": "#a855f7", "count": 4, "is_active": false }
     ],
     "total_gifts": 16,
     "gifts": [
@@ -397,3 +398,92 @@ class _GiftTrayBottomSheetState extends State<GiftTrayBottomSheet> {
   }
 }
 ```
+
+---
+
+## 💬 4. In-Chat Animated Gift Button (Flutter Widget)
+
+To make the gift button inside the chat box have a playful wobbling / bouncing animation and open the gift tray on tap:
+
+```dart
+class AnimatedInChatGiftButton extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const AnimatedInChatGiftButton({Key? key, required this.onTap}) : super(key: key);
+
+  @override
+  _AnimatedInChatGiftButtonState createState() => _AnimatedInChatGiftButtonState();
+}
+
+class _AnimatedInChatGiftButtonState extends State<AnimatedInChatGiftButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _wobbleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _wobbleAnimation = Tween<double>(begin: -0.08, end: 0.08).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _wobbleAnimation,
+        builder: (context, child) {
+          return Transform.rotate(
+            angle: _wobbleAnimation.value,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF43F5E), Color(0xFFFB7185)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFF43F5E).withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.card_giftcard, color: Colors.white, size: 18),
+                  SizedBox(width: 4),
+                  Text(
+                    'Gift 🎁',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
