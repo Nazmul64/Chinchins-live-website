@@ -523,6 +523,45 @@ Route::match(['get', 'post'], '/profile/level', [\App\Http\Controllers\Api\Profi
 Route::match(['get', 'post'], '/level/status', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'levelStatus']);
 Route::match(['get', 'post'], '/level-status', [\App\Http\Controllers\Api\ProfileBaseApiController::class, 'levelStatus']);
 
+// ==========================================
+// 🎒 My Bag & Inventory System (6 Categories)
+// ==========================================
+// 1. Coupon (কুপন / Discounts & Bonus Recharge)
+// 2. Avatar frame (এভাটার ফ্রেম / Animated Avatar Frames)
+// 3. Chat style (চ্যাট স্টাইল / Chat Bubble Styles)
+// 4. Profile card (প্রোফাইল কার্ড / Profile Theme Background Cards)
+// 5. Entrance bubble (এন্ট্রান্স বাবল / Room Entry Badges & Bubbles)
+// 6. Big entrance (বিগ এন্ট্রান্স / Luxury Vehicles & Ride Animation Effects)
+
+Route::prefix('bag')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\BagApiController::class, 'index']);
+    Route::get('/list', [\App\Http\Controllers\Api\BagApiController::class, 'index']);
+    Route::get('/store', [\App\Http\Controllers\Api\BagApiController::class, 'storeCatalog']);
+    Route::get('/catalog', [\App\Http\Controllers\Api\BagApiController::class, 'storeCatalog']);
+    Route::post('/purchase', [\App\Http\Controllers\Api\BagApiController::class, 'purchase']);
+    Route::post('/buy', [\App\Http\Controllers\Api\BagApiController::class, 'purchase']);
+    Route::post('/use', [\App\Http\Controllers\Api\BagApiController::class, 'useItem']);
+    Route::post('/equip', [\App\Http\Controllers\Api\BagApiController::class, 'useItem']);
+    Route::post('/unequip', [\App\Http\Controllers\Api\BagApiController::class, 'unequip']);
+    Route::post('/gift', [\App\Http\Controllers\Api\BagApiController::class, 'sendGift']);
+    Route::post('/send-gift', [\App\Http\Controllers\Api\BagApiController::class, 'sendGift']);
+});
+
+// Direct alias routes for /my-bag
+Route::prefix('my-bag')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\BagApiController::class, 'index']);
+    Route::get('/items', [\App\Http\Controllers\Api\BagApiController::class, 'index']);
+    Route::get('/store', [\App\Http\Controllers\Api\BagApiController::class, 'storeCatalog']);
+    Route::get('/catalog', [\App\Http\Controllers\Api\BagApiController::class, 'storeCatalog']);
+    Route::post('/purchase', [\App\Http\Controllers\Api\BagApiController::class, 'purchase']);
+    Route::post('/buy', [\App\Http\Controllers\Api\BagApiController::class, 'purchase']);
+    Route::post('/use', [\App\Http\Controllers\Api\BagApiController::class, 'useItem']);
+    Route::post('/equip', [\App\Http\Controllers\Api\BagApiController::class, 'useItem']);
+    Route::post('/unequip', [\App\Http\Controllers\Api\BagApiController::class, 'unequip']);
+    Route::post('/gift', [\App\Http\Controllers\Api\BagApiController::class, 'sendGift']);
+    Route::post('/send-gift', [\App\Http\Controllers\Api\BagApiController::class, 'sendGift']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);

@@ -56,6 +56,33 @@
             <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(244,63,94,0.15); color: #f43f5e;">{{ $activeGiftsTotal }}</span>
         </a>
 
+        <!-- My Bag (আমার ব্যাগ) Items & Backpack System -->
+        <div class="menu-item-group {{ request()->routeIs('admin.my-bag.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.my-bag.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-bag-shopping" style="color: #a855f7;"></i>
+                    <span>My Bag Items</span>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    @php
+                        $activeBagItemsCount = \App\Models\BagItem::where('is_active', true)->count();
+                    @endphp
+                    <span class="badge rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(168,85,247,0.15); color: #a855f7;">{{ $activeBagItemsCount }} Items</span>
+                    <i class="fa-solid fa-chevron-right menu-arrow"></i>
+                </div>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.my-bag.*') ? 'display: block;' : '' }}">
+                <a href="{{ route('admin.my-bag.index') }}" class="submenu-item {{ request()->routeIs('admin.my-bag.index') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>All Bag Items (6 Tabs)</span>
+                </a>
+                <a href="{{ route('admin.my-bag.inventory') }}" class="submenu-item {{ request()->routeIs('admin.my-bag.inventory') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>User Backpack Ledger</span>
+                </a>
+            </div>
+        </div>
+
         <!-- Premium VIP System & Privilege Cards -->
         <div class="menu-item-group {{ request()->routeIs('admin.vip-cards.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.vip-cards.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">

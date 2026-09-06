@@ -103,6 +103,15 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::delete('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'destroy'])->name('profile-bases.destroy');
     Route::post('/profile-bases/{id}/toggle-status', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'toggleStatus'])->name('profile-bases.toggle-status');
 
+    // My Bag Items & User Inventory Management
+    Route::get('/my-bag', [\App\Http\Controllers\Admin\BagAdminController::class, 'index'])->name('my-bag.index');
+    Route::post('/my-bag', [\App\Http\Controllers\Admin\BagAdminController::class, 'store'])->name('my-bag.store');
+    Route::put('/my-bag/{id}', [\App\Http\Controllers\Admin\BagAdminController::class, 'update'])->name('my-bag.update');
+    Route::delete('/my-bag/{id}', [\App\Http\Controllers\Admin\BagAdminController::class, 'destroy'])->name('my-bag.destroy');
+    Route::post('/my-bag/{id}/toggle-status', [\App\Http\Controllers\Admin\BagAdminController::class, 'toggleStatus'])->name('my-bag.toggle-status');
+    Route::post('/my-bag/give-user', [\App\Http\Controllers\Admin\BagAdminController::class, 'giveToUser'])->name('my-bag.give-user');
+    Route::get('/my-bag/inventory', [\App\Http\Controllers\Admin\BagAdminController::class, 'userInventory'])->name('my-bag.inventory');
+
     // App Branding & General Settings
     Route::get('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'update'])->name('settings.update');
