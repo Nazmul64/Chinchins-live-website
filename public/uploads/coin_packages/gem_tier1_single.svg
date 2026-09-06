@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="100%" height="100%">
+  <defs>
+    <radialGradient id="sparkleGlow1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe066" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#f59e0b" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gemTop1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb"/>
+      <stop offset="50%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#fde047"/>
+    </linearGradient>
+    <linearGradient id="gemSideLeft1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+    <linearGradient id="gemSideRight1" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+    <linearGradient id="gemCenter1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="70%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+    <linearGradient id="gemBottomLeft1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ca8a04"/>
+      <stop offset="100%" stop-color="#854d0e"/>
+    </linearGradient>
+    <linearGradient id="gemBottomRight1" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#78350f"/>
+    </linearGradient>
+    <filter id="glowDrop1" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#f59e0b" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Ambient background glow -->
+  <circle cx="80" cy="80" r="70" fill="url(#sparkleGlow1)"/>
+
+  <!-- Main Gem Shadow & Group -->
+  <g filter="url(#glowDrop1)">
+    <!-- Top Table / Flat Face -->
+    <polygon points="52,48 108,48 124,72 36,72" fill="url(#gemTop1)" stroke="#fef08a" stroke-width="0.5"/>
+    
+    <!-- Upper Side Facets -->
+    <polygon points="36,72 52,48 80,72" fill="url(#gemSideLeft1)"/>
+    <polygon points="124,72 108,48 80,72" fill="url(#gemSideRight1)"/>
+    <polygon points="52,48 108,48 80,72" fill="#fff" opacity="0.4"/>
+
+    <!-- Pavilion / Bottom Body -->
+    <polygon points="36,72 80,72 80,126" fill="url(#gemBottomLeft1)"/>
+    <polygon points="124,72 80,72 80,126" fill="url(#gemBottomRight1)"/>
+    <polygon points="56,72 104,72 80,126" fill="url(#gemCenter1)"/>
+
+    <!-- Inner Highlights -->
+    <polygon points="56,72 80,72 80,118 72,85" fill="#ffffff" opacity="0.35"/>
+    <line x1="80" y1="72" x2="80" y2="126" stroke="#fef08a" stroke-width="1" opacity="0.8"/>
+    <line x1="36" y1="72" x2="124" y2="72" stroke="#fffbeb" stroke-width="1.2" opacity="0.9"/>
+  </g>
+
+  <!-- Sparkles -->
+  <g transform="translate(108, 40)">
+    <path d="M0,-8 Q1,-1 8,0 Q1,1 0,8 Q-1,1 -8,0 Q-1,-1 0,-8 Z" fill="#ffffff"/>
+    <circle cx="0" cy="0" r="2.5" fill="#fffbeb"/>
+  </g>
+  <g transform="translate(42, 86) scale(0.6)">
+    <path d="M0,-8 Q1,-1 8,0 Q1,1 0,8 Q-1,1 -8,0 Q-1,-1 0,-8 Z" fill="#ffffff"/>
+  </g>
+</svg>

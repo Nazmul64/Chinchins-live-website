@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
+  <defs>
+    <linearGradient id="ticketPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C084FC"/>
+      <stop offset="50%" stop-color="#9333EA"/>
+      <stop offset="100%" stop-color="#581C87"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(10, -8) rotate(-6 200 120)" opacity="0.85">
+    <rect x="50" y="45" width="300" height="150" rx="16" fill="#7E22CE"/>
+  </g>
+  <g>
+    <path d="M 66 40 L 334 40 A 16 16 0 0 1 350 56 L 350 100 A 20 20 0 0 0 350 140 L 350 184 A 16 16 0 0 1 334 200 L 66 200 A 16 16 0 0 1 50 184 L 50 140 A 20 20 0 0 0 50 100 L 50 56 A 16 16 0 0 1 66 40 Z" fill="url(#ticketPurple)" stroke="#F3E8FF" stroke-width="2"/>
+    <line x1="120" y1="50" x2="120" y2="190" stroke="#FFF" stroke-width="3" stroke-dasharray="6,6" opacity="0.65"/>
+    <circle cx="85" cy="85" r="5" fill="#FFF" opacity="0.75"/>
+    <circle cx="85" cy="120" r="7" fill="#FDE047"/>
+    <circle cx="85" cy="155" r="5" fill="#FFF" opacity="0.75"/>
+    <text x="235" y="128" font-family="'Outfit', sans-serif" font-size="40" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="3">VIP 500</text>
+    <text x="235" y="160" font-family="'Inter', sans-serif" font-size="14" font-weight="800" fill="#FDE047" text-anchor="middle" letter-spacing="2">500 GEMS CASHBACK</text>
+  </g>
+</svg>

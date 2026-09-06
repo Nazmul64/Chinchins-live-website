@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <defs>
+    <linearGradient id="fireGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="30%" stop-color="#F97316"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+  </defs>
+  <circle cx="150" cy="150" r="118" fill="none" stroke="url(#fireGrad)" stroke-width="8"/>
+  <circle cx="150" cy="150" r="106" fill="none" stroke="#FEF08A" stroke-width="2" stroke-dasharray="15 10"/>
+  <!-- Flames at top -->
+  <path d="M 150 25 C 135 50 145 65 130 80 C 145 75 155 80 150 25 Z" fill="url(#fireGrad)"/>
+  <path d="M 165 35 C 155 55 160 65 170 80 C 160 70 170 50 165 35 Z" fill="#FEF08A"/>
+  <!-- Flames at bottom -->
+  <path d="M 150 275 C 135 250 145 235 130 220 C 145 225 155 220 150 275 Z" fill="url(#fireGrad)"/>
+</svg>

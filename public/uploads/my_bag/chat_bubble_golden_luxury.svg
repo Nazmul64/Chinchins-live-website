@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180">
+  <defs>
+    <linearGradient id="goldBubble" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="50%" stop-color="#D97706"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+  </defs>
+  <path d="M 40 30 L 280 30 A 24 24 0 0 1 304 54 L 304 116 A 24 24 0 0 1 280 140 L 90 140 L 50 165 L 58 140 L 40 140 A 24 24 0 0 1 16 116 L 16 54 A 24 24 0 0 1 40 30 Z" fill="url(#goldBubble)" stroke="#FFFBEB" stroke-width="2.5"/>
+  <g transform="translate(60, 52)">
+    <rect x="0" y="0" width="60" height="40" rx="10" fill="#451A03" stroke="#FDE047" stroke-width="2"/>
+    <text x="30" y="28" font-family="'Outfit', sans-serif" font-size="20" font-weight="900" fill="#FDE047" text-anchor="middle">VIP</text>
+  </g>
+  <rect x="135" y="60" width="130" height="8" rx="4" fill="#FFFFFF" opacity="0.9"/>
+  <rect x="135" y="78" width="85" height="8" rx="4" fill="#FEF3C7" opacity="0.8"/>
+</svg>

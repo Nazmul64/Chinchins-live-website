@@ -119,4 +119,94 @@ class CoinPackage extends Model
         }
         return asset(ltrim($this->animation_url, '/'));
     }
+
+    /**
+     * Seed or repair default 6 Coin Packages with proper SVG artwork
+     */
+    public static function seedDefaultPackages(): void
+    {
+        $defaults = [
+            1 => [
+                'title' => 'Starter Pack',
+                'coins' => 7560,
+                'bonus_coins' => 0,
+                'price' => 150.00,
+                'badge' => '50% off',
+                'badge_color' => 'danger',
+                'is_popular' => true,
+                'is_active' => true,
+                'sort_order' => 1,
+                'icon_url' => 'uploads/coin_packages/gem_tier1_single.svg',
+            ],
+            2 => [
+                'title' => 'Basic Pack',
+                'coins' => 8100,
+                'bonus_coins' => 0,
+                'price' => 300.00,
+                'badge' => '17% off',
+                'badge_color' => 'pink',
+                'is_popular' => false,
+                'is_active' => true,
+                'sort_order' => 2,
+                'icon_url' => 'uploads/coin_packages/gem_tier2_double.svg',
+            ],
+            3 => [
+                'title' => 'Popular Pack',
+                'coins' => 16380,
+                'bonus_coins' => 0,
+                'price' => 600.00,
+                'badge' => '17% off',
+                'badge_color' => 'pink',
+                'is_popular' => false,
+                'is_active' => true,
+                'sort_order' => 3,
+                'icon_url' => 'uploads/coin_packages/gem_tier3_triple.svg',
+            ],
+            4 => [
+                'title' => 'Super Pack',
+                'coins' => 32940,
+                'bonus_coins' => 0,
+                'price' => 1200.00,
+                'badge' => '30% off',
+                'badge_color' => 'pink',
+                'is_popular' => false,
+                'is_active' => true,
+                'sort_order' => 4,
+                'icon_url' => 'uploads/coin_packages/gem_tier4_stack.svg',
+            ],
+            5 => [
+                'title' => 'Mega Pack',
+                'coins' => 66600,
+                'bonus_coins' => 0,
+                'price' => 2400.00,
+                'badge' => '60% off',
+                'badge_color' => 'pink',
+                'is_popular' => false,
+                'is_active' => true,
+                'sort_order' => 5,
+                'icon_url' => 'uploads/coin_packages/gem_tier5_tray.svg',
+            ],
+            6 => [
+                'title' => 'VIP King Pack',
+                'coins' => 167400,
+                'bonus_coins' => 0,
+                'price' => 6100.00,
+                'badge' => '80% off',
+                'badge_color' => 'danger',
+                'is_popular' => false,
+                'is_active' => true,
+                'sort_order' => 6,
+                'icon_url' => 'uploads/coin_packages/gem_tier6_chest.svg',
+            ],
+        ];
+
+        foreach ($defaults as $sort => $data) {
+            $data['currency'] = 'BDT';
+            $data['format'] = 'image';
+            self::updateOrCreate(
+                ['coins' => $data['coins']],
+                $data
+            );
+        }
+    }
 }

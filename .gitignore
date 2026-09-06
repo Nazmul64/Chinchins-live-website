@@ -25,6 +25,10 @@
 !/public/uploads/bases/*
 !/public/uploads/gifts
 !/public/uploads/gifts/*
+!/public/uploads/coin_packages
+!/public/uploads/coin_packages/*
+!/public/uploads/my_bag
+!/public/uploads/my_bag/*
 /storage/*.key
 /storage/pail
 /vendor
