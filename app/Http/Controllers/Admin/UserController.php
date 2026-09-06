@@ -81,17 +81,24 @@ class UserController extends Controller
     }
 
     /**
-     * Manually Add or Deduct coins from user balance.
+     * Manually Add, Deduct, or Set coins for user balance.
      */
     public function adjustCoins(Request $request, $id)
     {
+        $user = User::findOrFail($id);
+
+        // Graceful redirect if accessed via GET
+        if ($request->isMethod('GET')) {
+            return redirect()->route('admin.users.show', $user->id)
+                ->with('info', "Adjust coins for {$user->display_name} using the Action buttons.");
+        }
+
         $request->validate([
             'action' => 'required|in:add,deduct,set',
             'amount' => 'required|integer|min:1',
             'reason' => 'nullable|string|max:255',
         ]);
 
-        $user = User::findOrFail($id);
         $amount = (int) $request->input('amount');
         $action = $request->input('action');
         $reason = $request->input('reason') ?: 'Manual admin adjustment';
@@ -103,6 +110,12 @@ class UserController extends Controller
                 $message = "Successfully added " . number_format($amount) . " coins to {$user->display_name}. New Balance: " . number_format($user->coins);
             } elseif ($action === 'deduct') {
                 if ($user->coins < $amount) {
+                    if ($request->expectsJson() || $request->ajax()) {
+                        return response()->json([
+                            'status' => false,
+                            'message' => "User only has {$user->coins} coins. Cannot deduct {$amount} coins."
+                        ], 422);
+                    }
                     return back()->with('error', "User only has {$user->coins} coins. Cannot deduct {$amount} coins.");
                 }
                 $user->deductCoins($amount, 'admin_deduct', $reason);
@@ -118,9 +131,28 @@ class UserController extends Controller
             }
 
             DB::commit();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => true,
+                    'message' => $message,
+                    'data' => [
+                        'user_id' => $user->id,
+                        'coins' => $user->coins,
+                        'formatted_coins' => number_format($user->coins),
+                    ]
+                ]);
+            }
+
             return back()->with('success', $message);
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Failed to adjust coins: ' . $e->getMessage()
+                ], 500);
+            }
             return back()->with('error', 'Failed to adjust coins: ' . $e->getMessage());
         }
     }
