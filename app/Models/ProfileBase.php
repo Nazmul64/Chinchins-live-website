@@ -58,6 +58,58 @@ class ProfileBase extends Model
     }
 
     /**
+     * Cache key for active level bases.
+     */
+    const CACHE_KEY_ACTIVE = 'chinchins_profile_bases_active_v2';
+    protected static ?\Illuminate\Support\Collection $_staticCachedBases = null;
+
+    /**
+     * Boot model events for automatic cache invalidation.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            static::clearBasesCache();
+        });
+
+        static::deleted(function () {
+            static::clearBasesCache();
+        });
+    }
+
+    /**
+     * Clear all caches for profile bases.
+     */
+    public static function clearBasesCache(): void
+    {
+        static::$_staticCachedBases = null;
+        \Illuminate\Support\Facades\Cache::forget(static::CACHE_KEY_ACTIVE);
+    }
+
+    /**
+     * Get all active bases from memory / cache in 0 DB queries.
+     */
+    public static function allCachedBases(): \Illuminate\Support\Collection
+    {
+        if (static::$_staticCachedBases !== null) {
+            return static::$_staticCachedBases;
+        }
+
+        static::$_staticCachedBases = \Illuminate\Support\Facades\Cache::remember(
+            static::CACHE_KEY_ACTIVE,
+            3600,
+            function () {
+                static::seedDefaultBases();
+                return static::where('is_active', true)
+                    ->orderBy('level', 'asc')
+                    ->get();
+            }
+        );
+
+        return static::$_staticCachedBases;
+    }
+
+    /**
      * Seed default 11 Levels (0 to 10) if table is empty.
      */
     public static function seedDefaultBases(): void
@@ -204,43 +256,55 @@ class ProfileBase extends Model
         foreach ($defaultBases as $base) {
             static::updateOrCreate(['level' => $base['level']], $base);
         }
+
+        static::clearBasesCache();
     }
 
     /**
-     * Find the highest level achieved based on earned/spent coins.
+     * Find the level base model for a specific level from in-memory cache (0 DB queries).
+     */
+    public static function getBaseForLevel(int $level): ?self
+    {
+        $bases = static::allCachedBases();
+        return $bases->firstWhere('level', $level) ?? $bases->firstWhere('level', 0);
+    }
+
+    /**
+     * Find the highest level achieved based on earned/spent coins from in-memory cache (0 DB queries).
      */
     public static function getBaseForCoins(int $coins): ?self
     {
-        return static::where('is_active', true)
-            ->where('required_coins', '<=', $coins)
-            ->orderBy('level', 'desc')
-            ->first() ?? static::where('level', 0)->first();
+        $bases = static::allCachedBases();
+        return $bases->where('required_coins', '<=', $coins)
+            ->sortByDesc('level')
+            ->first() ?? $bases->firstWhere('level', 0);
     }
 
     /**
-     * Find the next level base above current level.
+     * Find the next level base above current level from in-memory cache (0 DB queries).
      */
     public static function getNextBase(int $currentLevel): ?self
     {
-        return static::where('is_active', true)
-            ->where('level', '>', $currentLevel)
-            ->orderBy('level', 'asc')
+        $bases = static::allCachedBases();
+        return $bases->where('level', '>', $currentLevel)
+            ->sortBy('level')
             ->first();
     }
 
     /**
-     * Calculate comprehensive level progress statistics for a given user or coin balance.
+     * Calculate comprehensive level progress statistics from in-memory cache (0 DB queries).
      */
     public static function calculateLevelProgress(int $earnedCoins, ?int $explicitLevel = null): array
     {
+        $bases = static::allCachedBases();
         $currentBase = null;
 
         if ($explicitLevel !== null && $explicitLevel > 0) {
-            $currentBase = static::where('level', $explicitLevel)->first();
+            $currentBase = $bases->firstWhere('level', $explicitLevel);
         }
 
         if (!$currentBase) {
-            $currentBase = static::getBaseForCoins($earnedCoins) ?? static::where('level', 0)->first();
+            $currentBase = static::getBaseForCoins($earnedCoins) ?? $bases->firstWhere('level', 0);
         }
 
         $currentLevel = $currentBase ? (int) $currentBase->level : 0;

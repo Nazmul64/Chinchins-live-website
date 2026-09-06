@@ -149,6 +149,9 @@ class VipPrivilegeCard extends Model
      */
     public static function seedDefaultCards(bool $forceUpdate = false): void
     {
+        if (!$forceUpdate && static::count() > 0) {
+            return;
+        }
         // 1. Trial 3-Day Starter VIP Card
         static::updateOrCreate(
             ['card_type' => 'trial_starter'],

@@ -38,26 +38,55 @@ class AppSetting extends Model
         ];
     }
 
-    /**
-     * Get setting value by key.
-     */
-    public static function get(string $key, $default = null)
-    {
-        $setting = static::where('key', $key)->first();
-        if ($setting && $setting->value !== null) {
-            return $setting->value;
-        }
+    const CACHE_KEY = 'app_settings_dictionary_v2';
+    protected static ?array $_staticSettings = null;
 
-        $defaults = static::defaults();
-        return $default ?? ($defaults[$key] ?? null);
+    /**
+     * Clear app settings cache.
+     */
+    public static function clearCache(): void
+    {
+        static::$_staticSettings = null;
+        \Illuminate\Support\Facades\Cache::forget(static::CACHE_KEY);
     }
 
     /**
-     * Set setting value by key.
+     * Get all settings as key-value dictionary in 0 DB queries (cached).
+     */
+    public static function getAllCached(): array
+    {
+        if (static::$_staticSettings !== null) {
+            return static::$_staticSettings;
+        }
+
+        static::$_staticSettings = \Illuminate\Support\Facades\Cache::remember(
+            static::CACHE_KEY,
+            3600,
+            function () {
+                $defaults = static::defaults();
+                $dbValues = static::pluck('value', 'key')->toArray();
+                return array_merge($defaults, $dbValues);
+            }
+        );
+
+        return static::$_staticSettings;
+    }
+
+    /**
+     * Get setting value by key in 0 DB queries.
+     */
+    public static function get(string $key, $default = null)
+    {
+        $all = static::getAllCached();
+        return $all[$key] ?? $default ?? (static::defaults()[$key] ?? null);
+    }
+
+    /**
+     * Set setting value by key and invalidate cache.
      */
     public static function set(string $key, $value, ?string $group = 'general', ?string $description = null): self
     {
-        return static::updateOrCreate(
+        $record = static::updateOrCreate(
             ['key' => $key],
             [
                 'value'       => $value,
@@ -65,6 +94,9 @@ class AppSetting extends Model
                 'description' => $description,
             ]
         );
+
+        static::clearCache();
+        return $record;
     }
 
     /**
@@ -72,16 +104,18 @@ class AppSetting extends Model
      */
     public static function getAppConfig(): array
     {
-        $appName = static::get('app_name', 'Chinchins Live');
-        $appLogo = static::get('app_logo', 'assets/images/branding/logo.png');
-        $appTagline = static::get('app_tagline', 'Meet, Chat & Video Call Live');
+        $all = static::getAllCached();
+
+        $appName = $all['app_name'] ?? 'Chinchins Live';
+        $appLogo = $all['app_logo'] ?? 'assets/images/branding/logo.png';
+        $appTagline = $all['app_tagline'] ?? 'Meet, Chat & Video Call Live';
 
         $logoUrl = asset(ltrim($appLogo, '/'));
         if (str_starts_with($appLogo, 'http://') || str_starts_with($appLogo, 'https://')) {
             $logoUrl = $appLogo;
         }
 
-        $floatingBannerImage = static::get('floating_vip_banner_image', 'assets/images/vip/floating_extra_gems.png');
+        $floatingBannerImage = $all['floating_vip_banner_image'] ?? 'assets/images/vip/floating_extra_gems.png';
         $floatingBannerImageUrl = asset(ltrim($floatingBannerImage, '/'));
         if (str_starts_with($floatingBannerImage, 'http://') || str_starts_with($floatingBannerImage, 'https://')) {
             $floatingBannerImageUrl = $floatingBannerImage;
@@ -91,17 +125,17 @@ class AppSetting extends Model
             'app_name'                    => $appName,
             'app_tagline'                 => $appTagline,
             'app_logo_url'                => $logoUrl,
-            'app_icon_url'                => asset(ltrim(static::get('app_icon', 'assets/images/branding/icon.png'), '/')),
-            'app_version'                 => static::get('app_version', '1.0.0'),
-            'free_messages_limit'         => (int) static::get('free_messages_limit', 5),
-            'message_coin_cost'           => (int) static::get('message_coin_cost', 5),
-            'currency_symbol'             => static::get('currency_symbol', 'BDT'),
+            'app_icon_url'                => asset(ltrim($all['app_icon'] ?? 'assets/images/branding/icon.png', '/')),
+            'app_version'                 => $all['app_version'] ?? '1.0.0',
+            'free_messages_limit'         => (int) ($all['free_messages_limit'] ?? 5),
+            'message_coin_cost'           => (int) ($all['message_coin_cost'] ?? 5),
+            'currency_symbol'             => $all['currency_symbol'] ?? 'BDT',
             'floating_vip_banner'         => [
-                'is_enabled'    => (bool) filter_var(static::get('floating_vip_banner_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
-                'title'         => static::get('floating_vip_banner_title', 'Extra Gems'),
-                'tag'           => static::get('floating_vip_banner_tag', 'Monthly Card'),
+                'is_enabled'    => (bool) filter_var($all['floating_vip_banner_enabled'] ?? '1', FILTER_VALIDATE_BOOLEAN),
+                'title'         => $all['floating_vip_banner_title'] ?? 'Extra Gems',
+                'tag'           => $all['floating_vip_banner_tag'] ?? 'Monthly Card',
                 'image_url'     => $floatingBannerImageUrl,
-                'action_type'   => static::get('floating_vip_banner_action', 'OPEN_PREMIUM_VIP'),
+                'action_type'   => $all['floating_vip_banner_action'] ?? 'OPEN_PREMIUM_VIP',
                 'target_screen' => '/premium-vip',
             ],
         ];

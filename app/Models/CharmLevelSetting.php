@@ -31,12 +31,42 @@ class CharmLevelSetting extends Model
         return Gift::formatCoins($this->required_coins);
     }
 
+    const CACHE_KEY = 'charm_level_settings_all_v2';
+    protected static ?\Illuminate\Support\Collection $_staticLevels = null;
+
     /**
-     * Calculate Charm Level and progress for a user given their total received coins.
+     * Clear charm level cache.
+     */
+    public static function clearCache(): void
+    {
+        static::$_staticLevels = null;
+        \Illuminate\Support\Facades\Cache::forget(static::CACHE_KEY);
+    }
+
+    /**
+     * Get all cached levels in 0 DB queries.
+     */
+    public static function getAllCached(): \Illuminate\Support\Collection
+    {
+        if (static::$_staticLevels !== null) {
+            return static::$_staticLevels;
+        }
+
+        static::$_staticLevels = \Illuminate\Support\Facades\Cache::remember(
+            static::CACHE_KEY,
+            3600,
+            fn() => static::orderBy('level', 'asc')->get()
+        );
+
+        return static::$_staticLevels;
+    }
+
+    /**
+     * Calculate Charm Level and progress for a user given their total received coins in 0 DB queries.
      */
     public static function calculateLevel(int $totalCoins): array
     {
-        $levels = static::orderBy('level', 'asc')->get();
+        $levels = static::getAllCached();
 
         if ($levels->isEmpty()) {
             // Default formula if table is empty (every 10,000 coins is 1 level)

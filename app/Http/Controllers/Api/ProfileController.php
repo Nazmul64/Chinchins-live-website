@@ -23,7 +23,7 @@ class ProfileController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = User::query();
+        $query = User::with(['kycVerification', 'wallet']);
 
         // Optional filters
         if ($request->has('is_active')) {
@@ -87,11 +87,12 @@ class ProfileController extends Controller
             ], 422);
         }
 
-        $query = User::query();
+        $query = User::with(['kycVerification', 'wallet']);
 
         // Exact match prioritized for Account ID
         if (is_numeric($term)) {
-            $exactUser = User::where('account_id', $term)
+            $exactUser = User::with(['kycVerification', 'wallet'])
+                ->where('account_id', $term)
                 ->orWhere('id', (int) $term)
                 ->first();
 

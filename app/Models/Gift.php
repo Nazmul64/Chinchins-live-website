@@ -140,10 +140,13 @@ class Gift extends Model
     }
 
     /**
-     * Seed comprehensive 27+ 2D/3D animated live streaming gifts across all categories.
+     * Seed comprehensive 27+ 2D/3D animated live streaming gifts across all categories if table is empty.
      */
     public static function seedDefaultGifts(): void
     {
+        if (static::count() > 0) {
+            return;
+        }
         $defaultGifts = [
             // ==========================================
             // 🌟 1. POPULAR GIFTS (Entry & High Frequency)

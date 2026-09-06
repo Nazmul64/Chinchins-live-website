@@ -32,18 +32,39 @@ class AppVersion extends Model
         'release_date' => 'datetime',
     ];
 
+    const CACHE_KEY_PREFIX = 'app_version_latest_';
+
     /**
-     * Get the latest active version for given platform.
+     * Clear version cache on save/delete.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            \Illuminate\Support\Facades\Cache::flush();
+        });
+        static::deleted(function () {
+            \Illuminate\Support\Facades\Cache::flush();
+        });
+    }
+
+    /**
+     * Get the latest active version for given platform (cached in 0 DB queries).
      */
     public static function getLatest(string $platform = 'android'): ?self
     {
-        return static::where('is_active', true)
-            ->where(function ($q) use ($platform) {
-                $q->where('platform', $platform)
-                  ->orWhere('platform', 'all');
-            })
-            ->orderBy('version_code', 'desc')
-            ->first();
+        return \Illuminate\Support\Facades\Cache::remember(
+            static::CACHE_KEY_PREFIX . $platform,
+            3600,
+            function () use ($platform) {
+                return static::where('is_active', true)
+                    ->where(function ($q) use ($platform) {
+                        $q->where('platform', $platform)
+                          ->orWhere('platform', 'all');
+                    })
+                    ->orderBy('version_code', 'desc')
+                    ->first();
+            }
+        );
     }
 
     /**

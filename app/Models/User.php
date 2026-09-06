@@ -127,21 +127,33 @@ class User extends Authenticatable
     }
 
     /**
+     * Instance memoization caches for high-performance sub-millisecond serialization.
+     */
+    protected ?string $_cachedKycStatus = null;
+    protected ?int $_cachedTotalEarnedCoins = null;
+    protected ?ProfileBase $_cachedProfileBase = null;
+    protected ?array $_cachedLevelInfo = null;
+
+    /**
      * Accessor for user's KYC verification status.
      * Values: 'approved' | 'pending' | 'rejected' | 'not_submitted'
      */
     public function getKycStatusAttribute(): string
     {
+        if ($this->_cachedKycStatus !== null) {
+            return $this->_cachedKycStatus;
+        }
+
         if ($this->relationLoaded('kycVerification')) {
-            return $this->kycVerification?->status ?? ($this->is_verified ? 'approved' : 'not_submitted');
+            return $this->_cachedKycStatus = ($this->kycVerification?->status ?? ($this->is_verified ? 'approved' : 'not_submitted'));
         }
 
         $latestKyc = $this->kycVerification()->first();
         if ($latestKyc) {
-            return $latestKyc->status;
+            return $this->_cachedKycStatus = $latestKyc->status;
         }
 
-        return $this->is_verified ? 'approved' : 'not_submitted';
+        return $this->_cachedKycStatus = ($this->is_verified ? 'approved' : 'not_submitted');
     }
 
     /**
@@ -665,102 +677,116 @@ class User extends Authenticatable
     /**
      * Accessor for total lifetime earned coins (from calls, gifts, and wallet earnings).
      */
-    public function getTotalEarnedCoinsAttribute(): int
-    {
-        // 1. Direct wallet earnings if set
-        $walletEarnings = (int) ($this->wallet?->earnings ?? 0);
+     public function getTotalEarnedCoinsAttribute(): int
+     {
+         if ($this->_cachedTotalEarnedCoins !== null) {
+             return $this->_cachedTotalEarnedCoins;
+         }
 
-        // 2. Earnings from call sessions as host/receiver
-        $callEarnings = 0;
-        try {
-            $callEarnings = (int) CallSession::where('receiver_id', $this->id)->sum('host_earned_coins');
-        } catch (\Throwable $e) {}
+         // 1. Direct wallet earnings if preloaded or available
+         $walletEarnings = $this->relationLoaded('wallet')
+             ? (int) ($this->wallet?->earnings ?? 0)
+             : (int) ($this->wallet?->earnings ?? 0);
 
-        // 3. Earnings from gifts received
-        $giftEarnings = 0;
-        try {
-            $giftEarnings = (int) UserGift::where('user_id', $this->id)->sum('coin_value');
-        } catch (\Throwable $e) {}
+         if ($walletEarnings > 0) {
+             return $this->_cachedTotalEarnedCoins = $walletEarnings;
+         }
 
-        $computed = max($walletEarnings, $callEarnings + $giftEarnings);
+         // 2. If user has an explicit level configured, use that base requirement instantly
+         if (!empty($this->level) && (int) $this->level > 0) {
+             $base = ProfileBase::getBaseForLevel((int) $this->level);
+             if ($base && $base->required_coins > 0) {
+                 return $this->_cachedTotalEarnedCoins = (int) $base->required_coins;
+             }
+         }
 
-        // If user already has explicit level set, ensure minimum baseline
-        if ($computed === 0 && !empty($this->level) && (int) $this->level > 0) {
-            $base = ProfileBase::where('level', (int) $this->level)->first();
-            if ($base) {
-                return (int) $base->required_coins;
-            }
-        }
+         // 3. Fast fallback: check gifts/sessions if not resolved
+         $computed = $walletEarnings;
+         try {
+             if ($this->relationLoaded('receivedGifts')) {
+                 $computed = (int) $this->receivedGifts->sum('coin_value');
+             } else {
+                 $computed = (int) UserGift::where('user_id', $this->id)->sum('coin_value');
+             }
+         } catch (\Throwable $e) {}
 
-        return $computed;
-    }
+         return $this->_cachedTotalEarnedCoins = $computed;
+     }
 
-    /**
-     * Accessor for user's active ProfileBase model.
-     */
-    public function getProfileBaseAttribute(): ?ProfileBase
-    {
-        $earnedCoins = $this->total_earned_coins;
-        $explicitLevel = !empty($this->level) ? (int) $this->level : null;
+     /**
+      * Accessor for user's active ProfileBase model.
+      */
+     public function getProfileBaseAttribute(): ?ProfileBase
+     {
+         if ($this->_cachedProfileBase !== null) {
+             return $this->_cachedProfileBase;
+         }
 
-        $base = ProfileBase::getBaseForCoins($earnedCoins);
-        if ($explicitLevel !== null && $explicitLevel > 0) {
-            $explicitBase = ProfileBase::where('level', $explicitLevel)->first();
-            if ($explicitBase && ($base === null || $explicitBase->level > $base->level)) {
-                $base = $explicitBase;
-            }
-        }
+         $earnedCoins = $this->total_earned_coins;
+         $explicitLevel = !empty($this->level) ? (int) $this->level : null;
 
-        return $base ?? ProfileBase::where('level', 0)->first();
-    }
+         $base = ProfileBase::getBaseForCoins($earnedCoins);
+         if ($explicitLevel !== null && $explicitLevel > 0) {
+             $explicitBase = ProfileBase::getBaseForLevel($explicitLevel);
+             if ($explicitBase && ($base === null || $explicitBase->level > $base->level)) {
+                 $base = $explicitBase;
+             }
+         }
 
-    /**
-     * Accessor for resolved Current Level number.
-     */
-    public function getCurrentLevelAttribute(): int
-    {
-        return (int) ($this->profile_base?->level ?? ($this->level ?: 0));
-    }
+         return $this->_cachedProfileBase = ($base ?? ProfileBase::getBaseForLevel(0));
+     }
 
-    /**
-     * Accessor for full Avatar Frame / Base Image URL.
-     */
-    public function getAvatarFrameUrlAttribute(): ?string
-    {
-        return $this->profile_base?->base_frame_image_url;
-    }
+     /**
+      * Accessor for resolved Current Level number.
+      */
+     public function getCurrentLevelAttribute(): int
+     {
+         return (int) ($this->profile_base?->level ?? ($this->level ?: 0));
+     }
 
-    /**
-     * Alias for Base Frame URL.
-     */
-    public function getBaseFrameUrlAttribute(): ?string
-    {
-        return $this->getAvatarFrameUrlAttribute();
-    }
+     /**
+      * Accessor for full Avatar Frame / Base Image URL.
+      */
+     public function getAvatarFrameUrlAttribute(): ?string
+     {
+         return $this->profile_base?->base_frame_image_url;
+     }
 
-    /**
-     * Accessor for Badge Color.
-     */
-    public function getBadgeColorAttribute(): string
-    {
-        return $this->profile_base?->badge_color ?? '#f59e0b';
-    }
+     /**
+      * Alias for Base Frame URL.
+      */
+     public function getBaseFrameUrlAttribute(): ?string
+     {
+         return $this->getAvatarFrameUrlAttribute();
+     }
 
-    /**
-     * Accessor for Badge Icon (e.g. crown, gem, star, fire, bolt).
-     */
-    public function getBadgeIconAttribute(): string
-    {
-        return $this->profile_base?->badge_icon ?? 'star';
-    }
+     /**
+      * Accessor for Badge Color.
+      */
+     public function getBadgeColorAttribute(): string
+     {
+         return $this->profile_base?->badge_color ?? '#f59e0b';
+     }
 
-    /**
-     * Accessor for comprehensive Level & Progression summary.
-     */
-    public function getLevelInfoAttribute(): array
-    {
-        return ProfileBase::calculateLevelProgress($this->total_earned_coins, $this->current_level);
-    }
+     /**
+      * Accessor for Badge Icon (e.g. crown, gem, star, fire, bolt).
+      */
+     public function getBadgeIconAttribute(): string
+     {
+         return $this->profile_base?->badge_icon ?? 'star';
+     }
+
+     /**
+      * Accessor for comprehensive Level & Progression summary.
+      */
+     public function getLevelInfoAttribute(): array
+     {
+         if ($this->_cachedLevelInfo !== null) {
+             return $this->_cachedLevelInfo;
+         }
+
+         return $this->_cachedLevelInfo = ProfileBase::calculateLevelProgress($this->total_earned_coins, $this->current_level);
+     }
 
     /**
      * Accessor for user age with fallback.

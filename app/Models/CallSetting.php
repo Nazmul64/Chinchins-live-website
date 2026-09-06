@@ -49,49 +49,78 @@ class CallSetting extends Model
         ];
     }
 
+    const CACHE_KEY = 'call_settings_dictionary_v2';
+    protected static ?array $_staticSettings = null;
+
     /**
-     * Get setting value by key.
+     * Clear call settings cache.
      */
-    public static function get(string $key, $default = null)
+    public static function clearCache(): void
     {
-        $defaults = static::defaults();
-        $fallback = $default ?? ($defaults[$key] ?? null);
-
-        $setting = static::where('key', $key)->first();
-        if ($setting) {
-            return $setting->value ?? $fallback;
-        }
-
-        return $fallback;
+        static::$_staticSettings = null;
+        \Illuminate\Support\Facades\Cache::forget(static::CACHE_KEY);
     }
 
     /**
-     * Set setting value.
+     * Get all cached settings dictionary in 0 DB queries.
+     */
+    public static function getAllCached(): array
+    {
+        if (static::$_staticSettings !== null) {
+            return static::$_staticSettings;
+        }
+
+        static::$_staticSettings = \Illuminate\Support\Facades\Cache::remember(
+            static::CACHE_KEY,
+            3600,
+            function () {
+                $defaults = static::defaults();
+                $dbSettings = static::pluck('value', 'key')->toArray();
+                return array_merge($defaults, $dbSettings);
+            }
+        );
+
+        return static::$_staticSettings;
+    }
+
+    /**
+     * Get setting value by key in 0 DB queries.
+     */
+    public static function get(string $key, $default = null)
+    {
+        $all = static::getAllCached();
+        return $all[$key] ?? $default ?? (static::defaults()[$key] ?? null);
+    }
+
+    /**
+     * Set setting value and invalidate cache.
      */
     public static function set(string $key, $value, ?string $description = null): self
     {
-        return static::updateOrCreate(
+        $record = static::updateOrCreate(
             ['key' => $key],
             [
                 'value' => is_array($value) ? json_encode($value) : (string) $value,
                 'description' => $description,
             ]
         );
+
+        static::clearCache();
+        return $record;
     }
 
     /**
-     * Get all aggregated call configuration.
+     * Get all aggregated call configuration in 0 DB queries.
      */
     public static function getAllConfig(): array
     {
         $defaults = static::defaults();
-        $dbSettings = static::pluck('value', 'key')->toArray();
-        $merged = array_merge($defaults, $dbSettings);
+        $merged = static::getAllCached();
 
         $hostPercent = (float) ($merged['host_earning_percent'] ?? 50.00);
         $adminPercent = (float) ($merged['admin_commission_percent'] ?? 50.00);
         $freeSecs = (int) ($merged['free_call_duration_seconds'] ?? 16);
-        $videoRate = (int) ($merged['video_call_rate_per_minute'] ?? 1800); // 1800 coins/min as shown in screenshot
+        $videoRate = (int) ($merged['video_call_rate_per_minute'] ?? 1800);
         $audioRate = (int) ($merged['audio_call_rate_per_minute'] ?? 100);
         $freeMessages = (int) ($merged['free_message_chances'] ?? 2);
 
