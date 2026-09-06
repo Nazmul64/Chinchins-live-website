@@ -78,10 +78,13 @@ class StreamingController extends Controller
     public function getSessionToken(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'channel_name' => 'required|string|max:150',
-            'call_type'    => 'nullable|in:audio,video,live,1on1_video,1on1_audio',
-            'role'         => 'nullable|in:publisher,subscriber,host,audience',
-            'uid'          => 'nullable',
+            'channel_name'   => 'required|string|max:150',
+            'call_type'      => 'nullable|in:audio,video,live,1on1_video,1on1_audio',
+            'role'           => 'nullable|in:publisher,subscriber,host,audience',
+            'uid'            => 'nullable',
+            'target_user_id' => 'nullable',
+            'receiver_id'    => 'nullable',
+            'peer_id'        => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -104,24 +107,57 @@ class StreamingController extends Controller
         // UID resolution
         $uid = (int) ($request->input('uid') ?: ($user ? $user->id : mt_rand(100000, 999999)));
 
-        // Agora RTC Mode
+        // Resolve Target/Peer User Profile (Avatar, Name, Gems/Coins for Full-Screen Caller Display)
+        $targetId = $request->input('target_user_id') 
+                 ?? $request->input('receiver_id') 
+                 ?? $request->input('peer_id') 
+                 ?? $request->input('target_id')
+                 ?? $request->input('to_user_id');
+        $targetUserData = null;
+        if ($targetId) {
+            $targetUser = User::find($targetId) ?? User::where('account_id', $targetId)->first();
+            if ($targetUser) {
+                $targetUserData = [
+                    'id'          => $targetUser->id,
+                    'account_id'  => $targetUser->account_id,
+                    'name'        => $targetUser->display_name ?? $targetUser->name ?? 'User',
+                    'avatar_url'  => $targetUser->avatar_url,
+                    'level'       => (int) ($targetUser->level ?? 1),
+                    'coins'       => (int) ($targetUser->coins ?? 0),
+                    'frame_url'   => $targetUser->avatar_frame_url ?? null,
+                ];
+            }
+        }
+
+        // Agora RTC Mode (Dynamic Builder OR Admin Temp-Token Override)
         if ($driver === 'agora') {
             $appId = $setting->agora_app_id ?: env('AGORA_APP_ID', '');
             $appCert = $setting->agora_app_certificate ?: env('AGORA_APP_CERTIFICATE', '');
             $expireSeconds = $setting->token_expire_seconds ?: 86400; // 24 hours
 
-            $agoraRole = in_array($rawRole, ['publisher', 'host']) 
-                ? AgoraTokenBuilder::ROLE_PUBLISHER 
-                : AgoraTokenBuilder::ROLE_SUBSCRIBER;
+            // Admin Panel Temp-Token Override check
+            if ($setting->hasTempToken()) {
+                $token = trim($setting->agora_temp_token);
+                if (!empty($setting->agora_manual_channel)) {
+                    $channelName = trim($setting->agora_manual_channel);
+                }
+                $isTempToken = true;
+            } else {
+                // Automated Dynamic HMAC-SHA256 Token Builder
+                $agoraRole = in_array($rawRole, ['publisher', 'host']) 
+                    ? AgoraTokenBuilder::ROLE_PUBLISHER 
+                    : AgoraTokenBuilder::ROLE_SUBSCRIBER;
 
-            $token = AgoraTokenBuilder::buildTokenWithUid(
-                appId: $appId,
-                appCertificate: $appCert,
-                channelName: $channelName,
-                uid: $uid,
-                role: $agoraRole,
-                privilegeExpireTs: time() + $expireSeconds
-            );
+                $token = AgoraTokenBuilder::buildTokenWithUid(
+                    appId: $appId,
+                    appCertificate: $appCert,
+                    channelName: $channelName,
+                    uid: $uid,
+                    role: $agoraRole,
+                    privilegeExpireTs: time() + $expireSeconds
+                );
+                $isTempToken = false;
+            }
 
             return response()->json([
                 'success'          => true,
@@ -131,15 +167,18 @@ class StreamingController extends Controller
                 'agora_app_id'     => $appId,
                 'agora_token'      => $token,
                 'agora_uid'        => $uid,
+                'is_temp_token'    => $isTempToken,
                 'user_id'          => $user?->id ?? $uid,
                 'account_id'       => $user?->account_id,
+                'target_user'      => $targetUserData,
                 'call_type'        => $callType,
                 'role'             => $rawRole,
                 'expire_seconds'   => $expireSeconds,
                 'enable_video'     => (bool) $setting->enable_video_call,
                 'enable_audio'     => (bool) $setting->enable_audio_call,
                 'enable_live'      => (bool) $setting->enable_live_stream,
-                'message'          => 'Connected via Agora Cloud Engine',
+                'status_text'      => 'Connecting...',
+                'message'          => 'Ready',
             ], 200);
         }
 
@@ -153,6 +192,7 @@ class StreamingController extends Controller
             'channel_name'     => $channelName,
             'user_id'          => $user?->id ?? $uid,
             'account_id'       => $user?->account_id,
+            'target_user'      => $targetUserData,
             'call_type'        => $callType,
             'role'             => $rawRole,
             'signaling_host'   => $reverbConfig['host'],
@@ -163,7 +203,8 @@ class StreamingController extends Controller
             'enable_video'     => (bool) $setting->enable_video_call,
             'enable_audio'     => (bool) $setting->enable_audio_call,
             'enable_live'      => (bool) $setting->enable_live_stream,
-            'message'          => 'Connected via VPS WebRTC + Reverb Engine',
+            'status_text'      => 'Connecting...',
+            'message'          => 'Ready',
         ], 200);
     }
 
@@ -185,6 +226,8 @@ class StreamingController extends Controller
                 'is_vps_webrtc'         => $setting->isWebRTC(),
                 'agora_app_id'          => $setting->isAgora() ? $setting->agora_app_id : null,
                 'agora_project_name'    => $setting->agora_project_name,
+                'has_temp_token'        => $setting->hasTempToken(),
+                'agora_manual_channel'  => $setting->agora_manual_channel,
                 'signaling_host'        => $reverbConfig['host'],
                 'signaling_port'        => $reverbConfig['port'],
                 'enable_video_call'     => (bool) $setting->enable_video_call,

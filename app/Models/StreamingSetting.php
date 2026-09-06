@@ -17,6 +17,8 @@ class StreamingSetting extends Model
         'agora_project_name',
         'agora_app_id',
         'agora_app_certificate',
+        'agora_temp_token',
+        'agora_manual_channel',
         'enable_video_call',
         'enable_audio_call',
         'enable_live_stream',
@@ -65,6 +67,14 @@ class StreamingSetting extends Model
             }
             return $setting;
         });
+    }
+
+    /**
+     * Check if manual Temp Token is configured in Admin Panel.
+     */
+    public function hasTempToken(): bool
+    {
+        return !empty(trim($this->agora_temp_token ?? ''));
     }
 
     /**

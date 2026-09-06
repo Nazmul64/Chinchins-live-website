@@ -19,6 +19,10 @@ return new class extends Migration {
                 $table->string('agora_app_id')->nullable();
                 $table->text('agora_app_certificate')->nullable();
                 
+                // Admin Panel Manual Temp RTC Token & Channel Override
+                $table->text('agora_temp_token')->nullable();
+                $table->string('agora_manual_channel')->nullable();
+                
                 // Audio/Video Call and Live Streaming Toggles
                 $table->boolean('enable_video_call')->default(true);
                 $table->boolean('enable_audio_call')->default(true);

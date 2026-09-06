@@ -602,13 +602,24 @@
                         </div>
                     </div>
 
-                    <!-- 2. Agora Console Credentials -->
+                    <!-- 2. Agora Console Credentials & Token Configuration -->
                     <div class="card bg-light border-0 rounded-4 p-4 mb-4">
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <i class="fa-solid fa-key text-warning fs-5"></i>
-                            <h5 class="fw-bold mb-0">2. Agora Console Credentials (Required for Agora Cloud Mode)</h5>
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fa-solid fa-key text-warning fs-5"></i>
+                                <h5 class="fw-bold mb-0">2. Agora Console Credentials & Token Configuration</h5>
+                            </div>
+                            @if(!empty($streamingSetting->agora_temp_token))
+                                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill font-monospace" style="font-size: 11px;">
+                                    <i class="fa-solid fa-flask me-1"></i> Admin Temp-Token Active
+                                </span>
+                            @else
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill" style="font-size: 11px;">
+                                    <i class="fa-solid fa-shield-halved me-1"></i> Auto-Dynamic HMAC-SHA256 Token Active
+                                </span>
+                            @endif
                         </div>
-                        <p class="text-muted small mb-3">Obtain these three fields from your <a href="https://console.agora.io" target="_blank" class="fw-bold text-primary">Agora Developer Console &rarr; Project Management</a>.</p>
+                        <p class="text-muted small mb-3">Obtain these credentials from your <a href="https://console.agora.io" target="_blank" class="fw-bold text-primary">Agora Developer Console &rarr; Project Management</a>.</p>
 
                         <div class="row g-3">
                             <!-- Project Name -->
@@ -630,6 +641,30 @@
                                 <label class="form-label fw-semibold" style="font-size: 13px;">Agora Primary Certificate <span class="text-danger">*</span></label>
                                 <input type="password" name="agora_app_certificate" class="form-control font-monospace" placeholder="Paste Primary Certificate from Security" value="{{ old('agora_app_certificate', $streamingSetting->agora_app_certificate ?? '') }}">
                                 <small class="text-muted" style="font-size: 11px;">Kept secret on server (never exposed to client app)</small>
+                            </div>
+                        </div>
+
+                        <!-- 2.1 Temp RTC Token & Manual Channel Override (Optional) -->
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="fa-solid fa-ticket-simple text-primary"></i>
+                                <h6 class="fw-bold mb-0" style="font-size: 14px;">Temp RTC Token & Channel (Optional Manual Admin Override / Instant Testing)</h6>
+                            </div>
+                            <p class="text-muted small mb-3">
+                                Agora Console &rarr; <strong>Security &rarr; Generate Temp Token</strong> থেকে চ্যানেল নাম লিখে তৈরি করা টোকেন এখানে পেস্ট করে সরাসরি টেস্ট করতে পারবেন। 
+                                ফাঁকা রাখলে স্বয়ংক্রিয়ভাবে ব্যাকএন্ড <strong>Dynamic Token Builder (HMAC-SHA256)</strong> ব্যবহার করে প্রতি কলের জন্য নতুন টোকেন তৈরি করবে।
+                            </p>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-8">
+                                    <label class="form-label fw-semibold" style="font-size: 13px;">Temp RTC Token (Manual Override)</label>
+                                    <textarea name="agora_temp_token" rows="2" class="form-control font-monospace small" placeholder="Paste Temp Token from Agora Console (starts with 006 or 007)... Leave empty for Auto-Dynamic Token">{{ old('agora_temp_token', $streamingSetting->agora_temp_token ?? '') }}</textarea>
+                                    <small class="text-muted" style="font-size: 11px;">When filled, API directly serves this token to Flutter app without dynamic generation.</small>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label fw-semibold" style="font-size: 13px;">Manual Channel Name (For Temp Token)</label>
+                                    <input type="text" name="agora_manual_channel" class="form-control font-monospace" placeholder="e.g. test_room or leave empty" value="{{ old('agora_manual_channel', $streamingSetting->agora_manual_channel ?? '') }}">
+                                    <small class="text-muted" style="font-size: 11px;">Required only if you generated Temp Token for a specific channel name in Agora Console.</small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -682,24 +717,28 @@
 {
   "channel_name": "call_room_849201",
   "call_type": "video", // audio, video, live
-  "role": "publisher"
+  "role": "publisher",
+  "target_user_id": 12 // optional target peer ID
 }
 
 // Current Dynamic Response:
 {
   "success": true,
   "driver": "{{ $streamingSetting->active_driver ?? 'vps_webrtc' }}",
-  "channel_name": "call_room_849201",
+  "channel_name": "{{ !empty($streamingSetting->agora_manual_channel) ? $streamingSetting->agora_manual_channel : 'call_room_849201' }}",
   @if(($streamingSetting->active_driver ?? 'vps_webrtc') === 'agora')
   "agora_app_id": "{{ $streamingSetting->agora_app_id ?? 'your_agora_app_id' }}",
-  "agora_token": "006eyAiYWxnIj...",
+  "agora_token": "{{ !empty($streamingSetting->agora_temp_token) ? substr($streamingSetting->agora_temp_token, 0, 20) . '...' : '006eyAiYWxnIj...' }}",
   "agora_uid": 14,
-  "message": "Connected via Agora Cloud Engine"
+  "is_temp_token": {{ !empty($streamingSetting->agora_temp_token) ? 'true' : 'false' }},
+  "status_text": "Connecting...",
+  "message": "Ready"
   @else
   "signaling_host": "{{ $streamingSetting->reverb_host ?: 'chinchins.live' }}",
   "signaling_port": 443,
   "auth_endpoint": "https://chinchins.live/api/broadcasting/auth",
-  "message": "Connected via VPS WebRTC Engine"
+  "status_text": "Connecting...",
+  "message": "Ready"
   @endif
 }</code></pre>
                     </div>

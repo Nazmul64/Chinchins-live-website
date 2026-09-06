@@ -27,6 +27,8 @@ class StreamingAdminController extends Controller
             'agora_project_name'    => 'nullable|string|max:150',
             'agora_app_id'          => 'nullable|string|max:200',
             'agora_app_certificate' => 'nullable|string|max:500',
+            'agora_temp_token'      => 'nullable|string',
+            'agora_manual_channel'  => 'nullable|string|max:150',
             'reverb_host'           => 'nullable|string|max:150',
             'reverb_port'           => 'nullable|integer',
             'token_expire_seconds'  => 'nullable|integer|min:300|max:604800',
@@ -43,6 +45,8 @@ class StreamingAdminController extends Controller
         $setting->agora_project_name    = $request->input('agora_project_name');
         $setting->agora_app_id          = trim($request->input('agora_app_id') ?: '');
         $setting->agora_app_certificate = trim($request->input('agora_app_certificate') ?: '');
+        $setting->agora_temp_token      = $request->input('agora_temp_token') ? trim($request->input('agora_temp_token')) : null;
+        $setting->agora_manual_channel  = $request->input('agora_manual_channel') ? trim($request->input('agora_manual_channel')) : null;
         $setting->enable_video_call     = $request->boolean('enable_video_call', true);
         $setting->enable_audio_call     = $request->boolean('enable_audio_call', true);
         $setting->enable_live_stream    = $request->boolean('enable_live_stream', true);
@@ -54,8 +58,9 @@ class StreamingAdminController extends Controller
         StreamingSetting::clearCache();
 
         $engineName = $driver === 'agora' ? 'Agora Cloud Engine (RTC/RTM)' : 'Hostinger VPS (Laravel Reverb + WebRTC)';
+        $tokenMode = (!empty($setting->agora_temp_token)) ? ' [Admin Temp-Token Override Active]' : ' [Auto-Dynamic Token Active]';
 
-        return back()->with('success', "Active Video/Audio Calling Engine successfully switched to: {$engineName}!")
+        return back()->with('success', "Active Video/Audio Calling Engine updated: {$engineName}{$tokenMode}!")
                      ->with('active_tab', 'streaming');
     }
 }
