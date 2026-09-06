@@ -88,6 +88,11 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 py-2 fw-semibold" id="legal-tab" data-bs-toggle="tab" data-bs-target="#legal" type="button" role="tab">
+                <i class="fa-solid fa-file-contract me-2"></i> About Us & Legal Pages
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link rounded-pill px-4 py-2 fw-semibold" id="api-tab" data-bs-toggle="tab" data-bs-target="#api" type="button" role="tab">
                 <i class="fa-solid fa-code me-2"></i> Mobile API Docs
             </button>
@@ -447,6 +452,77 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: About Us & Legal Pages -->
+        <div class="tab-pane fade" id="legal" role="tabpanel">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4" style="background: var(--card-bg, #ffffff);">
+                <form action="{{ route('admin.settings.update') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="app_name" value="{{ $merged['app_name'] ?? 'Chinchins Live' }}">
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                        <div>
+                            <h5 class="fw-bold mb-1"><i class="fa-solid fa-file-contract text-primary me-2"></i> Mobile App Pages: About Us & Privacy Policy</h5>
+                            <p class="text-muted small mb-0">Manage full text and legal disclosures displayed inside the Flutter / Android mobile app settings.</p>
+                        </div>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Legal & About Pages
+                        </button>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+                        <!-- Company & Contact Info -->
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Company / Entity Name</label>
+                            <input type="text" name="company_name" class="form-control" value="{{ old('company_name', $merged['company_name'] ?? 'Chinchins Live Network Inc.') }}">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Official Website URL</label>
+                            <input type="text" name="official_website" class="form-control" value="{{ old('official_website', $merged['official_website'] ?? 'https://chinchins.live') }}">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" style="font-size: 13px;">Support Email</label>
+                            <input type="email" name="support_email" class="form-control" value="{{ old('support_email', $merged['support_email'] ?? 'support@chinchins.live') }}">
+                        </div>
+                    </div>
+
+                    <!-- About Us Content Area -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold d-flex justify-content-between align-items-center" style="font-size: 14px;">
+                            <span><i class="fa-solid fa-circle-info text-info me-1"></i> About Us Content (Mobile App Settings &rarr; About Us)</span>
+                            <span class="badge bg-primary-subtle text-primary">API: /api/app/about</span>
+                        </label>
+                        <textarea name="about_us" class="form-control font-monospace" rows="8" style="font-size: 13px; line-height: 1.6;" placeholder="Write comprehensive about us text, company mission, platform features...">{{ old('about_us', $merged['about_us'] ?? AppSetting::defaults()['about_us']) }}</textarea>
+                        <small class="text-muted">Supports long text and line breaks. Automatically served to mobile apps via JSON API.</small>
+                    </div>
+
+                    <!-- Privacy Policy Content Area -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold d-flex justify-content-between align-items-center" style="font-size: 14px;">
+                            <span><i class="fa-solid fa-shield-halved text-success me-1"></i> Privacy Policy (Mobile App Settings &rarr; Privacy Policy)</span>
+                            <span class="badge bg-success-subtle text-success">API: /api/app/privacy-policy</span>
+                        </label>
+                        <textarea name="privacy_policy" class="form-control font-monospace" rows="12" style="font-size: 13px; line-height: 1.6;" placeholder="Write official privacy policy, data collection policies, camera/mic permissions, and data deletion rights...">{{ old('privacy_policy', $merged['privacy_policy'] ?? AppSetting::defaults()['privacy_policy']) }}</textarea>
+                        <small class="text-muted">Includes camera/mic disclosures, end-to-end call encryption notice, and user data deletion policy required for Google Play Store.</small>
+                    </div>
+
+                    <!-- Terms of Service Area -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold d-flex justify-content-between align-items-center" style="font-size: 14px;">
+                            <span><i class="fa-solid fa-gavel text-warning me-1"></i> Terms of Service (Terms & Rules)</span>
+                            <span class="badge bg-warning-subtle text-warning">API: /api/app/terms</span>
+                        </label>
+                        <textarea name="terms_of_service" class="form-control font-monospace" rows="8" style="font-size: 13px; line-height: 1.6;" placeholder="Write 18+ eligibility rules, prohibited conduct, virtual currency terms...">{{ old('terms_of_service', $merged['terms_of_service'] ?? AppSetting::defaults()['terms_of_service']) }}</textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Legal & About Pages
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

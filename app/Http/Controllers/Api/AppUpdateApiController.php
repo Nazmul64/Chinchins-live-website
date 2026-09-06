@@ -177,4 +177,126 @@ class AppUpdateApiController extends Controller
             'result'  => $result,
         ]);
     }
+
+    /**
+     * Get About Us Information (Mobile Settings -> About Us).
+     * GET /api/app/about or GET /api/about or GET /api/app/about-us
+     */
+    public function getAboutUs(Request $request): JsonResponse
+    {
+        $appConfig = AppSetting::getAppConfig();
+        $aboutUsText = AppSetting::get('about_us', AppSetting::defaults()['about_us']);
+        $companyName = AppSetting::get('company_name', 'Chinchins Live Network Inc.');
+        $website = AppSetting::get('official_website', 'https://chinchins.live');
+        $supportEmail = AppSetting::get('support_email', 'support@chinchins.live');
+        $supportWhatsapp = AppSetting::get('support_whatsapp', '+8801700000000');
+        $version = $appConfig['app_version'] ?? '1.0.0';
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'About Us details retrieved successfully.',
+            'data'    => [
+                'app_name'         => $appConfig['app_name'],
+                'app_tagline'      => $appConfig['app_tagline'],
+                'app_logo_url'     => $appConfig['app_logo_url'],
+                'app_icon_url'     => $appConfig['app_icon_url'],
+                'version'          => $version,
+                'company_name'     => $companyName,
+                'official_website' => $website,
+                'support_email'    => $supportEmail,
+                'support_whatsapp' => $supportWhatsapp,
+                'content'          => $aboutUsText,
+                'formatted_html'   => nl2br(e($aboutUsText)),
+                'features'         => [
+                    [
+                        'title'       => 'HD 1-on-1 Video Calls',
+                        'icon'        => 'video_call',
+                        'description' => 'Real-time WebRTC low-latency HD video and crystal-clear audio calls.',
+                    ],
+                    [
+                        'title'       => '160+ Luxury Virtual Gifts',
+                        'icon'        => 'gift',
+                        'description' => 'Animated SVG and 3D effects across 12 unique categories.',
+                    ],
+                    [
+                        'title'       => 'VIP Cards & Privileges',
+                        'icon'        => 'crown',
+                        'description' => 'Exclusive avatar frames, entry badges, and bonus daily gems.',
+                    ],
+                    [
+                        'title'       => '100% Safe Community',
+                        'icon'        => 'security',
+                        'description' => '24/7 AI moderation, end-to-end encrypted calls, and user block/report tools.',
+                    ],
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get Privacy Policy (Mobile Settings -> Privacy Policy).
+     * GET /api/app/privacy-policy or GET /api/privacy-policy
+     */
+    public function getPrivacyPolicy(Request $request): JsonResponse
+    {
+        $appConfig = AppSetting::getAppConfig();
+        $privacyPolicyText = AppSetting::get('privacy_policy', AppSetting::defaults()['privacy_policy']);
+        $updatedAt = AppSetting::get('privacy_policy_updated_at', 'September 2026');
+        $supportEmail = AppSetting::get('support_email', 'support@chinchins.live');
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Privacy Policy retrieved successfully.',
+            'data'    => [
+                'title'          => 'Chinchins Live Privacy Policy',
+                'app_name'       => $appConfig['app_name'],
+                'last_updated'   => $updatedAt,
+                'support_email'  => $supportEmail,
+                'content'        => $privacyPolicyText,
+                'formatted_html' => nl2br(e($privacyPolicyText)),
+                'sections'       => [
+                    [
+                        'heading' => '1. Information We Collect',
+                        'body'    => 'Account profile details (phone, email, name, age, gender), device token for notifications, and encrypted call duration logs.',
+                    ],
+                    [
+                        'heading' => '2. Device Permissions',
+                        'body'    => 'Camera and microphone permissions are strictly used during user-initiated live video calls and audio streaming.',
+                    ],
+                    [
+                        'heading' => '3. Financial Security',
+                        'body'    => 'All recharge transactions and coin packages are processed via secure payment gateways. We never store credit card numbers.',
+                    ],
+                    [
+                        'heading' => '4. Account & Data Deletion Rights',
+                        'body'    => 'Users have the right to permanently delete their account and personal data anytime from Settings -> Delete Account.',
+                    ],
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get Terms of Service (Mobile Settings -> Terms of Service).
+     * GET /api/app/terms or GET /api/terms-of-service
+     */
+    public function getTermsOfService(Request $request): JsonResponse
+    {
+        $appConfig = AppSetting::getAppConfig();
+        $termsText = AppSetting::get('terms_of_service', AppSetting::defaults()['terms_of_service']);
+        $updatedAt = AppSetting::get('privacy_policy_updated_at', 'September 2026');
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Terms of Service retrieved successfully.',
+            'data'    => [
+                'title'          => 'Chinchins Live Terms of Service',
+                'app_name'       => $appConfig['app_name'],
+                'last_updated'   => $updatedAt,
+                'content'        => $termsText,
+                'formatted_html' => nl2br(e($termsText)),
+            ],
+        ], 200);
+    }
 }
+

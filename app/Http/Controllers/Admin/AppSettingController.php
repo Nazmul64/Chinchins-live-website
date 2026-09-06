@@ -45,6 +45,11 @@ class AppSettingController extends Controller
                 'message_coin_cost'   => 'nullable|integer|min:0',
                 'support_email'       => 'nullable|string|max:100',
                 'support_whatsapp'    => 'nullable|string|max:50',
+                'company_name'        => 'nullable|string|max:150',
+                'official_website'    => 'nullable|string|max:200',
+                'about_us'            => 'nullable|string',
+                'privacy_policy'      => 'nullable|string',
+                'terms_of_service'    => 'nullable|string',
                 'fcm_server_key'      => 'nullable|string',
                 'fcm_sender_id'       => 'nullable|string',
                 'app_logo_file'       => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
@@ -58,6 +63,19 @@ class AppSettingController extends Controller
             AppSetting::set('message_coin_cost', $request->input('message_coin_cost') ?: '5', 'chat', 'Coin cost per message');
             AppSetting::set('support_email', $request->input('support_email', 'support@chinchins.live'), 'general', 'Support Email');
             AppSetting::set('support_whatsapp', $request->input('support_whatsapp', '+8801700000000'), 'general', 'Support WhatsApp');
+            AppSetting::set('company_name', $request->input('company_name', 'Chinchins Live Network Inc.'), 'general', 'Company / Entity Name');
+            AppSetting::set('official_website', $request->input('official_website', 'https://chinchins.live'), 'general', 'Official Website URL');
+            
+            if ($request->has('about_us')) {
+                AppSetting::set('about_us', $request->input('about_us'), 'legal', 'About Us text for mobile app');
+            }
+            if ($request->has('privacy_policy')) {
+                AppSetting::set('privacy_policy', $request->input('privacy_policy'), 'legal', 'Privacy Policy text for mobile app');
+                AppSetting::set('privacy_policy_updated_at', date('F Y'), 'legal', 'Privacy policy last updated date');
+            }
+            if ($request->has('terms_of_service')) {
+                AppSetting::set('terms_of_service', $request->input('terms_of_service'), 'legal', 'Terms of Service text for mobile app');
+            }
             
             if ($request->has('fcm_server_key')) {
                 AppSetting::set('fcm_server_key', $request->input('fcm_server_key'), 'push', 'Firebase FCM Server Key');

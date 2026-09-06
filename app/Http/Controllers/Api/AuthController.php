@@ -335,5 +335,85 @@ class AuthController extends Controller
             ],
         ], 200);
     }
+
+    /**
+     * Delete Authenticated User's Account (Mobile App Settings -> Delete Account).
+     * Strict Security: A user can ONLY delete their own authenticated account.
+     * POST /api/user/delete-account, DELETE /api/user/delete-account, POST /api/account/delete
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated. Only the verified account owner can delete this account.',
+            ], 401);
+        }
+
+        // Optional password verification if provided by client app
+        if ($request->filled('password')) {
+            if (!\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Incorrect password. Account deletion aborted.',
+                ], 422);
+            }
+        }
+
+        $userId = $user->id;
+        $accountId = $user->account_id;
+        $userName = $user->display_name;
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // 1. Revoke all active API tokens
+            $user->tokens()->delete();
+
+            // 2. Remove device push registrations & presence
+            if (class_exists('\App\Models\DeviceRegistration')) {
+                \App\Models\DeviceRegistration::where('user_id', $userId)->delete();
+            }
+            if (class_exists('\App\Models\UserPresence')) {
+                \App\Models\UserPresence::where('user_id', $userId)->delete();
+            }
+
+            // 3. Mark user account as deleted / inactive
+            $user->update([
+                'is_active'     => false,
+                'is_busy'       => false,
+                'online_status' => 'deleted',
+                'is_locked'     => true,
+                'locked_reason' => 'Account deleted permanently by user request',
+                'locked_at'     => now(),
+                'fcm_token'     => null,
+                'device_token'  => null,
+                'last_seen_at'  => now(),
+            ]);
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Your account and all associated personal data have been permanently deleted.',
+                'data'    => [
+                    'user_id'    => $userId,
+                    'account_id' => $accountId,
+                    'deleted_at' => now()->toIso8601String(),
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to delete account: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
+
 

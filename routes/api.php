@@ -47,10 +47,31 @@ Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout']);
 Route::match(['get', 'post'], '/auth/logout', [AuthController::class, 'logout']);
 Route::match(['get', 'post'], '/user/logout', [AuthController::class, 'logout']);
 
+// 🗑️ Delete Account (Settings -> Delete Account - Only Authenticated Owner Can Delete)
+Route::match(['post', 'delete'], '/user/delete-account', [AuthController::class, 'deleteAccount']);
+Route::match(['post', 'delete'], '/user/account/delete', [AuthController::class, 'deleteAccount']);
+Route::match(['post', 'delete'], '/account/delete', [AuthController::class, 'deleteAccount']);
+Route::match(['post', 'delete'], '/delete-account', [AuthController::class, 'deleteAccount']);
+
 // 👤 Check Active User Session
 Route::match(['get', 'post'], '/auth/me', [AuthController::class, 'me']);
 Route::match(['get', 'post'], '/auth/check', [AuthController::class, 'me']);
 Route::match(['get', 'post'], '/user/me', [AuthController::class, 'me']);
+
+// 📄 Mobile App Settings: About Us, Privacy Policy & Terms of Service
+Route::get('/app/about', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getAboutUs']);
+Route::get('/app/about-us', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getAboutUs']);
+Route::get('/about', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getAboutUs']);
+Route::get('/about-us', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getAboutUs']);
+
+Route::get('/app/privacy-policy', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getPrivacyPolicy']);
+Route::get('/privacy-policy', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getPrivacyPolicy']);
+Route::get('/privacy', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getPrivacyPolicy']);
+
+Route::get('/app/terms', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
+Route::get('/app/terms-of-service', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
+Route::get('/terms-of-service', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
+Route::get('/terms', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
 
 // Public Home Feed & Users List (Live from Database)
 Route::get('/home', [ProfileController::class, 'index']);
