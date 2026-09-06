@@ -180,6 +180,11 @@
                                             @if($user->is_verified)
                                                 <i class="fa-solid fa-circle-check text-primary" title="Verified Streamer" style="font-size: 13px;"></i>
                                             @endif
+                                            @if($user->is_locked)
+                                                <span class="badge bg-danger px-2 py-0" style="font-size: 10px; font-weight: 700;">
+                                                    <i class="fa-solid fa-ban me-1"></i> BLOCKED
+                                                </span>
+                                            @endif
                                             @if($user->is_free_caller)
                                                 <span class="badge bg-warning text-dark px-2 py-0" style="font-size: 10px; font-weight: 700;" title="Free Caller: Can call with 0 balance">
                                                     <i class="fa-solid fa-star text-dark"></i> Free Host
@@ -244,6 +249,29 @@
                             </td>
                             <td style="text-align: right;">
                                 <div class="d-inline-flex gap-2">
+                                    <!-- Block / Unblock Action -->
+                                    @if($user->is_locked)
+                                        <form action="{{ route('admin.users.toggle-lock', $user->id) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" 
+                                                    class="btn btn-sm btn-danger" 
+                                                    style="border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 700;" 
+                                                    title="Click to Unblock User">
+                                                <i class="fa-solid fa-lock-open me-1"></i> Unblock
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('admin.users.toggle-lock', $user->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Block this user? They will not be able to log in or use the app.');">
+                                            @csrf
+                                            <button type="submit" 
+                                                    class="btn btn-sm btn-outline-danger" 
+                                                    style="border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600;" 
+                                                    title="Click to Block / Ban User">
+                                                <i class="fa-solid fa-ban me-1"></i> Block
+                                            </button>
+                                        </form>
+                                    @endif
+
                                     <!-- Toggle Free Host -->
                                     <form action="{{ route('admin.users.toggle-free-caller', $user->id) }}" method="POST" class="d-inline">
                                         @csrf

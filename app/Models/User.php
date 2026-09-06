@@ -800,6 +800,56 @@ class User extends Authenticatable
         // Deterministic age based on ID for consistent UI display (20 - 32)
         return 20 + ($this->id % 13);
     }
+
+    /**
+     * Users that this user has blocked.
+     */
+    public function blockedUsers()
+    {
+        return $this->hasMany(BlockedUser::class, 'user_id');
+    }
+
+    /**
+     * Users that blocked this user.
+     */
+    public function blockedBy()
+    {
+        return $this->hasMany(BlockedUser::class, 'blocked_user_id');
+    }
+
+    /**
+     * Check if this user has blocked target user.
+     */
+    public function hasBlocked(int|User $targetUser): bool
+    {
+        $targetId = $targetUser instanceof User ? $targetUser->id : $targetUser;
+        return $this->blockedUsers()->where('blocked_user_id', $targetId)->exists();
+    }
+
+    /**
+     * Check if this user is blocked by target user.
+     */
+    public function isBlockedBy(int|User $targetUser): bool
+    {
+        $targetId = $targetUser instanceof User ? $targetUser->id : $targetUser;
+        return $this->blockedBy()->where('user_id', $targetId)->exists();
+    }
+
+    /**
+     * Reports filed by this user.
+     */
+    public function reportsMade()
+    {
+        return $this->hasMany(UserReport::class, 'reporter_id');
+    }
+
+    /**
+     * Reports filed against this user.
+     */
+    public function reportsReceived()
+    {
+        return $this->hasMany(UserReport::class, 'reported_user_id');
+    }
 }
 
 

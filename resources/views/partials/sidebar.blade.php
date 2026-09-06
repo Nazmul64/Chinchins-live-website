@@ -205,6 +205,20 @@
             @endif
         </a>
 
+        <!-- User & In-Chat Reports Moderation -->
+        @php
+            $pendingReportsCount = \App\Models\UserReport::where('status', 'pending')->count();
+        @endphp
+        <a href="{{ route('admin.reports.index') }}" class="menu-item {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i>
+                <span>User Reports</span>
+            </div>
+            @if($pendingReportsCount > 0)
+                <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingReportsCount }}</span>
+            @endif
+        </a>
+
         <!-- Audio & Video Calling Sessions & Revenue -->
         <div class="menu-item-group {{ request()->routeIs('admin.calls.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.calls.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">

@@ -363,7 +363,23 @@ Route::prefix('chat')->group(function () {
     Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
     Route::post('/upload', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);
     Route::post('/read', [\App\Http\Controllers\Api\MessageApiController::class, 'markAsRead']);
+    
+    // Peer-to-Peer Block & Unblock
+    Route::post('/block', [\App\Http\Controllers\Api\MessageApiController::class, 'blockUser']);
+    Route::post('/unblock', [\App\Http\Controllers\Api\MessageApiController::class, 'unblockUser']);
+    Route::get('/blocked-users', [\App\Http\Controllers\Api\MessageApiController::class, 'getBlockedUsers']);
+
+    // In-Chat User Reporting
+    Route::post('/report', [\App\Http\Controllers\Api\MessageApiController::class, 'reportUser']);
+    Route::get('/report-reasons', [\App\Http\Controllers\Api\MessageApiController::class, 'getReportReasons']);
 });
+
+// Direct aliases for User Block & Report
+Route::post('/user/block', [\App\Http\Controllers\Api\MessageApiController::class, 'blockUser']);
+Route::post('/user/unblock', [\App\Http\Controllers\Api\MessageApiController::class, 'unblockUser']);
+Route::get('/user/blocked', [\App\Http\Controllers\Api\MessageApiController::class, 'getBlockedUsers']);
+Route::post('/user/report', [\App\Http\Controllers\Api\MessageApiController::class, 'reportUser']);
+Route::get('/report/reasons', [\App\Http\Controllers\Api\MessageApiController::class, 'getReportReasons']);
 
 Route::post('/upload/chat-media', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);
 

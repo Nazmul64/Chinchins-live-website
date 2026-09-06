@@ -112,6 +112,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/my-bag/give-user', [\App\Http\Controllers\Admin\BagAdminController::class, 'giveToUser'])->name('my-bag.give-user');
     Route::get('/my-bag/inventory', [\App\Http\Controllers\Admin\BagAdminController::class, 'userInventory'])->name('my-bag.inventory');
 
+    // User Complaints & In-Chat Reports Moderation
+    Route::get('/reports', [\App\Http\Controllers\Admin\ReportAdminController::class, 'index'])->name('reports.index');
+    Route::post('/reports/{id}/status', [\App\Http\Controllers\Admin\ReportAdminController::class, 'updateStatus'])->name('reports.update-status');
+    Route::post('/reports/{id}/block-and-resolve', [\App\Http\Controllers\Admin\ReportAdminController::class, 'blockAndResolve'])->name('reports.block-and-resolve');
+
     // App Branding & General Settings
     Route::get('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'update'])->name('settings.update');

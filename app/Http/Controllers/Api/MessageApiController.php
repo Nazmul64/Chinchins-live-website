@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
+use App\Models\BlockedUser;
 use App\Models\CallSetting;
 use App\Models\ChatMessage;
 use App\Models\CoinPackage;
@@ -12,6 +13,7 @@ use App\Models\Notification;
 use App\Models\PaymentMethod;
 use App\Models\ProfileView;
 use App\Models\User;
+use App\Models\UserReport;
 use App\Services\PushNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -234,19 +236,64 @@ class MessageApiController extends Controller
         $freeRemaining = max(0, $freeLimit - ($currentUser->free_messages_used ?? 0));
         $coinCost = (int) AppSetting::get('message_coin_cost', 5);
 
+        $isBlockedByMe = $currentUser->hasBlocked($otherUser->id);
+        $isBlockedByThem = $otherUser->hasBlocked($currentUser->id);
+
+        $level = $otherUser->level ?: 'Lv. 1';
+        $country = $otherUser->country ?: 'Bangladesh';
+        $flag = $otherUser->country_flag ?: '🇧🇩';
+        $age = $otherUser->display_age;
+        $gender = strtolower($otherUser->gender ?: 'female');
+        $genderIcon = $gender === 'male' ? '♂' : '♀';
+        $genderText = ucfirst($gender);
+        $greeting = $otherUser->introduction ?: 'Hey handsome! Thanks for visiting my profile ❤️';
+
+        $chatPartner = [
+            'id'                     => $otherUser->id,
+            'account_id'             => $otherUser->account_id,
+            'name'                   => $otherUser->display_name,
+            'avatar_url'             => $otherUser->avatar_url,
+            'is_online'              => (bool) $otherUser->is_online,
+            'is_busy'                => (bool) $otherUser->is_busy,
+            'video_call_rate'        => (int) ($otherUser->video_call_rate ?: 1800),
+            'level'                  => $level,
+            'level_number'           => (int) preg_replace('/[^0-9]/', '', $level) ?: 1,
+            'level_badge_url'        => $otherUser->level_info['badge_image_url'] ?? asset('uploads/bases/badge_level_1.svg'),
+            'badge_color'            => $otherUser->badge_color,
+            'badge_icon'             => $otherUser->badge_icon,
+            'country'                => $country,
+            'country_flag'           => $flag,
+            'age'                    => $age,
+            'gender'                 => $gender,
+            'gender_icon'            => $genderIcon,
+            'bio'                    => $greeting,
+            'greeting_message'       => $greeting,
+            'is_blocked_by_me'       => $isBlockedByMe,
+            'is_blocked_by_them'     => $isBlockedByThem,
+            'header_card'            => [
+                'name'               => $otherUser->display_name,
+                'star_icon'          => '⭐',
+                'level'              => $level,
+                'country_flag'       => $flag,
+                'country_name'       => $country,
+                'age'                => $age,
+                'gender_text'        => $genderText,
+                'gender_icon'        => $genderIcon,
+                'summary_text'       => "{$flag} {$country} • {$age} yrs • {$genderIcon} {$genderText} • {$level}",
+                'greeting_text'      => $greeting,
+            ],
+            'menu_options'           => [
+                ['id' => 'block', 'title' => $isBlockedByMe ? 'Unblock User' : 'Block User', 'action' => $isBlockedByMe ? 'unblock' : 'block'],
+                ['id' => 'report', 'title' => 'Report User', 'action' => 'report'],
+                ['id' => 'cancel', 'title' => 'Cancel', 'action' => 'cancel'],
+            ],
+        ];
+
         return response()->json([
             'status'  => true,
             'message' => 'Messages retrieved successfully.',
             'data'    => [
-                'chat_partner' => [
-                    'id'              => $otherUser->id,
-                    'account_id'      => $otherUser->account_id,
-                    'name'            => $otherUser->display_name,
-                    'avatar_url'      => $otherUser->avatar_url,
-                    'is_online'       => (bool) $otherUser->is_online,
-                    'is_busy'         => (bool) $otherUser->is_busy,
-                    'video_call_rate' => (int) ($otherUser->video_call_rate ?: 100),
-                ],
+                'chat_partner' => $chatPartner,
                 'free_messages_remaining' => $freeRemaining,
                 'user_coins'              => (int) $currentUser->coins,
                 'message_cost_after_free' => $coinCost,
@@ -364,6 +411,25 @@ class MessageApiController extends Controller
                 'status'  => false,
                 'message' => 'Receiver user not found.',
             ], 404);
+        }
+
+        // ==========================================
+        // 🚫 Peer-to-Peer Block Check
+        // ==========================================
+        if ($sender->hasBlocked($receiver->id)) {
+            return response()->json([
+                'status'  => false,
+                'code'    => 'USER_BLOCKED',
+                'message' => 'You have blocked this user. Unblock them in order to send messages.',
+            ], 403);
+        }
+
+        if ($receiver->hasBlocked($sender->id)) {
+            return response()->json([
+                'status'  => false,
+                'code'    => 'BLOCKED_BY_USER',
+                'message' => 'You cannot send messages to this user.',
+            ], 403);
         }
 
         // ==========================================
@@ -972,5 +1038,211 @@ class MessageApiController extends Controller
             'message' => 'App settings loaded successfully.',
             'data'    => AppSetting::getAppConfig(),
         ]);
+    }
+
+    /**
+     * Block a User from Chat / Profile.
+     * POST /api/chat/block or POST /api/user/block
+     */
+    public function blockUser(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $targetId = $request->input('target_user_id') 
+                 ?? $request->input('user_id') 
+                 ?? $request->input('blocked_user_id');
+
+        if (!$targetId) {
+            return response()->json(['status' => false, 'message' => 'target_user_id field is required.'], 422);
+        }
+
+        $target = User::find($targetId) ?? User::where('account_id', $targetId)->first();
+        if (!$target) {
+            return response()->json(['status' => false, 'message' => 'Target user not found.'], 404);
+        }
+
+        if ($target->id === $user->id) {
+            return response()->json(['status' => false, 'message' => 'You cannot block yourself.'], 422);
+        }
+
+        BlockedUser::firstOrCreate([
+            'user_id' => $user->id,
+            'blocked_user_id' => $target->id,
+        ], [
+            'reason' => $request->input('reason', 'Blocked by user'),
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => "Successfully blocked {$target->display_name}.",
+            'is_blocked' => true,
+            'target_user' => [
+                'id' => $target->id,
+                'account_id' => $target->account_id,
+                'name' => $target->display_name,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Unblock a User.
+     * POST /api/chat/unblock or POST /api/user/unblock
+     */
+    public function unblockUser(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $targetId = $request->input('target_user_id') 
+                 ?? $request->input('user_id') 
+                 ?? $request->input('blocked_user_id');
+
+        if (!$targetId) {
+            return response()->json(['status' => false, 'message' => 'target_user_id field is required.'], 422);
+        }
+
+        $target = User::find($targetId) ?? User::where('account_id', $targetId)->first();
+        if (!$target) {
+            return response()->json(['status' => false, 'message' => 'Target user not found.'], 404);
+        }
+
+        BlockedUser::where('user_id', $user->id)
+            ->where('blocked_user_id', $target->id)
+            ->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => "Successfully unblocked {$target->display_name}.",
+            'is_blocked' => false,
+            'target_user' => [
+                'id' => $target->id,
+                'account_id' => $target->account_id,
+                'name' => $target->display_name,
+            ],
+        ], 200);
+    }
+
+    /**
+     * List Blocked Users for current user.
+     * GET /api/chat/blocked-users or GET /api/user/blocked
+     */
+    public function getBlockedUsers(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $blocked = BlockedUser::with('blockedUser')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->get()
+            ->map(function ($b) {
+                $u = $b->blockedUser;
+                return [
+                    'id' => $b->id,
+                    'user_id' => $u ? $u->id : null,
+                    'account_id' => $u ? $u->account_id : null,
+                    'name' => $u ? $u->display_name : 'Deleted User',
+                    'avatar_url' => $u ? $u->avatar_url : null,
+                    'blocked_at' => $b->created_at->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Blocked users retrieved successfully.',
+            'count' => $blocked->count(),
+            'data' => $blocked,
+        ], 200);
+    }
+
+    /**
+     * Report a User from Chat / Profile with standard reason types.
+     * POST /api/chat/report or POST /api/user/report
+     */
+    public function reportUser(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $targetId = $request->input('reported_user_id') 
+                 ?? $request->input('target_user_id') 
+                 ?? $request->input('user_id');
+
+        if (!$targetId) {
+            return response()->json(['status' => false, 'message' => 'reported_user_id is required.'], 422);
+        }
+
+        $target = User::find($targetId) ?? User::where('account_id', $targetId)->first();
+        if (!$target) {
+            return response()->json(['status' => false, 'message' => 'Target user not found.'], 404);
+        }
+
+        if ($target->id === $user->id) {
+            return response()->json(['status' => false, 'message' => 'You cannot report yourself.'], 422);
+        }
+
+        $reasonType = $request->input('reason_type', 'other');
+        $validReasons = UserReport::$reasonTypes;
+        $reasonTitle = $validReasons[$reasonType] ?? ($request->input('reason_title') ?: 'Rule violation');
+
+        $proofImagePath = null;
+        if ($request->hasFile('proof_image') || $request->hasFile('image') || $request->hasFile('screenshot')) {
+            $proofFile = $request->file('proof_image') ?? $request->file('image') ?? $request->file('screenshot');
+            $destPath = public_path('uploads/reports');
+            if (!File::exists($destPath)) {
+                File::makeDirectory($destPath, 0777, true, true);
+            }
+            $filename = 'report_' . time() . '_' . Str::random(6) . '.' . $proofFile->getClientOriginalExtension();
+            $proofFile->move($destPath, $filename);
+            $proofImagePath = 'uploads/reports/' . $filename;
+        }
+
+        $report = UserReport::create([
+            'reporter_id' => $user->id,
+            'reported_user_id' => $target->id,
+            'reason_type' => $reasonType,
+            'reason_title' => $reasonTitle,
+            'description' => $request->input('description') ?: $request->input('reason'),
+            'proof_image' => $proofImagePath,
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Thank you. Your report has been submitted. Our moderation team will investigate promptly.',
+            'report_id' => $report->id,
+            'reported_user' => [
+                'id' => $target->id,
+                'name' => $target->display_name,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get Report Reason Options for Mobile App modal.
+     * GET /api/chat/report-reasons or GET /api/report/reasons
+     */
+    public function getReportReasons(): JsonResponse
+    {
+        $reasons = collect(UserReport::$reasonTypes)->map(function ($title, $key) {
+            return [
+                'type' => $key,
+                'title' => $title,
+            ];
+        })->values();
+
+        return response()->json([
+            'status' => true,
+            'reasons' => $reasons,
+        ], 200);
     }
 }
