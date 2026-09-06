@@ -215,6 +215,92 @@ class PaymentController extends Controller
     }
 
     /**
+     * Get dynamic In-Chat / In-Call Recharge Bottom Sheet Modal Data
+     * GET /api/recharge/modal-data (or GET /api/coin-packages/recharge-modal)
+     */
+    public function getRechargeModalData(Request $request): JsonResponse
+    {
+        try {
+            $user = $this->resolveUser($request);
+            $receiverId = $request->input('receiver_id') ?? $request->input('to_user_id') ?? $request->input('user_id');
+            $actionType = $request->input('action', $request->input('type', 'chat')); // 'chat' or 'call'
+
+            $receiverData = null;
+            if ($receiverId) {
+                $receiver = User::find($receiverId) ?? User::where('account_id', $receiverId)->first();
+                if ($receiver) {
+                    $receiverData = [
+                        'id' => $receiver->id,
+                        'account_id' => $receiver->account_id,
+                        'name' => $receiver->display_name,
+                        'avatar_url' => $receiver->avatar_url,
+                        'is_online' => (bool) $receiver->is_online,
+                        'is_busy' => (bool) $receiver->is_busy,
+                    ];
+                }
+            }
+
+            $userGems = $user ? (int) $user->coins : 0;
+
+            $packages = CoinPackage::where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('id', 'asc')
+                ->get()
+                ->map(function ($pkg) {
+                    $baseCoins = (int) $pkg->coins;
+                    $bonusCoins = (int) ($pkg->bonus_coins ?: 0);
+                    $totalCoins = $baseCoins + $bonusCoins;
+                    $price = (float) $pkg->price;
+                    $formattedPrice = 'BDT ' . number_format($price, 2);
+
+                    return [
+                        'id' => $pkg->id,
+                        'title' => $pkg->title ?: ($baseCoins . ' Gems'),
+                        'coins' => $baseCoins,
+                        'bonus_coins' => $bonusCoins,
+                        'total_coins' => $totalCoins,
+                        'formatted_coins' => number_format($baseCoins),
+                        'price' => $price,
+                        'formatted_price' => $formattedPrice,
+                        'price_bdt' => $price,
+                        'badge' => $pkg->badge ?: null,
+                        'badge_color' => $pkg->badge_color ?: 'pink',
+                        'icon_url' => $pkg->icon_url,
+                        'icon_full_url' => $pkg->icon_full_url,
+                        'animation_url' => $pkg->animation_url,
+                        'animation_full_url' => $pkg->animation_full_url,
+                        'format' => $pkg->format ?: 'image',
+                        'is_popular' => (bool) $pkg->is_popular,
+                        'is_once_offer' => (bool) ($pkg->is_popular || stripos($pkg->badge ?? '', 'ONCE') !== false),
+                    ];
+                });
+
+            $defaultSelectedId = $packages->firstWhere('is_popular', true)['id'] ?? ($packages->first()['id'] ?? null);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Recharge modal data retrieved successfully.',
+                'modal' => [
+                    'header_title' => '✨ Chat all you want & connect face-to-face — upgrade for more fun!',
+                    'action_type' => $actionType,
+                    'receiver' => $receiverData,
+                    'user_gems' => $userGems,
+                    'formatted_user_gems' => number_format($userGems),
+                    'currency_symbol' => '💎',
+                    'default_selected_package_id' => $defaultSelectedId,
+                    'button_text' => 'Continue',
+                    'packages' => $packages,
+                ]
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Error retrieving recharge modal data: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get single coin package details.
      * GET /api/coin-packages/{id}
      */

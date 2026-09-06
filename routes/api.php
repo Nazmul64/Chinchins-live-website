@@ -112,10 +112,13 @@ Route::match(['post', 'delete'], '/clear-gallery', [ProfileController::class, 'c
 Route::get('/payment-methods', [PaymentController::class, 'getPaymentMethods']);
 Route::get('/deposit/methods', [PaymentController::class, 'getPaymentMethods']);
 
-// Coin Packages RESTful CRUD APIs
+// Coin Packages RESTful CRUD APIs & Recharge Modal
 Route::get('/coin-packages', [PaymentController::class, 'getCoinPackages']);
 Route::get('/packages', [PaymentController::class, 'getCoinPackages']);
 Route::get('/deposit/packages', [PaymentController::class, 'getCoinPackages']);
+Route::match(['get', 'post'], '/recharge/modal-data', [PaymentController::class, 'getRechargeModalData']);
+Route::match(['get', 'post'], '/coin-packages/recharge-modal', [PaymentController::class, 'getRechargeModalData']);
+Route::match(['get', 'post'], '/coin-packages/insufficient-balance-modal', [PaymentController::class, 'getRechargeModalData']);
 Route::get('/coin-packages/{id}', [PaymentController::class, 'showCoinPackage']);
 Route::post('/coin-packages', [PaymentController::class, 'storeCoinPackage']);
 Route::post('/coin-packages/store', [PaymentController::class, 'storeCoinPackage']);

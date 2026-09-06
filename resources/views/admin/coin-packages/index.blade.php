@@ -113,31 +113,38 @@
                         </form>
                     </div>
 
-                    <!-- Diamond Icon + Base Coins -->
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <div class="pkg-gem-icon">
-                            <i class="fa-solid fa-gem" style="color: #fbbf24;"></i>
-                        </div>
-                        <div class="pkg-coins-amount">
+                    <!-- Package Artwork Icon & Coins -->
+                    <div class="text-center my-2" style="min-height: 75px; display: flex; align-items: center; justify-content: center;">
+                        @if($package->icon_url)
+                            <img src="{{ $package->icon_full_url }}" alt="Gems Artwork" style="width: 68px; height: 68px; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(251, 191, 36, 0.45));">
+                        @else
+                            <i class="fa-solid fa-gem" style="color: #fbbf24; font-size: 40px; filter: drop-shadow(0 4px 12px rgba(251, 191, 36, 0.45));"></i>
+                        @endif
+                    </div>
+
+                    <div class="text-center mb-2">
+                        <div class="pkg-coins-amount" style="font-size: 26px;">
                             {{ number_format($package->coins) }}
                         </div>
                     </div>
 
                     <!-- Bonus Coins line -->
-                    @if($package->bonus_coins > 0)
-                        <div class="pkg-bonus-text mb-3">
-                            <i class="fa-solid fa-plus" style="font-size: 10px;"></i> {{ number_format($package->bonus_coins) }} Bonus
-                            @if($package->bonus_percentage > 0)
-                                <span class="text-muted" style="font-size: 11px; font-weight: 500;">({{ $package->bonus_percentage }}%)</span>
-                            @endif
-                        </div>
-                    @else
-                        <div class="pkg-bonus-placeholder mb-3">Standard tier</div>
-                    @endif
+                    <div class="text-center mb-3" style="min-height: 22px;">
+                        @if($package->bonus_coins > 0)
+                            <div class="pkg-bonus-text justify-content-center">
+                                <i class="fa-solid fa-plus" style="font-size: 10px;"></i> {{ number_format($package->bonus_coins) }} Bonus
+                                @if($package->bonus_percentage > 0)
+                                    <span class="text-muted" style="font-size: 11px; font-weight: 500;">({{ $package->bonus_percentage }}%)</span>
+                                @endif
+                            </div>
+                        @else
+                            <div class="pkg-bonus-placeholder">Standard tier</div>
+                        @endif
+                    </div>
 
                     <!-- Price Button Preview -->
                     <div class="pkg-price-btn {{ $package->is_popular ? 'price-pink' : 'price-dark' }}">
-                        ৳{{ number_format($package->price) }}
+                        BDT {{ number_format($package->price, (floor($package->price) == $package->price ? 0 : 2)) }}
                     </div>
 
                     <!-- Total summary & Action Footer -->
@@ -177,7 +184,7 @@
 
 <!-- Modal for Create / Edit Package -->
 <div class="modal fade" id="packageModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-modern-dialog" style="max-width: 680px;">
+    <div class="modal-dialog modal-dialog-centered modal-modern-dialog" style="max-width: 760px;">
         <div class="modal-content modal-modern-content">
             <div class="modal-modern-header">
                 <div class="d-flex align-items-center gap-3">
@@ -186,7 +193,7 @@
                     </div>
                     <div>
                         <h5 class="modal-title fw-bold mb-0" id="pkgModalTitle">Add Coin Package</h5>
-                        <small class="text-muted">Configure store package, bonus coins, and discount badges</small>
+                        <small class="text-muted">Configure store package, artwork icons, and discount badges</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -208,7 +215,7 @@
                                     <label class="form-label fw-bold" style="font-size: 13px;">Base Coins / Gems <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light fw-bold text-warning"><i class="fa-solid fa-gem me-1"></i></span>
-                                        <input type="number" name="coins" id="pkgCoins" class="form-control fw-bold" placeholder="e.g. 32000" value="32000" min="1" required oninput="updateModalPreview()">
+                                        <input type="number" name="coins" id="pkgCoins" class="form-control fw-bold" placeholder="e.g. 7560" value="7560" min="1" required oninput="updateModalPreview()">
                                     </div>
                                     <small class="text-muted" style="font-size: 11px;">Primary coin quantity</small>
                                 </div>
@@ -217,7 +224,7 @@
                                     <label class="form-label fw-bold" style="font-size: 13px;">Bonus Coins (+Bonus)</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-success-subtle fw-bold text-success"><i class="fa-solid fa-gift me-1"></i> +</span>
-                                        <input type="number" name="bonus_coins" id="pkgBonusCoins" class="form-control fw-bold text-success" placeholder="e.g. 8000" value="8000" min="0" oninput="updateModalPreview()">
+                                        <input type="number" name="bonus_coins" id="pkgBonusCoins" class="form-control fw-bold text-success" placeholder="e.g. 0" value="0" min="0" oninput="updateModalPreview()">
                                     </div>
                                     <small class="text-muted" style="font-size: 11px;">Extra free coins</small>
                                 </div>
@@ -225,64 +232,93 @@
                                 <div class="col-12 col-sm-6">
                                     <label class="form-label fw-bold" style="font-size: 13px;">Price in BDT (৳) <span class="text-danger">*</span></label>
                                     <div class="input-group">
-                                        <span class="input-group-text bg-light fw-bold text-primary">৳ BDT</span>
-                                        <input type="number" step="any" name="price" id="pkgPrice" class="form-control fw-bold" placeholder="e.g. 550" value="550" min="1" required oninput="updateModalPreview()">
+                                        <span class="input-group-text bg-light fw-bold text-primary">BDT</span>
+                                        <input type="number" step="any" name="price" id="pkgPrice" class="form-control fw-bold" placeholder="e.g. 150" value="150" min="1" required oninput="updateModalPreview()">
                                     </div>
                                 </div>
 
                                 <div class="col-12 col-sm-6">
                                     <label class="form-label fw-bold" style="font-size: 13px;">Sort Order</label>
-                                    <input type="number" name="sort_order" id="pkgSortOrder" class="form-control rounded-3" value="0" min="0">
+                                    <input type="number" name="sort_order" id="pkgSortOrder" class="form-control rounded-3" value="1" min="0">
                                 </div>
 
                                 <div class="col-12">
-                                    <label class="form-label fw-bold" style="font-size: 13px;">Promotion Badge / Tag (Optional)</label>
-                                    <input type="text" name="badge" id="pkgBadge" class="form-control rounded-3" placeholder="e.g. 🔥 50% OFF, Best Value, +30% Free" oninput="updateModalPreview()">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Promotion Badge / Discount Tag</label>
+                                    <input type="text" name="badge" id="pkgBadge" class="form-control rounded-3" placeholder="e.g. 50% off, 17% off, 30% off, 60% off, 80% off" oninput="updateModalPreview()">
                                     <!-- Quick Badge Suggestions -->
                                     <div class="d-flex flex-wrap gap-1 mt-2">
-                                        <span class="quick-chip-btn" onclick="selectQuickBadge('🔥 50% OFF')">🔥 50% OFF</span>
-                                        <span class="quick-chip-btn" onclick="selectQuickBadge('Best Value')">Best Value</span>
-                                        <span class="quick-chip-btn" onclick="selectQuickBadge('+30% Free')">+30% Free</span>
-                                        <span class="quick-chip-btn" onclick="selectQuickBadge('VIP Bonus')">VIP Bonus</span>
-                                        <span class="quick-chip-btn" onclick="selectQuickBadge('Popular')">Popular</span>
+                                        <span class="quick-chip-btn" onclick="selectQuickBadge('50% off')">50% off</span>
+                                        <span class="quick-chip-btn" onclick="selectQuickBadge('17% off')">17% off</span>
+                                        <span class="quick-chip-btn" onclick="selectQuickBadge('30% off')">30% off</span>
+                                        <span class="quick-chip-btn" onclick="selectQuickBadge('60% off')">60% off</span>
+                                        <span class="quick-chip-btn" onclick="selectQuickBadge('80% off')">80% off</span>
+                                        <span class="quick-chip-btn" onclick="selectQuickBadge('🔥 ONCE')">🔥 ONCE</span>
                                         <span class="quick-chip-btn text-danger" onclick="selectQuickBadge('')">Clear</span>
                                     </div>
                                 </div>
 
-                                <!-- Animation & Media Assets -->
+                                <!-- Preset Artwork Selector -->
+                                <div class="col-12">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Choose Gem Artwork Preset</label>
+                                    <input type="hidden" name="icon_url" id="pkgIconUrl" value="uploads/coin_packages/gem_tier1_single.svg">
+                                    <div class="row g-2">
+                                        <div class="col-4 col-sm-2 text-center">
+                                            <div class="preset-icon-box active" data-icon="uploads/coin_packages/gem_tier1_single.svg" onclick="selectPresetIcon(this, 'uploads/coin_packages/gem_tier1_single.svg')">
+                                                <img src="{{ asset('uploads/coin_packages/gem_tier1_single.svg') }}" style="width: 38px; height: 38px;" alt="Tier 1">
+                                                <div class="preset-label">1 Gem</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-sm-2 text-center">
+                                            <div class="preset-icon-box" data-icon="uploads/coin_packages/gem_tier2_double.svg" onclick="selectPresetIcon(this, 'uploads/coin_packages/gem_tier2_double.svg')">
+                                                <img src="{{ asset('uploads/coin_packages/gem_tier2_double.svg') }}" style="width: 38px; height: 38px;" alt="Tier 2">
+                                                <div class="preset-label">2 Gems</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-sm-2 text-center">
+                                            <div class="preset-icon-box" data-icon="uploads/coin_packages/gem_tier3_triple.svg" onclick="selectPresetIcon(this, 'uploads/coin_packages/gem_tier3_triple.svg')">
+                                                <img src="{{ asset('uploads/coin_packages/gem_tier3_triple.svg') }}" style="width: 38px; height: 38px;" alt="Tier 3">
+                                                <div class="preset-label">3 Gems</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-sm-2 text-center">
+                                            <div class="preset-icon-box" data-icon="uploads/coin_packages/gem_tier4_stack.svg" onclick="selectPresetIcon(this, 'uploads/coin_packages/gem_tier4_stack.svg')">
+                                                <img src="{{ asset('uploads/coin_packages/gem_tier4_stack.svg') }}" style="width: 38px; height: 38px;" alt="Tier 4">
+                                                <div class="preset-label">4 Gems</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-sm-2 text-center">
+                                            <div class="preset-icon-box" data-icon="uploads/coin_packages/gem_tier5_tray.svg" onclick="selectPresetIcon(this, 'uploads/coin_packages/gem_tier5_tray.svg')">
+                                                <img src="{{ asset('uploads/coin_packages/gem_tier5_tray.svg') }}" style="width: 38px; height: 38px;" alt="Tier 5">
+                                                <div class="preset-label">Tray</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4 col-sm-2 text-center">
+                                            <div class="preset-icon-box" data-icon="uploads/coin_packages/gem_tier6_chest.svg" onclick="selectPresetIcon(this, 'uploads/coin_packages/gem_tier6_chest.svg')">
+                                                <img src="{{ asset('uploads/coin_packages/gem_tier6_chest.svg') }}" style="width: 38px; height: 38px;" alt="Tier 6">
+                                                <div class="preset-label">Chest</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Custom File Upload -->
                                 <div class="col-12 col-sm-6">
-                                    <label class="form-label fw-bold" style="font-size: 13px;">Package Icon / Image File</label>
-                                    <input type="file" name="icon" class="form-control" accept="image/*">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Or Upload Custom Icon</label>
+                                    <input type="file" name="icon" class="form-control" accept="image/*,.svg" onchange="previewUploadedIcon(event)">
                                     <small class="text-muted" style="font-size: 11px;">PNG, WebP, SVG transparent icon</small>
                                 </div>
 
                                 <div class="col-12 col-sm-6">
-                                    <label class="form-label fw-bold" style="font-size: 13px;">Animation File (.svga / .json / .webp / .gif)</label>
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Animation File (Optional)</label>
                                     <input type="file" name="animation_file" class="form-control" accept=".svga,.json,.lottie,.webp,.gif,.mp4">
                                     <small class="text-muted" style="font-size: 11px;">SVGA or Lottie animation</small>
-                                </div>
-
-                                <div class="col-12 col-sm-6">
-                                    <label class="form-label fw-bold" style="font-size: 13px;">Animation Format</label>
-                                    <select name="format" id="pkgFormat" class="form-select">
-                                        <option value="image" selected>Static Image</option>
-                                        <option value="svga">SVGA Animation (.svga)</option>
-                                        <option value="lottie">Lottie JSON (.json)</option>
-                                        <option value="webp">Animated WebP (.webp)</option>
-                                        <option value="gif">Animated GIF (.gif)</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12 col-sm-6">
-                                    <label class="form-label fw-bold" style="font-size: 13px;">Remote Animation URL</label>
-                                    <input type="text" name="animation_url" id="pkgAnimationUrl" class="form-control" placeholder="https://.../coins.svga">
                                 </div>
 
                                 <div class="col-12">
                                     <div class="form-check form-switch p-0 d-flex align-items-center gap-3 mb-2">
                                         <input class="form-check-input ms-0" type="checkbox" name="is_popular" id="pkgIsPopular" value="1" style="width: 40px; height: 20px; cursor: pointer;" onchange="updateModalPreview()">
                                         <label class="form-check-label fw-bold" for="pkgIsPopular" style="cursor: pointer; font-size: 13px;">
-                                            <i class="fa-solid fa-fire text-danger me-1"></i> Highlight as Most Popular / Selected
+                                            <i class="fa-solid fa-fire text-danger me-1"></i> Highlight with Orange Selection (First Tier / ONCE)
                                         </label>
                                     </div>
 
@@ -299,33 +335,36 @@
                         <!-- Right Live Card Preview -->
                         <div class="col-12 col-md-5">
                             <label class="form-label fw-bold mb-2" style="font-size: 13px;">
-                                <i class="fa-solid fa-eye text-primary me-1"></i> Live App Card Preview
+                                <i class="fa-solid fa-mobile-screen-button text-primary me-1"></i> Mobile In-App Card Preview
                             </label>
-                            <div class="p-3 rounded-4" style="background: #0f172a; border: 1px solid #334155; min-height: 280px; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div id="previewModalCard" class="p-3 rounded-4" style="background: #181d2f; border: 1.5px solid #283049; min-height: 290px; display: flex; flex-direction: column; justify-content: space-between; position: relative; transition: all 0.3s ease;">
                                 <div>
                                     <div class="d-flex justify-content-between align-items-center mb-2" style="min-height: 24px;">
-                                        <span id="previewModalBadge" class="pkg-badge badge-pink-glow" style="font-size: 10px;">🔥 50% OFF</span>
-                                        <span class="text-muted" style="font-size: 10px;"><i class="fa-solid fa-mobile text-pink"></i> Preview</span>
+                                        <span id="previewModalBadge" class="pkg-badge badge-subtle" style="font-size: 10px;">50% off</span>
+                                        <span id="previewOnceBadge" class="badge bg-warning text-dark fw-bold" style="font-size: 9px; display: none;">ONCE</span>
                                     </div>
 
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <i class="fa-solid fa-gem" style="color: #fbbf24; font-size: 18px;"></i>
-                                        <span id="previewModalCoins" style="font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 0.5px;">32,000</span>
+                                    <div class="text-center my-3">
+                                        <img id="previewModalIcon" src="{{ asset('uploads/coin_packages/gem_tier1_single.svg') }}" style="width: 65px; height: 65px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(251, 191, 36, 0.45));" alt="Preview Gem">
                                     </div>
 
-                                    <div id="previewModalBonus" class="pkg-bonus-text mb-3" style="font-size: 13px;">
-                                        <i class="fa-solid fa-plus" style="font-size: 10px;"></i> 8,000 Bonus
+                                    <div class="text-center mb-1">
+                                        <span id="previewModalCoins" style="font-size: 24px; font-weight: 900; color: #fff; letter-spacing: 0.5px;">7,560</span>
                                     </div>
 
-                                    <div id="previewModalPriceBtn" class="pkg-price-btn price-pink text-center">
-                                        ৳550
+                                    <div id="previewModalBonus" class="pkg-bonus-text justify-content-center mb-2" style="font-size: 12px; display: none;">
+                                        <i class="fa-solid fa-plus" style="font-size: 10px;"></i> 0 Bonus
+                                    </div>
+
+                                    <div id="previewModalPriceBtn" class="pkg-price-btn price-dark text-center">
+                                        BDT 150.00
                                     </div>
                                 </div>
 
                                 <div class="mt-3 pt-3 border-top" style="border-color: rgba(255,255,255,0.1) !important;">
-                                    <small class="text-muted d-block" style="font-size: 11px;">Bottom Action Button in App:</small>
-                                    <div id="previewModalActionButton" class="mt-1 p-2 rounded-3 text-center fw-bold" style="background: #ff2d55; color: #fff; font-size: 12px; box-shadow: 0 4px 12px rgba(255,45,85,0.4);">
-                                        Recharge 40,000 Gems (৳550)
+                                    <small class="text-muted d-block text-center" style="font-size: 11px; margin-bottom: 4px;">💎 My Gems: 60</small>
+                                    <div class="p-2 rounded-pill text-center fw-bold" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: #fff; font-size: 13px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);">
+                                        Continue
                                     </div>
                                 </div>
                             </div>
@@ -364,20 +403,20 @@
 
 .app-pkg-card:hover {
     transform: translateY(-4px);
-    border-color: #3b82f6;
+    border-color: #f59e0b;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .app-pkg-card.popular-card {
-    border-color: #ff2d55;
-    background: linear-gradient(180deg, #221c35 0%, #17182b 100%);
-    box-shadow: 0 0 20px rgba(255, 45, 85, 0.25), 0 8px 24px rgba(0, 0, 0, 0.3);
+    border: 2px solid #ea580c !important;
+    background: linear-gradient(180deg, #2b1f1d 0%, #1c1926 100%) !important;
+    box-shadow: 0 0 24px rgba(234, 88, 12, 0.35), 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .pkg-badge {
     font-size: 11px;
     font-weight: 800;
-    padding: 3px 10px;
+    padding: 4px 10px;
     border-radius: 20px;
     display: inline-flex;
     align-items: center;
@@ -387,9 +426,9 @@
 }
 
 .badge-pink-glow {
-    background: linear-gradient(135deg, #ff2d55 0%, #d91b42 100%);
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
     color: #ffffff;
-    box-shadow: 0 2px 8px rgba(255, 45, 85, 0.5);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
 }
 
 .badge-subtle {
@@ -398,15 +437,8 @@
     border: 1px solid #3e4868;
 }
 
-.pkg-gem-icon {
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .pkg-coins-amount {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 900;
     letter-spacing: 0.5px;
     color: #ffffff;
@@ -423,7 +455,7 @@
 }
 
 .pkg-bonus-placeholder {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     color: #64748b;
 }
@@ -431,7 +463,7 @@
 .pkg-price-btn {
     padding: 10px 14px;
     border-radius: 12px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
     text-align: center;
     transition: all 0.2s ease;
@@ -439,15 +471,43 @@
 }
 
 .pkg-price-btn.price-pink {
-    background: #ff2d55;
-    color: #ffffff;
-    box-shadow: 0 4px 14px rgba(255, 45, 85, 0.4);
+    background: #ffffff;
+    color: #1e1b4b;
+    font-weight: 900;
+    box-shadow: 0 4px 14px rgba(255, 255, 255, 0.3);
 }
 
 .pkg-price-btn.price-dark {
     background: #242c44;
     color: #ffffff;
     border: 1px solid #333f61;
+}
+
+.preset-icon-box {
+    background: #1e293b;
+    border: 1.5px solid #334155;
+    border-radius: 12px;
+    padding: 8px 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.preset-icon-box:hover {
+    background: #334155;
+    border-color: #f59e0b;
+}
+
+.preset-icon-box.active {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: #f59e0b;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+.preset-label {
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 4px;
+    color: #cbd5e1;
 }
 
 .opacity-60 {
@@ -463,6 +523,25 @@ function selectQuickBadge(badgeText) {
     updateModalPreview();
 }
 
+function selectPresetIcon(el, iconPath) {
+    document.querySelectorAll('.preset-icon-box').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.getElementById('pkgIconUrl').value = iconPath;
+    document.getElementById('previewModalIcon').src = '/' + iconPath.replace(/^\//, '');
+}
+
+function previewUploadedIcon(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('previewModalIcon').src = e.target.result;
+            document.querySelectorAll('.preset-icon-box').forEach(b => b.classList.remove('active'));
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
 function updateModalPreview() {
     const coins = parseFloat(document.getElementById('pkgCoins').value) || 0;
     const bonus = parseFloat(document.getElementById('pkgBonusCoins').value) || 0;
@@ -470,14 +549,13 @@ function updateModalPreview() {
     const badge = document.getElementById('pkgBadge').value.trim();
     const isPopular = document.getElementById('pkgIsPopular').checked;
 
-    const total = coins + bonus;
-
     // Elements
+    const cardEl = document.getElementById('previewModalCard');
     const badgeEl = document.getElementById('previewModalBadge');
+    const onceBadgeEl = document.getElementById('previewOnceBadge');
     const coinsEl = document.getElementById('previewModalCoins');
     const bonusEl = document.getElementById('previewModalBonus');
     const priceBtnEl = document.getElementById('previewModalPriceBtn');
-    const actionBtnEl = document.getElementById('previewModalActionButton');
 
     // Update values
     if (badge) {
@@ -496,18 +574,22 @@ function updateModalPreview() {
         bonusEl.style.display = 'none';
     }
 
-    const priceText = `৳${price.toLocaleString()}`;
+    const priceText = `BDT ${price.toFixed(2)}`;
     priceBtnEl.innerText = priceText;
 
     if (isPopular) {
-        priceBtnEl.className = 'pkg-price-btn price-pink text-center';
+        cardEl.style.border = '2px solid #ea580c';
+        cardEl.style.background = 'linear-gradient(180deg, #431407 0%, #1e1b4b 100%)';
         badgeEl.className = 'pkg-badge badge-pink-glow';
+        priceBtnEl.className = 'pkg-price-btn price-pink text-center';
+        onceBadgeEl.style.display = 'inline-block';
     } else {
-        priceBtnEl.className = 'pkg-price-btn price-dark text-center';
+        cardEl.style.border = '1.5px solid #283049';
+        cardEl.style.background = '#181d2f';
         badgeEl.className = 'pkg-badge badge-subtle';
+        priceBtnEl.className = 'pkg-price-btn price-dark text-center';
+        onceBadgeEl.style.display = 'none';
     }
-
-    actionBtnEl.innerText = `Recharge ${total.toLocaleString()} Gems (${priceText})`;
 }
 
 function openCreatePackageModal() {
@@ -517,15 +599,14 @@ function openCreatePackageModal() {
     form.action = "{{ route('admin.coin-packages.store') }}";
     document.getElementById('pkgMethodSpoof').innerHTML = '';
     document.getElementById('pkgTitle').value = '';
-    document.getElementById('pkgCoins').value = '32000';
-    document.getElementById('pkgBonusCoins').value = '8000';
-    document.getElementById('pkgPrice').value = '550';
-    document.getElementById('pkgBadge').value = '🔥 50% OFF';
+    document.getElementById('pkgCoins').value = '7560';
+    document.getElementById('pkgBonusCoins').value = '0';
+    document.getElementById('pkgPrice').value = '150';
+    document.getElementById('pkgBadge').value = '50% off';
     document.getElementById('pkgSortOrder').value = '1';
-    document.getElementById('pkgFormat').value = 'image';
-    document.getElementById('pkgAnimationUrl').value = '';
     document.getElementById('pkgIsPopular').checked = true;
     document.getElementById('pkgIsActive').checked = true;
+    selectPresetIcon(document.querySelector('.preset-icon-box[data-icon*="gem_tier1"]'), 'uploads/coin_packages/gem_tier1_single.svg');
 
     updateModalPreview();
 
@@ -546,10 +627,18 @@ function openEditPackageModal(packageData) {
     document.getElementById('pkgPrice').value = packageData.price || '';
     document.getElementById('pkgBadge').value = packageData.badge || '';
     document.getElementById('pkgSortOrder').value = packageData.sort_order || 0;
-    document.getElementById('pkgFormat').value = packageData.format || 'image';
-    document.getElementById('pkgAnimationUrl').value = packageData.animation_url || '';
     document.getElementById('pkgIsPopular').checked = Boolean(packageData.is_popular);
     document.getElementById('pkgIsActive').checked = Boolean(packageData.is_active);
+
+    const iconUrl = packageData.icon_url || 'uploads/coin_packages/gem_tier1_single.svg';
+    document.getElementById('pkgIconUrl').value = iconUrl;
+    document.getElementById('previewModalIcon').src = packageData.icon_full_url || '/' + iconUrl;
+
+    const matchedPreset = document.querySelector(`.preset-icon-box[data-icon="${iconUrl}"]`);
+    document.querySelectorAll('.preset-icon-box').forEach(b => b.classList.remove('active'));
+    if (matchedPreset) {
+        matchedPreset.classList.add('active');
+    }
 
     updateModalPreview();
 
