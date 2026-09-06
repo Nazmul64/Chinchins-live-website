@@ -42,6 +42,16 @@ Route::post('/notifications/test-push', [\App\Http\Controllers\Api\AppUpdateApiC
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// 🚪 User Logout & Session Invalidation (Supports Bearer Token, Body Token, or Headers)
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout']);
+Route::match(['get', 'post'], '/auth/logout', [AuthController::class, 'logout']);
+Route::match(['get', 'post'], '/user/logout', [AuthController::class, 'logout']);
+
+// 👤 Check Active User Session
+Route::match(['get', 'post'], '/auth/me', [AuthController::class, 'me']);
+Route::match(['get', 'post'], '/auth/check', [AuthController::class, 'me']);
+Route::match(['get', 'post'], '/user/me', [AuthController::class, 'me']);
+
 // Public Home Feed & Users List (Live from Database)
 Route::get('/home', [ProfileController::class, 'index']);
 Route::get('/users', [ProfileController::class, 'index']);

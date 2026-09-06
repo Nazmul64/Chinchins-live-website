@@ -167,6 +167,62 @@ class AuthController extends Controller
     }
 
     /**
+     * Resolve authenticated user from Bearer Token, Sanctum guard, or Custom Headers/Params.
+     */
+    protected function resolveUser(Request $request): ?User
+    {
+        // 1. Direct request user via sanctum
+        try {
+            if ($user = $request->user('sanctum')) {
+                return $user;
+            }
+            if ($user = $request->user()) {
+                return $user;
+            }
+            if (\Illuminate\Support\Facades\Auth::guard('sanctum')->check()) {
+                return \Illuminate\Support\Facades\Auth::guard('sanctum')->user();
+            }
+        } catch (\Throwable $e) {}
+
+        // 2. Bearer token lookup in Sanctum PersonalAccessToken
+        $token = $request->bearerToken() 
+              ?: $request->header('Authorization') 
+              ?: $request->input('token') 
+              ?: $request->input('auth_token');
+
+        if ($token) {
+            $tokenClean = trim(str_replace(['Bearer', 'bearer'], '', $token));
+            if (class_exists('\Laravel\Sanctum\PersonalAccessToken')) {
+                try {
+                    $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($tokenClean);
+                    if ($accessToken && $accessToken->tokenable) {
+                        return $accessToken->tokenable;
+                    }
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        // 3. Fallback to custom user header or parameter
+        $headerUserId = $request->header('X-User-Id') 
+                     ?? $request->header('User-Id') 
+                     ?? $request->header('X-User-ID') 
+                     ?? $request->header('X-Account-Id');
+
+        if ($headerUserId) {
+            $u = User::find($headerUserId) ?? User::where('account_id', $headerUserId)->first();
+            if ($u) return $u;
+        }
+
+        $paramId = $request->input('user_id') ?? $request->input('userId') ?? $request->input('account_id');
+        if ($paramId) {
+            $u = User::find($paramId) ?? User::where('account_id', $paramId)->first();
+            if ($u) return $u;
+        }
+
+        return null;
+    }
+
+    /**
      * Get authenticated user profile / verify token.
      * GET /api/auth/me or GET /api/auth/check
      *
@@ -175,17 +231,11 @@ class AuthController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user();
-        if (!$user) {
-            $userId = $request->input('user_id') ?? $request->header('X-User-ID');
-            if ($userId) {
-                $user = User::find($userId);
-            }
-        }
+        $user = $this->resolveUser($request);
 
         if (!$user) {
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'Unauthenticated or session expired.',
             ], 401);
         }
@@ -200,19 +250,90 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout authenticated user.
+     * Logout authenticated user, revoke Bearer Token, and set offline presence.
+     * POST /api/logout, POST /api/auth/logout, POST /api/user/logout
      *
      * @param Request $request
      * @return JsonResponse
      */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->update(['is_active' => false]);
-        $request->user()->currentAccessToken()->delete();
+        $user = $this->resolveUser($request);
+
+        if (!$user) {
+            return response()->json([
+                'status'  => true,
+                'message' => 'Successfully logged out (Session already terminated).',
+                'data'    => null,
+            ], 200);
+        }
+
+        // 1. Revoke API Tokens
+        try {
+            if ($request->boolean('all_devices') || $request->boolean('logout_all')) {
+                // Revoke all tokens across all devices
+                $user->tokens()->delete();
+            } else {
+                // Revoke current active access token
+                if ($user->currentAccessToken()) {
+                    $user->currentAccessToken()->delete();
+                }
+
+                // If token sent as bearer token string
+                $token = $request->bearerToken() ?: $request->input('token');
+                if ($token && class_exists('\Laravel\Sanctum\PersonalAccessToken')) {
+                    $tokenClean = trim(str_replace(['Bearer', 'bearer'], '', $token));
+                    \Laravel\Sanctum\PersonalAccessToken::findToken($tokenClean)?->delete();
+                }
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking token revocation
+        }
+
+        // 2. Update User Offline Status in Database
+        $shouldClearFcm = $request->boolean('clear_fcm', true);
+        $userUpdate = [
+            'is_active'     => false,
+            'is_busy'       => false,
+            'online_status' => 'offline',
+            'last_seen_at'  => now(),
+        ];
+
+        if ($shouldClearFcm) {
+            $userUpdate['fcm_token'] = null;
+            $userUpdate['device_token'] = null;
+        }
+
+        $user->update($userUpdate);
+
+        // 3. Update User Presence Record
+        try {
+            if (class_exists('\App\Models\UserPresence')) {
+                \App\Models\UserPresence::updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'status'       => 'offline',
+                        'is_online'    => false,
+                        'last_seen_at' => now(),
+                        'fcm_token'    => $shouldClearFcm ? null : $user->fcm_token,
+                        'device_token' => $shouldClearFcm ? null : $user->device_token,
+                    ]
+                );
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking presence update
+        }
 
         return response()->json([
             'status'  => true,
-            'message' => 'Successfully logged out',
-        ]);
+            'message' => 'Successfully logged out. Session terminated.',
+            'data'    => [
+                'user_id'       => $user->id,
+                'account_id'    => $user->account_id,
+                'online_status' => 'offline',
+                'logged_out_at' => now()->toIso8601String(),
+            ],
+        ], 200);
     }
 }
+
