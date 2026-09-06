@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF4B8" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#F59E0B" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#B45309" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFBEB"/>
+      <stop offset="30%" stop-color="#FBBF24"/>
+      <stop offset="70%" stop-color="#D97706"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+    <linearGradient id="gemGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67E8F9"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="90" fill="url(#goldGlow)"/>
+  <!-- Trophy Cup Body -->
+  <path d="M60 40H140V85C140 110 122 128 100 128C78 128 60 110 60 85V40Z" fill="url(#goldGrad)" stroke="#FFEAA7" stroke-width="3"/>
+  <!-- Handles -->
+  <path d="M60 50C35 50 35 90 60 90" stroke="url(#goldGrad)" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M140 50C165 50 165 90 140 90" stroke="url(#goldGrad)" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <!-- Stem & Base -->
+  <path d="M92 128H108V155H92V128Z" fill="url(#goldGrad)"/>
+  <path d="M65 155H135L145 175H55L65 155Z" fill="url(#goldGrad)" stroke="#FDE68A" stroke-width="2"/>
+  <!-- Star on Cup -->
+  <polygon points="100,60 104,72 116,72 106,80 110,92 100,84 90,92 94,80 84,72 96,72" fill="#FFFFFF"/>
+  <circle cx="100" cy="165" r="5" fill="url(#gemGrad)"/>
+</svg>

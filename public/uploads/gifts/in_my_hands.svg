@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="100" r="85" fill="#FFE4E6" fill-opacity="0.3"/>
+  <path d="M40 130C60 110 80 110 100 120C120 110 140 110 160 130" stroke="#FB7185" stroke-width="8" stroke-linecap="round"/>
+  <!-- Glowing Heart Between Hands -->
+  <path d="M100 95L80 70C72 60 72 45 84 40C94 35 100 45 100 45C100 45 106 35 116 40C128 45 128 60 120 70L100 95Z" fill="#E11D48" filter="drop-shadow(0 0 10px rgba(225,29,72,0.6))"/>
+  <circle cx="85" cy="55" r="3" fill="#FFF"/>
+  <circle cx="115" cy="55" r="3" fill="#FFF"/>
+</svg>

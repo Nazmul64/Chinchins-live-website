@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sky / Night Background -->
+  <circle cx="100" cy="100" r="85" fill="#0F172A"/>
+  <circle cx="150" cy="50" r="12" fill="#FEF08A"/>
+  <!-- Main Taj Mahal Dome -->
+  <path d="M85 85C85 65 100 50 100 50C100 50 115 65 115 85H85Z" fill="#F8FAFC"/>
+  <!-- Main Building Block -->
+  <rect x="70" y="85" width="60" height="55" fill="#E2E8F0"/>
+  <path d="M85 140V105C85 100 100 95 100 95C100 95 115 100 115 105V140H85Z" fill="#334155"/>
+  <!-- Side Minarets -->
+  <rect x="42" y="70" width="8" height="70" fill="#F1F5F9"/>
+  <path d="M40 70L46 60L52 70Z" fill="#CBD5E1"/>
+  <rect x="150" y="70" width="8" height="70" fill="#F1F5F9"/>
+  <path d="M148 70L154 60L160 70Z" fill="#CBD5E1"/>
+  <!-- Water Reflection Base -->
+  <rect x="30" y="140" width="140" height="25" fill="#1E293B"/>
+  <line x1="50" y1="150" x2="150" y2="150" stroke="#38BDF8" stroke-width="2" stroke-dasharray="4 4"/>
+</svg>

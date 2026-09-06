@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="boxGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#C084FC" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#6B21A8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="boxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9333EA"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </linearGradient>
+    <linearGradient id="goldRibbon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="100%" stop-color="#CA8A04"/>
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="90" fill="url(#boxGlow)"/>
+  <!-- Box Base -->
+  <rect x="45" y="80" width="110" height="85" rx="10" fill="url(#boxGrad)" stroke="#E9D5FF" stroke-width="3"/>
+  <!-- Box Lid -->
+  <rect x="38" y="65" width="124" height="25" rx="6" fill="#A855F7" stroke="#F3E8FF" stroke-width="2"/>
+  <!-- Gold Ribbons -->
+  <rect x="90" y="65" width="20" height="100" fill="url(#goldRibbon)"/>
+  <!-- Question Mark -->
+  <text x="100" y="132" font-family="Arial, sans-serif" font-size="42" font-weight="900" fill="#FEF08A" text-anchor="middle" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))">?</text>
+  <!-- Ribbon Bow -->
+  <circle cx="85" cy="55" r="14" fill="url(#goldRibbon)"/>
+  <circle cx="115" cy="55" r="14" fill="url(#goldRibbon)"/>
+  <circle cx="100" cy="58" r="8" fill="#FEF08A"/>
+</svg>

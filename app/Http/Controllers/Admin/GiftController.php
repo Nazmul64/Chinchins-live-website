@@ -82,8 +82,13 @@ class GiftController extends Controller
         $totalSentCount = UserGift::sum('quantity') ?: 0;
         $totalSentCoins = UserGift::sum('total_coins') ?: 0;
 
-        // Categories list
-        $categories = ['popular', 'luxury', 'romantic', 'effects', 'vip'];
+        // Comprehensive Live Streaming Gift Categories
+        $categories = ['hot', 'lucky', 'svip', 'intimacy', 'wealth', 'festival', 'bag', 'popular', 'luxury', 'romantic', 'effects', 'vip'];
+
+        $categoryCounts = Gift::select('category', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->groupBy('category')
+            ->pluck('count', 'category')
+            ->toArray();
 
         // Users list for direct gift awarding tool
         $users = User::orderBy('name')->take(50)->get();
@@ -98,6 +103,7 @@ class GiftController extends Controller
             'totalSentCount',
             'totalSentCoins',
             'categories',
+            'categoryCounts',
             'users',
             'levelSettings'
         ));

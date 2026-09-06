@@ -98,14 +98,34 @@
     <div class="card border-0 shadow-sm rounded-4 mb-4" style="background: var(--card-bg, #ffffff);">
         <div class="card-body p-3">
             <form action="{{ route('admin.gifts.index') }}" method="GET" class="row g-2 align-items-center">
-                <!-- Category Tabs -->
-                <div class="col-12 col-md-auto d-flex gap-1 flex-wrap">
+                <!-- Category Tabs Toolbar with Emojis & Counts -->
+                @php
+                    $catIcons = [
+                        'hot'       => ['emoji' => '🔥', 'label' => 'Hot'],
+                        'lucky'     => ['emoji' => '🍀', 'label' => 'Lucky'],
+                        'svip'      => ['emoji' => '👑', 'label' => 'SVIP'],
+                        'intimacy'  => ['emoji' => '💖', 'label' => 'Intimacy'],
+                        'wealth'    => ['emoji' => '💰', 'label' => 'Wealth'],
+                        'festival'  => ['emoji' => '🎉', 'label' => 'Festival'],
+                        'bag'       => ['emoji' => '🎒', 'label' => 'Bag'],
+                        'popular'   => ['emoji' => '⭐', 'label' => 'Popular'],
+                        'romantic'  => ['emoji' => '💕', 'label' => 'Romantic'],
+                        'luxury'    => ['emoji' => '💎', 'label' => 'Luxury'],
+                        'effects'   => ['emoji' => '⚡', 'label' => 'Effects/3D'],
+                        'vip'       => ['emoji' => '🌟', 'label' => 'VIP'],
+                    ];
+                @endphp
+                <div class="col-12 d-flex gap-1 flex-wrap pb-2 border-bottom mb-2">
                     <a href="{{ route('admin.gifts.index') }}" class="btn btn-sm rounded-pill px-3 {{ !request('category') || request('category') == 'all' ? 'btn-primary' : 'btn-outline-secondary' }}">
                         All ({{ $totalGiftsCount }})
                     </a>
                     @foreach($categories as $cat)
-                        <a href="{{ route('admin.gifts.index', array_merge(request()->query(), ['category' => $cat])) }}" class="btn btn-sm rounded-pill px-3 {{ request('category') == $cat ? 'btn-primary' : 'btn-outline-secondary' }}" style="text-transform: capitalize;">
-                            {{ $cat }}
+                        @php
+                            $info = $catIcons[$cat] ?? ['emoji' => '🎁', 'label' => ucfirst($cat)];
+                            $cnt = $categoryCounts[$cat] ?? 0;
+                        @endphp
+                        <a href="{{ route('admin.gifts.index', array_merge(request()->query(), ['category' => $cat])) }}" class="btn btn-sm rounded-pill px-3 {{ request('category') == $cat ? 'btn-primary' : 'btn-outline-secondary' }}" style="font-size: 12px; font-weight: 500;">
+                            {{ $info['emoji'] }} {{ $info['label'] }} ({{ $cnt }})
                         </a>
                     @endforeach
                 </div>
@@ -262,11 +282,18 @@
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" style="font-size: 13px;">Category</label>
                             <select name="category" class="form-select">
-                                <option value="popular" selected>Popular</option>
-                                <option value="romantic">Romantic</option>
-                                <option value="luxury">Luxury</option>
-                                <option value="effects">Effects / 3D</option>
-                                <option value="vip">VIP Exclusive</option>
+                                <option value="hot" selected>🔥 Hot</option>
+                                <option value="lucky">🍀 Lucky</option>
+                                <option value="svip">👑 SVIP</option>
+                                <option value="intimacy">💖 Intimacy</option>
+                                <option value="wealth">💰 Wealth</option>
+                                <option value="festival">🎉 Festival</option>
+                                <option value="bag">🎒 Bag / Backpack</option>
+                                <option value="popular">⭐ Popular</option>
+                                <option value="romantic">💕 Romantic</option>
+                                <option value="luxury">💎 Luxury</option>
+                                <option value="effects">⚡ Effects / 3D</option>
+                                <option value="vip">🌟 VIP Exclusive</option>
                             </select>
                         </div>
 
@@ -390,11 +417,18 @@
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" style="font-size: 13px;">Category</label>
                             <select name="category" id="editGiftCategory" class="form-select">
-                                <option value="popular">Popular</option>
-                                <option value="romantic">Romantic</option>
-                                <option value="luxury">Luxury</option>
-                                <option value="effects">Effects / 3D</option>
-                                <option value="vip">VIP Exclusive</option>
+                                <option value="hot">🔥 Hot</option>
+                                <option value="lucky">🍀 Lucky</option>
+                                <option value="svip">👑 SVIP</option>
+                                <option value="intimacy">💖 Intimacy</option>
+                                <option value="wealth">💰 Wealth</option>
+                                <option value="festival">🎉 Festival</option>
+                                <option value="bag">🎒 Bag / Backpack</option>
+                                <option value="popular">⭐ Popular</option>
+                                <option value="romantic">💕 Romantic</option>
+                                <option value="luxury">💎 Luxury</option>
+                                <option value="effects">⚡ Effects / 3D</option>
+                                <option value="vip">🌟 VIP Exclusive</option>
                             </select>
                         </div>
 

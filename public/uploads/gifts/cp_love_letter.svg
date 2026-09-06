@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="envGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE4E6"/>
+      <stop offset="100%" stop-color="#FDA4AF"/>
+    </linearGradient>
+  </defs>
+  <rect x="35" y="60" width="130" height="95" rx="8" fill="url(#envGrad)" stroke="#F43F5E" stroke-width="3"/>
+  <path d="M35 62L100 115L165 62" stroke="#E11D48" stroke-width="3" fill="none"/>
+  <!-- Wax Seal Heart -->
+  <circle cx="100" cy="115" r="18" fill="#BE123C"/>
+  <path d="M100 123L93 115C90 112 90 107 94 105C97 103 100 106 100 106C100 106 103 103 106 105C110 107 110 112 107 115L100 123Z" fill="#FFF1F2"/>
+  <!-- Floating Hearts -->
+  <path d="M60 45L56 40C54 38 54 35 56 34C58 33 60 35 60 35C60 35 62 33 64 34C66 35 66 38 64 40L60 45Z" fill="#FB7185"/>
+  <path d="M140 40L135 34C133 32 133 29 135 28C137 27 140 29 140 29C140 29 143 27 145 28C147 29 147 32 145 34L140 40Z" fill="#F43F5E"/>
+</svg>

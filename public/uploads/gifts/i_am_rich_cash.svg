@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gold Bullion & Dollar Stacks -->
+  <rect x="40" y="70" width="120" height="70" rx="8" fill="#16A34A" stroke="#22C55E" stroke-width="3"/>
+  <circle cx="100" cy="105" r="22" fill="#15803D" stroke="#86EFAC" stroke-width="2"/>
+  <text x="100" y="115" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#FEF08A" text-anchor="middle">$</text>
+  <text x="100" y="55" font-family="Arial, sans-serif" font-size="14" font-weight="900" fill="#FDE047" text-anchor="middle">I AM RICH</text>
+</svg>

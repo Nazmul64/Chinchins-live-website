@@ -81,11 +81,39 @@ class GiftApiController extends Controller
 
         $gifts = $query->get();
 
-        $allCategories = Gift::where('is_active', true)
+        $catCounts = Gift::where('is_active', true)
             ->select('category', DB::raw('count(*) as count'))
             ->groupBy('category')
             ->pluck('count', 'category')
             ->toArray();
+
+        $categoryDefinitions = [
+            ['key' => 'all',       'label' => 'All',        'emoji' => '🎁', 'icon' => 'fa-gift',                'color' => '#64748b'],
+            ['key' => 'hot',       'label' => 'Hot',        'emoji' => '🔥', 'icon' => 'fa-fire',                'color' => '#f43f5e'],
+            ['key' => 'lucky',     'label' => 'Lucky',      'emoji' => '🍀', 'icon' => 'fa-clover',              'color' => '#10b981'],
+            ['key' => 'svip',      'label' => 'SVIP',       'emoji' => '👑', 'icon' => 'fa-crown',               'color' => '#f59e0b'],
+            ['key' => 'intimacy',  'label' => 'Intimacy',   'emoji' => '💖', 'icon' => 'fa-heart',               'color' => '#ec4899'],
+            ['key' => 'wealth',    'label' => 'Wealth',     'emoji' => '💰', 'icon' => 'fa-coins',               'color' => '#eab308'],
+            ['key' => 'festival',  'label' => 'Festival',   'emoji' => '🎉', 'icon' => 'fa-champagne-glasses',   'color' => '#8b5cf6'],
+            ['key' => 'bag',       'label' => 'Bag',        'emoji' => '🎒', 'icon' => 'fa-bag-shopping',        'color' => '#06b6d4'],
+            ['key' => 'popular',   'label' => 'Popular',    'emoji' => '⭐', 'icon' => 'fa-star',                'color' => '#3b82f6'],
+            ['key' => 'romantic',  'label' => 'Romantic',   'emoji' => '💕', 'icon' => 'fa-heart-circle-bolt',   'color' => '#fb7185'],
+            ['key' => 'luxury',    'label' => 'Luxury',     'emoji' => '💎', 'icon' => 'fa-gem',                 'color' => '#6366f1'],
+            ['key' => 'effects',   'label' => 'Effects/3D', 'emoji' => '⚡', 'icon' => 'fa-bolt',                'color' => '#14b8a6'],
+            ['key' => 'vip',       'label' => 'VIP',        'emoji' => '🌟', 'icon' => 'fa-award',               'color' => '#a855f7'],
+        ];
+
+        $categoriesList = [];
+        $totalActive = Gift::where('is_active', true)->count();
+
+        foreach ($categoryDefinitions as $def) {
+            $key = $def['key'];
+            $cnt = $key === 'all' ? $totalActive : ($catCounts[$key] ?? 0);
+            $categoriesList[] = array_merge($def, [
+                'count'     => $cnt,
+                'is_active' => $request->input('category', 'all') === $key,
+            ]);
+        }
 
         $sender = $this->resolveUser($request);
 
@@ -97,9 +125,11 @@ class GiftApiController extends Controller
                     'coins'           => $sender ? $sender->coins : 0,
                     'formatted_coins' => $sender ? Gift::formatCoins($sender->coins) : '0',
                 ],
-                'categories'   => array_merge(['all' => $gifts->count()], $allCategories),
-                'total_gifts'  => $gifts->count(),
-                'gifts'        => $gifts,
+                'categories'      => array_merge(['all' => $totalActive], $catCounts),
+                'categories_list' => $categoriesList,
+                'selected_category' => $request->input('category', 'all'),
+                'total_gifts'     => $gifts->count(),
+                'gifts'           => $gifts,
             ],
         ]);
     }
