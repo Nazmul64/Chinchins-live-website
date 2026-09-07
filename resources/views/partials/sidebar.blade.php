@@ -10,7 +10,7 @@
 
     <div class="sidebar-menu">
         <!-- Dashboard Section -->
-        <a href="{{ route('admin.dashboard') }}" class="menu-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" style="margin-bottom: 4px;">
+        <a href="{{ route('admin.dashboard') }}" class="menu-item {{ request()->routeIs('admin.dashboard*') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-house" style="color: #3b82f6;"></i>
                 <span>Dashboard</span>
@@ -21,30 +21,37 @@
         <div class="menu-category-title">Management</div>
 
         <!-- Users & Coins -->
+        @hasPermission('users.view')
         <a href="{{ route('admin.users.index') }}" class="menu-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-users" style="color: #3b82f6;"></i>
                 <span>Users & Balance</span>
             </div>
         </a>
+        @endhasPermission
 
         <!-- Payment Methods -->
+        @hasPermission('payment_methods.view')
         <a href="{{ route('admin.payment-methods.index') }}" class="menu-item {{ request()->routeIs('admin.payment-methods.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-credit-card" style="color: #10b981;"></i>
                 <span>Payment Methods</span>
             </div>
         </a>
+        @endhasPermission
 
         <!-- Coin Packages / Gems Store -->
+        @hasPermission('coin_packages.view')
         <a href="{{ route('admin.coin-packages.index') }}" class="menu-item {{ request()->routeIs('admin.coin-packages.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-gem" style="color: #ec4899;"></i>
                 <span>Coin Packages</span>
             </div>
         </a>
+        @endhasPermission
 
         <!-- Gifts & Rewards System -->
+        @hasPermission('gifts.view')
         <a href="{{ route('admin.gifts.index') }}" class="menu-item {{ request()->routeIs('admin.gifts.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-gift" style="color: #f43f5e;"></i>
@@ -55,8 +62,10 @@
             @endphp
             <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(244,63,94,0.15); color: #f43f5e;">{{ $activeGiftsTotal }}</span>
         </a>
+        @endhasPermission
 
         <!-- My Bag (আমার ব্যাগ) Items & Backpack System -->
+        @hasPermission('bag_items.view')
         <div class="menu-item-group {{ request()->routeIs('admin.my-bag.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.my-bag.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
@@ -82,8 +91,10 @@
                 </a>
             </div>
         </div>
+        @endhasPermission
 
         <!-- Premium VIP System & Privilege Cards -->
+        @hasPermission('vip_cards.view')
         <div class="menu-item-group {{ request()->routeIs('admin.vip-cards.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.vip-cards.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
@@ -109,8 +120,10 @@
                 </a>
             </div>
         </div>
+        @endhasPermission
 
         <!-- Spend Less, Get More Gems (Monthly & Weekly Cards & Extra Reward) -->
+        @hasPermission('spend_less_cards.view')
         <div class="menu-item-group {{ request()->routeIs('admin.spend-less-cards.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.spend-less-cards.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
@@ -136,8 +149,10 @@
                 </a>
             </div>
         </div>
+        @endhasPermission
 
         <!-- Level Badges & Profile Avatar Bases -->
+        @hasPermission('level_badges.view')
         <a href="{{ route('admin.profile-bases.index') }}" class="menu-item {{ request()->routeIs('admin.profile-bases.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-certificate" style="color: #f59e0b;"></i>
@@ -148,8 +163,10 @@
             @endphp
             <span class="badge bg-amber-subtle text-amber rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(245,158,11,0.15); color: #f59e0b;">{{ $activeBasesTotal }} Tiers</span>
         </a>
+        @endhasPermission
 
         <!-- Deposit Requests -->
+        @hasPermission('deposits.view')
         @php
             $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count();
             $pendingWithCount = \App\Models\WithdrawRequest::where('status', 'pending')->count();
@@ -164,8 +181,10 @@
                 <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingDepCount }}</span>
             @endif
         </a>
+        @endhasPermission
 
         <!-- Withdrawal Requests & Settings -->
+        @hasPermission('withdrawals.view')
         <div class="menu-item-group {{ request()->routeIs('admin.withdrawals.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.withdrawals.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
@@ -193,8 +212,10 @@
                 </a>
             </div>
         </div>
+        @endhasPermission
 
         <!-- KYC Identity Verification -->
+        @hasPermission('kyc.view')
         <a href="{{ route('admin.kyc.index') }}" class="menu-item {{ request()->routeIs('admin.kyc.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-id-card" style="color: #06b6d4;"></i>
@@ -204,8 +225,10 @@
                 <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingKycCount }}</span>
             @endif
         </a>
+        @endhasPermission
 
         <!-- User & In-Chat Reports Moderation -->
+        @hasPermission('reports.view')
         @php
             $pendingReportsCount = \App\Models\UserReport::where('status', 'pending')->count();
         @endphp
@@ -218,8 +241,10 @@
                 <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingReportsCount }}</span>
             @endif
         </a>
+        @endhasPermission
 
         <!-- Audio & Video Calling Sessions & Revenue -->
+        @hasPermission('calls.view')
         <div class="menu-item-group {{ request()->routeIs('admin.calls.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.calls.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
@@ -239,21 +264,73 @@
                 </a>
             </div>
         </div>
+        @endhasPermission
 
         <!-- Coin Transactions -->
+        @hasPermission('transactions.view')
         <a href="{{ route('admin.transactions.index') }}" class="menu-item {{ request()->routeIs('admin.transactions.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-coins" style="color: #8b5cf6;"></i>
                 <span>Coin Ledger</span>
             </div>
         </a>
+        @endhasPermission
+
+        <!-- Staff & RBAC Management Section -->
+        @canAnyPermission(['staff.view', 'roles.view', 'activity_logs.view', 'login_history.view'])
+        <div class="menu-category-title">Administration</div>
+
+        <div class="menu-item-group {{ request()->routeIs('admin.staff.*') || request()->routeIs('admin.roles.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.staff.*') || request()->routeIs('admin.roles.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-user-shield" style="color: #3b82f6;"></i>
+                    <span>Staff & Roles</span>
+                </div>
+                <i class="fa-solid fa-chevron-right menu-arrow"></i>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.staff.*') || request()->routeIs('admin.roles.*') ? 'display: block;' : '' }}">
+                @hasPermission('staff.view')
+                <a href="{{ route('admin.staff.index') }}" class="submenu-item {{ request()->routeIs('admin.staff.*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Staff Members</span>
+                </a>
+                @endhasPermission
+                @hasPermission('roles.view')
+                <a href="{{ route('admin.roles.index') }}" class="submenu-item {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Roles & Permissions</span>
+                </a>
+                @endhasPermission
+            </div>
+        </div>
+
+        @hasPermission('activity_logs.view')
+        <a href="{{ route('admin.activity-logs.index') }}" class="menu-item {{ request()->routeIs('admin.activity-logs.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i>
+                <span>Activity Audit Logs</span>
+            </div>
+        </a>
+        @endhasPermission
+
+        @hasPermission('login_history.view')
+        <a href="{{ route('admin.login-history.index') }}" class="menu-item {{ request()->routeIs('admin.login-history.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-right-to-bracket" style="color: #0ea5e9;"></i>
+                <span>Login History</span>
+            </div>
+        </a>
+        @endhasPermission
+        @endcanAnyPermission
 
         <!-- App Branding & Settings -->
+        @hasPermission('settings.view')
         <a href="{{ route('admin.settings.index') }}" class="menu-item {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-sliders" style="color: #06b6d4;"></i>
                 <span>App Branding & Config</span>
             </div>
         </a>
+        @endhasPermission
     </div>
 </aside>

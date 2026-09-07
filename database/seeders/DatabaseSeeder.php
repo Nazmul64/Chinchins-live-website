@@ -32,6 +32,9 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        // Seed Roles and Permissions
+        $this->call(RoleAndPermissionSeeder::class);
+
         // Chinchins Live Featured Mock Profile (matching screenshot Ayeena04)
         User::updateOrCreate(
             ['email' => 'ayeena@chinchins.live'],

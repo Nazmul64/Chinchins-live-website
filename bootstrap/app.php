@@ -23,6 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'coin-packages/*',
             'deposit/*',
         ]);
+
+        $middleware->alias([
+            'permission'   => \App\Http\Middleware\CheckPermissionMiddleware::class,
+            'role'         => \App\Http\Middleware\CheckRoleMiddleware::class,
+            'admin.status' => \App\Http\Middleware\CheckAdminStatusMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(function (\Illuminate\Http\Request $request, \Throwable $e) {

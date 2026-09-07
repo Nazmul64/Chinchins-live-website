@@ -60,6 +60,11 @@ class User extends Authenticatable
         'auto_call_enabled',
         'is_free_caller',
         'close_friends_count',
+        'role_id',
+        'status',
+        'last_login_at',
+        'failed_login_attempts',
+        'locked_until',
     ];
 
     /**
@@ -890,6 +895,106 @@ class User extends Authenticatable
     public function reportsReceived()
     {
         return $this->hasMany(UserReport::class, 'reported_user_id');
+    }
+
+    /**
+     * Role assigned to this administrative user.
+     */
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Individual permission overrides for this user.
+     */
+    public function userPermissions()
+    {
+        return $this->hasMany(UserPermission::class);
+    }
+
+    /**
+     * Activity audit logs performed by this user.
+     */
+    public function activityLogs()
+    {
+        return $this->hasMany(ActivityLog::class)->latest();
+    }
+
+    /**
+     * Login history records for this user.
+     */
+    public function loginHistories()
+    {
+        return $this->hasMany(LoginHistory::class)->latest();
+    }
+
+    /**
+     * Check if user has a specific permission.
+     */
+    public function hasPermission(string $permissionSlug): bool
+    {
+        return app(\App\Services\PermissionService::class)->hasPermission($this, $permissionSlug);
+    }
+
+    /**
+     * Check if user has any of the given permissions.
+     */
+    public function hasAnyPermission(array $permissionSlugs): bool
+    {
+        return app(\App\Services\PermissionService::class)->hasAnyPermission($this, $permissionSlugs);
+    }
+
+    /**
+     * Check if user has a given role slug.
+     */
+    public function hasRole(string|array $roleSlug): bool
+    {
+        return app(\App\Services\PermissionService::class)->hasRole($this, $roleSlug);
+    }
+
+    /**
+     * Check if user is Super Admin.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return app(\App\Services\PermissionService::class)->isSuperAdmin($this);
+    }
+
+    /**
+     * Check if user is Sub Admin.
+     */
+    public function isSubAdmin(): bool
+    {
+        return $this->role && $this->role->slug === 'sub-admin';
+    }
+
+    /**
+     * Check if user is Manager.
+     */
+    public function isManager(): bool
+    {
+        return $this->role && $this->role->slug === 'manager';
+    }
+
+    /**
+     * Check if user is Employee.
+     */
+    public function isEmployee(): bool
+    {
+        return $this->role && $this->role->slug === 'employee';
+    }
+
+    /**
+     * Check if user can access admin panel.
+     */
+    public function canAccessAdmin(): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->role_id !== null && ($this->status ?? 'active') === 'active' && !$this->is_locked;
     }
 }
 

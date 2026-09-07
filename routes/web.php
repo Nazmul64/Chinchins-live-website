@@ -1,139 +1,178 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\CoinPackageController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepositRequestController;
+use App\Http\Controllers\Admin\LoginHistoryController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\ProfileAdminController;
+use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\StaffManagementController;
 use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
-// Authentication Routes
+// Authentication Routes (Both /login and /admin/login supported)
 Route::get('/', [AuthController::class, 'showLoginForm'])->name('home');
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+Route::get('/admin/login', [AuthController::class, 'showLoginForm'])->name('admin.login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+Route::post('/admin/login', [AuthController::class, 'login'])->name('admin.login.submit');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Authenticated Admin Dashboard Routes
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+// Authenticated Admin Dashboard & Management Routes
+Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->group(function () {
+    // Dashboards
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/sub-admin', [DashboardController::class, 'subAdmin'])->name('dashboard.sub_admin');
+    Route::get('/dashboard/manager', [DashboardController::class, 'manager'])->name('dashboard.manager');
+    Route::get('/dashboard/employee', [DashboardController::class, 'employee'])->name('dashboard.employee');
     Route::get('/profile', [ProfileAdminController::class, 'index'])->name('profile');
 
     // Users Management
-    Route::get('/users', [UserController::class, 'index'])->name('users.index');
-    Route::get('/users/{id}', [UserController::class, 'show'])->name('users.show');
-    Route::match(['get', 'post'], '/users/{id}/adjust-coins', [UserController::class, 'adjustCoins'])->name('users.adjust-coins');
-    Route::match(['get', 'post'], '/users/{id}/coins', [UserController::class, 'adjustCoins']);
-    Route::match(['get', 'post'], '/users/{id}/adjust-coin', [UserController::class, 'adjustCoins']);
-    Route::match(['get', 'post'], '/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
-    Route::match(['get', 'post'], '/users/{id}/toggle-lock', [UserController::class, 'toggleLock'])->name('users.toggle-lock');
-    Route::match(['get', 'post'], '/users/{id}/toggle-free-caller', [UserController::class, 'toggleFreeCaller'])->name('users.toggle-free-caller');
-    Route::match(['get', 'post'], '/users/{id}/toggle-free-host', [UserController::class, 'toggleFreeCaller'])->name('users.toggle-free-host');
-    Route::match(['get', 'post'], '/users/{id}/free-caller', [UserController::class, 'toggleFreeCaller']);
-    Route::match(['get', 'post'], '/users/{id}/free-host', [UserController::class, 'toggleFreeCaller']);
+    Route::middleware(['permission:users.view'])->group(function () {
+        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::get('/users/{id}', [UserController::class, 'show'])->name('users.show');
+    });
+    Route::match(['get', 'post'], '/users/{id}/adjust-coins', [UserController::class, 'adjustCoins'])->name('users.adjust-coins')->middleware('permission:users.adjust_coins');
+    Route::match(['get', 'post'], '/users/{id}/coins', [UserController::class, 'adjustCoins'])->middleware('permission:users.adjust_coins');
+    Route::match(['get', 'post'], '/users/{id}/adjust-coin', [UserController::class, 'adjustCoins'])->middleware('permission:users.adjust_coins');
+    Route::match(['get', 'post'], '/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status')->middleware('permission:users.toggle_status');
+    Route::match(['get', 'post'], '/users/{id}/toggle-lock', [UserController::class, 'toggleLock'])->name('users.toggle-lock')->middleware('permission:users.toggle_lock');
+    Route::match(['get', 'post'], '/users/{id}/toggle-free-caller', [UserController::class, 'toggleFreeCaller'])->name('users.toggle-free-caller')->middleware('permission:users.free_caller');
+    Route::match(['get', 'post'], '/users/{id}/toggle-free-host', [UserController::class, 'toggleFreeCaller'])->name('users.toggle-free-host')->middleware('permission:users.free_caller');
+    Route::match(['get', 'post'], '/users/{id}/free-caller', [UserController::class, 'toggleFreeCaller'])->middleware('permission:users.free_caller');
+    Route::match(['get', 'post'], '/users/{id}/free-host', [UserController::class, 'toggleFreeCaller'])->middleware('permission:users.free_caller');
 
     // Payment Methods Management
-    Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');
-    Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store');
-    Route::put('/payment-methods/{id}', [PaymentMethodController::class, 'update'])->name('payment-methods.update');
-    Route::delete('/payment-methods/{id}', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy');
-    Route::post('/payment-methods/{id}/toggle-status', [PaymentMethodController::class, 'toggleStatus'])->name('payment-methods.toggle-status');
+    Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index')->middleware('permission:payment_methods.view');
+    Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store')->middleware('permission:payment_methods.create');
+    Route::put('/payment-methods/{id}', [PaymentMethodController::class, 'update'])->name('payment-methods.update')->middleware('permission:payment_methods.edit');
+    Route::delete('/payment-methods/{id}', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy')->middleware('permission:payment_methods.delete');
+    Route::post('/payment-methods/{id}/toggle-status', [PaymentMethodController::class, 'toggleStatus'])->name('payment-methods.toggle-status')->middleware('permission:payment_methods.toggle_status');
 
     // Coin Packages Management
-    Route::get('/coin-packages', [CoinPackageController::class, 'index'])->name('coin-packages.index');
-    Route::post('/coin-packages', [CoinPackageController::class, 'store'])->name('coin-packages.store');
-    Route::put('/coin-packages/{id}', [CoinPackageController::class, 'update'])->name('coin-packages.update');
-    Route::delete('/coin-packages/{id}', [CoinPackageController::class, 'destroy'])->name('coin-packages.destroy');
-    Route::post('/coin-packages/{id}/toggle-status', [CoinPackageController::class, 'toggleStatus'])->name('coin-packages.toggle-status');
+    Route::get('/coin-packages', [CoinPackageController::class, 'index'])->name('coin-packages.index')->middleware('permission:coin_packages.view');
+    Route::post('/coin-packages', [CoinPackageController::class, 'store'])->name('coin-packages.store')->middleware('permission:coin_packages.create');
+    Route::put('/coin-packages/{id}', [CoinPackageController::class, 'update'])->name('coin-packages.update')->middleware('permission:coin_packages.edit');
+    Route::delete('/coin-packages/{id}', [CoinPackageController::class, 'destroy'])->name('coin-packages.destroy')->middleware('permission:coin_packages.delete');
+    Route::post('/coin-packages/{id}/toggle-status', [CoinPackageController::class, 'toggleStatus'])->name('coin-packages.toggle-status')->middleware('permission:coin_packages.toggle_status');
 
     // Manual Deposit Requests
-    Route::get('/deposits', [DepositRequestController::class, 'index'])->name('deposits.index');
-    Route::post('/deposits/{id}/approve', [DepositRequestController::class, 'approve'])->name('deposits.approve');
-    Route::post('/deposits/{id}/reject', [DepositRequestController::class, 'reject'])->name('deposits.reject');
+    Route::get('/deposits', [DepositRequestController::class, 'index'])->name('deposits.index')->middleware('permission:deposits.view');
+    Route::post('/deposits/{id}/approve', [DepositRequestController::class, 'approve'])->name('deposits.approve')->middleware('permission:deposits.approve');
+    Route::post('/deposits/{id}/reject', [DepositRequestController::class, 'reject'])->name('deposits.reject')->middleware('permission:deposits.reject');
 
     // Coin Withdrawal Requests & Settings
-    Route::get('/withdrawals', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'index'])->name('withdrawals.index');
-    Route::post('/withdrawals/{id}/approve', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'approve'])->name('withdrawals.approve');
-    Route::post('/withdrawals/{id}/reject', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'reject'])->name('withdrawals.reject');
-    Route::get('/withdrawals/settings', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'settings'])->name('withdrawals.settings');
-    Route::post('/withdrawals/settings', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'updateSettings'])->name('withdrawals.settings.update');
-    Route::post('/withdrawals/methods/{id}/toggle', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'toggleMethodWithdraw'])->name('withdrawals.toggle-method');
+    Route::get('/withdrawals', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'index'])->name('withdrawals.index')->middleware('permission:withdrawals.view');
+    Route::post('/withdrawals/{id}/approve', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'approve'])->name('withdrawals.approve')->middleware('permission:withdrawals.approve');
+    Route::post('/withdrawals/{id}/reject', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'reject'])->name('withdrawals.reject')->middleware('permission:withdrawals.reject');
+    Route::get('/withdrawals/settings', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'settings'])->name('withdrawals.settings')->middleware('permission:withdrawals.settings');
+    Route::post('/withdrawals/settings', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'updateSettings'])->name('withdrawals.settings.update')->middleware('permission:withdrawals.settings');
+    Route::post('/withdrawals/methods/{id}/toggle', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'toggleMethodWithdraw'])->name('withdrawals.toggle-method')->middleware('permission:withdrawals.settings');
 
     // Audio & Video Call Sessions & Revenue Settings
-    Route::get('/calls', [\App\Http\Controllers\Admin\CallAdminController::class, 'index'])->name('calls.index');
-    Route::get('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'settings'])->name('calls.settings');
-    Route::post('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'updateSettings'])->name('calls.settings.update');
+    Route::get('/calls', [\App\Http\Controllers\Admin\CallAdminController::class, 'index'])->name('calls.index')->middleware('permission:calls.view');
+    Route::get('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'settings'])->name('calls.settings')->middleware('permission:calls.settings');
+    Route::post('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'updateSettings'])->name('calls.settings.update')->middleware('permission:calls.settings');
 
     // KYC Identity Verification Management
-    Route::get('/kyc', [\App\Http\Controllers\Admin\KycAdminController::class, 'index'])->name('kyc.index');
-    Route::get('/kyc/{id}', [\App\Http\Controllers\Admin\KycAdminController::class, 'show'])->name('kyc.show');
-    Route::post('/kyc/{id}/approve', [\App\Http\Controllers\Admin\KycAdminController::class, 'approve'])->name('kyc.approve');
-    Route::post('/kyc/{id}/reject', [\App\Http\Controllers\Admin\KycAdminController::class, 'reject'])->name('kyc.reject');
-    Route::post('/kyc/{id}/revoke', [\App\Http\Controllers\Admin\KycAdminController::class, 'revoke'])->name('kyc.revoke');
+    Route::get('/kyc', [\App\Http\Controllers\Admin\KycAdminController::class, 'index'])->name('kyc.index')->middleware('permission:kyc.view');
+    Route::get('/kyc/{id}', [\App\Http\Controllers\Admin\KycAdminController::class, 'show'])->name('kyc.show')->middleware('permission:kyc.view');
+    Route::post('/kyc/{id}/approve', [\App\Http\Controllers\Admin\KycAdminController::class, 'approve'])->name('kyc.approve')->middleware('permission:kyc.approve');
+    Route::post('/kyc/{id}/reject', [\App\Http\Controllers\Admin\KycAdminController::class, 'reject'])->name('kyc.reject')->middleware('permission:kyc.reject');
+    Route::post('/kyc/{id}/revoke', [\App\Http\Controllers\Admin\KycAdminController::class, 'revoke'])->name('kyc.revoke')->middleware('permission:kyc.revoke');
 
     // Gifts & Rewards Management
-    Route::get('/gifts', [\App\Http\Controllers\Admin\GiftController::class, 'index'])->name('gifts.index');
-    Route::post('/gifts', [\App\Http\Controllers\Admin\GiftController::class, 'store'])->name('gifts.store');
-    Route::put('/gifts/{id}', [\App\Http\Controllers\Admin\GiftController::class, 'update'])->name('gifts.update');
-    Route::delete('/gifts/{id}', [\App\Http\Controllers\Admin\GiftController::class, 'destroy'])->name('gifts.destroy');
-    Route::post('/gifts/{id}/toggle-status', [\App\Http\Controllers\Admin\GiftController::class, 'toggleStatus'])->name('gifts.toggle-status');
-    Route::post('/gifts/give-to-user', [\App\Http\Controllers\Admin\GiftController::class, 'giveGiftToUser'])->name('gifts.give');
-    Route::post('/gifts/levels', [\App\Http\Controllers\Admin\GiftController::class, 'updateLevels'])->name('gifts.levels.update');
-    Route::get('/gifts/logs', [\App\Http\Controllers\Admin\GiftController::class, 'logs'])->name('gifts.logs');
+    Route::get('/gifts', [\App\Http\Controllers\Admin\GiftController::class, 'index'])->name('gifts.index')->middleware('permission:gifts.view');
+    Route::post('/gifts', [\App\Http\Controllers\Admin\GiftController::class, 'store'])->name('gifts.store')->middleware('permission:gifts.create');
+    Route::put('/gifts/{id}', [\App\Http\Controllers\Admin\GiftController::class, 'update'])->name('gifts.update')->middleware('permission:gifts.edit');
+    Route::delete('/gifts/{id}', [\App\Http\Controllers\Admin\GiftController::class, 'destroy'])->name('gifts.destroy')->middleware('permission:gifts.delete');
+    Route::post('/gifts/{id}/toggle-status', [\App\Http\Controllers\Admin\GiftController::class, 'toggleStatus'])->name('gifts.toggle-status')->middleware('permission:gifts.edit');
+    Route::post('/gifts/give-to-user', [\App\Http\Controllers\Admin\GiftController::class, 'giveGiftToUser'])->name('gifts.give')->middleware('permission:gifts.give_to_user');
+    Route::post('/gifts/levels', [\App\Http\Controllers\Admin\GiftController::class, 'updateLevels'])->name('gifts.levels.update')->middleware('permission:gifts.settings');
+    Route::get('/gifts/logs', [\App\Http\Controllers\Admin\GiftController::class, 'logs'])->name('gifts.logs')->middleware('permission:gifts.view');
 
     // Premium VIP Cards & Floating Home Banner Management
-    Route::get('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'index'])->name('vip-cards.index');
-    Route::post('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'store'])->name('vip-cards.store');
-    Route::put('/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'update'])->name('vip-cards.update');
-    Route::delete('/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'destroy'])->name('vip-cards.destroy');
-    Route::post('/vip-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'toggleStatus'])->name('vip-cards.toggle-status');
-    Route::get('/vip-cards/subscriptions', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'subscriptions'])->name('vip-cards.subscriptions');
-    Route::post('/vip-cards/floating-banner', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'updateFloatingBanner'])->name('vip-cards.floating-banner');
+    Route::get('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'index'])->name('vip-cards.index')->middleware('permission:vip_cards.view');
+    Route::post('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'store'])->name('vip-cards.store')->middleware('permission:vip_cards.create');
+    Route::put('/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'update'])->name('vip-cards.update')->middleware('permission:vip_cards.edit');
+    Route::delete('/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'destroy'])->name('vip-cards.destroy')->middleware('permission:vip_cards.delete');
+    Route::post('/vip-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'toggleStatus'])->name('vip-cards.toggle-status')->middleware('permission:vip_cards.toggle_status');
+    Route::get('/vip-cards/subscriptions', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'subscriptions'])->name('vip-cards.subscriptions')->middleware('permission:vip_cards.view');
+    Route::post('/vip-cards/floating-banner', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'updateFloatingBanner'])->name('vip-cards.floating-banner')->middleware('permission:vip_cards.floating_banner');
 
-    // Spend Less, Get More Gems (Monthly & Weekly Cards & Extra Reward) Management
-    Route::get('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'index'])->name('spend-less-cards.index');
-    Route::post('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'store'])->name('spend-less-cards.store');
-    Route::put('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'update'])->name('spend-less-cards.update');
-    Route::delete('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'destroy'])->name('spend-less-cards.destroy');
-    Route::post('/spend-less-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'toggleStatus'])->name('spend-less-cards.toggle-status');
-    Route::get('/spend-less-cards/subscriptions', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'subscriptions'])->name('spend-less-cards.subscriptions');
+    // Spend Less, Get More Gems Management
+    Route::get('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'index'])->name('spend-less-cards.index')->middleware('permission:spend_less_cards.view');
+    Route::post('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'store'])->name('spend-less-cards.store')->middleware('permission:spend_less_cards.create');
+    Route::put('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'update'])->name('spend-less-cards.update')->middleware('permission:spend_less_cards.edit');
+    Route::delete('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'destroy'])->name('spend-less-cards.destroy')->middleware('permission:spend_less_cards.delete');
+    Route::post('/spend-less-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'toggleStatus'])->name('spend-less-cards.toggle-status')->middleware('permission:spend_less_cards.toggle_status');
+    Route::get('/spend-less-cards/subscriptions', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'subscriptions'])->name('spend-less-cards.subscriptions')->middleware('permission:spend_less_cards.view');
 
     // Profile Bases & Level Badges Management
-    Route::get('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'index'])->name('profile-bases.index');
-    Route::post('/profile-bases/batch-update', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'batchUpdate'])->name('profile-bases.batch-update');
-    Route::post('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'store'])->name('profile-bases.store');
-    Route::put('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'update'])->name('profile-bases.update');
-    Route::delete('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'destroy'])->name('profile-bases.destroy');
-    Route::post('/profile-bases/{id}/toggle-status', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'toggleStatus'])->name('profile-bases.toggle-status');
+    Route::get('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'index'])->name('profile-bases.index')->middleware('permission:level_badges.view');
+    Route::post('/profile-bases/batch-update', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'batchUpdate'])->name('profile-bases.batch-update')->middleware('permission:level_badges.batch_update');
+    Route::post('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'store'])->name('profile-bases.store')->middleware('permission:level_badges.create');
+    Route::put('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'update'])->name('profile-bases.update')->middleware('permission:level_badges.edit');
+    Route::delete('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'destroy'])->name('profile-bases.destroy')->middleware('permission:level_badges.delete');
+    Route::post('/profile-bases/{id}/toggle-status', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'toggleStatus'])->name('profile-bases.toggle-status')->middleware('permission:level_badges.edit');
 
     // My Bag Items & User Inventory Management
-    Route::get('/my-bag', [\App\Http\Controllers\Admin\BagAdminController::class, 'index'])->name('my-bag.index');
-    Route::post('/my-bag', [\App\Http\Controllers\Admin\BagAdminController::class, 'store'])->name('my-bag.store');
-    Route::put('/my-bag/{id}', [\App\Http\Controllers\Admin\BagAdminController::class, 'update'])->name('my-bag.update');
-    Route::delete('/my-bag/{id}', [\App\Http\Controllers\Admin\BagAdminController::class, 'destroy'])->name('my-bag.destroy');
-    Route::post('/my-bag/{id}/toggle-status', [\App\Http\Controllers\Admin\BagAdminController::class, 'toggleStatus'])->name('my-bag.toggle-status');
-    Route::post('/my-bag/give-user', [\App\Http\Controllers\Admin\BagAdminController::class, 'giveToUser'])->name('my-bag.give-user');
-    Route::get('/my-bag/inventory', [\App\Http\Controllers\Admin\BagAdminController::class, 'userInventory'])->name('my-bag.inventory');
+    Route::get('/my-bag', [\App\Http\Controllers\Admin\BagAdminController::class, 'index'])->name('my-bag.index')->middleware('permission:bag_items.view');
+    Route::post('/my-bag', [\App\Http\Controllers\Admin\BagAdminController::class, 'store'])->name('my-bag.store')->middleware('permission:bag_items.create');
+    Route::put('/my-bag/{id}', [\App\Http\Controllers\Admin\BagAdminController::class, 'update'])->name('my-bag.update')->middleware('permission:bag_items.edit');
+    Route::delete('/my-bag/{id}', [\App\Http\Controllers\Admin\BagAdminController::class, 'destroy'])->name('my-bag.destroy')->middleware('permission:bag_items.delete');
+    Route::post('/my-bag/{id}/toggle-status', [\App\Http\Controllers\Admin\BagAdminController::class, 'toggleStatus'])->name('my-bag.toggle-status')->middleware('permission:bag_items.edit');
+    Route::post('/my-bag/give-user', [\App\Http\Controllers\Admin\BagAdminController::class, 'giveToUser'])->name('my-bag.give-user')->middleware('permission:bag_items.give_to_user');
+    Route::get('/my-bag/inventory', [\App\Http\Controllers\Admin\BagAdminController::class, 'userInventory'])->name('my-bag.inventory')->middleware('permission:bag_items.view');
 
     // User Complaints & In-Chat Reports Moderation
-    Route::get('/reports', [\App\Http\Controllers\Admin\ReportAdminController::class, 'index'])->name('reports.index');
-    Route::post('/reports/{id}/status', [\App\Http\Controllers\Admin\ReportAdminController::class, 'updateStatus'])->name('reports.update-status');
-    Route::post('/reports/{id}/block-and-resolve', [\App\Http\Controllers\Admin\ReportAdminController::class, 'blockAndResolve'])->name('reports.block-and-resolve');
+    Route::get('/reports', [\App\Http\Controllers\Admin\ReportAdminController::class, 'index'])->name('reports.index')->middleware('permission:reports.view');
+    Route::post('/reports/{id}/status', [\App\Http\Controllers\Admin\ReportAdminController::class, 'updateStatus'])->name('reports.update-status')->middleware('permission:reports.resolve');
+    Route::post('/reports/{id}/block-and-resolve', [\App\Http\Controllers\Admin\ReportAdminController::class, 'blockAndResolve'])->name('reports.block-and-resolve')->middleware('permission:reports.block_user');
+
+    // Staff Management (RBAC)
+    Route::get('/staff', [StaffManagementController::class, 'index'])->name('staff.index')->middleware('permission:staff.view');
+    Route::get('/staff/create', [StaffManagementController::class, 'create'])->name('staff.create')->middleware('permission:staff.create');
+    Route::post('/staff', [StaffManagementController::class, 'store'])->name('staff.store')->middleware('permission:staff.create');
+    Route::get('/staff/{staff}/edit', [StaffManagementController::class, 'edit'])->name('staff.edit')->middleware('permission:staff.edit');
+    Route::put('/staff/{staff}', [StaffManagementController::class, 'update'])->name('staff.update')->middleware('permission:staff.edit');
+    Route::delete('/staff/{staff}', [StaffManagementController::class, 'destroy'])->name('staff.destroy')->middleware('permission:staff.delete');
+    Route::post('/staff/{staff}/status', [StaffManagementController::class, 'updateStatus'])->name('staff.status')->middleware('permission:staff.status_toggle');
+    Route::get('/staff/{staff}/permissions', [StaffManagementController::class, 'editPermissions'])->name('staff.permissions')->middleware('permission:staff.permissions');
+    Route::post('/staff/{staff}/permissions', [StaffManagementController::class, 'updatePermissions'])->name('staff.permissions.update')->middleware('permission:staff.permissions');
+
+    // Role Management (RBAC)
+    Route::get('/roles', [RoleManagementController::class, 'index'])->name('roles.index')->middleware('permission:roles.view');
+    Route::get('/roles/create', [RoleManagementController::class, 'create'])->name('roles.create')->middleware('permission:roles.create');
+    Route::post('/roles', [RoleManagementController::class, 'store'])->name('roles.store')->middleware('permission:roles.create');
+    Route::get('/roles/{role}/edit', [RoleManagementController::class, 'edit'])->name('roles.edit')->middleware('permission:roles.edit');
+    Route::put('/roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update')->middleware('permission:roles.edit');
+    Route::delete('/roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy')->middleware('permission:roles.delete');
+    Route::get('/roles/{role}/permissions', [RoleManagementController::class, 'editPermissions'])->name('roles.permissions')->middleware('permission:roles.permissions');
+    Route::post('/roles/{role}/permissions', [RoleManagementController::class, 'updatePermissions'])->name('roles.permissions.update')->middleware('permission:roles.permissions');
+
+    // Activity Audit Logs
+    Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index')->middleware('permission:activity_logs.view');
+
+    // Login History
+    Route::get('/login-history', [LoginHistoryController::class, 'index'])->name('login-history.index')->middleware('permission:login_history.view');
 
     // App Branding & General Settings
-    Route::get('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'index'])->name('settings.index');
-    Route::post('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'update'])->name('settings.update');
-    Route::post('/settings/version', [\App\Http\Controllers\Admin\AppSettingController::class, 'publishVersion'])->name('settings.version.publish');
-    Route::post('/settings/push-broadcast', [\App\Http\Controllers\Admin\AppSettingController::class, 'sendPushBroadcast'])->name('settings.push.broadcast');
+    Route::get('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'index'])->name('settings.index')->middleware('permission:settings.view');
+    Route::post('/settings', [\App\Http\Controllers\Admin\AppSettingController::class, 'update'])->name('settings.update')->middleware('permission:settings.update');
+    Route::post('/settings/version', [\App\Http\Controllers\Admin\AppSettingController::class, 'publishVersion'])->name('settings.version.publish')->middleware('permission:settings.update');
+    Route::post('/settings/push-broadcast', [\App\Http\Controllers\Admin\AppSettingController::class, 'sendPushBroadcast'])->name('settings.push.broadcast')->middleware('permission:settings.push_broadcast');
 
-    // ⚡ Streaming & Video Calling Engine Management (Agora Cloud vs VPS WebRTC)
-    Route::get('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'index'])->name('settings.streaming.index');
-    Route::post('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'update'])->name('settings.streaming.update');
+    // Streaming & Video Calling Engine Management (Agora Cloud vs VPS WebRTC)
+    Route::get('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'index'])->name('settings.streaming.index')->middleware('permission:streaming.view');
+    Route::post('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'update'])->name('settings.streaming.update')->middleware('permission:streaming.update');
 
     // Coin Transaction Ledger
-    Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
+    Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index')->middleware('permission:transactions.view');
 });
 
 // Shortcut aliases
@@ -159,6 +198,7 @@ Route::post('/kyc/video-scan', [\App\Http\Controllers\Api\KycApiController::clas
 Route::post('/kyc/video', [\App\Http\Controllers\Api\KycApiController::class, 'videoScanVerify']);
 Route::post('/kyc/face/verify-step', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
 Route::post('/kyc/face-liveness', [\App\Http\Controllers\Api\KycApiController::class, 'verifyFaceStep']);
+
 // Mobile App Wallet & Deposit Fallback Routes (Direct and /api prefix)
 Route::match(['get', 'post'], '/api/deposit/submit', [\App\Http\Controllers\Api\PaymentController::class, 'submitDeposit']);
 Route::match(['get', 'post'], '/api/deposit/request', [\App\Http\Controllers\Api\PaymentController::class, 'submitDeposit']);
@@ -216,6 +256,3 @@ Route::post('/api/call/deduct-interval', [\App\Http\Controllers\Api\CallControll
 Route::post('/api/call/pulse', [\App\Http\Controllers\Api\CallController::class, 'deductInterval']);
 Route::post('/api/call/end', [\App\Http\Controllers\Api\CallController::class, 'end']);
 Route::get('/api/call/history', [\App\Http\Controllers\Api\CallController::class, 'history']);
-
-
-
