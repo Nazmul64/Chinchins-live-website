@@ -23,7 +23,10 @@ class CheckAdminStatusMiddleware
             return redirect()->route('login');
         }
 
-        // Check if user has an admin role or is super-admin
+        // Super Admin bypasses all lock and status checks
+        if ($user->isSuperAdmin()) {
+            return $next($request);
+        }
         if (!$user->canAccessAdmin()) {
             auth()->logout();
             $request->session()->invalidate();

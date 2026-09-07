@@ -25,6 +25,11 @@ class CheckPermissionMiddleware
             return redirect()->route('login');
         }
 
+        // Super admin bypasses all permission and status checks
+        if ($user->isSuperAdmin()) {
+            return $next($request);
+        }
+
         // Check account status
         if ($user->status === 'inactive' || $user->status === 'suspended' || $user->is_locked) {
             auth()->logout();
@@ -32,11 +37,6 @@ class CheckPermissionMiddleware
             $request->session()->regenerateToken();
 
             return redirect()->route('login')->with('error', 'Your administrative account has been deactivated or locked. Contact Super Admin.');
-        }
-
-        // Super admin bypasses all permission checks
-        if ($user->isSuperAdmin()) {
-            return $next($request);
         }
 
         // Check if user has ANY of the specified permissions

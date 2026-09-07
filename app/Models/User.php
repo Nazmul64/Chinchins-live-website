@@ -994,7 +994,11 @@ class User extends Authenticatable
             return true;
         }
 
-        return $this->role_id !== null && ($this->status ?? 'active') === 'active' && !$this->is_locked;
+        if ($this->role_id !== null || !empty($this->is_admin)) {
+            return ($this->status ?? 'active') === 'active' && !$this->is_locked;
+        }
+
+        return false;
     }
 }
 
