@@ -14,9 +14,9 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::query();
+        $query = User::with(['kycVerification', 'wallet']);
 
-        // Search by Name, Phone, Account ID or Email
+        // Search by Name, Phone, Account ID, Country, City, or Email
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -25,6 +25,8 @@ class UserController extends Controller
                   ->orWhere('nickname', 'like', "%{$search}%")
                   ->orWhere('phone', 'like', "%{$search}%")
                   ->orWhere('account_id', 'like', "%{$search}%")
+                  ->orWhere('country', 'like', "%{$search}%")
+                  ->orWhere('city', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
             });
         }

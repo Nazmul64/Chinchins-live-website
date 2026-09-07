@@ -455,23 +455,27 @@ class User extends Authenticatable
         $cleanPath = ltrim($path, '/');
 
         if (str_starts_with($cleanPath, 'uploads/')) {
-            return asset($cleanPath);
+            return url($cleanPath);
         }
 
         if (str_starts_with($cleanPath, 'profile/') || str_starts_with($cleanPath, 'profiles/') || str_starts_with($cleanPath, 'payment_gateways/')) {
-            return asset('uploads/' . $cleanPath);
+            return url('uploads/' . $cleanPath);
         }
 
         if (str_starts_with($cleanPath, 'storage/')) {
             $withoutStorage = substr($cleanPath, 8);
-            return asset('uploads/' . $withoutStorage);
+            return url('uploads/' . $withoutStorage);
         }
 
-        return asset($cleanPath);
+        if (str_starts_with($cleanPath, 'assets/')) {
+            return url($cleanPath);
+        }
+
+        return url('uploads/' . $cleanPath);
     }
 
     /**
-     * Accessor for full Avatar URL.
+     * Accessor for full Avatar URL with comprehensive multi-source fallbacks.
      */
     public function getAvatarUrlAttribute(): ?string
     {
@@ -479,7 +483,44 @@ class User extends Authenticatable
             return static::resolveImageUrl($this->avatar);
         }
 
+        // Fallback 1: Check gallery_images if user uploaded profile photos
+        if (!empty($this->gallery_images) && is_array($this->gallery_images) && count($this->gallery_images) > 0) {
+            $firstImg = reset($this->gallery_images);
+            if (!empty($firstImg)) {
+                return static::resolveImageUrl($firstImg);
+            }
+        }
+
+        // Fallback 2: Check cover_photo
+        if (!empty($this->cover_photo)) {
+            return static::resolveImageUrl($this->cover_photo);
+        }
+
+        // Fallback 3: Check KYC verification selfie or front photo
+        if ($this->relationLoaded('kycVerification') && $this->kycVerification) {
+            if (!empty($this->kycVerification->selfie_image_url)) {
+                return $this->kycVerification->selfie_image_url;
+            }
+            if (!empty($this->kycVerification->front_image_url)) {
+                return $this->kycVerification->front_image_url;
+            }
+        }
+
         return null;
+    }
+
+    /**
+     * Accessor for formatted display level (e.g. Lv4 or dynamically computed from coins).
+     */
+    public function getDisplayLevelAttribute(): string
+    {
+        if (!empty($this->level)) {
+            $lvl = trim($this->level);
+            return str_starts_with(strtoupper($lvl), 'LV') ? $lvl : 'Lv' . $lvl;
+        }
+
+        $levelNum = $this->level_info['current_level'] ?? 1;
+        return 'Lv' . ($levelNum > 0 ? $levelNum : 1);
     }
 
     /**

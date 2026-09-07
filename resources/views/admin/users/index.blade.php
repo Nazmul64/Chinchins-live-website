@@ -166,19 +166,15 @@
                         <tr>
                             <td>
                                 <div class="user-avatar-group">
-                                    <div class="user-avatar-wrapper" style="width: 44px; height: 44px; position: relative; border-radius: 50%; overflow: hidden; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                        @if(!empty($user->avatar_url))
-                                            <img src="{{ $user->avatar_url }}" 
-                                                 alt="{{ $user->display_name }}" 
-                                                 class="user-avatar-img"
-                                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
-                                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name={{ urlencode($user->display_name) }}&background=3b82f6&color=fff';">
-                                        @else
-                                            <img src="https://ui-avatars.com/api/?name={{ urlencode($user->display_name) }}&background=3b82f6&color=fff" 
-                                                 alt="{{ $user->display_name }}" 
-                                                 class="user-avatar-img"
-                                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                                        @endif
+                                    <div class="user-avatar-wrapper" style="width: 44px; height: 44px; position: relative; border-radius: 50%; overflow: hidden; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                        @php
+                                            $avatarSrc = $user->avatar_url ?: ('https://ui-avatars.com/api/?name=' . urlencode($user->display_name) . '&background=3b82f6&color=fff');
+                                        @endphp
+                                        <img src="{{ $avatarSrc }}" 
+                                             alt="{{ $user->display_name }}" 
+                                             class="user-avatar-img"
+                                             style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+                                             onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name={{ urlencode($user->display_name) }}&background=3b82f6&color=fff';">
                                         <span class="online-pulse-dot {{ $user->is_active ? 'online' : 'offline' }}"></span>
                                     </div>
                                     <div>
@@ -199,10 +195,10 @@
                                                     <i class="fa-solid fa-star text-dark"></i> Free Host
                                                 </span>
                                             @endif
-                                            <span class="badge bg-secondary" style="font-size: 10px; font-weight: 600;">{{ $user->level ?: 'Lv1' }}</span>
+                                            <span class="badge bg-secondary" style="font-size: 10px; font-weight: 600;">{{ $user->display_level }}</span>
                                         </div>
                                         <div class="user-sub-info">
-                                            <i class="fa-solid fa-location-dot me-1 text-muted"></i>{{ $user->country ?: 'Global' }} &bull; {{ ucfirst($user->gender ?: 'User') }} &bull; {{ $user->age ? $user->age . ' yrs' : 'N/A' }}
+                                            <i class="fa-solid fa-location-dot me-1 text-muted"></i>{{ $user->country ?: 'Bangladesh' }} &bull; {{ ucfirst($user->gender ?: 'User') }} &bull; {{ $user->age ? $user->age . ' yrs' : '24 yrs' }}
                                         </div>
                                     </div>
                                 </div>
