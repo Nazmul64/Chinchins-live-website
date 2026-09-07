@@ -380,19 +380,26 @@ class CallController extends Controller
 
         // Check balance IF not a free host and not eligible for free trial
         if (!$isCallerFree && !$isEligibleForFree && $caller->coins < $ratePerMinute) {
-            $packages = \App\Models\CoinPackage::where('is_active', true)->orderBy('sort_order', 'asc')->get();
+            $modalData = $this->buildRechargeModalData($caller, $receiver, $ratePerMinute, $callType);
             return response()->json([
-                'status' => false,
-                'code' => 'LOW_BALANCE_DEPOSIT_REQUIRED',
-                'message' => "Insufficient coin balance. You need at least {$ratePerMinute} coins for 1 minute of {$callType} call. Your balance is {$caller->coins} coins.",
-                'current_coins' => (int) $caller->coins,
-                'required_coins' => $ratePerMinute,
-                'is_low_balance' => true,
+                'status'              => false,
+                'can_call'            => false,
+                'code'                => 'INSUFFICIENT_BALANCE',
+                'message'             => "Insufficient coin balance. You need at least {$ratePerMinute} coins for 1 minute of {$callType} call. Your balance is {$caller->coins} coins.",
+                'user_balance'        => (int) $caller->coins,
+                'user_gems'           => (int) $caller->coins,
+                'wallet_label'        => 'My Gems',
+                'required_coins'      => $ratePerMinute,
+                'rate_per_minute'     => $ratePerMinute,
+                'is_low_balance'      => true,
                 'show_recharge_sheet' => true,
-                'teaser_text' => $config['call_recharge_teaser_text'],
-                'packages' => $packages,
+                'show_recharge_modal' => true,
+                'teaser_text'         => $modalData['teaser_text'],
+                'recharge_modal_data' => $modalData,
+                'packages'            => $modalData['packages'],
+                'target_user'         => $modalData['target_user'],
                 'redirect_to_deposit' => true,
-                'deposit_url' => '/deposit',
+                'deposit_url'         => '/deposit',
             ], 200); // Return 200 to prevent Flutter auth interceptor from triggering logout
         }
 
@@ -1636,51 +1643,28 @@ class CallController extends Controller
     }
 
     /**
-     * Get In-Call Recharge / Deposit Sheet Modal Data.
+     * Get In-Call / Pre-Call Recharge Sheet Data.
      * Displays host teaser message, host avatar, coin packages grid with discounts, and user gem balance.
      * GET /api/call/recharge-sheet (or POST /api/call/recharge-sheet)
      */
     public function getRechargeSheet(Request $request): JsonResponse
     {
-        $user = $this->resolveUser($request);
-        $hostId = $request->input('host_id') ?? $request->input('receiver_id') ?? $request->input('partner_id');
-        $host = $hostId ? (User::find($hostId) ?? User::where('account_id', $hostId)->first()) : null;
+        $caller = $this->resolveUser($request);
+        $receiverId = $request->input('host_id') ?? $request->input('receiver_id') ?? $request->input('target_user_id') ?? $request->input('user_id');
+        $receiver = $receiverId ? (User::find($receiverId) ?? User::where('account_id', $receiverId)->first()) : null;
+        $callType = strtolower($request->input('call_type', 'video'));
 
         $config = CallSetting::getAllConfig();
-        $packages = \App\Models\CoinPackage::where('is_active', true)->orderBy('sort_order', 'asc')->get();
+        $ratePerMinute = ($callType === 'audio')
+            ? (int) ($config['audio_call_rate_per_minute'] ?? 100)
+            : (int) (($receiver?->video_call_rate) ?: ($config['video_call_rate_per_minute'] ?? 100));
 
-        $userCoins = $user ? (int) $user->coins : 0;
+        $modalData = $this->buildRechargeModalData($caller, $receiver, $ratePerMinute, $callType);
 
         return response()->json([
             'status' => true,
             'message' => 'Recharge sheet data retrieved successfully.',
-            'data' => [
-                'teaser_text' => $config['call_recharge_teaser_text'],
-                'user_gems' => $userCoins,
-                'formatted_user_gems' => 'My Gems: ' . number_format($userCoins),
-                'host' => [
-                    'id' => $host?->id,
-                    'account_id' => $host?->account_id,
-                    'name' => $host?->display_name,
-                    'avatar_url' => $host?->avatar_url,
-                ],
-                'packages' => $packages->map(function ($p) {
-                    return [
-                        'id' => $p->id,
-                        'title' => $p->title,
-                        'coins' => (int) $p->coins,
-                        'total_coins' => (int) $p->total_coins,
-                        'price' => (float) $p->price,
-                        'formatted_price' => 'BDT ' . number_format($p->price, 2),
-                        'badge' => $p->badge,
-                        'badge_color' => $p->badge_color,
-                        'is_popular' => (bool) $p->is_popular,
-                        'icon_url' => $p->icon_full_url,
-                        'tag' => $p->is_popular ? 'ONCE' : null,
-                    ];
-                }),
-                'rate_per_minute' => (int) ($config['video_call_rate_per_minute'] ?? 100),
-            ],
+            'data' => $modalData,
         ], 200);
     }
 
@@ -1805,6 +1789,193 @@ class CallController extends Controller
                 'is_free' => $isFree,
                 'free_chances_remaining' => $newRemaining,
                 'user_coins' => (int) $user->coins,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Build standard Recharge Modal Data payload with target host info and coin packages.
+     */
+    public function buildRechargeModalData(?User $caller, ?User $targetUser = null, int $ratePerMinute = 100, string $callType = 'video'): array
+    {
+        $config = CallSetting::getAllConfig();
+        $userCoins = $caller ? (int) $caller->coins : 0;
+        
+        $teaserText = $config['in_call_recharge_offer']['teaser_text'] 
+            ?? $config['call_recharge_teaser_text'] 
+            ?? 'I want to talk more with you. Recharge and call me back~';
+
+        // Target user representation
+        $targetData = null;
+        if ($targetUser) {
+            $targetData = [
+                'id' => $targetUser->id,
+                'account_id' => $targetUser->account_id,
+                'name' => $targetUser->display_name ?? $targetUser->name ?? 'User',
+                'avatar_url' => $targetUser->avatar_url,
+                'gender' => $targetUser->gender ?? 'female',
+                'video_call_rate' => (int) ($targetUser->video_call_rate ?: $ratePerMinute),
+                'is_online' => (bool) $targetUser->is_online,
+                'is_busy' => (bool) $targetUser->is_busy,
+            ];
+        }
+
+        // Retrieve active coin packages from database sorted
+        $packages = \App\Models\CoinPackage::where('is_active', true)
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get()
+            ->map(function ($pkg) {
+                $baseCoins = (int) $pkg->coins;
+                $bonusCoins = (int) ($pkg->bonus_coins ?: 0);
+                $totalCoins = $baseCoins + $bonusCoins;
+                $price = (float) $pkg->price;
+                $formattedPrice = 'BDT ' . number_format($price, (floor($price) == $price ? 2 : 2));
+
+                return [
+                    'id' => $pkg->id,
+                    'title' => $pkg->title ?: ($baseCoins . ' Gems'),
+                    'coins' => $baseCoins,
+                    'base_coins' => $baseCoins,
+                    'bonus_coins' => $bonusCoins,
+                    'total_coins' => $totalCoins,
+                    'formatted_coins' => number_format($baseCoins),
+                    'formatted_total_coins' => number_format($totalCoins),
+                    'price' => $price,
+                    'price_bdt' => $price,
+                    'formatted_price' => $formattedPrice,
+                    'formatted_price_bdt' => $formattedPrice,
+                    'badge' => $pkg->badge ?: null,
+                    'badge_color' => $pkg->badge_color ?: 'danger',
+                    'badge_tag' => ($baseCoins <= 7560 || $pkg->id === 1) ? 'ONCE' : null,
+                    'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
+                    'icon_url' => $pkg->icon_url,
+                    'icon_full_url' => $pkg->icon_full_url,
+                    'png_url' => $pkg->png_url ?? $pkg->icon_full_url,
+                    'svg_url' => $pkg->svg_url ?? $pkg->icon_full_url,
+                    'image_url' => $pkg->image_url ?? $pkg->icon_full_url,
+                    'animation_url' => $pkg->animation_url,
+                    'animation_full_url' => $pkg->animation_full_url,
+                    'format' => $pkg->format ?: 'image',
+                    'is_popular' => (bool) $pkg->is_popular,
+                    'popular' => (bool) $pkg->is_popular,
+                    'button_text' => "Recharge {$baseCoins} Gems ({$formattedPrice})",
+                    'currency' => $pkg->currency ?: 'BDT',
+                ];
+            });
+
+        return [
+            'title' => 'I want to talk more with you. Recharge and call me back~',
+            'teaser_text' => $teaserText,
+            'header_text' => 'I want to talk more with you. Recharge and call me back~',
+            'target_user' => $targetData,
+            'user_balance' => $userCoins,
+            'user_gems' => $userCoins,
+            'user_gems_text' => "My Gems: {$userCoins}",
+            'wallet_label' => 'My Gems',
+            'required_coins' => $ratePerMinute,
+            'button_text' => 'Continue',
+            'recharge_button_text' => 'Continue',
+            'packages' => $packages,
+        ];
+    }
+
+    /**
+     * Check if authenticated user has permission / coins to make a video or audio call.
+     * GET|POST /api/call/check-permission
+     * GET|POST /api/call/can-call
+     * GET|POST /api/call/check-balance
+     */
+    public function checkPermission(Request $request): JsonResponse
+    {
+        $caller = $this->resolveUser($request);
+        if (!$caller) {
+            return response()->json([
+                'status'   => false,
+                'can_call' => false,
+                'code'     => 'UNAUTHENTICATED',
+                'message'  => 'Unauthenticated. Please pass Authorization Bearer token or user_id.',
+            ], 401);
+        }
+
+        $receiverId = $request->input('receiver_id') 
+                   ?? $request->input('target_user_id') 
+                   ?? $request->input('user_id') 
+                   ?? $request->input('peer_id') 
+                   ?? $request->input('target_id')
+                   ?? $request->input('to_user_id');
+
+        $receiver = null;
+        if ($receiverId) {
+            $receiver = User::find($receiverId) ?? User::where('account_id', $receiverId)->first();
+        }
+
+        $callType = strtolower($request->input('call_type', 'video'));
+        $config = CallSetting::getAllConfig();
+
+        if (!$config['is_call_enabled']) {
+            return response()->json([
+                'status'   => false,
+                'can_call' => false,
+                'code'     => 'CALLS_DISABLED',
+                'message'  => 'Calling service is temporarily disabled by administrator.',
+            ], 200);
+        }
+
+        $isCallerFree = $caller->isFreeCaller() || $caller->isSuperAdmin();
+        $isEligibleForFree = $isCallerFree || $caller->isEligibleForFreeCall();
+
+        $ratePerMinute = ($callType === 'audio')
+            ? (int) ($config['audio_call_rate_per_minute'] ?? 100)
+            : (int) (($receiver?->video_call_rate) ?: ($config['video_call_rate_per_minute'] ?? 100));
+
+        if ($ratePerMinute <= 0) {
+            $ratePerMinute = 100;
+        }
+
+        $hasBalance = ($caller->coins >= $ratePerMinute);
+        $canCall = $isCallerFree || $isEligibleForFree || $hasBalance;
+
+        $modalData = $this->buildRechargeModalData($caller, $receiver, $ratePerMinute, $callType);
+
+        if (!$canCall) {
+            return response()->json([
+                'status'              => false,
+                'can_call'            => false,
+                'code'                => 'INSUFFICIENT_BALANCE',
+                'message'             => "Insufficient coin balance. You have {$caller->coins} coins, but need at least {$ratePerMinute} coins.",
+                'user_balance'        => (int) $caller->coins,
+                'user_gems'           => (int) $caller->coins,
+                'wallet_label'        => 'My Gems',
+                'required_coins'      => $ratePerMinute,
+                'rate_per_minute'     => $ratePerMinute,
+                'show_recharge_modal' => true,
+                'recharge_modal_data' => $modalData,
+                'packages'            => $modalData['packages'],
+                'target_user'         => $modalData['target_user'],
+            ], 200);
+        }
+
+        return response()->json([
+            'status'              => true,
+            'can_call'            => true,
+            'code'                => 'CALL_ALLOWED',
+            'message'             => 'User has permission and balance to make a call.',
+            'user_balance'        => (int) $caller->coins,
+            'user_gems'           => (int) $caller->coins,
+            'wallet_label'        => 'My Gems',
+            'rate_per_minute'     => $ratePerMinute,
+            'is_free_trial'       => $isEligibleForFree,
+            'is_free_caller'      => $isCallerFree,
+            'show_recharge_modal' => false,
+            'target_user'         => $modalData['target_user'],
+            'data'                => [
+                'can_call'        => true,
+                'user_balance'    => (int) $caller->coins,
+                'user_gems'       => (int) $caller->coins,
+                'rate_per_minute' => $ratePerMinute,
+                'is_free_trial'   => $isEligibleForFree,
+                'is_free_caller'  => $isCallerFree,
             ],
         ], 200);
     }

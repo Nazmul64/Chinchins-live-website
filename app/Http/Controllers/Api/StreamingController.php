@@ -142,6 +142,36 @@ class StreamingController extends Controller
             'target_user' => $targetUserData,
         ];
 
+        // If initiating an outgoing call to a target user, verify caller balance
+        if ($user && $targetUserData && in_array($rawRole, ['publisher', 'host'])) {
+            $isCallerFree = $user->isFreeCaller() || $user->isSuperAdmin();
+            $isEligibleForFree = $isCallerFree || $user->isEligibleForFreeCall();
+            $callConfig = \App\Models\CallSetting::getAllConfig();
+            $ratePerMinute = ($callType === 'audio' || $callType === '1on1_audio')
+                ? (int) ($callConfig['audio_call_rate_per_minute'] ?? 100)
+                : (int) (($targetUser?->video_call_rate) ?: ($callConfig['video_call_rate_per_minute'] ?? 100));
+
+            if (!$isCallerFree && !$isEligibleForFree && $user->coins < $ratePerMinute) {
+                $callController = app(\App\Http\Controllers\Api\CallController::class);
+                $modalData = $callController->buildRechargeModalData($user, $targetUser ?? null, $ratePerMinute, $callType);
+                return response()->json([
+                    'success'             => false,
+                    'status'              => false,
+                    'can_call'            => false,
+                    'code'                => 'INSUFFICIENT_BALANCE',
+                    'message'             => "Insufficient coin balance. You need at least {$ratePerMinute} coins for {$callType} call.",
+                    'user_balance'        => (int) $user->coins,
+                    'user_gems'           => (int) $user->coins,
+                    'wallet_label'        => 'My Gems',
+                    'required_coins'      => $ratePerMinute,
+                    'show_recharge_modal' => true,
+                    'recharge_modal_data' => $modalData,
+                    'packages'            => $modalData['packages'],
+                    'target_user'         => $modalData['target_user'],
+                ], 200);
+            }
+        }
+
         // Execute unified calling driver
         $sessionData = $this->callingManager->initializeSession(
             $user,

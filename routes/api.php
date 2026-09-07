@@ -263,6 +263,12 @@ Route::prefix('call')->group(function () {
     Route::match(['get', 'post'], '/match', [CallController::class, 'randomMatch']);
     Route::match(['get', 'post'], '/random-match', [CallController::class, 'randomMatch']);
     
+    // Call Balance & Pre-Call Permission Verification (Modal Trigger)
+    Route::match(['get', 'post'], '/check-permission', [CallController::class, 'checkPermission']);
+    Route::match(['get', 'post'], '/can-call', [CallController::class, 'checkPermission']);
+    Route::match(['get', 'post'], '/check-balance', [CallController::class, 'checkPermission']);
+    Route::match(['get', 'post'], '/verify-balance', [CallController::class, 'checkPermission']);
+
     // Call Signaling & Ringing Lifecycle
     Route::post('/initiate', [CallController::class, 'initiate']);
     Route::match(['get', 'post'], '/incoming', [CallController::class, 'checkIncoming']);

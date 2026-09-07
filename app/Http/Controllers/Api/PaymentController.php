@@ -288,20 +288,34 @@ class PaymentController extends Controller
                 'status' => true,
                 'message' => 'Recharge modal data retrieved successfully.',
                 'modal' => [
+                    'title' => $teaserText,
                     'header_title' => $teaserText,
                     'teaser_text' => $teaserText,
                     'action_type' => $actionType,
                     'receiver' => $receiverData,
+                    'target_user' => $receiverData,
                     'user_coins' => $userCoins,
                     'formatted_user_coins' => number_format($userCoins),
                     'user_gems' => $userCoins,
                     'formatted_user_gems' => number_format($userCoins),
-                    'wallet_text' => 'My Coins: ' . number_format($userCoins),
+                    'user_gems_text' => 'My Gems: ' . number_format($userCoins),
+                    'wallet_label' => 'My Gems',
+                    'wallet_text' => 'My Gems: ' . number_format($userCoins),
                     'currency_symbol' => '💎',
                     'default_selected_package_id' => $defaultSelectedId,
                     'button_text' => 'Continue',
                     'packages' => $packages,
-                ]
+                ],
+                'data' => [
+                    'title' => $teaserText,
+                    'teaser_text' => $teaserText,
+                    'target_user' => $receiverData,
+                    'user_gems' => $userCoins,
+                    'user_gems_text' => 'My Gems: ' . number_format($userCoins),
+                    'wallet_label' => 'My Gems',
+                    'button_text' => 'Continue',
+                    'packages' => $packages,
+                ],
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
