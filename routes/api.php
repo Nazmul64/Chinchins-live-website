@@ -208,22 +208,30 @@ Route::get('/wallet/deposits', [PaymentController::class, 'getDepositHistory']);
 Route::get('/withdraw/info', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
 Route::get('/withdraw/config', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
 Route::get('/withdraw/settings', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+Route::get('/withdrawals/info', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+Route::get('/withdrawals/settings', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
 Route::get('/wallet/withdraw', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
 Route::get('/wallet/withdraw/info', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
 
 Route::post('/withdraw/calculate', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'calculate']);
 Route::post('/withdraw/preview', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'calculate']);
+Route::post('/withdrawals/calculate', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'calculate']);
 
 Route::post('/withdraw/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::post('/withdraw/request', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::post('/withdraw/create', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::post('/withdrawals/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::post('/withdrawals/request', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::post('/withdrawals/create', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::post('/wallet/withdraw', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::post('/wallet/withdraw/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 
 Route::get('/withdraw/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
+Route::get('/withdrawals/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
 Route::get('/wallet/withdraw/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
 Route::get('/wallet/withdrawals', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
 Route::get('/withdraw/{id}', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'show']);
+Route::get('/withdrawals/{id}', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'show']);
 
 // ==========================================
 // 📡 WebRTC Signaling & Call Management (Laravel Reverb / P2P)

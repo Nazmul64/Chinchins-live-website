@@ -35,7 +35,12 @@
    - [RESTful API: `GET /api/my-bag`](#restful-api-my-bag)
    - [Flutter My Bag Item Widget](#flutter-my-bag-item-widget)
 9. [👤 Feature 8: User Profile & Admin Avatar Directory](#9--feature-8-user-profile--admin-avatar-directory)
-10. [📋 Complete Flutter Integration Checklist](#10--complete-flutter-integration-checklist)
+10. [💳 Feature 9: In-Call & Low-Balance Video Call Recharge Modal](#10--feature-9-in-call--low-balance-video-call-recharge-modal)
+    - [RESTful API: `GET /api/recharge/modal-data`](#restful-api-in-call-recharge-modal)
+    - [Flutter In-Call Low-Balance Modal Code](#flutter-in-call-low-balance-modal-code)
+11. [💸 Feature 10: Coin Withdrawals & Admin Payout Lifecycle](#11--feature-10-coin-withdrawals--admin-payout-lifecycle)
+    - [RESTful APIs: Info, Calculate, Submit & History](#restful-apis-for-withdrawals)
+12. [📋 Complete Flutter Integration Checklist](#12--complete-flutter-integration-checklist)
 
 ---
 
@@ -739,7 +744,398 @@ Widget buildCoinPackageCard(Map<String, dynamic> pkg, VoidCallback onRecharge) {
 
 ---
 
-# 10. 📋 Complete Flutter Integration Checklist
+# 10. 💳 Feature 9: In-Call & Low-Balance Video Call Recharge Modal
+
+### 📌 Problem & Workflow:
+When a user clicks the **Video Call** icon on any host profile/card (e.g. from the Hot/Match tab):
+1. The app checks if `user.coins >= host.video_rate` (or if user has free trial calls).
+2. If balance is **0 or insufficient**, the app immediately displays the **Dynamic In-Call Recharge Modal** (instead of failing or hardcoding).
+3. The modal displays:
+   - **Host Teaser Message:** `"I want to talk more with you. Recharge and call me back~"` (fetched dynamically from Admin Call Settings).
+   - **Coin Packages Grid:** Loaded from `GET /api/recharge/modal-data?receiver_id={hostId}` or `GET /api/coin-packages`.
+   - **Top Promo Deal:** 50% OFF `7560 Coins` for `BDT 150.00` (marked `ONCE`).
+   - **User Current Coins:** `"My Coins: 60"`
+   - **Continue Button:** Navigates to Payment Method / Instant Deposit Flow.
+
+---
+
+### RESTful API: In-Call Recharge Modal
+- **Endpoint:** `GET /api/recharge/modal-data?receiver_id={host_id}&action=call`
+- **Headers:** `Authorization: Bearer <Sanctum_Token>` or `X-User-Id: <User_ID>`
+- **Response Format (`200 OK`):**
+```json
+{
+  "status": true,
+  "message": "Recharge modal data retrieved successfully.",
+  "modal": {
+    "header_title": "I want to talk more with you. Recharge and call me back~",
+    "teaser_text": "I want to talk more with you. Recharge and call me back~",
+    "action_type": "call",
+    "user_coins": 60,
+    "formatted_user_coins": "60",
+    "wallet_text": "My Coins: 60",
+    "currency_symbol": "💎",
+    "default_selected_package_id": 1,
+    "button_text": "Continue",
+    "packages": [
+      {
+        "id": 1,
+        "title": "7560 Coins",
+        "coins": 7560,
+        "bonus_coins": 0,
+        "total_coins": 7560,
+        "formatted_coins": "7560",
+        "price": 150.00,
+        "formatted_price": "BDT 150.00",
+        "badge": "50%off",
+        "badge_color": "danger",
+        "png_url": "https://chinchins.live/assets/images/coins/gem-stack.png",
+        "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg",
+        "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg",
+        "is_popular": true,
+        "is_once_offer": true
+      },
+      {
+        "id": 2,
+        "title": "8100 Coins",
+        "coins": 8100,
+        "price": 300.00,
+        "formatted_price": "BDT 300.00",
+        "badge": "17%off",
+        "png_url": "https://chinchins.live/assets/images/coins/gem-stack.png",
+        "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_small.svg",
+        "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_small.svg"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### Flutter In-Call Low-Balance Modal Code
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+void showLowBalanceRechargeModal(BuildContext context, Map<String, dynamic> modalData, Function(Map<String, dynamic> selectedPackage) onContinue) {
+  final List packages = modalData['packages'] ?? [];
+  final String teaser = modalData['teaser_text'] ?? 'I want to talk more with you. Recharge and call me back~';
+  final int userCoins = modalData['user_coins'] ?? 0;
+  int selectedPackageId = modalData['default_selected_package_id'] ?? (packages.isNotEmpty ? packages[0]['id'] : 0);
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            decoration: const BoxDecoration(
+              color: Color(0xFF161528),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top Close & Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 24),
+                    const Text('Recharge Coins', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(icon: const Icon(Icons.close, color: Colors.white70), onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Host Teaser Message
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(radius: 18, backgroundColor: Colors.amber, child: Icon(Icons.person, color: Colors.black)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          teaser,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Packages 3-column Grid
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 0.82,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: packages.length,
+                  itemBuilder: (context, index) {
+                    final pkg = packages[index];
+                    final bool isSelected = pkg['id'] == selectedPackageId;
+
+                    return GestureDetector(
+                      onTap: () => setState(() => selectedPackageId = pkg['id']),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: isSelected
+                              ? const LinearGradient(colors: [Color(0xFFE53935), Color(0xFFFF9800)], begin: Alignment.topLeft, end: Alignment.bottomRight)
+                              : null,
+                          color: isSelected ? null : Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: isSelected ? Colors.amber : Colors.white12, width: isSelected ? 2 : 1),
+                        ),
+                        child: Stack(
+                          children: [
+                            if (pkg['badge'] != null)
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.only(topLeft: Radius.circular(14), bottomRight: Radius.circular(8)),
+                                  ),
+                                  child: Text(pkg['badge'], style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CachedNetworkImage(
+                                    imageUrl: pkg['png_url'] ?? pkg['icon_full_url'] ?? '',
+                                    width: 36,
+                                    height: 36,
+                                    fit: BoxFit.contain,
+                                    errorWidget: (_, __, ___) => const Icon(Icons.diamond, color: Colors.amber, size: 30),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '${pkg['coins']}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(20)),
+                                    child: Text(
+                                      pkg['formatted_price'] ?? 'BDT ${pkg['price']}',
+                                      style: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // My Coins Display
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.diamond, color: Colors.amber, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'My Coins: $userCoins',
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Continue Action Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF8E24AA),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      final selected = packages.firstWhere((p) => p['id'] == selectedPackageId, orElse: () => packages[0]);
+                      onContinue(selected);
+                    },
+                    child: const Text('Continue', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+```
+
+---
+
+# 11. 💸 Feature 10: Coin Withdrawals & Admin Payout Lifecycle
+
+### 📌 Architecture & Workflow:
+1. **User Request (Flutter App):** User enters coins to withdraw, selects payment method (bKash/Nagad/Bank), and enters mobile account number.
+2. **Server-Side Validation:** Checks minimum coins (e.g. 500 Coins = ৳50 BDT), maximum limit, and sufficient user balance.
+3. **Admin Review & Approval (`/admin/withdrawals`):**
+   - When Admin clicks **Approve**: Coins are deducted from the user's wallet (`user.coins`), a `withdraw` transaction is written to the ledger, and status changes to `approved`.
+   - When Admin clicks **Reject**: Request is rejected, and no coins are deducted.
+4. **Admin Manual Balance Adjust (`/admin/users`):**
+   - Admin can **Add (+)**, **Deduct (-)**, or **Set Exact (=)** coins for any user.
+   - Flutter immediately reflects the updated balance upon next `GET /api/user/me`.
+
+---
+
+### RESTful APIs for Withdrawals:
+
+#### 1. ⚙️ Get Withdrawal Info & User Balance
+- **Endpoint:** `GET /api/withdrawals/info` (or `GET /api/withdraw/info`)
+- **Headers:** `Authorization: Bearer <Sanctum_Token>`
+- **Response Format (`200 OK`):**
+```json
+{
+  "status": true,
+  "data": {
+    "is_enabled": true,
+    "min_withdraw_coins": 500,
+    "max_withdraw_coins": 500000,
+    "commission_percent": 5.0,
+    "rate_per_bdt": 10.0,
+    "rate_text": "10 Coins = ৳1.00 BDT",
+    "notice": "Withdrawals are processed via bKash/Nagad within 24 hours.",
+    "user": {
+      "coins": 492800,
+      "formatted_coins": "492,800 Coins",
+      "estimated_gross_bdt": 49280.00,
+      "estimated_commission_bdt": 2464.00,
+      "estimated_net_bdt": 46816.00,
+      "formatted_estimated_net_bdt": "৳46,816.00",
+      "can_withdraw": true
+    },
+    "payment_methods": [
+      {
+        "id": 1,
+        "name": "bKash Personal",
+        "code": "bkash",
+        "icon_url": "https://chinchins.live/assets/images/gateways/bkash.png",
+        "min_withdraw": 50.00,
+        "max_withdraw": 25000.00
+      },
+      {
+        "id": 2,
+        "name": "Nagad Personal",
+        "code": "nagad",
+        "icon_url": "https://chinchins.live/assets/images/gateways/nagad.png",
+        "min_withdraw": 50.00,
+        "max_withdraw": 25000.00
+      }
+    ]
+  }
+}
+```
+
+#### 2. 🧮 Dynamic Calculation Preview
+- **Endpoint:** `POST /api/withdrawals/calculate`
+- **Body:**
+```json
+{
+  "coins": 10000
+}
+```
+- **Response Format (`200 OK`):**
+```json
+{
+  "status": true,
+  "data": {
+    "coins": 10000,
+    "gross_amount": 1000.00,
+    "formatted_gross_amount": "৳1,000.00",
+    "commission_percent": 5.0,
+    "commission_amount": 50.00,
+    "net_payable_amount": 950.00,
+    "formatted_net_payable_amount": "৳950.00",
+    "is_valid": true
+  }
+}
+```
+
+#### 3. 📤 Submit Withdrawal Request
+- **Endpoint:** `POST /api/withdrawals/submit` (or `POST /api/withdraw/submit`)
+- **Body:**
+```json
+{
+  "coins": 10000,
+  "payment_method_id": 1,
+  "account_number": "01700000000",
+  "account_type": "Personal",
+  "user_note": "Please send to bKash"
+}
+```
+- **Response Format (`201 Created`):**
+```json
+{
+  "status": true,
+  "message": "Withdrawal request submitted successfully! It is now pending admin approval.",
+  "data": {
+    "withdraw_id": 15,
+    "coins": 10000,
+    "net_payable_amount": 950.00,
+    "formatted_net_payable_amount": "৳950.00",
+    "payment_method": "bKash Personal",
+    "account_number": "01700000000",
+    "status": "pending"
+  }
+}
+```
+
+#### 4. 📜 Get Withdrawal History
+- **Endpoint:** `GET /api/withdrawals/history` (or `GET /api/withdraw/history`)
+- **Response Format (`200 OK`):**
+```json
+{
+  "status": true,
+  "data": [
+    {
+      "id": 15,
+      "coins": 10000,
+      "gross_amount": 1000.00,
+      "commission_amount": 50.00,
+      "net_payable_amount": 950.00,
+      "payment_method_name": "bKash Personal",
+      "account_number": "01700000000",
+      "status": "approved",
+      "created_at": "2026-09-07T12:00:00.000000Z"
+    }
+  ]
+}
+```
+
+---
+
+# 12. 📋 Complete Flutter Integration Checklist
 
 - [x] **Calling Engine:** Connects via `POST /api/calls` with dynamic token & joins Agora / WebRTC.
 - [x] **Ringtone Audio:** Plays incoming ringtone & outgoing dial tone instantly via `audioplayers`.
@@ -748,6 +1144,9 @@ Widget buildCoinPackageCard(Map<String, dynamic> pkg, VoidCallback onRecharge) {
 - [x] **App Logo:** Dynamically loads logo from `GET /api/app/config`.
 - [x] **Floating VIP Banner:** Transparent draggable button from `GET /api/vip/floating-banner`.
 - [x] **Gifts, Coins & Bag:** Displays `.png_url` via `CachedNetworkImage` with `.svg_url` fallback.
+- [x] **In-Call Low-Balance Modal:** Dynamic popup from `GET /api/recharge/modal-data` showing host teaser + packages grid + "My Coins: XX".
+- [x] **Withdrawals & Balance Lifecycle:** Full `GET /api/withdrawals/info`, calculate, submit, and history with Admin approve/reject flow.
 
 ---
 *(End of Master Documentation)*
+

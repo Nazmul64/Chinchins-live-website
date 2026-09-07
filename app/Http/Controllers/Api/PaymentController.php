@@ -223,7 +223,7 @@ class PaymentController extends Controller
         try {
             $user = $this->resolveUser($request);
             $receiverId = $request->input('receiver_id') ?? $request->input('to_user_id') ?? $request->input('user_id');
-            $actionType = $request->input('action', $request->input('type', 'chat')); // 'chat' or 'call'
+            $actionType = $request->input('action', $request->input('type', 'call')); // 'call' or 'chat'
 
             $receiverData = null;
             if ($receiverId) {
@@ -240,7 +240,11 @@ class PaymentController extends Controller
                 }
             }
 
-            $userGems = $user ? (int) $user->coins : 0;
+            $userCoins = $user ? (int) $user->coins : 0;
+            $callConfig = class_exists('\App\Models\CallSetting') ? \App\Models\CallSetting::getAllConfig() : [];
+            $teaserText = $callConfig['in_call_recharge_offer']['teaser_text'] 
+                ?? $callConfig['call_recharge_teaser_text'] 
+                ?? 'I want to talk more with you. Recharge and call me back~';
 
             $packages = CoinPackage::where('is_active', true)
                 ->orderBy('sort_order')
@@ -255,7 +259,7 @@ class PaymentController extends Controller
 
                     return [
                         'id' => $pkg->id,
-                        'title' => $pkg->title ?: ($baseCoins . ' Gems'),
+                        'title' => $pkg->title ?: ($baseCoins . ' Coins'),
                         'coins' => $baseCoins,
                         'bonus_coins' => $bonusCoins,
                         'total_coins' => $totalCoins,
@@ -267,6 +271,9 @@ class PaymentController extends Controller
                         'badge_color' => $pkg->badge_color ?: 'pink',
                         'icon_url' => $pkg->icon_url,
                         'icon_full_url' => $pkg->icon_full_url,
+                        'png_url' => $pkg->png_url ?? $pkg->icon_full_url,
+                        'svg_url' => $pkg->svg_url ?? $pkg->icon_full_url,
+                        'image_url' => $pkg->image_url ?? $pkg->icon_full_url,
                         'animation_url' => $pkg->animation_url,
                         'animation_full_url' => $pkg->animation_full_url,
                         'format' => $pkg->format ?: 'image',
@@ -281,11 +288,15 @@ class PaymentController extends Controller
                 'status' => true,
                 'message' => 'Recharge modal data retrieved successfully.',
                 'modal' => [
-                    'header_title' => '✨ Chat all you want & connect face-to-face — upgrade for more fun!',
+                    'header_title' => $teaserText,
+                    'teaser_text' => $teaserText,
                     'action_type' => $actionType,
                     'receiver' => $receiverData,
-                    'user_gems' => $userGems,
-                    'formatted_user_gems' => number_format($userGems),
+                    'user_coins' => $userCoins,
+                    'formatted_user_coins' => number_format($userCoins),
+                    'user_gems' => $userCoins,
+                    'formatted_user_gems' => number_format($userCoins),
+                    'wallet_text' => 'My Coins: ' . number_format($userCoins),
                     'currency_symbol' => '💎',
                     'default_selected_package_id' => $defaultSelectedId,
                     'button_text' => 'Continue',

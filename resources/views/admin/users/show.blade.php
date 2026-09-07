@@ -455,6 +455,11 @@ function openAdjustCoinModal(userId, userName, currentCoins, avatarUrl) {
     document.getElementById('coinAmountInput').value = '';
     document.getElementById('newBalancePreview').innerText = '';
 
+    // Reset to Add tab
+    document.querySelectorAll('.coin-segment-tab').forEach(t => t.className = 'coin-segment-tab');
+    document.querySelector('.coin-segment-tab[data-action="add"]').className = 'coin-segment-tab active-add';
+    document.getElementById('coinActionInput').value = 'add';
+
     const bsModal = new bootstrap.Modal(modalEl);
     bsModal.show();
 }
