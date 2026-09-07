@@ -324,9 +324,8 @@
             </table>
         </div>
         @if($users->hasPages())
-            <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-top: 1px solid var(--card-border-light);">
-                <span class="text-muted" style="font-size: 13px;">Showing page {{ $users->currentPage() }} of {{ $users->lastPage() }}</span>
-                <div>{{ $users->links() }}</div>
+            <div class="p-3" style="border-top: 1px solid var(--border-color);">
+                {{ $users->links() }}
             </div>
         @endif
     </div>

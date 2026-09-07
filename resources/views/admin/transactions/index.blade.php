@@ -200,9 +200,8 @@
             </table>
         </div>
         @if($transactions->hasPages())
-            <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-top: 1px solid var(--card-border-light);">
-                <span class="text-muted" style="font-size: 13px;">Showing page {{ $transactions->currentPage() }} of {{ $transactions->lastPage() }}</span>
-                <div>{{ $transactions->links() }}</div>
+            <div class="p-3" style="border-top: 1px solid var(--border-color);">
+                {{ $transactions->links() }}
             </div>
         @endif
     </div>

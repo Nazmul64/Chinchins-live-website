@@ -951,3 +951,74 @@ h1, h2, h3, h4, h5, h6, .page-title, .brand-logo, .stat-number, .stat-value {
   to { transform: scaleX(0); }
 }
 
+/* ==========================================================================
+   Modern Admin Pagination Styling
+   ========================================================================== */
+.pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 0;
+  user-select: none;
+}
+
+.pagination .page-item {
+  list-style: none;
+}
+
+.pagination .page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px !important;
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.pagination .page-link:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--ch-primary, #3b82f6);
+  transform: translateY(-1px);
+}
+
+.pagination .page-item.active .page-link {
+  color: #ffffff;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.pagination .page-item.disabled .page-link {
+  color: var(--text-muted);
+  background: var(--bg-main);
+  border-color: var(--border-color);
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Fallback SVG size reset if unstyled Tailwind icons appear */
+.pagination svg,
+nav[role="navigation"] svg {
+  width: 14px !important;
+  height: 14px !important;
+  max-width: 14px !important;
+  max-height: 14px !important;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+nav[role="navigation"] > div:first-child {
+  display: none !important;
+}
+

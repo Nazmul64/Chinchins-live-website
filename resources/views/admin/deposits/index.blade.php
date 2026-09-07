@@ -281,9 +281,8 @@
             </table>
         </div>
         @if($deposits->hasPages())
-            <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-top: 1px solid var(--card-border-light);">
-                <span class="text-muted" style="font-size: 13px;">Showing page {{ $deposits->currentPage() }} of {{ $deposits->lastPage() }}</span>
-                <div>{{ $deposits->links() }}</div>
+            <div class="p-3" style="border-top: 1px solid var(--border-color);">
+                {{ $deposits->links() }}
             </div>
         @endif
     </div>
