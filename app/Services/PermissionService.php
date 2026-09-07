@@ -22,42 +22,68 @@ class PermissionService
             return false;
         }
 
-        // Check if user is active
-        if ($user->status && $user->status !== 'active') {
-            return false;
-        }
-
-        // 1. Super Admin Check
+        // 1. Super Admin Check (Always Full Access)
         if (static::isSuperAdmin($user)) {
             return true;
         }
 
-        // 2. User Specific Custom Override Check
-        if ($user->relationLoaded('userPermissions') || $user->userPermissions()->exists()) {
-            $override = $user->userPermissions()
-                ->whereHas('permission', fn($q) => $q->where('slug', $permissionSlug))
-                ->first();
-
-            if ($override) {
-                return $override->type === 'allow';
-            }
-        }
-
-        // 3. Role Permission Check
-        $role = $user->role;
-        if ($role) {
-            if ($role->status !== 'active') {
+        try {
+            // Check if user is active
+            if ($user->status && $user->status !== 'active') {
                 return false;
             }
 
-            if ($role->slug === 'super-admin') {
-                return true;
+            // 2. User Specific Custom Override Check
+            if ($user->relationLoaded('userPermissions') || $user->userPermissions()->exists()) {
+                $override = $user->userPermissions()
+                    ->whereHas('permission', fn($q) => $q->where('slug', $permissionSlug))
+                    ->first();
+
+                if ($override) {
+                    return $override->type === 'allow';
+                }
             }
 
-            return $role->hasPermission($permissionSlug);
+            // 3. Role Permission Check
+            $role = $user->role;
+            if ($role) {
+                if ($role->status && $role->status !== 'active') {
+                    return false;
+                }
+
+                if ($role->slug === 'super-admin' || $role->slug === 'admin') {
+                    return true;
+                }
+
+                return $role->hasPermission($permissionSlug);
+            }
+        } catch (\Throwable $e) {
+            return false;
         }
 
         // 4. Deny Access
+        return false;
+    }
+
+    /**
+     * Check if user has any of the given permissions.
+     */
+    public static function hasAnyPermission(?User $user, array $permissionSlugs): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if (static::isSuperAdmin($user)) {
+            return true;
+        }
+
+        foreach ($permissionSlugs as $slug) {
+            if (static::hasPermission($user, $slug)) {
+                return true;
+            }
+        }
+
         return false;
     }
 

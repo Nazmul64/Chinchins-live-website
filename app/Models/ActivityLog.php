@@ -42,23 +42,39 @@ class ActivityLog extends Model
         string $module,
         string $action,
         string $description,
-        ?array $newData = null,
+        mixed $newDataOrUser = null,
         ?array $oldData = null,
         ?User $user = null
-    ): self {
-        $actor = $user ?: Auth::user();
+    ): ?self {
+        try {
+            $actor = null;
+            $newData = null;
 
-        return static::create([
-            'user_id'     => $actor?->id,
-            'user_name'   => $actor?->display_name ?: 'System / Guest',
-            'user_role'   => $actor?->role?->name ?: ($actor?->is_admin ? 'Super Admin' : 'User'),
-            'module'      => strtolower($module),
-            'action'      => strtolower($action),
-            'description' => $description,
-            'old_data'    => $oldData,
-            'new_data'    => $newData,
-            'ip_address'  => Request::ip(),
-            'user_agent'  => Request::userAgent(),
-        ]);
+            if ($newDataOrUser instanceof User) {
+                $actor = $newDataOrUser;
+            } elseif (is_array($newDataOrUser)) {
+                $newData = $newDataOrUser;
+            }
+
+            if (!$actor) {
+                $actor = $user ?: Auth::user();
+            }
+
+            return static::create([
+                'user_id'     => $actor?->id,
+                'user_name'   => $actor?->name ?? ($actor?->email ?? 'System / Guest'),
+                'user_role'   => $actor?->role?->name ?? ($actor?->isSuperAdmin() ? 'Super Admin' : 'Admin'),
+                'module'      => strtolower($module),
+                'action'      => strtolower($action),
+                'description' => $description,
+                'old_data'    => $oldData,
+                'new_data'    => $newData,
+                'ip_address'  => Request::ip() ?? '127.0.0.1',
+                'user_agent'  => Request::userAgent() ?? 'Web',
+            ]);
+        } catch (\Throwable $e) {
+            // Silently fallback if table doesn't exist yet
+            return null;
+        }
     }
 }

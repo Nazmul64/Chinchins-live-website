@@ -26,12 +26,32 @@ class AppServiceProvider extends ServiceProvider
         // Custom RBAC Blade Directives
         Blade::if('hasPermission', function ($permission) {
             $user = auth()->user();
-            return $user && $user->hasPermission($permission);
+            if (!$user) {
+                return false;
+            }
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+            try {
+                return $user->hasPermission($permission);
+            } catch (\Throwable $e) {
+                return false;
+            }
         });
 
         Blade::if('hasRole', function ($role) {
             $user = auth()->user();
-            return $user && $user->hasRole($role);
+            if (!$user) {
+                return false;
+            }
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+            try {
+                return $user->hasRole($role);
+            } catch (\Throwable $e) {
+                return false;
+            }
         });
 
         Blade::if('canAnyPermission', function ($permissions) {
@@ -42,7 +62,11 @@ class AppServiceProvider extends ServiceProvider
             if ($user->isSuperAdmin()) {
                 return true;
             }
-            return $user->hasAnyPermission((array) $permissions);
+            try {
+                return $user->hasAnyPermission((array) $permissions);
+            } catch (\Throwable $e) {
+                return false;
+            }
         });
     }
 }

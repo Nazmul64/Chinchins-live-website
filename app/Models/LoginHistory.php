@@ -36,40 +36,44 @@ class LoginHistory extends Model
     }
 
     /**
-     * Record a login attempt.
+     * Record a login attempt safely.
      */
     public static function recordAttempt(
         ?User $user,
-        string $emailOrPhone,
-        string $status = 'success',
+        bool|string $isSuccessfulOrStatus = true,
         ?string $failureReason = null
-    ): self {
-        $userAgent = Request::userAgent() ?: '';
-        
-        // Simple user-agent parser
-        $browser = 'Unknown Browser';
-        if (str_contains($userAgent, 'Chrome') && !str_contains($userAgent, 'Edg')) $browser = 'Chrome';
-        elseif (str_contains($userAgent, 'Firefox')) $browser = 'Firefox';
-        elseif (str_contains($userAgent, 'Safari') && !str_contains($userAgent, 'Chrome')) $browser = 'Safari';
-        elseif (str_contains($userAgent, 'Edg')) $browser = 'Edge';
-        elseif (str_contains($userAgent, 'Dart') || str_contains($userAgent, 'okhttp')) $browser = 'Mobile App / API';
+    ): ?self {
+        try {
+            $userAgent = Request::userAgent() ?: '';
+            
+            $browser = 'Chrome / Web';
+            if (str_contains($userAgent, 'Firefox')) $browser = 'Firefox';
+            elseif (str_contains($userAgent, 'Safari') && !str_contains($userAgent, 'Chrome')) $browser = 'Safari';
+            elseif (str_contains($userAgent, 'Edg')) $browser = 'Edge';
+            elseif (str_contains($userAgent, 'Dart') || str_contains($userAgent, 'okhttp')) $browser = 'Mobile App';
 
-        $device = 'Desktop';
-        if (str_contains($userAgent, 'Mobile') || str_contains($userAgent, 'Android') || str_contains($userAgent, 'iPhone')) {
-            $device = 'Mobile Device';
+            $device = 'Desktop';
+            if (str_contains($userAgent, 'Mobile') || str_contains($userAgent, 'Android') || str_contains($userAgent, 'iPhone')) {
+                $device = 'Mobile Device';
+            }
+
+            $status = is_bool($isSuccessfulOrStatus) ? ($isSuccessfulOrStatus ? 'success' : 'failed') : $isSuccessfulOrStatus;
+
+            return static::create([
+                'user_id'        => $user?->id,
+                'user_name'      => $user?->name ?? ($user?->email ?? 'Guest'),
+                'email'          => $user?->email ?? 'unknown',
+                'role_name'      => $user?->role?->name ?? ($user?->isSuperAdmin() ? 'Super Admin' : 'Admin'),
+                'login_at'       => now(),
+                'ip_address'     => Request::ip() ?? '127.0.0.1',
+                'browser'        => $browser,
+                'device'         => $device,
+                'status'         => $status,
+                'failure_reason' => $failureReason,
+            ]);
+        } catch (\Throwable $e) {
+            // Silently fallback if table doesn't exist yet
+            return null;
         }
-
-        return static::create([
-            'user_id'        => $user?->id,
-            'user_name'      => $user?->display_name ?: ($emailOrPhone),
-            'email'          => $user?->email ?: $emailOrPhone,
-            'role_name'      => $user?->role?->name ?: 'Staff/Admin',
-            'login_at'       => now(),
-            'ip_address'     => Request::ip(),
-            'browser'        => $browser,
-            'device'         => $device,
-            'status'         => $status,
-            'failure_reason' => $failureReason,
-        ]);
     }
 }
