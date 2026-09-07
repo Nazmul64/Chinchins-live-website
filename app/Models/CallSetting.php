@@ -137,12 +137,12 @@ class CallSetting extends Model
 
         $incomingRingtone = $merged['incoming_ringtone_url'] ?? $defaults['incoming_ringtone_url'];
         if ($incomingRingtone && !str_starts_with($incomingRingtone, 'http')) {
-            $incomingRingtone = asset(ltrim($incomingRingtone, '/'));
+            $incomingRingtone = url(ltrim($incomingRingtone, '/'));
         }
 
         $outgoingRingtone = $merged['outgoing_ringtone_url'] ?? $defaults['outgoing_ringtone_url'];
         if ($outgoingRingtone && !str_starts_with($outgoingRingtone, 'http')) {
-            $outgoingRingtone = asset(ltrim($outgoingRingtone, '/'));
+            $outgoingRingtone = url(ltrim($outgoingRingtone, '/'));
         }
 
         $promoCoins = (int) ($merged['in_call_promo_coins'] ?? 7560);

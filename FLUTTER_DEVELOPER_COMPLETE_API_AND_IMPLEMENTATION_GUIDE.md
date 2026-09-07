@@ -1,42 +1,47 @@
 # 📱 Chinchins Live — Complete Master RESTful API & Flutter Integration Guide (A to Z)
 
-**Single Source of Truth Documentation:** `FLUTTER_DEVELOPER_COMPLETE_API_AND_IMPLEMENTATION_GUIDE.md`  
-**Target:** Flutter Mobile App Developers, Backend Engineers & Technical Leads  
+**Master Document:** `FLUTTER_DEVELOPER_COMPLETE_API_AND_IMPLEMENTATION_GUIDE.md`  
+**Target:** Flutter Mobile App Developers, Full-Stack Engineers & Technical Leads  
 **Backend:** Laravel REST API Engine & Laravel Reverb  
-**Base URL (Live):** `https://chinchins.live/api`  
-**Base URL (Local Dev):** `http://10.0.2.2:8000/api` (Android Emulator) or `http://localhost:8000/api`  
+**Base URL (Production):** `https://chinchins.live/api`  
+**Base URL (Local Development):** `http://10.0.2.2:8000/api` (Android Emulator) or `http://localhost:8000/api`  
 **Global Auth Header:** `Authorization: Bearer <Sanctum_Token>` or `X-User-Id: <User_ID>`  
 
 ---
 
 ## 📑 Table of Contents
 1. [📦 Required Flutter Packages (`pubspec.yaml`)](#1--required-flutter-packages)
-2. [📞 Feature 1: Dual-Engine Audio/Video Calling (Agora RTC + WebRTC)](#2--feature-1-dual-engine-audiovideo-calling-agora-rtc--webrtc)
-   - [Signaling (Reverb) vs Media Transmission](#signaling-reverb-vs-media-transmission)
-   - [RESTful APIs: Calling & Dynamic Token](#restful-apis-calling--dynamic-token)
-   - [HD Video & Loud Crystal-Clear Audio Configuration](#hd-video--loud-crystal-clear-audio-configuration)
-   - [Background Incoming Call Wake-up Flow (FCM Push)](#background-incoming-call-wake-up-flow-fcm-push)
-   - [Flutter Calling Service & Complete Screen Code](#flutter-calling-service--complete-screen-code)
-3. [👑 Feature 2: Floating Home Screen VIP Widget ("Extra Gems" / Monthly Card)](#3--feature-2-floating-home-screen-vip-widget-extra-gems--monthly-card)
-   - [RESTful API: `GET /api/vip/floating-banner` & `GET /api/app/config`](#restful-api-floating-vip-banner)
+2. [🎵 Feature 1: Instant Ringtone & Dial Tone Audio Flow](#2--feature-1-instant-ringtone--dial-tone-audio-flow)
+   - [RESTful API: Call Ringtones & Branding Config](#restful-api-call-ringtones--branding-config)
+   - [Flutter Audio Player Code (Instant Outgoing Dial Tone & Incoming Ringtone)](#flutter-audio-player-code)
+3. [📞 Feature 2: High-Definition Calling Engine (Loud Audio & HD Video)](#3--feature-2-high-definition-calling-engine-loud-audio--hd-video)
+   - [Dual-Driver Architecture: Agora RTC vs WebRTC](#dual-driver-architecture)
+   - [Loud, Crystal-Clear Audio & 720p 60fps HD Video Setup](#loud-crystal-clear-audio--hd-video-setup)
+   - [RESTful API: `POST /api/calls` & `POST /api/agora/token/refresh`](#restful-apis-calling--dynamic-token)
+   - [Flutter Agora Call Screen Code (`AgoraCallScreen.dart`)](#flutter-agora-call-screen-code)
+4. [🎨 Feature 3: Dynamic App Logo on Login & Register Screen](#4--feature-3-dynamic-app-logo-on-login--register-screen)
+   - [RESTful API: `GET /api/app/config`](#restful-api-app-config)
+   - [Flutter Dynamic Branding Logo Widget](#flutter-dynamic-branding-logo-widget)
+5. [👑 Feature 4: Floating Home Screen VIP Widget ("Extra Gems" / Monthly Card)](#5--feature-4-floating-home-screen-vip-widget-extra-gems--monthly-card)
+   - [RESTful API: `GET /api/vip/floating-banner`](#restful-api-floating-vip-banner)
    - [Flutter Floating VIP Widget Code](#flutter-floating-vip-widget-code)
-4. [🎁 Feature 3: Gifts & In-App Rewards (Chat, Live & Profile)](#4--feature-3-gifts--in-app-rewards-chat-live--profile)
+6. [🎁 Feature 5: Gifts & In-App Rewards (`public/uploads/gifts`)](#6--feature-5-gifts--in-app-rewards)
    - [RESTful API: `GET /api/gifts/catalog` & `GET /api/gifts/received/{id}`](#restful-apis-for-gifts)
    - [Flutter Gift Item Display Widget (PNG Cached + SVG Fallback)](#flutter-gift-item-display-widget)
-5. [💎 Feature 4: Coin Packages (Mobile App Store Recharge Screen)](#5--feature-4-coin-packages-mobile-app-store-recharge-screen)
+7. [💎 Feature 6: Coin Packages Store (`public/uploads/coin_packages`)](#7--feature-6-coin-packages-store)
    - [RESTful API: `GET /api/coin-packages`](#restful-api-coin-packages)
    - [Flutter Coin Package Grid Card Widget](#flutter-coin-package-grid-card-widget)
-6. [🎒 Feature 5: My Bag & Inventory (Coupons, Avatar Frames, Chat Styles, Entrances)](#6--feature-5-my-bag--inventory)
+8. [🎒 Feature 7: My Bag Items (`public/uploads/my_bag`)](#8--feature-7-my-bag-items)
    - [RESTful API: `GET /api/my-bag`](#restful-api-my-bag)
    - [Flutter My Bag Item Widget](#flutter-my-bag-item-widget)
-7. [👤 Feature 6: User Profile & Admin Avatar Display](#7--feature-6-user-profile--admin-avatar-display)
-8. [📋 Complete Flutter Integration Checklist](#8--complete-flutter-integration-checklist)
+9. [👤 Feature 8: User Profile & Admin Avatar Directory](#9--feature-8-user-profile--admin-avatar-directory)
+10. [📋 Complete Flutter Integration Checklist](#10--complete-flutter-integration-checklist)
 
 ---
 
 # 1. 📦 Required Flutter Packages
 
-Add the following packages to your `pubspec.yaml`:
+Ensure your `pubspec.yaml` contains these standard packages:
 
 ```yaml
 dependencies:
@@ -51,6 +56,9 @@ dependencies:
   # Real-Time Media Engine
   agora_rtc_engine: ^6.3.2
 
+  # Ringtones & Audio SFX Player
+  audioplayers: ^6.0.0
+
   # Device Hardware Permissions
   permission_handler: ^11.3.1
 ```
@@ -62,19 +70,96 @@ flutter pub get
 
 ---
 
-# 2. 📞 Feature 1: Dual-Engine Audio/Video Calling (Agora RTC + WebRTC)
+# 2. 🎵 Feature 1: Instant Ringtone & Dial Tone Audio Flow
 
-### Signaling (Reverb) vs Media Transmission
-```text
-1. CALL SIGNALING (Laravel Reverb WebSocket)
-   ├── User A calls User B (Trigger incoming call ring)
-   ├── User B accepts / rejects
-   └── User A/B hangs up or cancels
+### Problem Solved:
+1. **Admin Customization:** Admin uploads MP3 files in Admin Panel (`/admin/calls/settings`) for:
+   - **Incoming Call Ringtone** (Plays continuously on receiver's phone when call arrives).
+   - **Outgoing Call Dial Tone** (Plays immediately on caller's phone while waiting for host to answer).
+2. **Zero Delay:** As soon as User A hits Call, the dial tone begins playing instantly. As soon as User B receives signaling/push, the ringtone begins playing instantly.
 
-2. MEDIA ENGINE (Dynamic Agora RTC / WebRTC)
-   ├── Fetches Dynamic Session Token from Laravel: POST /api/calls
-   ├── Joins Channel using Dynamic Channel Name & UID
-   └── Transmits High-Definition Camera, Mic & Audio Tracks
+---
+
+### RESTful API: Call Ringtones & Branding Config
+- **Endpoint:** `GET /api/app/config` (or `GET /api/app/remote-config`)
+- **Response Format (`200 OK`):**
+```json
+{
+  "status": true,
+  "data": {
+    "app_name": "Chinchins Live",
+    "app_tagline": "Meet, Chat & Video Call Live",
+    "app_logo_url": "https://chinchins.live/uploads/branding/app_logo_1725701923.png",
+    "incoming_ringtone": "https://chinchins.live/uploads/ringtones/incoming_ringtone_1788024.mp3",
+    "outgoing_ringtone": "https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3",
+    "video_call_rate": 100,
+    "free_trial_duration": 16
+  }
+}
+```
+
+---
+
+### Flutter Audio Player Code
+
+Save to `lib/services/call_audio_service.dart`:
+
+```dart
+import 'package:audioplayers/audioplayers.dart';
+
+class CallAudioService {
+  static final AudioPlayer _player = AudioPlayer();
+
+  /// 🔔 Play Incoming Call Ringtone immediately on receiver side
+  static Future<void> playIncomingRingtone(String ringtoneUrl) async {
+    await _player.stop();
+    await _player.setReleaseMode(ReleaseMode.loop);
+    await _player.play(UrlSource(ringtoneUrl));
+  }
+
+  /// 📞 Play Outgoing Call Dial Tone immediately on caller side
+  static Future<void> playOutgoingDialTone(String dialToneUrl) async {
+    await _player.stop();
+    await _player.setReleaseMode(ReleaseMode.loop);
+    await _player.play(UrlSource(dialToneUrl));
+  }
+
+  /// ⏹️ Stop any playing ringtone/dial tone upon connect or hangup
+  static Future<void> stopRingtone() async {
+    await _player.stop();
+  }
+}
+```
+
+---
+
+# 3. 📞 Feature 2: High-Definition Calling Engine (Loud Audio & HD Video)
+
+### Loud, Crystal-Clear Audio & HD Video Setup
+To ensure both caller and receiver hear each other with **extremely loud, crisp, crystal-clear speech** and view **720p 60fps HD video**:
+
+```dart
+// 1. Enable Speakerphone & Set Loud High-Quality Audio Scenario
+await _engine.setEnableSpeakerphone(true);
+await _engine.setDefaultAudioRouteToSpeakerphone(true);
+await _engine.setAudioProfile(
+  profile: AudioProfileType.audioProfileMusicStandard,
+  scenario: AudioScenarioType.audioScenarioGameStreaming,
+);
+
+// 2. Maximize Recording & Playback Volume Boost (Up to 400% clarity boost)
+await _engine.adjustRecordingSignalVolume(400);
+await _engine.adjustPlaybackSignalVolume(400);
+
+// 3. HD 720p 30/60fps Video Configuration
+await _engine.setVideoEncoderConfiguration(
+  const VideoEncoderConfiguration(
+    dimensions: VideoDimensions(width: 1280, height: 720),
+    frameRate: 30,
+    bitrate: 1710,
+    orientationMode: OrientationMode.orientationModeAdaptive,
+  ),
+);
 ```
 
 ---
@@ -82,20 +167,12 @@ flutter pub get
 ### RESTful APIs: Calling & Dynamic Token
 
 #### 1. Initialize Call Session
-Called by both Caller (when placing call) and Receiver (when answering call).
-
 - **Endpoint:** `POST /api/calls` (Aliases: `/api/stream/session-token`, `/api/calls/initiate`)
-- **Headers:**
-  ```http
-  Authorization: Bearer <Sanctum_Token>
-  Content-Type: application/json
-  Accept: application/json
-  ```
 - **Request Body:**
   ```json
   {
-    "channel_name": "call_8f92a7c1", // Optional: Backend auto-generates if empty
-    "call_type": "video",            // "video" or "audio"
+    "channel_name": "call_room_8f92a7c1", // Optional: Backend generates if empty
+    "call_type": "video",                 // "video" or "audio"
     "role": "publisher",
     "target_user_id": 29
   }
@@ -107,7 +184,7 @@ Called by both Caller (when placing call) and Receiver (when answering call).
   "success": true,
   "status": true,
   "driver": "agora",
-  "channel_name": "call_8f92a7c1",
+  "channel_name": "call_room_8f92a7c1",
   "app_id": "9348xxxxxxxxxxxxxxxxxxxx",
   "agora_app_id": "9348xxxxxxxxxxxxxxxxxxxx",
   "uid": 1025,
@@ -130,88 +207,9 @@ Called by both Caller (when placing call) and Receiver (when answering call).
 }
 ```
 
-##### Response Body (`200 OK` - WebRTC Engine):
-```json
-{
-  "success": true,
-  "status": true,
-  "driver": "vps_webrtc",
-  "channel_name": "call_8f92a7c1",
-  "uid": 1025,
-  "signaling_host": "chinchins.live",
-  "signaling_port": 443,
-  "signaling_scheme": "https",
-  "app_key": "chinchins_reverb_key",
-  "auth_endpoint": "https://chinchins.live/api/broadcasting/auth",
-  "target_user": {
-    "id": 29,
-    "name": "Hakim",
-    "avatar_url": "https://chinchins.live/uploads/avatars/user29.jpg"
-  }
-}
-```
-
 ---
 
-#### 2. Token Refresh Endpoint
-Called automatically before token expires.
-
-- **Endpoint:** `POST /api/agora/token/refresh`
-- **Request Body:**
-  ```json
-  {
-    "channel_name": "call_8f92a7c1",
-    "uid": 1025,
-    "role": "publisher"
-  }
-  ```
-- **Response:**
-  ```json
-  {
-    "success": true,
-    "driver": "agora",
-    "token": "006NEW_REFRESHED_TOKEN_HERE...",
-    "rtc_token": "006NEW_REFRESHED_TOKEN_HERE...",
-    "expires_at": "2026-09-07T14:00:00+06:00"
-  }
-  ```
-
----
-
-### HD Video & Loud Crystal-Clear Audio Configuration
-
-To guarantee **1080p/720p HD 60fps Video** and **Loud, Crystal-Clear Audio** without noise:
-
-```dart
-// Configure Audio Profile for loud, clear speech with noise suppression
-await _engine.setAudioProfile(
-  profile: AudioProfileType.audioProfileMusicStandard,
-  scenario: AudioScenarioType.audioScenarioGameStreaming,
-);
-await _engine.enableAudioVolumeIndication(interval: 200, smooth: 3, reportVad: true);
-
-// Configure HD Video Encoder (1280x720, 30fps, 1710kbps)
-await _engine.setVideoEncoderConfiguration(
-  const VideoEncoderConfiguration(
-    dimensions: VideoDimensions(width: 1280, height: 720),
-    frameRate: 30,
-    bitrate: 1710,
-    orientationMode: OrientationMode.orientationModeAdaptive,
-  ),
-);
-```
-
----
-
-### Background Incoming Call Wake-up Flow (FCM Push)
-When the app is killed or minimized:
-1. Caller hits `POST /api/calls`.
-2. Laravel sends high-priority FCM Data Message with payload `{"type": "INCOMING_CALL", "channel_name": "...", "caller_name": "..."}`.
-3. Flutter Background Handler triggers system ringtone & incoming call UI (CallKit on iOS / FullScreenIntent on Android).
-
----
-
-### Flutter Calling Service & Complete Screen Code
+### Flutter Agora Call Screen Code
 
 Save to `lib/screens/agora_call_screen.dart`:
 
@@ -223,6 +221,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/call_audio_service.dart';
 
 class AgoraCallScreen extends StatefulWidget {
   final String appId;
@@ -231,8 +230,7 @@ class AgoraCallScreen extends StatefulWidget {
   final int myUid;
   final String userAuthToken;
   final Map<String, dynamic>? targetUser;
-  final bool debugMode;
-  final String logLevel;
+  final String? dialToneUrl;
 
   const AgoraCallScreen({
     Key? key,
@@ -242,8 +240,7 @@ class AgoraCallScreen extends StatefulWidget {
     required this.myUid,
     required this.userAuthToken,
     this.targetUser,
-    this.debugMode = true,
-    this.logLevel = 'info',
+    this.dialToneUrl,
   }) : super(key: key);
 
   @override
@@ -260,25 +257,33 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
   @override
   void initState() {
     super.initState();
+    // 🔔 Start Outgoing Dial Tone immediately
+    if (widget.dialToneUrl != null) {
+      CallAudioService.playOutgoingDialTone(widget.dialToneUrl!);
+    }
     _initAgora();
   }
 
   Future<void> _initAgora() async {
-    // 1. Request Hardware Permissions
     await [Permission.microphone, Permission.camera].request();
 
-    // 2. Initialize RTC Engine
     _engine = createAgoraRtcEngine();
     await _engine.initialize(RtcEngineContext(
       appId: widget.appId,
       channelProfile: ChannelProfileType.channelProfileCommunication,
     ));
 
-    // 3. Audio & Video HD Quality Profiles
+    // 🔊 Setup Loud, Crystal-Clear Audio with Speakerphone & Volume Boost
+    await _engine.setEnableSpeakerphone(true);
+    await _engine.setDefaultAudioRouteToSpeakerphone(true);
     await _engine.setAudioProfile(
       profile: AudioProfileType.audioProfileMusicStandard,
       scenario: AudioScenarioType.audioScenarioGameStreaming,
     );
+    await _engine.adjustRecordingSignalVolume(400);
+    await _engine.adjustPlaybackSignalVolume(400);
+
+    // 🎥 Setup 720p HD Video Encoder
     await _engine.setVideoEncoderConfiguration(
       const VideoEncoderConfiguration(
         dimensions: VideoDimensions(width: 1280, height: 720),
@@ -287,34 +292,22 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
       ),
     );
 
-    // 4. Set Log Level
-    await _engine.setLogLevel(widget.logLevel == 'verbose' ? LogLevel.logLevelDebug : LogLevel.logLevelInfo);
-
-    // 5. Register Event Callbacks
     _engine.registerEventHandler(
       RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
-          debugPrint("✅ [Agora] Joined: ${connection.channelId} | Local UID: ${connection.localUid}");
+          debugPrint("✅ [Agora] Local joined channel: ${connection.channelId}");
           setState(() => _localUserJoined = true);
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
           debugPrint("🎥 [Agora] Remote User Joined: $remoteUid");
+          // ⏹️ Stop Dial Tone immediately when remote partner joins!
+          CallAudioService.stopRingtone();
           setState(() => _remoteUid = remoteUid);
         },
         onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
-          debugPrint("❌ [Agora] Remote User Left: $remoteUid");
+          CallAudioService.stopRingtone();
           setState(() => _remoteUid = null);
           if (mounted) Navigator.of(context).pop();
-        },
-        onTokenPrivilegeWillExpire: (RtcConnection connection, String token) async {
-          debugPrint("⚠️ [Agora] Renewing expiring token...");
-          final res = await http.post(
-            Uri.parse('https://chinchins.live/api/agora/token/refresh'),
-            headers: {'Authorization': 'Bearer ${widget.userAuthToken}', 'Content-Type': 'application/json'},
-            body: jsonEncode({'channel_name': widget.channelName, 'uid': widget.myUid}),
-          );
-          final data = jsonDecode(res.body);
-          await _engine.renewToken(data['token']);
         },
         onError: (ErrorCodeType err, String msg) {
           debugPrint("🚨 [Agora Error] $err: $msg");
@@ -322,7 +315,6 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
       ),
     );
 
-    // 6. Enable Video & Join
     await _engine.enableVideo();
     await _engine.startPreview();
     await _engine.joinChannel(
@@ -342,6 +334,7 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
 
   @override
   void dispose() {
+    CallAudioService.stopRingtone();
     _engine.leaveChannel();
     _engine.release();
     super.dispose();
@@ -385,7 +378,7 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
                       const SizedBox(height: 18),
                       Text(targetName, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 10),
-                      const Text("Connecting HD video call...", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      const Text("Connecting high quality HD call...", style: TextStyle(color: Colors.white70, fontSize: 14)),
                     ],
                   ),
                 ),
@@ -393,7 +386,7 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
             ),
           ],
 
-          // 🎥 2. Remote Full-Screen Video
+          // 🎥 2. Remote Full-Screen HD Video Stream
           if (_remoteUid != null)
             AgoraVideoView(
               controller: VideoViewController.remote(
@@ -403,7 +396,7 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
               ),
             ),
 
-          // 📱 3. Local Camera Floating Preview
+          // 📱 3. Local Camera Floating Preview (Top Right)
           if (_localUserJoined)
             Positioned(
               top: 50,
@@ -468,17 +461,39 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
 
 ---
 
-# 3. 👑 Feature 2: Floating Home Screen VIP Widget ("Extra Gems" / Monthly Card)
+# 4. 🎨 Feature 3: Dynamic App Logo on Login & Register Screen
+
+### RESTful API: App Config
+- **Endpoint:** `GET /api/app/config`
+- **Response Value:** `data.app_logo_url`
+
+```dart
+Widget buildAppLogo(String logoUrl, {double size = 90.0}) {
+  return CachedNetworkImage(
+    imageUrl: logoUrl,
+    width: size,
+    height: size,
+    fit: BoxFit.contain,
+    placeholder: (context, url) => const SizedBox(
+      width: 30,
+      height: 30,
+      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.pinkAccent),
+    ),
+    errorWidget: (context, url, error) => Image.asset('assets/images/logo.png', width: size, height: size),
+  );
+}
+```
+
+---
+
+# 5. 👑 Feature 4: Floating Home Screen VIP Widget ("Extra Gems" / Monthly Card)
 
 ### RESTful API: Floating VIP Banner
 - **Endpoint:** `GET /api/vip/floating-banner` (Also in `GET /api/app/config`)
-- **Headers:** `Authorization: Bearer <Sanctum_Token>`
-
-#### 📥 Response (`200 OK`):
+- **Response Format (`200 OK`):**
 ```json
 {
   "status": true,
-  "message": "Floating VIP banner retrieved successfully.",
   "data": {
     "is_enabled": true,
     "title": "Extra Gems",
@@ -492,8 +507,6 @@ class _AgoraCallScreenState extends State<AgoraCallScreen> {
 ---
 
 ### Flutter Floating VIP Widget Code
-
-Save to `lib/widgets/draggable_floating_vip_widget.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -521,54 +534,35 @@ class _DraggableFloatingVipWidgetState extends State<DraggableFloatingVipWidget>
     if (!(widget.config['is_enabled'] ?? true)) return const SizedBox.shrink();
 
     final String imageUrl = widget.config['image_url'] ?? '';
-    final String title = widget.config['title'] ?? 'Extra Gems';
 
     return Positioned(
       left: position.dx,
       top: position.dy,
       child: Draggable(
-        feedback: _buildWidget(imageUrl, title),
+        feedback: _buildWidget(imageUrl),
         childWhenDragging: const SizedBox.shrink(),
         onDragEnd: (details) {
-          setState(() {
-            position = details.offset;
-          });
+          setState(() => position = details.offset);
         },
         child: GestureDetector(
           onTap: widget.onTap,
-          child: _buildWidget(imageUrl, title),
+          child: _buildWidget(imageUrl),
         ),
       ),
     );
   }
 
-  Widget _buildWidget(String imageUrl, String title) {
+  Widget _buildWidget(String imageUrl) {
     return Container(
-      width: 72,
-      height: 84,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1B38),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.amber, width: 1.5),
-        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 8)],
+      width: 78,
+      height: 90,
+      decoration: const BoxDecoration(
+        color: Colors.transparent, // Fully Transparent background!
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CachedNetworkImage(
-            imageUrl: imageUrl,
-            width: 48,
-            height: 48,
-            fit: BoxFit.contain,
-            errorWidget: (_, __, ___) => const Icon(Icons.workspace_premium, color: Colors.amber, size: 40),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: const TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.bold),
-          ),
-        ],
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.contain,
+        errorWidget: (_, __, ___) => const Icon(Icons.workspace_premium, color: Colors.amber, size: 50),
       ),
     );
   }
@@ -577,13 +571,11 @@ class _DraggableFloatingVipWidgetState extends State<DraggableFloatingVipWidget>
 
 ---
 
-# 4. 🎁 Feature 3: Gifts & In-App Rewards (Chat, Live & Profile)
+# 6. 🎁 Feature 5: Gifts & In-App Rewards (`public/uploads/gifts`)
 
-### RESTful APIs for Gifts
+- **Location on Backend:** `public/uploads/gifts/*.png` and `public/uploads/gifts/*.svg`
 - **Endpoint:** `GET /api/gifts/catalog?category=all`
-- **Headers:** `Authorization: Bearer <Sanctum_Token>`
-
-#### 📥 Response Format:
+- **Response Format:**
 ```json
 {
   "status": true,
@@ -611,10 +603,6 @@ class _DraggableFloatingVipWidgetState extends State<DraggableFloatingVipWidget>
 ### Flutter Gift Item Display Widget
 
 ```dart
-import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-
 Widget buildGiftItemWidget(Map<String, dynamic> gift, {double size = 52.0}) {
   final String? pngUrl = gift['png_url'];
   final String? svgUrl = gift['svg_url'] ?? gift['image_url'];
@@ -641,13 +629,11 @@ Widget buildGiftItemWidget(Map<String, dynamic> gift, {double size = 52.0}) {
 
 ---
 
-# 5. 💎 Feature 4: Coin Packages (Mobile App Store Recharge Screen)
+# 7. 💎 Feature 6: Coin Packages Store (`public/uploads/coin_packages`)
 
-### RESTful API: Coin Packages
+- **Location on Backend:** `public/uploads/coin_packages/*.svg`
 - **Endpoint:** `GET /api/coin-packages`
-- **Headers:** `Authorization: Bearer <Sanctum_Token>`
-
-#### 📥 Response (`200 OK`):
+- **Response Format (`200 OK`):**
 ```json
 {
   "status": true,
@@ -661,7 +647,6 @@ Widget buildGiftItemWidget(Map<String, dynamic> gift, {double size = 52.0}) {
       "formatted_coins": "32,000",
       "formatted_price": "৳550",
       "badge": "50% off",
-      "badge_color": "danger",
       "png_url": "https://chinchins.live/assets/images/coins/gem-stack.png",
       "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg",
       "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg"
@@ -718,26 +703,16 @@ Widget buildCoinPackageCard(Map<String, dynamic> pkg, VoidCallback onRecharge) {
 
 ---
 
-# 6. 🎒 Feature 5: My Bag & Inventory (Coupons, Avatar Frames, Chat Styles, Entrances)
+# 8. 🎒 Feature 7: My Bag Items (`public/uploads/my_bag`)
 
-### RESTful API: My Bag
+- **Location on Backend:** `public/uploads/my_bag/*.svg`
 - **Endpoint:** `GET /api/my-bag`
-- **Headers:** `Authorization: Bearer <Sanctum_Token>`
-
-#### 📥 Response (`200 OK`):
+- **Response Format (`200 OK`):**
 ```json
 {
   "status": true,
   "data": {
     "user_coins": 23400,
-    "categories": [
-      {
-        "category": "avatar_frame",
-        "name": "Avatar Frame",
-        "count": 2,
-        "icon_url": "https://chinchins.live/uploads/my_bag/frame_royal_amethyst.svg"
-      }
-    ],
     "items": [
       {
         "user_bag_item_id": 10,
@@ -756,34 +731,7 @@ Widget buildCoinPackageCard(Map<String, dynamic> pkg, VoidCallback onRecharge) {
 
 ---
 
-### Flutter My Bag Item Widget
-
-```dart
-Widget buildMyBagItem(Map<String, dynamic> item) {
-  final String pngUrl = item['png_url'] ?? '';
-  final String svgUrl = item['svg_url'] ?? item['image_url'] ?? '';
-
-  return ListTile(
-    leading: pngUrl.isNotEmpty
-        ? CachedNetworkImage(
-            imageUrl: pngUrl,
-            width: 44,
-            height: 44,
-            errorWidget: (_, __, ___) => SvgPicture.network(svgUrl, width: 44, height: 44),
-          )
-        : SvgPicture.network(svgUrl, width: 44, height: 44),
-    title: Text(item['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-    subtitle: Text(item['duration_text'] ?? '', style: const TextStyle(color: Colors.white70)),
-    trailing: item['is_equipped'] == true
-        ? const Chip(label: Text('In-Use', style: TextStyle(color: Colors.white, fontSize: 10)), backgroundColor: Colors.green)
-        : ElevatedButton(onPressed: () {}, child: const Text('Equip')),
-  );
-}
-```
-
----
-
-# 7. 👤 Feature 6: User Profile & Admin Avatar Display
+# 9. 👤 Feature 8: User Profile & Admin Avatar Directory
 
 - **Upload Avatar API:** `POST /api/user/avatar` (Multipart `avatar` file or Base64 string).
 - **Profile API:** `GET /api/user/me` (Returns `avatar_url`, `display_name`, `coins`, `level`).
@@ -791,14 +739,15 @@ Widget buildMyBagItem(Map<String, dynamic> item) {
 
 ---
 
-# 8. 📋 Complete Flutter Integration Checklist
+# 10. 📋 Complete Flutter Integration Checklist
 
 - [x] **Calling Engine:** Connects via `POST /api/calls` with dynamic token & joins Agora / WebRTC.
-- [x] **Token Renewal:** Listens to `onTokenPrivilegeWillExpire` and hits `POST /api/agora/token/refresh`.
-- [x] **HD Audio/Video:** Sets 720p 30fps encoder + game streaming audio profile for loud speech.
-- [x] **Floating VIP Widget:** Loads dynamic image from `GET /api/vip/floating-banner`.
-- [x] **Gifts & Bags:** Displays `.png_url` via `CachedNetworkImage` with `.svg_url` fallback.
-- [x] **Coin Packages:** Shows dynamic store packages from `GET /api/coin-packages`.
+- [x] **Ringtone Audio:** Plays incoming ringtone & outgoing dial tone instantly via `audioplayers`.
+- [x] **Loud, Crystal-Clear Speech:** Uses `enableSpeakerphone(true)` + `adjustPlaybackSignalVolume(400)`.
+- [x] **HD Video:** Configures 720p 30fps encoder.
+- [x] **App Logo:** Dynamically loads logo from `GET /api/app/config`.
+- [x] **Floating VIP Banner:** Transparent draggable button from `GET /api/vip/floating-banner`.
+- [x] **Gifts, Coins & Bag:** Displays `.png_url` via `CachedNetworkImage` with `.svg_url` fallback.
 
 ---
 *(End of Master Documentation)*

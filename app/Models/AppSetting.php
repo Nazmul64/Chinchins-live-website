@@ -118,13 +118,13 @@ class AppSetting extends Model
         $appLogo = $all['app_logo'] ?? 'assets/images/branding/logo.png';
         $appTagline = $all['app_tagline'] ?? 'Meet, Chat & Video Call Live';
 
-        $logoUrl = asset(ltrim($appLogo, '/'));
+        $logoUrl = url(ltrim($appLogo, '/'));
         if (str_starts_with($appLogo, 'http://') || str_starts_with($appLogo, 'https://')) {
             $logoUrl = $appLogo;
         }
 
         $floatingBannerImage = $all['floating_vip_banner_image'] ?? 'assets/images/vip/floating_extra_gems.png';
-        $floatingBannerImageUrl = asset(ltrim($floatingBannerImage, '/'));
+        $floatingBannerImageUrl = url(ltrim($floatingBannerImage, '/'));
         if (str_starts_with($floatingBannerImage, 'http://') || str_starts_with($floatingBannerImage, 'https://')) {
             $floatingBannerImageUrl = $floatingBannerImage;
         }
