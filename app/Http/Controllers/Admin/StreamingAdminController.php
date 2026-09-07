@@ -24,11 +24,15 @@ class StreamingAdminController extends Controller
     {
         $request->validate([
             'active_driver'         => 'required|in:vps_webrtc,agora,webrtc',
+            'is_agora_enabled'      => 'nullable|boolean',
             'agora_project_name'    => 'nullable|string|max:150',
             'agora_app_id'          => 'nullable|string|max:200',
             'agora_app_certificate' => 'nullable|string|max:500',
             'agora_temp_token'      => 'nullable|string',
             'agora_manual_channel'  => 'nullable|string|max:150',
+            'agora_debug_mode'      => 'nullable|boolean',
+            'agora_sdk_logging'     => 'nullable|boolean',
+            'agora_log_level'       => 'nullable|string|in:error,warning,info,verbose',
             'reverb_host'           => 'nullable|string|max:150',
             'reverb_port'           => 'nullable|integer',
             'token_expire_seconds'  => 'nullable|integer|min:300|max:604800',
@@ -42,17 +46,21 @@ class StreamingAdminController extends Controller
         }
 
         $setting->active_driver         = $driver;
+        $setting->is_agora_enabled      = $request->boolean('is_agora_enabled', true);
         $setting->agora_project_name    = $request->input('agora_project_name');
         $setting->agora_app_id          = trim($request->input('agora_app_id') ?: '');
         $setting->agora_app_certificate = trim($request->input('agora_app_certificate') ?: '');
         $setting->agora_temp_token      = $request->input('agora_temp_token') ? trim($request->input('agora_temp_token')) : null;
         $setting->agora_manual_channel  = $request->input('agora_manual_channel') ? trim($request->input('agora_manual_channel')) : null;
+        $setting->agora_debug_mode      = $request->boolean('agora_debug_mode', false);
+        $setting->agora_sdk_logging     = $request->boolean('agora_sdk_logging', true);
+        $setting->agora_log_level       = $request->input('agora_log_level', 'info');
         $setting->enable_video_call     = $request->boolean('enable_video_call', true);
         $setting->enable_audio_call     = $request->boolean('enable_audio_call', true);
         $setting->enable_live_stream    = $request->boolean('enable_live_stream', true);
         $setting->reverb_host           = $request->input('reverb_host');
         $setting->reverb_port           = $request->input('reverb_port') ? (int) $request->input('reverb_port') : null;
-        $setting->token_expire_seconds  = (int) ($request->input('token_expire_seconds') ?: 86400);
+        $setting->token_expire_seconds  = (int) ($request->input('token_expire_seconds') ?: 3600);
         $setting->save();
 
         StreamingSetting::clearCache();

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\StreamingSetting;
 use App\Models\User;
-use App\Services\AgoraTokenBuilder;
+use App\Services\Calling\CallingManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +14,13 @@ use Illuminate\Support\Str;
 
 class StreamingController extends Controller
 {
+    protected CallingManager $callingManager;
+
+    public function __construct(CallingManager $callingManager)
+    {
+        $this->callingManager = $callingManager;
+    }
+
     /**
      * Resolve user from Bearer Token, Sanctum guard, or Custom Headers/Params.
      */
@@ -71,6 +78,7 @@ class StreamingController extends Controller
      * Unified Call / Stream Session Token Initializer (Dynamic Dual-Engine Router).
      * Automatically inspects Admin switch and returns Agora Token or WebRTC/Reverb credentials.
      * 
+     * POST /api/calls
      * POST /api/stream/session-token
      * POST /api/v1/stream/initialize
      * POST /api/stream/initialize
@@ -78,13 +86,14 @@ class StreamingController extends Controller
     public function getSessionToken(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'channel_name'   => 'required|string|max:150',
+            'channel_name'   => 'nullable|string|max:150',
             'call_type'      => 'nullable|in:audio,video,live,1on1_video,1on1_audio',
             'role'           => 'nullable|in:publisher,subscriber,host,audience',
             'uid'            => 'nullable',
             'target_user_id' => 'nullable',
             'receiver_id'    => 'nullable',
             'peer_id'        => 'nullable',
+            'driver'         => 'nullable|string|in:vps_webrtc,webrtc,agora',
         ]);
 
         if ($validator->fails()) {
@@ -98,14 +107,12 @@ class StreamingController extends Controller
 
         $user = $this->resolveUser($request);
         $setting = StreamingSetting::getSettings();
-        $driver = strtolower($setting->active_driver ?: 'vps_webrtc');
-
-        $channelName = trim($request->input('channel_name'));
+        
+        // Auto-generate dynamic unique channel name if not provided
+        $channelName = trim($request->input('channel_name') ?: $this->callingManager->generateChannelName('call'));
         $callType = $request->input('call_type', 'video');
         $rawRole = strtolower($request->input('role', 'publisher'));
-        
-        // UID resolution
-        $uid = (int) ($request->input('uid') ?: ($user ? $user->id : mt_rand(100000, 999999)));
+        $overrideDriver = $request->input('driver');
 
         // Resolve Target/Peer User Profile (Avatar, Name, Gems/Coins for Full-Screen Caller Display)
         $targetId = $request->input('target_user_id') 
@@ -113,6 +120,7 @@ class StreamingController extends Controller
                  ?? $request->input('peer_id') 
                  ?? $request->input('target_id')
                  ?? $request->input('to_user_id');
+
         $targetUserData = null;
         if ($targetId) {
             $targetUser = User::find($targetId) ?? User::where('account_id', $targetId)->first();
@@ -129,86 +137,53 @@ class StreamingController extends Controller
             }
         }
 
-        // Agora RTC Mode (Dynamic Builder OR Admin Temp-Token Override)
-        if ($driver === 'agora') {
-            $appId = $setting->agora_app_id ?: env('AGORA_APP_ID', '');
-            $appCert = $setting->agora_app_certificate ?: env('AGORA_APP_CERTIFICATE', '');
-            $expireSeconds = $setting->token_expire_seconds ?: 86400; // 24 hours
+        $options = [
+            'uid'         => $request->input('uid'),
+            'target_user' => $targetUserData,
+        ];
 
-            // Automated Dynamic HMAC-SHA256 Token Builder when Primary Certificate is present
-            if (!empty($appCert)) {
-                $agoraRole = in_array($rawRole, ['publisher', 'host']) 
-                    ? AgoraTokenBuilder::ROLE_PUBLISHER 
-                    : AgoraTokenBuilder::ROLE_SUBSCRIBER;
+        // Execute unified calling driver
+        $sessionData = $this->callingManager->initializeSession(
+            $user,
+            $channelName,
+            $callType,
+            $rawRole,
+            $options,
+            $overrideDriver
+        );
 
-                $token = AgoraTokenBuilder::buildTokenWithUid(
-                    appId: $appId,
-                    appCertificate: $appCert,
-                    channelName: $channelName,
-                    uid: $uid,
-                    role: $agoraRole,
-                    privilegeExpireTs: time() + $expireSeconds
-                );
-                $isTempToken = false;
-            } elseif ($setting->hasTempToken()) {
-                // Admin Panel Temp-Token Override (Used when no certificate is set)
-                $token = trim($setting->agora_temp_token);
-                if (!empty($setting->agora_manual_channel)) {
-                    $channelName = trim($setting->agora_manual_channel);
-                }
-                $isTempToken = true;
-            } else {
-                $token = $appId; // Testing without certificate
-                $isTempToken = false;
-            }
+        return response()->json($sessionData, 200);
+    }
 
+    /**
+     * Refresh RTC Token for ongoing calls.
+     * POST /api/agora/token/refresh
+     * POST /api/stream/token/refresh
+     */
+    public function refreshToken(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'channel_name' => 'required|string|max:150',
+            'uid'          => 'required',
+            'role'         => 'nullable|in:publisher,subscriber,host,audience',
+            'driver'       => 'nullable|string|in:agora,vps_webrtc',
+        ]);
+
+        if ($validator->fails()) {
             return response()->json([
-                'success'          => true,
-                'status'           => true,
-                'driver'           => 'agora',
-                'channel_name'     => $channelName,
-                'agora_app_id'     => $appId,
-                'agora_token'      => $token,
-                'agora_uid'        => $uid,
-                'is_temp_token'    => $isTempToken,
-                'user_id'          => $user?->id ?? $uid,
-                'account_id'       => $user?->account_id,
-                'target_user'      => $targetUserData,
-                'call_type'        => $callType,
-                'role'             => $rawRole,
-                'expire_seconds'   => $expireSeconds,
-                'enable_video'     => (bool) $setting->enable_video_call,
-                'enable_audio'     => (bool) $setting->enable_audio_call,
-                'enable_live'      => (bool) $setting->enable_live_stream,
-                'status_text'      => 'Connecting...',
-                'message'          => 'Ready',
-            ], 200);
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
         }
 
-        // Hostinger VPS WebRTC + Reverb Mode
-        $reverbConfig = $setting->getReverbConfig();
+        $channelName = trim($request->input('channel_name'));
+        $uid = $request->input('uid');
+        $role = $request->input('role', 'publisher');
+        $driver = $request->input('driver', 'agora');
 
-        return response()->json([
-            'success'          => true,
-            'status'           => true,
-            'driver'           => 'vps_webrtc',
-            'channel_name'     => $channelName,
-            'user_id'          => $user?->id ?? $uid,
-            'account_id'       => $user?->account_id,
-            'target_user'      => $targetUserData,
-            'call_type'        => $callType,
-            'role'             => $rawRole,
-            'signaling_host'   => $reverbConfig['host'],
-            'signaling_port'   => $reverbConfig['port'],
-            'signaling_scheme' => $reverbConfig['scheme'],
-            'reverb_app_key'   => $reverbConfig['app_key'],
-            'auth_endpoint'    => $reverbConfig['auth_endpoint'],
-            'enable_video'     => (bool) $setting->enable_video_call,
-            'enable_audio'     => (bool) $setting->enable_audio_call,
-            'enable_live'      => (bool) $setting->enable_live_stream,
-            'status_text'      => 'Connecting...',
-            'message'          => 'Ready',
-        ], 200);
+        $result = $this->callingManager->refreshToken($channelName, $uid, $role, $driver);
+
+        return response()->json($result, $result['success'] ? 200 : 400);
     }
 
     /**
@@ -224,13 +199,15 @@ class StreamingController extends Controller
             'success' => true,
             'status'  => true,
             'data'    => [
-                'active_driver'         => $setting->active_driver,
-                'is_agora'              => $setting->isAgora(),
-                'is_vps_webrtc'         => $setting->isWebRTC(),
+                'active_driver'         => $this->callingManager->getActiveDriverName(),
+                'is_agora'              => $this->callingManager->getActiveDriverName() === 'agora',
+                'is_vps_webrtc'         => $this->callingManager->getActiveDriverName() === 'vps_webrtc',
                 'agora_app_id'          => $setting->isAgora() ? $setting->agora_app_id : null,
                 'agora_project_name'    => $setting->agora_project_name,
-                'has_temp_token'        => $setting->hasTempToken(),
-                'agora_manual_channel'  => $setting->agora_manual_channel,
+                'token_expire_seconds'  => (int) ($setting->token_expire_seconds ?: 3600),
+                'debug_mode'            => (bool) $setting->agora_debug_mode,
+                'sdk_logging'           => (bool) $setting->agora_sdk_logging,
+                'log_level'             => $setting->agora_log_level ?: 'info',
                 'signaling_host'        => $reverbConfig['host'],
                 'signaling_port'        => $reverbConfig['port'],
                 'enable_video_call'     => (bool) $setting->enable_video_call,

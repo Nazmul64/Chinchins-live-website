@@ -669,10 +669,72 @@
                         </div>
                     </div>
 
-                    <!-- 3. Feature Toggles & Token Duration -->
+                    <!-- 3. Agora Debugging & Diagnostics Controls -->
+                    <div class="card bg-body-tertiary border rounded-4 p-4 mb-4">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fa-solid fa-bug text-danger fs-5"></i>
+                                <h5 class="fw-bold mb-0">3. Agora Diagnostics, Debug Mode & SDK Logging</h5>
+                            </div>
+                            <span class="badge {{ ($streamingSetting->agora_debug_mode ?? false) ? 'bg-danger' : 'bg-secondary' }} px-3 py-2 rounded-pill font-monospace" style="font-size: 11px;">
+                                <i class="fa-solid fa-terminal me-1"></i> Debug Mode: {{ ($streamingSetting->agora_debug_mode ?? false) ? 'ENABLED' : 'DISABLED' }}
+                            </span>
+                        </div>
+
+                        <div class="row g-3">
+                            <!-- Agora Status Toggle -->
+                            <div class="col-12 col-md-3">
+                                <div class="card p-3 border rounded-3 h-100 bg-white shadow-xs">
+                                    <div class="form-check form-switch mb-1">
+                                        <input class="form-check-input" type="checkbox" name="is_agora_enabled" id="is_agora_enabled" value="1" {{ ($streamingSetting->is_agora_enabled ?? true) ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-bold text-dark" for="is_agora_enabled" style="font-size: 13px;">Agora Status</label>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">Master switch for Agora engine availability.</small>
+                                </div>
+                            </div>
+
+                            <!-- Backend Debug Mode -->
+                            <div class="col-12 col-md-3">
+                                <div class="card p-3 border rounded-3 h-100 bg-white shadow-xs">
+                                    <div class="form-check form-switch mb-1">
+                                        <input class="form-check-input" type="checkbox" name="agora_debug_mode" id="agora_debug_mode" value="1" {{ ($streamingSetting->agora_debug_mode ?? false) ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-bold text-danger" for="agora_debug_mode" style="font-size: 13px;">Enable Debug Mode</label>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">Logs full call sessions & tokens in Laravel log.</small>
+                                </div>
+                            </div>
+
+                            <!-- Flutter SDK Logging -->
+                            <div class="col-12 col-md-3">
+                                <div class="card p-3 border rounded-3 h-100 bg-white shadow-xs">
+                                    <div class="form-check form-switch mb-1">
+                                        <input class="form-check-input" type="checkbox" name="agora_sdk_logging" id="agora_sdk_logging" value="1" {{ ($streamingSetting->agora_sdk_logging ?? true) ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-bold text-info" for="agora_sdk_logging" style="font-size: 13px;">Agora SDK Logging</label>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">Directs Flutter app to output Agora engine events.</small>
+                                </div>
+                            </div>
+
+                            <!-- SDK Log Level -->
+                            <div class="col-12 col-md-3">
+                                <div class="card p-3 border rounded-3 h-100 bg-white shadow-xs">
+                                    <label class="form-label fw-bold text-dark mb-1" style="font-size: 13px;">Log Level</label>
+                                    <select name="agora_log_level" class="form-select form-select-sm font-monospace">
+                                        <option value="error" {{ ($streamingSetting->agora_log_level ?? 'info') === 'error' ? 'selected' : '' }}>Error (Quiet)</option>
+                                        <option value="warning" {{ ($streamingSetting->agora_log_level ?? 'info') === 'warning' ? 'selected' : '' }}>Warning</option>
+                                        <option value="info" {{ ($streamingSetting->agora_log_level ?? 'info') === 'info' ? 'selected' : '' }}>Info (Recommended)</option>
+                                        <option value="verbose" {{ ($streamingSetting->agora_log_level ?? 'info') === 'verbose' ? 'selected' : '' }}>Verbose (Full Traces)</option>
+                                    </select>
+                                    <small class="text-muted" style="font-size: 11px;">Verbosity of client-side diagnostics.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Feature Toggles & Token Duration -->
                     <div class="row g-4 mb-4">
                         <div class="col-12 col-md-6">
-                            <h6 class="fw-bold mb-3">3. Communication Feature Toggles</h6>
+                            <h6 class="fw-bold mb-3">4. Communication Feature Toggles</h6>
                             <div class="d-flex flex-column gap-3">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" name="enable_video_call" id="enable_video_call" value="1" {{ ($streamingSetting->enable_video_call ?? true) ? 'checked' : '' }}>
@@ -690,12 +752,12 @@
                         </div>
 
                         <div class="col-12 col-md-6">
-                            <h6 class="fw-bold mb-3">4. Security & Reverb Host Config</h6>
+                            <h6 class="fw-bold mb-3">5. Token Expiry & Reverb Host Config</h6>
                             <div class="row g-2">
                                 <div class="col-12 col-sm-6">
                                     <label class="form-label small fw-semibold">Token Expiry Duration (Seconds)</label>
-                                    <input type="number" name="token_expire_seconds" class="form-control form-control-sm" value="{{ old('token_expire_seconds', $streamingSetting->token_expire_seconds ?? 86400) }}" min="300" max="604800">
-                                    <small class="text-muted">Default: 86400s (24 Hours)</small>
+                                    <input type="number" name="token_expire_seconds" class="form-control form-control-sm font-monospace" value="{{ old('token_expire_seconds', $streamingSetting->token_expire_seconds ?? 3600) }}" min="300" max="604800">
+                                    <small class="text-muted">Standard: 3600s (1 Hour)</small>
                                 </div>
                                 <div class="col-12 col-sm-6">
                                     <label class="form-label small fw-semibold">Reverb Signaling Host</label>

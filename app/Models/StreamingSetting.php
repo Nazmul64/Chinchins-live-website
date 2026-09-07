@@ -14,11 +14,15 @@ class StreamingSetting extends Model
 
     protected $fillable = [
         'active_driver',
+        'is_agora_enabled',
         'agora_project_name',
         'agora_app_id',
         'agora_app_certificate',
         'agora_temp_token',
         'agora_manual_channel',
+        'agora_debug_mode',
+        'agora_sdk_logging',
+        'agora_log_level',
         'enable_video_call',
         'enable_audio_call',
         'enable_live_stream',
@@ -29,6 +33,9 @@ class StreamingSetting extends Model
     ];
 
     protected $casts = [
+        'is_agora_enabled'     => 'boolean',
+        'agora_debug_mode'     => 'boolean',
+        'agora_sdk_logging'    => 'boolean',
         'enable_video_call'    => 'boolean',
         'enable_audio_call'    => 'boolean',
         'enable_live_stream'   => 'boolean',
