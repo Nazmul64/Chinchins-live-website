@@ -39,6 +39,8 @@ class Gift extends Model
 
     protected $appends = [
         'image_url',
+        'png_url',
+        'svg_url',
         'icon_url',
         'file_url',
         'formatted_coins',
@@ -53,7 +55,7 @@ class Gift extends Model
     {
         $src = $this->attributes['icon_url'] ?? $this->attributes['image'] ?? null;
         if (empty($src)) {
-            return asset('uploads/gifts/diamond_ring_gift.svg');
+            return url('uploads/gifts/diamond_ring_gift.png');
         }
 
         if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
@@ -61,7 +63,47 @@ class Gift extends Model
         }
 
         $clean = ltrim($src, '/');
-        return asset($clean);
+        return url($clean);
+    }
+
+    /**
+     * Get direct PNG image URL (ensures Flutter Image.network and CachedNetworkImage render smoothly).
+     */
+    public function getPngUrlAttribute(): string
+    {
+        $src = $this->attributes['icon_url'] ?? $this->attributes['image'] ?? null;
+        if (empty($src)) {
+            return url('uploads/gifts/diamond_ring_gift.png');
+        }
+
+        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
+            // Replace .svg extension with .png if present
+            return preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
+        }
+
+        $clean = ltrim($src, '/');
+        // If file ends with .svg, replace with .png if available
+        $pngPath = preg_replace('/\.svg$/i', '.png', $clean);
+        return url($pngPath);
+    }
+
+    /**
+     * Get direct SVG vector URL.
+     */
+    public function getSvgUrlAttribute(): string
+    {
+        $src = $this->attributes['icon_url'] ?? $this->attributes['image'] ?? null;
+        if (empty($src)) {
+            return url('uploads/gifts/diamond_ring_gift.svg');
+        }
+
+        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
+            return preg_replace('/\.png(\?.*)?$/i', '.svg$1', $src);
+        }
+
+        $clean = ltrim($src, '/');
+        $svgPath = preg_replace('/\.png$/i', '.svg', $clean);
+        return url($svgPath);
     }
 
     /**
@@ -69,7 +111,7 @@ class Gift extends Model
      */
     public function getIconUrlAttribute(): string
     {
-        return $this->getImageUrlAttribute();
+        return $this->getPngUrlAttribute();
     }
 
     /**
@@ -86,7 +128,7 @@ class Gift extends Model
             return $src;
         }
 
-        return asset(ltrim($src, '/'));
+        return url(ltrim($src, '/'));
     }
 
     /**

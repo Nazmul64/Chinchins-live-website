@@ -181,6 +181,8 @@ class GiftApiController extends Controller
                 'category'             => $gift->category,
                 'image'                => $gift->image,
                 'image_url'            => $gift->image_url,
+                'png_url'              => $gift->png_url,
+                'svg_url'              => $gift->svg_url,
                 'animation_url'        => $gift->animation_full_url,
                 'animation_type'       => $gift->animation_type,
                 'coins'                => $coinsPerUnit,

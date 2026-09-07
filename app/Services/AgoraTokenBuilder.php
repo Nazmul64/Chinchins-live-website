@@ -4,14 +4,15 @@ namespace App\Services;
 
 /**
  * Agora RTC & RTM Token Builder Service (AccessKey006 & AccessToken2).
- * Compatible with Agora RTC SDK 4.x / 6.x and Agora Chat / RTM.
+ * Fully compatible with Agora RTC SDK 4.x / 6.x (Flutter, Android, iOS, Web).
  */
 class AgoraTokenBuilder
 {
     // Roles
+    const ROLE_ATTENDEE = 0;
     const ROLE_PUBLISHER = 1;
     const ROLE_SUBSCRIBER = 2;
-    const ROLE_ATTENDEE = 0;
+    const ROLE_ADMIN = 101;
 
     // Privileges
     const PRIVILEGE_JOIN_CHANNEL = 1;
@@ -21,14 +22,6 @@ class AgoraTokenBuilder
 
     /**
      * Build Agora RTC Token for numeric User ID (UID).
-     *
-     * @param string $appId
-     * @param string $appCertificate
-     * @param string $channelName
-     * @param int|string $uid
-     * @param int $role
-     * @param int $privilegeExpireTs
-     * @return string
      */
     public static function buildTokenWithUid(
         string $appId,
@@ -43,14 +36,6 @@ class AgoraTokenBuilder
 
     /**
      * Build Agora RTC Token for string Account/User identifier.
-     *
-     * @param string $appId
-     * @param string $appCertificate
-     * @param string $channelName
-     * @param string $userAccount
-     * @param int $role
-     * @param int $privilegeExpireTs
-     * @return string
      */
     public static function buildTokenWithUserAccount(
         string $appId,
@@ -60,11 +45,19 @@ class AgoraTokenBuilder
         int $role = self::ROLE_PUBLISHER,
         int $privilegeExpireTs = 0
     ): string {
-        return self::generateToken($appId, $appCertificate, $channelName, $userAccount, $role, $privilegeExpireTs);
+        return self::generateToken($appId, $appCertificate, $channelName, (string) $userAccount, $role, $privilegeExpireTs);
     }
 
     /**
-     * Generate RTC Token according to Agora AccessToken standard.
+     * Binary pack a string with 2-byte unsigned short length prefix (Agora binary format).
+     */
+    protected static function packString(string $v): string
+    {
+        return pack("v", strlen($v)) . $v;
+    }
+
+    /**
+     * Generate RTC Token according to Agora AccessToken 006 standard.
      */
     public static function generateToken(
         string $appId,
@@ -85,17 +78,17 @@ class AgoraTokenBuilder
 
         $now = time();
         if ($privilegeExpireTs <= 0) {
-            $privilegeExpireTs = $now + 86400; // 24 hours
+            $privilegeExpireTs = $now + 86400; // 24 hours validity
         }
 
-        $salt = (string) mt_rand(1, 99999999);
+        $salt = (int) mt_rand(1, 99999999);
 
         // Build privilege map
         $privileges = [
             self::PRIVILEGE_JOIN_CHANNEL => $privilegeExpireTs,
         ];
 
-        if ($role === self::ROLE_PUBLISHER) {
+        if ($role === self::ROLE_PUBLISHER || $role === self::ROLE_ATTENDEE) {
             $privileges[self::PRIVILEGE_PUBLISH_AUDIO_STREAM] = $privilegeExpireTs;
             $privileges[self::PRIVILEGE_PUBLISH_VIDEO_STREAM] = $privilegeExpireTs;
             $privileges[self::PRIVILEGE_PUBLISH_DATA_STREAM] = $privilegeExpireTs;
@@ -105,42 +98,28 @@ class AgoraTokenBuilder
             $privileges[self::PRIVILEGE_PUBLISH_DATA_STREAM] = 0;
         }
 
-        // Pack message content
-        $msgContent = self::packMessage($appId, $channelName, $uidStr, $salt, $now, $privileges);
-        $signature = hash_hmac('sha256', $msgContent, $appCertificate, true);
-
-        // Version 006 token prefix
-        $version = "006";
-        $body = pack("a*", $version) . pack("a*", $appId) . pack("V", $now) . pack("V", $salt) . pack("v", strlen($signature)) . $signature . pack("v", strlen($msgContent)) . $msgContent;
-
-        return $version . base64_encode($body);
-    }
-
-    /**
-     * Pack binary message structure for Agora signature.
-     */
-    protected static function packMessage(
-        string $appId,
-        string $channelName,
-        string $uidStr,
-        string $salt,
-        int $ts,
-        array $privileges
-    ): string {
-        $buf = "";
-        $buf .= pack("a*", $appId);
-        $buf .= pack("a*", $channelName);
-        $buf .= pack("a*", $uidStr);
-        $buf .= pack("a*", $salt);
-        $buf .= pack("V", $ts);
-
-        // Pack Privileges count (v = 16-bit unsigned short)
-        $buf .= pack("v", count($privileges));
+        // 1. Pack message content with salt, timestamp and privileges
+        $msgBuf = pack("V", $salt);
+        $msgBuf .= pack("V", $now);
+        $msgBuf .= pack("v", count($privileges));
         foreach ($privileges as $k => $v) {
-            $buf .= pack("v", (int) $k);
-            $buf .= pack("V", (int) $v);
+            $msgBuf .= pack("v", (int) $k);
+            $msgBuf .= pack("V", (int) $v);
         }
 
-        return $buf;
+        // 2. Sign HMAC-SHA256 signature
+        $signatureContent = pack("a*", $appId) . pack("a*", $channelName) . pack("a*", $uidStr) . $msgBuf;
+        $signature = hash_hmac('sha256', $signatureContent, $appCertificate, true);
+
+        // 3. Pack full AccessToken006 binary body
+        $version = "006";
+        $body = pack("a*", $version)
+            . self::packString($appId)
+            . self::packString($channelName)
+            . self::packString($uidStr)
+            . self::packString($signature)
+            . self::packString($msgBuf);
+
+        return $version . base64_encode($body);
     }
 }

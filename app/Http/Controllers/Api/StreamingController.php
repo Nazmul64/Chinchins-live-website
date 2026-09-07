@@ -135,15 +135,8 @@ class StreamingController extends Controller
             $appCert = $setting->agora_app_certificate ?: env('AGORA_APP_CERTIFICATE', '');
             $expireSeconds = $setting->token_expire_seconds ?: 86400; // 24 hours
 
-            // Admin Panel Temp-Token Override check
-            if ($setting->hasTempToken()) {
-                $token = trim($setting->agora_temp_token);
-                if (!empty($setting->agora_manual_channel)) {
-                    $channelName = trim($setting->agora_manual_channel);
-                }
-                $isTempToken = true;
-            } else {
-                // Automated Dynamic HMAC-SHA256 Token Builder
+            // Automated Dynamic HMAC-SHA256 Token Builder when Primary Certificate is present
+            if (!empty($appCert)) {
                 $agoraRole = in_array($rawRole, ['publisher', 'host']) 
                     ? AgoraTokenBuilder::ROLE_PUBLISHER 
                     : AgoraTokenBuilder::ROLE_SUBSCRIBER;
@@ -156,6 +149,16 @@ class StreamingController extends Controller
                     role: $agoraRole,
                     privilegeExpireTs: time() + $expireSeconds
                 );
+                $isTempToken = false;
+            } elseif ($setting->hasTempToken()) {
+                // Admin Panel Temp-Token Override (Used when no certificate is set)
+                $token = trim($setting->agora_temp_token);
+                if (!empty($setting->agora_manual_channel)) {
+                    $channelName = trim($setting->agora_manual_channel);
+                }
+                $isTempToken = true;
+            } else {
+                $token = $appId; // Testing without certificate
                 $isTempToken = false;
             }
 
