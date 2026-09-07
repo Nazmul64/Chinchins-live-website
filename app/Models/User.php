@@ -489,8 +489,9 @@ class User extends Authenticatable
         }
 
         // Fallback 1: Check gallery_images if user uploaded profile photos
-        if (!empty($this->gallery_images) && is_array($this->gallery_images) && count($this->gallery_images) > 0) {
-            $firstImg = reset($this->gallery_images);
+        $gallery = $this->gallery_images;
+        if (!empty($gallery) && is_array($gallery) && count($gallery) > 0) {
+            $firstImg = $gallery[0] ?? (is_array($gallery) ? current($gallery) : null);
             if (!empty($firstImg)) {
                 return static::resolveImageUrl($firstImg);
             }
