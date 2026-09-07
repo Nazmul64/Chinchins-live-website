@@ -8,6 +8,28 @@
         </a>
     </div>
 
+    @php
+        $activeGiftsTotal = 0;
+        $activeBagItemsCount = 0;
+        $activeVipCardsCount = 0;
+        $activeSpendLessCount = 0;
+        $activeBasesTotal = 0;
+        $pendingDepCount = 0;
+        $pendingWithCount = 0;
+        $pendingKycCount = 0;
+        $pendingReportsCount = 0;
+
+        try { $activeGiftsTotal = \App\Models\Gift::where('is_active', true)->count(); } catch (\Throwable $e) {}
+        try { $activeBagItemsCount = \App\Models\BagItem::where('is_active', true)->count(); } catch (\Throwable $e) {}
+        try { $activeVipCardsCount = \App\Models\VipPrivilegeCard::where('is_active', true)->count(); } catch (\Throwable $e) {}
+        try { $activeSpendLessCount = \App\Models\SpendLessCard::where('is_active', true)->count(); } catch (\Throwable $e) {}
+        try { $activeBasesTotal = \App\Models\ProfileBase::where('is_active', true)->count(); } catch (\Throwable $e) {}
+        try { $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count(); } catch (\Throwable $e) {}
+        try { $pendingWithCount = \App\Models\WithdrawRequest::where('status', 'pending')->count(); } catch (\Throwable $e) {}
+        try { $pendingKycCount = \App\Models\KycVerification::where('status', 'pending')->count(); } catch (\Throwable $e) {}
+        try { $pendingReportsCount = \App\Models\UserReport::where('status', 'pending')->count(); } catch (\Throwable $e) {}
+    @endphp
+
     <div class="sidebar-menu">
         <!-- Dashboard Section -->
         <a href="{{ route('admin.dashboard') }}" class="menu-item {{ request()->routeIs('admin.dashboard*') ? 'active' : '' }}" style="margin-bottom: 4px;">
@@ -57,10 +79,9 @@
                 <i class="fa-solid fa-gift" style="color: #f43f5e;"></i>
                 <span>Gifts & Rewards</span>
             </div>
-            @php
-                $activeGiftsTotal = \App\Models\Gift::where('is_active', true)->count();
-            @endphp
-            <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(244,63,94,0.15); color: #f43f5e;">{{ $activeGiftsTotal }}</span>
+            @if($activeGiftsTotal > 0)
+                <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(244,63,94,0.15); color: #f43f5e;">{{ $activeGiftsTotal }}</span>
+            @endif
         </a>
         @endhasPermission
 
@@ -73,10 +94,9 @@
                     <span>My Bag Items</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
-                    @php
-                        $activeBagItemsCount = \App\Models\BagItem::where('is_active', true)->count();
-                    @endphp
-                    <span class="badge rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(168,85,247,0.15); color: #a855f7;">{{ $activeBagItemsCount }} Items</span>
+                    @if($activeBagItemsCount > 0)
+                        <span class="badge rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(168,85,247,0.15); color: #a855f7;">{{ $activeBagItemsCount }} Items</span>
+                    @endif
                     <i class="fa-solid fa-chevron-right menu-arrow"></i>
                 </div>
             </button>
@@ -102,10 +122,9 @@
                     <span>Premium VIP</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
-                    @php
-                        $activeVipCardsCount = \App\Models\VipPrivilegeCard::where('is_active', true)->count();
-                    @endphp
-                    <span class="badge bg-warning-subtle text-warning rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(245,158,11,0.15); color: #f59e0b;">{{ $activeVipCardsCount }} Cards</span>
+                    @if($activeVipCardsCount > 0)
+                        <span class="badge bg-warning-subtle text-warning rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(245,158,11,0.15); color: #f59e0b;">{{ $activeVipCardsCount }} Cards</span>
+                    @endif
                     <i class="fa-solid fa-chevron-right menu-arrow"></i>
                 </div>
             </button>
@@ -131,10 +150,9 @@
                     <span>Spend Less, Get More</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
-                    @php
-                        $activeSpendLessCount = \App\Models\SpendLessCard::where('is_active', true)->count();
-                    @endphp
-                    <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(236,72,153,0.15); color: #ec4899;">{{ $activeSpendLessCount }} Cards</span>
+                    @if($activeSpendLessCount > 0)
+                        <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(236,72,153,0.15); color: #ec4899;">{{ $activeSpendLessCount }} Cards</span>
+                    @endif
                     <i class="fa-solid fa-chevron-right menu-arrow"></i>
                 </div>
             </button>
@@ -158,20 +176,14 @@
                 <i class="fa-solid fa-certificate" style="color: #f59e0b;"></i>
                 <span>Level Badges & Frames</span>
             </div>
-            @php
-                $activeBasesTotal = \App\Models\ProfileBase::where('is_active', true)->count();
-            @endphp
-            <span class="badge bg-amber-subtle text-amber rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(245,158,11,0.15); color: #f59e0b;">{{ $activeBasesTotal }} Tiers</span>
+            @if($activeBasesTotal > 0)
+                <span class="badge bg-amber-subtle text-amber rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(245,158,11,0.15); color: #f59e0b;">{{ $activeBasesTotal }} Tiers</span>
+            @endif
         </a>
         @endhasPermission
 
         <!-- Deposit Requests -->
         @hasPermission('deposits.view')
-        @php
-            $pendingDepCount = \App\Models\DepositRequest::where('status', 'pending')->count();
-            $pendingWithCount = \App\Models\WithdrawRequest::where('status', 'pending')->count();
-            $pendingKycCount = \App\Models\KycVerification::where('status', 'pending')->count();
-        @endphp
         <a href="{{ route('admin.deposits.index') }}" class="menu-item {{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-money-bill-transfer" style="color: #f59e0b;"></i>
@@ -229,9 +241,6 @@
 
         <!-- User & In-Chat Reports Moderation -->
         @hasPermission('reports.view')
-        @php
-            $pendingReportsCount = \App\Models\UserReport::where('status', 'pending')->count();
-        @endphp
         <a href="{{ route('admin.reports.index') }}" class="menu-item {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i>

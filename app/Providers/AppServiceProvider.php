@@ -23,14 +23,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
-        // Auto-migrate and auto-seed RBAC database tables on production if not present
-        try {
-            if (!\Illuminate\Support\Facades\Schema::hasTable('roles') || !\Illuminate\Support\Facades\Schema::hasTable('permissions')) {
-                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-                \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'RoleAndPermissionSeeder', '--force' => true]);
-            }
-        } catch (\Throwable $e) {}
-
         // Custom RBAC Blade Directives
         Blade::if('hasPermission', function ($permission) {
             $user = auth()->user();
