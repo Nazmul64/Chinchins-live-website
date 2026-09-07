@@ -31,6 +31,17 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::get('/dashboard/employee', [DashboardController::class, 'employee'])->name('dashboard.employee');
     Route::get('/profile', [ProfileAdminController::class, 'index'])->name('profile');
 
+    // Super Admin Web One-Click Setup & Cache Clearing Trigger
+    Route::get('/system/setup', function () {
+        if (!auth()->user() || !auth()->user()->isSuperAdmin()) {
+            abort(403, 'Unauthorized');
+        }
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'RoleAndPermissionSeeder', '--force' => true]);
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        return redirect()->route('admin.dashboard')->with('success', 'Database tables migrated, roles seeded, and cache cleared successfully!');
+    })->name('system.setup');
+
     // Users Management
     Route::middleware(['permission:users.view'])->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
