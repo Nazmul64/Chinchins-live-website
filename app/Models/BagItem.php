@@ -52,6 +52,8 @@ class BagItem extends Model
         'image_full_url',
         'preview_full_url',
         'animation_full_url',
+        'png_url',
+        'svg_url',
         'formatted_price',
         'duration_text',
         'category_name',
@@ -119,7 +121,7 @@ class BagItem extends Model
         $src = $this->icon_url ?: $this->image_url;
         if (empty($src)) return null;
         if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) return $src;
-        return asset(ltrim($src, '/'));
+        return url(ltrim($src, '/'));
     }
 
     public function getImageFullUrlAttribute(): ?string
@@ -127,7 +129,28 @@ class BagItem extends Model
         $src = $this->image_url ?: $this->icon_url;
         if (empty($src)) return null;
         if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) return $src;
-        return asset(ltrim($src, '/'));
+        return url(ltrim($src, '/'));
+    }
+
+    public function getPngUrlAttribute(): ?string
+    {
+        $src = $this->image_url ?: $this->icon_url ?: $this->preview_url;
+        if (empty($src)) return null;
+        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
+            return preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
+        }
+        $pngPath = preg_replace('/\.svg$/i', '.png', ltrim($src, '/'));
+        return url($pngPath);
+    }
+
+    public function getSvgUrlAttribute(): ?string
+    {
+        $src = $this->image_url ?: $this->icon_url ?: $this->preview_url;
+        if (empty($src)) return null;
+        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
+            return $src;
+        }
+        return url(ltrim($src, '/'));
     }
 
     public function getPreviewFullUrlAttribute(): ?string
@@ -135,7 +158,7 @@ class BagItem extends Model
         $src = $this->preview_url ?: $this->image_url ?: $this->icon_url;
         if (empty($src)) return null;
         if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) return $src;
-        return asset(ltrim($src, '/'));
+        return url(ltrim($src, '/'));
     }
 
     public function getAnimationFullUrlAttribute(): ?string
@@ -143,7 +166,7 @@ class BagItem extends Model
         $src = $this->animation_url ?: $this->preview_url ?: $this->image_url;
         if (empty($src)) return null;
         if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) return $src;
-        return asset(ltrim($src, '/'));
+        return url(ltrim($src, '/'));
     }
 
     public function getFormattedPriceAttribute(): string

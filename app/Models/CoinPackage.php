@@ -40,6 +40,9 @@ class CoinPackage extends Model
         'formatted_price',
         'bonus_percentage',
         'button_text',
+        'image_url',
+        'png_url',
+        'svg_url',
         'icon_full_url',
         'animation_full_url',
     ];
@@ -93,17 +96,52 @@ class CoinPackage extends Model
     }
 
     /**
+     * Full URL for image / icon
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->getIconFullUrlAttribute();
+    }
+
+    /**
+     * Direct PNG URL
+     */
+    public function getPngUrlAttribute(): ?string
+    {
+        $src = $this->icon_url;
+        if (empty($src)) return url('assets/images/coins/gem-stack.png');
+        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
+            return preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
+        }
+        $pngPath = preg_replace('/\.svg$/i', '.png', ltrim($src, '/'));
+        return url($pngPath);
+    }
+
+    /**
+     * Direct SVG URL
+     */
+    public function getSvgUrlAttribute(): ?string
+    {
+        $src = $this->icon_url;
+        if (empty($src)) return url('uploads/coin_packages/gem_tier1_single.svg');
+        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
+            return $src;
+        }
+        return url(ltrim($src, '/'));
+    }
+
+    /**
      * Full URL for icon
      */
     public function getIconFullUrlAttribute(): ?string
     {
         if (empty($this->icon_url)) {
-            return asset('assets/images/coins/gem-stack.png');
+            return url('assets/images/coins/gem-stack.png');
         }
         if (str_starts_with($this->icon_url, 'http://') || str_starts_with($this->icon_url, 'https://')) {
             return $this->icon_url;
         }
-        return asset(ltrim($this->icon_url, '/'));
+        return url(ltrim($this->icon_url, '/'));
     }
 
     /**

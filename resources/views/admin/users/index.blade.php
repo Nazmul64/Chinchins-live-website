@@ -166,10 +166,19 @@
                         <tr>
                             <td>
                                 <div class="user-avatar-group">
-                                    <div class="user-avatar-wrapper">
-                                        <img src="{{ $user->avatar_url ?: 'https://ui-avatars.com/api/?name=' . urlencode($user->display_name) . '&background=3b82f6&color=fff' }}" 
-                                             alt="{{ $user->display_name }}" 
-                                             class="user-avatar-img">
+                                    <div class="user-avatar-wrapper" style="width: 44px; height: 44px; position: relative; border-radius: 50%; overflow: hidden; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                        @if(!empty($user->avatar_url))
+                                            <img src="{{ $user->avatar_url }}" 
+                                                 alt="{{ $user->display_name }}" 
+                                                 class="user-avatar-img"
+                                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+                                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name={{ urlencode($user->display_name) }}&background=3b82f6&color=fff';">
+                                        @else
+                                            <img src="https://ui-avatars.com/api/?name={{ urlencode($user->display_name) }}&background=3b82f6&color=fff" 
+                                                 alt="{{ $user->display_name }}" 
+                                                 class="user-avatar-img"
+                                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                                        @endif
                                         <span class="online-pulse-dot {{ $user->is_active ? 'online' : 'offline' }}"></span>
                                     </div>
                                     <div>
