@@ -93,15 +93,16 @@ curl -X GET "https://chinchins.live/api/profile/229051289" \
       "is_online": true,
       "is_verified": true,
       "coins": 45000,
-      "introduction": "Soy una chica sexy🔥, esperando tu llamada bebé💋",
+      "introduction": "Welcome to my live stream! Happy to connect with everyone.",
       "video_call_rate": 1800
     },
     "charm_level": "Lv7",
     "display_level": "Lv4",
     "interest_tags": [
-      "late night fun",
-      "fun show baby",
-      "sexy body"
+      "Music",
+      "Gaming",
+      "Chat",
+      "Lifestyle"
     ],
     "speaking_languages": [
       "English",
@@ -222,7 +223,7 @@ Triggered when the user taps the circular purple **"Hi"** button.
 - **Endpoint:** `POST /api/profile/update`
 - **Body Parameters:**
   - `introduction` (string) — Biography / intro text
-  - `tags` (array or comma string) — `["late night fun", "fun show baby"]`
+  - `tags` (array or comma string) — `["Music", "Gaming", "Chat"]`
   - `languages` (array or comma string) — `["English", "Spanish"]`
   - `video_call_rate` (int) — Coin rate per minute (e.g. `1800`)
   - `first_name`, `last_name`, `nickname`, `age`, `city`, `country`
@@ -260,7 +261,7 @@ Triggered when the user taps the circular purple **"Hi"** button.
         "charm_level": "Lv7",
         "video_call_rate": 1800,
         "rate_per_minute": 1800,
-        "interest_tags": ["late night fun", "fun show baby"],
+        "interest_tags": ["Music", "Gaming", "Chat"],
         "speaking_languages": ["English", "Spanish"]
       }
     ],
