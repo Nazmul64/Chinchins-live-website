@@ -14,6 +14,7 @@ class UserPermission extends Model
         'user_id',
         'permission_id',
         'type', // 'allow' or 'deny'
+        'effect',
     ];
 
     public function user(): BelongsTo
@@ -24,5 +25,21 @@ class UserPermission extends Model
     public function permission(): BelongsTo
     {
         return $this->belongsTo(Permission::class);
+    }
+
+    /**
+     * Accessor for effect compatibility (maps to type).
+     */
+    public function getEffectAttribute(): string
+    {
+        return $this->attributes['type'] ?? 'allow';
+    }
+
+    /**
+     * Mutator for effect compatibility (maps to type).
+     */
+    public function setEffectAttribute($value): void
+    {
+        $this->attributes['type'] = $value;
     }
 }

@@ -127,7 +127,7 @@ class PermissionService
      */
     public static function getGroupedPermissions(): Collection
     {
-        return Permission::all()->groupBy('module');
+        return Permission::orderBy('module')->orderBy('name')->get()->groupBy('module');
     }
 
     /**
@@ -163,39 +163,10 @@ class PermissionService
     }
 
     /**
-     * Get Role-Permission Matrix for admin overview table.
+     * Get permission matrix (grouped permissions by module) for UI forms.
      */
-    public static function getPermissionMatrix(): array
+    public static function getPermissionMatrix(): Collection
     {
-        $roles = Role::with('permissions')->orderBy('id')->get();
-        $groupedPermissions = static::getGroupedPermissions();
-
-        $matrix = [];
-        foreach ($groupedPermissions as $module => $permissions) {
-            $matrix[$module] = [
-                'module_label' => ucwords(str_replace(['_', '-'], ' ', $module)),
-                'permissions'  => [],
-            ];
-
-            foreach ($permissions as $perm) {
-                $roleAccess = [];
-                foreach ($roles as $role) {
-                    $roleAccess[$role->slug] = $role->slug === 'super-admin' || $role->permissions->contains('id', $perm->id);
-                }
-
-                $matrix[$module]['permissions'][] = [
-                    'id'          => $perm->id,
-                    'name'        => $perm->name,
-                    'slug'        => $perm->slug,
-                    'description' => $perm->description,
-                    'role_access' => $roleAccess,
-                ];
-            }
-        }
-
-        return [
-            'roles'  => $roles,
-            'matrix' => $matrix,
-        ];
+        return static::getGroupedPermissions();
     }
 }
