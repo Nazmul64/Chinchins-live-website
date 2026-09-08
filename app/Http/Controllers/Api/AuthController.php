@@ -40,10 +40,10 @@ class AuthController extends Controller
             'age'                   => ['nullable', 'integer', 'min:18', 'max:120'],
             'city'                  => ['nullable', 'string', 'max:100'],
             'introduction'          => ['nullable', 'string', 'max:1000'],
-            'languages'             => ['nullable', 'array'],
-            'languages.*'           => ['string', 'max:50'],
-            'tags'                  => ['nullable', 'array'],
-            'tags.*'                => ['string', 'max:50'],
+            'languages'             => ['nullable'],
+            'speaking_languages'    => ['nullable'],
+            'tags'                  => ['nullable'],
+            'interest_tags'         => ['nullable'],
             'video_call_rate'       => ['nullable', 'integer', 'min:0'],
         ]);
 
@@ -66,6 +66,26 @@ class AuthController extends Controller
             ? strtolower(trim($request->email)) 
             : ($cleanPhone ? $cleanPhone . '@user.chinchins.live' : 'user_' . time() . '@user.chinchins.live');
 
+        // Country and Flag Resolution for any country worldwide
+        $country = $request->filled('country') ? trim($request->country) : 'Pakistan';
+        $countryFlag = \App\Services\CountryService::toFlag($country);
+
+        // Parse speaking languages
+        $rawLangs = $request->input('speaking_languages', $request->input('languages', ['English', 'Urdu']));
+        if (is_string($rawLangs)) {
+            $decoded = json_decode($rawLangs, true);
+            $rawLangs = is_array($decoded) ? $decoded : array_map('trim', explode(',', $rawLangs));
+        }
+        $languages = array_values(array_filter((array) $rawLangs)) ?: ['English', 'Urdu'];
+
+        // Parse interest tags
+        $rawTags = $request->input('interest_tags', $request->input('tags', ['late night fun', 'fun show baby', 'sexy body']));
+        if (is_string($rawTags)) {
+            $decoded = json_decode($rawTags, true);
+            $rawTags = is_array($decoded) ? $decoded : array_map('trim', explode(',', $rawTags));
+        }
+        $tags = array_values(array_filter((array) $rawTags)) ?: ['late night fun', 'fun show baby', 'sexy body'];
+
         $user = User::create([
             'first_name'      => $firstName,
             'last_name'       => $lastName,
@@ -74,16 +94,18 @@ class AuthController extends Controller
             'phone'           => $phone,
             'email'           => $email,
             'password'        => Hash::make($request->password),
-            'country'         => $request->filled('country') ? trim($request->country) : 'Pakistan',
+            'country'         => $country,
+            'country_flag'    => $countryFlag,
             'city'            => $request->input('city'),
             'gender'          => $request->input('gender', 'female'),
             'age'             => $request->input('age', 27),
             'introduction'    => $request->input('introduction', 'Sweet girl looking for honest talk ❤️'),
-            'languages'       => $request->input('languages', ['English', 'Urdu']),
-            'tags'            => $request->input('tags', ['Live video', 'Music']),
+            'languages'       => $languages,
+            'tags'            => $tags,
             'video_call_rate' => $request->input('video_call_rate', 1800),
             'is_active'       => true,
             'level'           => 'Lv4',
+            'charm_level'     => 'Lv4',
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;

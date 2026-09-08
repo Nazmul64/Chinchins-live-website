@@ -638,6 +638,95 @@ class MessageApiController extends Controller
     }
 
     /**
+     * Send Instant "Hi" Greeting to Host / Streamer from Profile or Call Screen.
+     * POST /api/chat/send-hi or POST /api/profile/{id}/hi or POST /api/messages/send-hi
+     */
+    public function sendHiGreeting(Request $request, ?string $id = null): JsonResponse
+    {
+        $sender = $this->resolveUser($request);
+        if (!$sender) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $receiverId = $id ?? $request->input('receiver_id') ?? $request->input('user_id') ?? $request->input('to_user_id');
+        if (!$receiverId) {
+            return response()->json(['status' => false, 'message' => 'Target user ID is required.'], 422);
+        }
+
+        $receiver = User::where('id', $receiverId)->orWhere('account_id', $receiverId)->first();
+        if (!$receiver) {
+            return response()->json(['status' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if ($sender->id === $receiver->id) {
+            return response()->json(['status' => false, 'message' => 'Cannot send greeting to yourself.'], 422);
+        }
+
+        // Check blocking
+        if ($sender->hasBlocked($receiver->id) || $receiver->hasBlocked($sender->id)) {
+            return response()->json(['status' => false, 'message' => 'Cannot message this user.'], 403);
+        }
+
+        $greetingText = $request->input('message') ?: 'Hi 👋';
+
+        // Check if greeting was already sent recently (avoid duplicate rapid clicks)
+        $existing = ChatMessage::where('sender_id', $sender->id)
+            ->where('receiver_id', $receiver->id)
+            ->where('created_at', '>=', now()->subSeconds(3))
+            ->first();
+
+        if (!$existing) {
+            $existing = ChatMessage::create([
+                'sender_id'   => $sender->id,
+                'receiver_id' => $receiver->id,
+                'type'        => 'text',
+                'message'     => $greetingText,
+                'media_url'   => null,
+                'duration'    => 0,
+                'is_read'     => false,
+                'is_free'     => true,
+                'coin_cost'   => 0,
+            ]);
+
+            // Notify receiver
+            try {
+                Notification::create([
+                    'user_id'   => $receiver->id,
+                    'type'      => 'new_message',
+                    'title'     => 'New message from ' . $sender->display_name,
+                    'message'   => $greetingText,
+                    'data'      => ['sender_id' => $sender->id, 'type' => 'chat'],
+                    'is_read'   => false,
+                ]);
+            } catch (\Throwable $e) {
+                // Ignore notification failure
+            }
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Hi greeting sent successfully!',
+            'data'    => [
+                'message'         => $existing,
+                'chat_partner'    => [
+                    'id'              => $receiver->id,
+                    'account_id'      => $receiver->account_id,
+                    'name'            => $receiver->display_name,
+                    'avatar_url'      => $receiver->avatar_url,
+                    'is_online'       => (bool) $receiver->is_online,
+                    'country_flag'    => $receiver->country_flag,
+                    'country'         => $receiver->country,
+                    'display_age'     => $receiver->display_age,
+                    'level'           => $receiver->display_level,
+                    'video_call_rate' => (int) ($receiver->video_call_rate ?: 1800),
+                ],
+                'conversation_id' => $receiver->id,
+                'open_chat_route' => '/chat/' . $receiver->id,
+            ],
+        ]);
+    }
+
+    /**
      * Mark Messages as Read.
      * POST /api/messages/read or POST /api/chat/read
      */

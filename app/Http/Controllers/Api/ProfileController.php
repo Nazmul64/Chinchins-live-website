@@ -27,33 +27,21 @@ class ProfileController extends Controller
             ->where('is_active', true)
             ->where('is_locked', false);
 
-        // Normalize country filter (BGD, BD, PK, PAK, IND, IN, etc.)
+        // Normalize country filter (Supports all countries worldwide: BD, PK, IN, NP, PH, BT, MY, SA, AE, AF, US, etc.)
         $countryParam = $request->input('country') ?? $request->input('country_code') ?? $request->input('region');
         if (!empty($countryParam)) {
             $country = trim($countryParam);
             $countryUpper = strtoupper($country);
             if (!in_array($countryUpper, ['ALL', 'GLOBAL', 'WORLD', 'ANY', ''])) {
-                $countryMap = [
-                    'BGD'            => ['Bangladesh', 'BD', 'BGD'],
-                    'BD'             => ['Bangladesh', 'BD', 'BGD'],
-                    'BANGLADESH'     => ['Bangladesh', 'BD', 'BGD'],
-                    'PAK'            => ['Pakistan', 'PK', 'PAK'],
-                    'PK'             => ['Pakistan', 'PK', 'PAK'],
-                    'PAKISTAN'       => ['Pakistan', 'PK', 'PAK'],
-                    'IND'            => ['India', 'IN', 'IND'],
-                    'IN'             => ['India', 'IN', 'IND'],
-                    'INDIA'          => ['India', 'IN', 'IND'],
-                    'USA'            => ['United States', 'US', 'USA'],
-                    'US'             => ['United States', 'US', 'USA'],
-                    'UNITED STATES'  => ['United States', 'US', 'USA'],
-                    'GBR'            => ['United Kingdom', 'GB', 'UK', 'GBR'],
-                    'UK'             => ['United Kingdom', 'GB', 'UK', 'GBR'],
-                    'UNITED KINGDOM' => ['United Kingdom', 'GB', 'UK', 'GBR'],
-                    'PHL'            => ['Philippines', 'PH', 'PHL'],
-                    'PH'             => ['Philippines', 'PH', 'PHL'],
-                    'PHILIPPINES'    => ['Philippines', 'PH', 'PHL'],
-                ];
-                $variants = $countryMap[$countryUpper] ?? [$country, $countryUpper];
+                $iso = \App\Services\CountryService::toIso($country);
+                $found = \App\Services\CountryService::find($country);
+                $variants = array_unique(array_filter([
+                    $country,
+                    $countryUpper,
+                    $iso,
+                    $found['name'] ?? null,
+                    $found['iso3'] ?? null,
+                ]));
 
                 $hasCountryMatches = (clone $query)->where(function ($q) use ($variants) {
                     foreach ($variants as $v) {
@@ -127,10 +115,13 @@ class ProfileController extends Controller
                 'is_verified'     => (bool) $u->is_verified,
                 'video_call_rate' => $videoRate,
                 'rate_per_minute' => $videoRate,
-                'audio_call_rate' => 60,
-                'coins'           => (int) $u->coins,
-                'introduction'    => $u->introduction ?: 'Welcome to my live room! Feel free to video call me.',
-                'tags'            => $u->tags ?: ['Sweet', 'Online', 'Live'],
+                'coins'              => (int) $u->coins,
+                'introduction'       => $u->introduction ?: 'Welcome to my live room! Feel free to video call me.',
+                'interest_tags'      => $u->interest_tags,
+                'speaking_languages' => $u->speaking_languages,
+                'tags'               => $u->interest_tags,
+                'languages'          => $u->speaking_languages,
+                'charm_level'        => $u->charm_level ?: 'Lv4',
             ];
         });
 
@@ -151,6 +142,38 @@ class ProfileController extends Controller
             'streamers'  => $formattedUsers,
             'hosts'      => $formattedUsers,
         ], 200);
+    }
+
+    /**
+     * Get worldwide countries list with name, ISO codes, emoji flag, and dial code.
+     * GET /api/countries or GET /api/app/countries
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getCountries(Request $request): JsonResponse
+    {
+        $countries = User::getAllCountries();
+
+        if ($request->filled('q') || $request->filled('search')) {
+            $q = strtolower(trim($request->input('q', $request->input('search'))));
+            $countries = array_values(array_filter($countries, function ($item) use ($q) {
+                return str_contains(strtolower($item['name']), $q)
+                    || str_contains(strtolower($item['code']), $q)
+                    || str_contains(strtolower($item['iso3']), $q)
+                    || str_contains(strtolower($item['dial_code']), $q);
+            }));
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => count($countries) . ' countries loaded successfully.',
+            'data'    => [
+                'default'   => 'Pakistan',
+                'countries' => $countries,
+            ],
+            'countries' => $countries,
+        ]);
     }
 
     /**
@@ -340,7 +363,7 @@ class ProfileController extends Controller
             ];
         }
 
-        // Top Fan
+        // Top Fan (from gifts coins or fallback to top liker)
         $topFanRecord = UserGift::where('user_id', $user->id)
             ->whereNotNull('sender_id')
             ->where('sender_id', '!=', $user->id)
@@ -360,28 +383,64 @@ class ProfileController extends Controller
                 'formatted'    => Gift::formatCoins($topFanRecord->fan_coins),
             ];
         } else {
-            $topFan = [
-                'id'           => 999,
-                'name'         => 'Sajid',
-                'avatar_url'   => asset('assets/images/defaults/avatar-male.png'),
-                'fan_coins'    => 54200,
-                'formatted'    => '54.20K',
-            ];
+            // Check top liker from user_likes
+            $topLiker = \App\Models\UserLike::where('user_id', $user->id)
+                ->whereNotNull('sender_id')
+                ->where('sender_id', '!=', $user->id)
+                ->select('sender_id', DB::raw('SUM(likes_count) as total_likes'))
+                ->groupBy('sender_id')
+                ->orderBy('total_likes', 'desc')
+                ->with('sender')
+                ->first();
+
+            if ($topLiker && $topLiker->sender) {
+                $topFan = [
+                    'id'           => $topLiker->sender->id,
+                    'name'         => $topLiker->sender->display_name,
+                    'avatar_url'   => $topLiker->sender->avatar_url,
+                    'fan_coins'    => (int) $topLiker->total_likes * 10,
+                    'formatted'    => (int) $topLiker->total_likes . ' Likes',
+                ];
+            } else {
+                $topFan = [
+                    'id'           => 999,
+                    'name'         => 'Raza me',
+                    'avatar_url'   => asset('assets/images/defaults/avatar-male.png'),
+                    'fan_coins'    => 54200,
+                    'formatted'    => '54.20K',
+                ];
+            }
         }
 
         // Charm Level dynamically calculated from configured admin level thresholds
         $charmLevel = \App\Models\CharmLevelSetting::calculateLevel($totalCoinsReceived);
         $totalLikes = (int) \App\Models\UserLike::where('user_id', $user->id)->sum('likes_count');
 
+        $videoRate = (int) ($user->video_call_rate ?: 1800);
+
         return response()->json([
             'status' => true,
             'data'   => [
                 'user'                  => $user->fresh(),
+                'interest_tags'         => $user->interest_tags,
+                'speaking_languages'    => $user->speaking_languages,
+                'country'               => $user->country ?: 'Pakistan',
+                'country_flag'          => $user->country_flag ?: '🇵🇰',
+                'country_code'          => $user->country_code ?: 'PK',
+                'display_age'           => $user->display_age,
+                'display_level'         => $user->display_level,
                 'charm_level'           => $charmLevel,
                 'top_fan'               => $topFan,
+                'video_call_rate'       => $videoRate,
+                'video_call_rate_text'  => $videoRate . '/min',
                 'likes'                 => [
                     'total_likes'     => $totalLikes,
                     'formatted_likes' => Gift::formatCoins($totalLikes),
+                ],
+                'close_friends'         => [
+                    'current' => 0,
+                    'max'     => 3,
+                    'label'   => '(0/3)',
                 ],
                 'gifts_count'           => $totalItemsCount,
                 'gifts_total_coins'     => $totalCoinsReceived,
@@ -457,6 +516,7 @@ class ProfileController extends Controller
         }
         if ($request->has('country')) {
             $data['country'] = trim($request->country);
+            $data['country_flag'] = \App\Services\CountryService::toFlag($data['country']);
         }
         if ($request->has('city')) {
             $data['city'] = trim($request->city);
@@ -477,9 +537,9 @@ class ProfileController extends Controller
             $data['close_friends_count'] = (int) $request->close_friends_count;
         }
 
-        // Handle languages as array or JSON string
-        if ($request->has('languages')) {
-            $languages = $request->languages;
+        // Handle languages as array, JSON string, or comma-separated string (accepts speaking_languages or languages)
+        if ($request->has('speaking_languages') || $request->has('languages')) {
+            $languages = $request->input('speaking_languages', $request->input('languages'));
             if (is_string($languages)) {
                 $decoded = json_decode($languages, true);
                 $languages = is_array($decoded) ? $decoded : array_map('trim', explode(',', $languages));
@@ -487,9 +547,9 @@ class ProfileController extends Controller
             $data['languages'] = array_values(array_filter((array) $languages));
         }
 
-        // Handle tags as array or JSON string
-        if ($request->has('tags')) {
-            $tags = $request->tags;
+        // Handle tags as array, JSON string, or comma-separated string (accepts interest_tags or tags)
+        if ($request->has('interest_tags') || $request->has('tags')) {
+            $tags = $request->input('interest_tags', $request->input('tags'));
             if (is_string($tags)) {
                 $decoded = json_decode($tags, true);
                 $tags = is_array($decoded) ? $decoded : array_map('trim', explode(',', $tags));

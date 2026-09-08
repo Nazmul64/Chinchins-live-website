@@ -109,6 +109,10 @@ Route::get('/stream/users', [ProfileController::class, 'index']);
 Route::get('/stream/hosts', [ProfileController::class, 'index']);
 Route::get('/stream/streamers', [ProfileController::class, 'index']);
 
+// Worldwide Countries List (For Registration, Filter & Country Select)
+Route::get('/countries', [ProfileController::class, 'getCountries']);
+Route::get('/app/countries', [ProfileController::class, 'getCountries']);
+
 // User Search by 8-digit Account ID, UID, Name
 Route::get('/search', [ProfileController::class, 'search']);
 Route::get('/users/search', [ProfileController::class, 'search']);
@@ -445,6 +449,8 @@ Route::prefix('chat')->group(function () {
     Route::match(['get', 'post'], '/can-chat', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
     Route::get('/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
     Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
+    Route::post('/send-hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
+    Route::post('/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
     Route::post('/upload', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);
     Route::post('/read', [\App\Http\Controllers\Api\MessageApiController::class, 'markAsRead']);
     
@@ -524,6 +530,8 @@ Route::post('/user/{id}/like', [\App\Http\Controllers\Api\GiftApiController::cla
 Route::get('/users/{id}/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
 Route::get('/users/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
 Route::get('/users/{id}/top-fans', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
+Route::post('/profile/{id}/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
+Route::post('/user/{id}/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
 Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
 Route::post('/live/send-gift', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
 Route::post('/live-stream/gift', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);

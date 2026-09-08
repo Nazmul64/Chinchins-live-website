@@ -45,6 +45,7 @@ class User extends Authenticatable
         'unlocked_at',
         'level',
         'country',
+        'country_flag',
         'city',
         'gender',
         'age',
@@ -62,6 +63,7 @@ class User extends Authenticatable
         'close_friends_count',
         'role_id',
         'status',
+        'charm_level',
         'last_login_at',
         'failed_login_attempts',
         'locked_until',
@@ -98,6 +100,9 @@ class User extends Authenticatable
         'country_flag',
         'country_code',
         'display_age',
+        'display_level',
+        'interest_tags',
+        'speaking_languages',
         'avatar_frame_url',
         'base_frame_url',
         'total_earned_coins',
@@ -236,6 +241,34 @@ class User extends Authenticatable
     {
         return $this->gallery_image_urls;
     }
+
+    /**
+     * Helper alias for interest_tags.
+     */
+    public function getInterestTagsAttribute(): array
+    {
+        $tags = $this->tags;
+        if (!empty($tags) && is_array($tags)) {
+            return array_values(array_filter($tags));
+        }
+        return ['late night fun', 'fun show baby', 'sexy body'];
+    }
+
+    /**
+     * Helper alias for speaking_languages.
+     */
+    public function getSpeakingLanguagesAttribute(): array
+    {
+        $langs = $this->languages;
+        if (!empty($langs) && is_array($langs)) {
+            return array_values(array_filter($langs));
+        }
+        return ['English', 'Spanish'];
+    }
+
+
+
+
 
     /**
      * Get the attributes that should be cast.
@@ -646,64 +679,53 @@ class User extends Authenticatable
     }
 
     /**
+     * Get all worldwide countries list with name, ISO codes, emoji flag, and dial code.
+     *
+     * @return array<int, array{name: string, code: string, iso3: string, flag: string, dial_code: string}>
+     */
+    public static function getAllCountries(): array
+    {
+        return \App\Services\CountryService::all();
+    }
+
+    /**
      * Convert country name or code to 2-letter ISO code.
      */
     public static function countryNameToIso(?string $country): string
     {
-        if (empty($country)) {
-            return 'BD'; // Default Bangladesh
-        }
-
-        $c = trim($country);
-        if (strlen($c) === 2) {
-            return strtoupper($c);
-        }
-
-        $map = [
-            'bangladesh'           => 'BD',
-            'philippines'          => 'PH',
-            'india'                => 'IN',
-            'pakistan'             => 'PK',
-            'indonesia'            => 'ID',
-            'vietnam'              => 'VN',
-            'thailand'             => 'TH',
-            'nepal'                => 'NP',
-            'united states'        => 'US',
-            'usa'                  => 'US',
-            'united kingdom'       => 'GB',
-            'uk'                   => 'GB',
-            'malaysia'             => 'MY',
-            'saudi arabia'         => 'SA',
-            'uae'                  => 'AE',
-            'united arab emirates' => 'AE',
-            'brazil'               => 'BR',
-            'colombia'             => 'CO',
-            'russia'               => 'RU',
-            'singapore'            => 'SG',
-            'japan'                => 'JP',
-            'south korea'          => 'KR',
-            'korea'                => 'KR',
-            'china'                => 'CN',
-            'canada'               => 'CA',
-            'australia'            => 'AU',
-        ];
-
-        return $map[strtolower($c)] ?? 'BD';
+        return \App\Services\CountryService::toIso($country);
     }
 
     /**
-     * Convert 2-letter ISO Country Code to Flag Emoji.
+     * Convert 2-letter ISO Country Code or country name to Flag Emoji.
      */
     public static function countryCodeToEmoji(string $code): string
     {
-        $code = strtoupper(trim($code));
-        if (strlen($code) !== 2 || !ctype_alpha($code)) {
-            return '🇧🇩';
-        }
+        return \App\Services\CountryService::toFlag($code);
+    }
 
-        $firstChar = mb_chr(ord($code[0]) - ord('A') + 0x1F1E6, 'UTF-8');
-        $secondChar = mb_chr(ord($code[1]) - ord('A') + 0x1F1E6, 'UTF-8');
-        return $firstChar . $secondChar;
+    /**
+     * Resolve country flag emoji.
+     */
+    public static function resolveCountryFlag(?string $country): string
+    {
+        return \App\Services\CountryService::toFlag($country);
+    }
+
+    /**
+     * Resolve country 2-letter ISO code.
+     */
+    public static function resolveCountryCode(?string $country): string
+    {
+        return \App\Services\CountryService::toIso($country);
+    }
+
+    /**
+     * Resolve country dial code.
+     */
+    public static function resolveDialCode(?string $country): string
+    {
+        return \App\Services\CountryService::toDialCode($country);
     }
 
     /**
@@ -711,15 +733,18 @@ class User extends Authenticatable
      */
     public function getCountryCodeAttribute(): string
     {
-        return static::countryNameToIso($this->country);
+        return \App\Services\CountryService::toIso($this->country);
     }
 
     /**
-     * Accessor for Country Flag Emoji (e.g. 🇧🇩, 🇵🇭, 🇮🇳).
+     * Accessor for Country Flag Emoji (e.g. 🇧🇩, 🇵🇰, 🇮🇳, 🇳🇵, 🇵🇭).
      */
     public function getCountryFlagAttribute(): string
     {
-        return static::countryCodeToEmoji($this->getCountryCodeAttribute());
+        if (!empty($this->attributes['country_flag'])) {
+            return $this->attributes['country_flag'];
+        }
+        return \App\Services\CountryService::toFlag($this->country);
     }
 
     /**

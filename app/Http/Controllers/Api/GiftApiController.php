@@ -316,14 +316,50 @@ class GiftApiController extends Controller
             $rank++;
         }
 
-        // Fallback demo data if empty
+        // Also include Top Fans from likes if gifts leaderboard is empty or when requested
+        if (empty($topFansList) || $request->input('type') === 'likes') {
+            $likeRecords = UserLike::where('user_id', $user->id)
+                ->whereNotNull('sender_id')
+                ->where('sender_id', '!=', $user->id)
+                ->select('sender_id', DB::raw('SUM(likes_count) as total_likes'))
+                ->groupBy('sender_id')
+                ->orderBy('total_likes', 'desc')
+                ->with('sender')
+                ->take(50)
+                ->get();
+
+            if ($likeRecords->isNotEmpty()) {
+                $topFansList = [];
+                $rank = 1;
+                foreach ($likeRecords as $rec) {
+                    if (!$rec->sender) continue;
+                    $crown = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : null));
+                    $topFansList[] = [
+                        'rank'            => $rank,
+                        'user_id'         => $rec->sender->id,
+                        'account_id'      => $rec->sender->account_id,
+                        'display_name'    => $rec->sender->display_name,
+                        'avatar_url'      => $rec->sender->avatar_url,
+                        'gender'          => $rec->sender->gender,
+                        'total_coins'     => (int) $rec->total_likes * 10,
+                        'formatted_coins' => (int) $rec->total_likes . ' Likes',
+                        'gifts_count'     => (int) $rec->total_likes,
+                        'crown_type'      => $crown,
+                        'badge'           => $rank <= 3 ? "Top #{$rank}" : "#{$rank}",
+                    ];
+                    $rank++;
+                }
+            }
+        }
+
+        // Fallback demo data if still empty
         if (empty($topFansList)) {
             $topFansList = [
                 [
                     'rank'            => 1,
                     'user_id'         => 999,
                     'account_id'      => '1000293841',
-                    'display_name'    => 'Sajid',
+                    'display_name'    => 'Raza me',
                     'avatar_url'      => asset('assets/images/defaults/avatar-male.png'),
                     'gender'          => 'male',
                     'total_coins'     => 54200,
@@ -379,6 +415,17 @@ class GiftApiController extends Controller
         $like->save();
 
         $totalLikes = (int) UserLike::where('user_id', $receiver->id)->sum('likes_count');
+        $senderLikes = (int) UserLike::where('user_id', $receiver->id)->where('sender_id', $sender->id)->sum('likes_count');
+
+        $topFan = [
+            'id'           => $sender->id,
+            'account_id'   => $sender->account_id,
+            'name'         => $sender->display_name,
+            'display_name' => $sender->display_name,
+            'avatar_url'   => $sender->avatar_url,
+            'formatted'    => $senderLikes . ' Likes',
+            'likes_count'  => $senderLikes,
+        ];
 
         return response()->json([
             'status'  => true,
@@ -387,6 +434,8 @@ class GiftApiController extends Controller
                 'receiver_id'     => $receiver->id,
                 'total_likes'     => $totalLikes,
                 'formatted_likes' => Gift::formatCoins($totalLikes),
+                'sender_likes'    => $senderLikes,
+                'top_fan'         => $topFan,
             ],
         ]);
     }
