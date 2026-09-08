@@ -236,6 +236,43 @@ Triggered when the user taps the circular purple **"Hi"** button.
 
 ---
 
+### 1.5 Likes & Fans List (I Like / Like Me)
+Returns real users from the database for the **"Likes & Fans ❤️"** screen.
+
+- **Endpoints:**
+  - **I Like (Streamers I liked):** `GET /api/likes?type=i_like` or `GET /api/profile/likes?type=i_like`
+  - **Like Me (Users who liked me):** `GET /api/likes?type=like_me` or `GET /api/profile/likes?type=like_me`
+- **Headers:** `Authorization: Bearer <sanctum_token>` or `user_id: <id>`
+
+#### Sample Response:
+```json
+{
+  "status": true,
+  "message": "2 users loaded successfully.",
+  "data": {
+    "type": "i_like",
+    "count": 2,
+    "users": [
+      {
+        "id": 12,
+        "account_id": "229051289",
+        "name": "Hamna",
+        "avatar_url": "https://chinchins.live/uploads/avatars/hamna.jpg",
+        "country": "Pakistan",
+        "country_flag": "🇵🇰",
+        "is_online": true,
+        "is_verified": true,
+        "level": "Lv4",
+        "video_call_rate": 1800,
+        "introduction": "Welcome to my live room!"
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 2. Home Feed & Streamer Discovery
 
 ### 2.1 Get Streamers Feed

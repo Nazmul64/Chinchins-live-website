@@ -221,16 +221,30 @@ class GiftApiController extends Controller
                 'badge_icon'   => 'crown',
             ];
         } else {
-            $topFan = [
-                'id'           => 999,
-                'account_id'   => '1000293841',
-                'name'         => 'Sajid',
-                'avatar_url'   => asset('assets/images/defaults/avatar-male.png'),
-                'fan_coins'    => 54200,
-                'formatted'    => '54.20K',
-                'crown'        => 'gold',
-                'badge_icon'   => 'crown',
-            ];
+            // Check top liker from user_likes
+            $topLiker = UserLike::where('user_id', $user->id)
+                ->whereNotNull('sender_id')
+                ->where('sender_id', '!=', $user->id)
+                ->select('sender_id', DB::raw('SUM(likes_count) as total_likes'))
+                ->groupBy('sender_id')
+                ->orderBy('total_likes', 'desc')
+                ->with('sender')
+                ->first();
+
+            if ($topLiker && $topLiker->sender) {
+                $topFan = [
+                    'id'           => $topLiker->sender->id,
+                    'account_id'   => $topLiker->sender->account_id,
+                    'name'         => $topLiker->sender->display_name,
+                    'avatar_url'   => $topLiker->sender->avatar_url,
+                    'fan_coins'    => (int) $topLiker->total_likes * 10,
+                    'formatted'    => (int) $topLiker->total_likes . ' Likes',
+                    'crown'        => 'gold',
+                    'badge_icon'   => 'crown',
+                ];
+            } else {
+                $topFan = null;
+            }
         }
 
         // Charm Level dynamically calculated from configured admin level thresholds

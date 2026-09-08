@@ -522,6 +522,12 @@ Route::prefix('gifts')->group(function () {
 });
 
 // Profile / User level aliases for Gifts, Top Fans & Likes
+Route::get('/likes', [ProfileController::class, 'getLikesList']);
+Route::get('/profile/likes', [ProfileController::class, 'getLikesList']);
+Route::get('/user/likes', [ProfileController::class, 'getLikesList']);
+Route::get('/likes/i-like', [ProfileController::class, 'getLikesList']);
+Route::get('/likes/like-me', [ProfileController::class, 'getLikesList']);
+
 Route::get('/profile/{id}/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
 Route::get('/profile/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
 Route::get('/profile/{id}/top-fans', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);

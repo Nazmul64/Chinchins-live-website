@@ -414,13 +414,7 @@ class ProfileController extends Controller
                     'formatted'    => (int) $topLiker->total_likes . ' Likes',
                 ];
             } else {
-                $topFan = [
-                    'id'           => 999,
-                    'name'         => 'Raza me',
-                    'avatar_url'   => asset('assets/images/defaults/avatar-male.png'),
-                    'fan_coins'    => 54200,
-                    'formatted'    => '54.20K',
-                ];
+                $topFan = null;
             }
         }
 
@@ -1283,5 +1277,95 @@ class ProfileController extends Controller
                 'message' => 'Failed to update status: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Get real list of users for "Likes & Fans" screen (I Like / Like Me).
+     * GET /api/likes?type=i_like or GET /api/likes?type=like_me
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getLikesList(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthenticated.',
+                'data'    => [],
+                'users'   => [],
+            ], 401);
+        }
+
+        $type = $request->input('type', 'i_like'); // 'i_like' or 'like_me'
+
+        if ($type === 'like_me') {
+            // Streamers / Users who liked me
+            $likeRecords = \App\Models\UserLike::where('user_id', $user->id)
+                ->whereNotNull('sender_id')
+                ->where('sender_id', '!=', $user->id)
+                ->with('sender')
+                ->select('sender_id', DB::raw('SUM(likes_count) as total_likes'), DB::raw('MAX(updated_at) as last_liked_at'))
+                ->groupBy('sender_id')
+                ->orderByDesc('last_liked_at')
+                ->get();
+
+            $targetUsers = $likeRecords->map(fn($r) => $r->sender)->filter();
+        } else {
+            // Streamers / Users I liked
+            $likeRecords = \App\Models\UserLike::where('sender_id', $user->id)
+                ->whereNotNull('user_id')
+                ->where('user_id', '!=', $user->id)
+                ->with('user')
+                ->select('user_id', DB::raw('SUM(likes_count) as total_likes'), DB::raw('MAX(updated_at) as last_liked_at'))
+                ->groupBy('user_id')
+                ->orderByDesc('last_liked_at')
+                ->get();
+
+            $targetUsers = $likeRecords->map(fn($r) => $r->user)->filter();
+        }
+
+        $formatted = $targetUsers->values()->map(function ($u) {
+            $videoRate = (int) ($u->video_call_rate ?: 1800);
+            return [
+                'id'                 => $u->id,
+                'account_id'         => $u->account_id ?: (string) $u->id,
+                'name'               => $u->display_name,
+                'display_name'       => $u->display_name,
+                'nickname'           => $u->nickname ?: $u->display_name,
+                'avatar'             => $u->avatar_url,
+                'avatar_url'         => $u->avatar_url,
+                'gender'             => $u->gender ?: 'female',
+                'age'                => $u->display_age,
+                'display_age'        => $u->display_age,
+                'level'              => $u->display_level,
+                'display_level'      => $u->display_level,
+                'country'            => $u->country ?: 'Bangladesh',
+                'country_code'       => $u->country_code ?: 'BD',
+                'country_flag'       => $u->country_flag ?: '🇧🇩',
+                'city'               => $u->city ?: 'Dhaka',
+                'is_active'          => (bool) $u->is_active,
+                'is_online'          => true,
+                'is_verified'        => (bool) $u->is_verified,
+                'video_call_rate'    => $videoRate,
+                'rate_per_minute'    => $videoRate,
+                'introduction'       => $u->introduction ?: 'Welcome to my live room!',
+                'interest_tags'      => $u->interest_tags,
+                'speaking_languages' => $u->speaking_languages,
+            ];
+        });
+
+        return response()->json([
+            'status'  => true,
+            'message' => count($formatted) . ' users loaded successfully.',
+            'data'    => [
+                'type'   => $type,
+                'count'  => count($formatted),
+                'users'  => $formatted,
+            ],
+            'users'   => $formatted,
+            'count'   => count($formatted),
+        ]);
     }
 }
