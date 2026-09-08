@@ -117,8 +117,8 @@ class AuthController extends Controller
                 'tags'            => $tags,
                 'video_call_rate' => $request->input('video_call_rate', 100),
                 'is_active'       => true,
-                'level'           => 'Lv1',
-                'charm_level'     => 'Lv1',
+                'level'           => 1,
+                'charm_level'     => 1,
             ]);
 
             $token = $user->createToken('auth_token')->plainTextToken;
