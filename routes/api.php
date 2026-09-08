@@ -60,6 +60,19 @@ Route::post('/notifications/test-push', [\App\Http\Controllers\Api\AppUpdateApiC
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// 🔐 Forgot Password, Email/Phone OTP & Password Reset Flow
+Route::post('/forgot-password', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'sendResetCode']);
+Route::post('/password/forgot', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'sendResetCode']);
+Route::post('/password/send-code', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'sendResetCode']);
+Route::post('/password/email', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'sendResetCode']);
+
+Route::post('/verify-reset-code', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'verifyResetCode']);
+Route::post('/password/verify-code', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'verifyResetCode']);
+Route::post('/password/verify-otp', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'verifyResetCode']);
+
+Route::post('/reset-password', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'resetPassword']);
+Route::post('/password/reset', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'resetPassword']);
+
 // 🚪 User Logout & Session Invalidation (Supports Bearer Token, Body Token, or Headers)
 Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout']);
 Route::match(['get', 'post'], '/auth/logout', [AuthController::class, 'logout']);

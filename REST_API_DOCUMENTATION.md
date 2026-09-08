@@ -513,3 +513,16 @@ My Bag features **6 item categories**:
 
 ### 7.3 Delete Account
 - **Endpoint:** `POST /api/user/delete-account`
+
+---
+
+### 7.4 Forgot Password & Password Reset Flow
+Handles 6-digit OTP verification via email/phone and secure password resets.
+
+- **1. Send 6-Digit OTP Code:** `POST /api/forgot-password`  
+  - **Body:** `{ "email": "user@example.com", "method": "email" }`
+- **2. Verify OTP Code (Optional):** `POST /api/verify-reset-code`  
+  - **Body:** `{ "email": "user@example.com", "code": "123456" }`
+- **3. Reset Password:** `POST /api/reset-password`  
+  - **Body:** `{ "email": "user@example.com", "code": "123456", "password": "newPassword123", "password_confirmation": "newPassword123" }`
+
