@@ -91,9 +91,23 @@ Route::get('/app/terms-of-service', [\App\Http\Controllers\Api\AppUpdateApiContr
 Route::get('/terms-of-service', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
 Route::get('/terms', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
 
-// Public Home Feed & Users List (Live from Database)
+// Public Home Feed & Streamers List (Live from Database for Hot & Home Screens)
 Route::get('/home', [ProfileController::class, 'index']);
 Route::get('/users', [ProfileController::class, 'index']);
+Route::get('/streamers', [ProfileController::class, 'index']);
+Route::get('/streamers/list', [ProfileController::class, 'index']);
+Route::get('/streamer/list', [ProfileController::class, 'index']);
+Route::get('/live/streamers', [ProfileController::class, 'index']);
+Route::get('/live/hosts', [ProfileController::class, 'index']);
+Route::get('/home/streamers', [ProfileController::class, 'index']);
+Route::get('/home/hot', [ProfileController::class, 'index']);
+Route::get('/hot', [ProfileController::class, 'index']);
+Route::get('/hot/streamers', [ProfileController::class, 'index']);
+Route::get('/hosts', [ProfileController::class, 'index']);
+Route::get('/hosts/online', [ProfileController::class, 'index']);
+Route::get('/stream/users', [ProfileController::class, 'index']);
+Route::get('/stream/hosts', [ProfileController::class, 'index']);
+Route::get('/stream/streamers', [ProfileController::class, 'index']);
 
 // User Search by 8-digit Account ID, UID, Name
 Route::get('/search', [ProfileController::class, 'search']);
@@ -414,6 +428,8 @@ Route::prefix('messages')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
     Route::get('/conversations', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
     Route::get('/inbox', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
+    Route::match(['get', 'post'], '/check-permission', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
+    Route::match(['get', 'post'], '/can-message', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
     Route::get('/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
     Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
     Route::post('/upload', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);
@@ -422,6 +438,9 @@ Route::prefix('messages')->group(function () {
 
 Route::prefix('chat')->group(function () {
     Route::get('/conversations', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
+    Route::match(['get', 'post'], '/check-permission', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
+    Route::match(['get', 'post'], '/can-message', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
+    Route::match(['get', 'post'], '/can-chat', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
     Route::get('/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
     Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
     Route::post('/upload', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);

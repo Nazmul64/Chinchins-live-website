@@ -443,22 +443,27 @@ class MessageApiController extends Controller
         if (!$isFree) {
             // Check if sender has enough coins to pay for message
             if ($sender->coins < $coinCost) {
-                $packages = CoinPackage::where('is_active', true)->orderBy('sort_order')->get();
-                $paymentMethods = PaymentMethod::where('is_active', true)->get();
+                $modalData = $this->buildRechargeModalData($sender, $receiver, $coinCost, 'chat');
 
                 return response()->json([
-                    'status'              => false,
-                    'code'                => 'MESSAGE_LIMIT_REACHED',
-                    'message'             => "You have reached your free limit of {$freeLimit} messages. Please recharge coins to continue chatting.",
-                    'is_limit_reached'    => true,
-                    'redirect_to_deposit' => true,
-                    'current_coins'       => (int) $sender->coins,
-                    'required_coins'      => $coinCost,
-                    'free_messages_used'  => $freeUsed,
-                    'free_messages_limit' => $freeLimit,
-                    'coin_packages'       => $packages,
-                    'payment_methods'     => $paymentMethods,
-                ], 402);
+                    'status'                  => false,
+                    'code'                    => 'MESSAGE_LIMIT_REACHED',
+                    'message'                 => "You have reached your free limit of {$freeLimit} messages. Please recharge coins to continue chatting.",
+                    'is_limit_reached'        => true,
+                    'redirect_to_deposit'     => true,
+                    'current_coins'           => (int) $sender->coins,
+                    'user_gems'               => (int) $sender->coins,
+                    'required_coins'          => $coinCost,
+                    'free_messages_used'      => $freeUsed,
+                    'free_messages_limit'     => $freeLimit,
+                    'free_messages_remaining' => 0,
+                    'show_recharge_modal'     => true,
+                    'recharge_modal_data'     => $modalData,
+                    'modal'                   => $modalData,
+                    'packages'                => $modalData['packages'],
+                    'coin_packages'           => $modalData['packages'],
+                    'target_user'             => $modalData['target_user'],
+                ], 200);
             }
 
             // Deduct coins for paid message
@@ -1244,5 +1249,161 @@ class MessageApiController extends Controller
             'status' => true,
             'reasons' => $reasons,
         ], 200);
+    }
+
+    /**
+     * Check if user has permission / free quota / coins to send messages.
+     * GET|POST /api/messages/check-permission or GET|POST /api/chat/check-permission
+     */
+    public function checkPermission(Request $request): JsonResponse
+    {
+        $sender = $this->resolveUser($request);
+        if (!$sender) {
+            return response()->json([
+                'status'      => false,
+                'can_message' => false,
+                'code'        => 'UNAUTHENTICATED',
+                'message'     => 'Unauthenticated. Please pass Authorization Bearer token or user_id.',
+            ], 401);
+        }
+
+        $receiverId = $request->input('receiver_id') ?? $request->input('to_user_id') ?? $request->input('user_id');
+        $receiver = $receiverId ? (User::find($receiverId) ?? User::where('account_id', $receiverId)->first()) : null;
+
+        $freeLimit = (int) AppSetting::get('free_messages_limit', $sender->free_messages_limit ?? 5);
+        $freeUsed = $sender->free_messages_used ?? 0;
+        $freeRemaining = max(0, $freeLimit - $freeUsed);
+        $coinCost = (int) AppSetting::get('message_coin_cost', 5);
+
+        $isFree = $freeRemaining > 0;
+        $hasBalance = $sender->coins >= $coinCost;
+        $canMessage = $isFree || $hasBalance;
+
+        $modalData = $this->buildRechargeModalData($sender, $receiver, $coinCost, 'chat');
+
+        if (!$canMessage) {
+            return response()->json([
+                'status'                  => false,
+                'can_message'             => false,
+                'code'                    => 'MESSAGE_LIMIT_REACHED',
+                'message'                 => "You have reached your free limit of {$freeLimit} messages. Please recharge coins to continue chatting.",
+                'free_messages_limit'     => $freeLimit,
+                'free_messages_used'      => $freeUsed,
+                'free_messages_remaining' => 0,
+                'user_coins'              => (int) $sender->coins,
+                'user_gems'               => (int) $sender->coins,
+                'required_coins'          => $coinCost,
+                'show_recharge_modal'     => true,
+                'recharge_modal_data'     => $modalData,
+                'modal'                   => $modalData,
+                'packages'                => $modalData['packages'],
+                'target_user'             => $modalData['target_user'],
+            ], 200);
+        }
+
+        return response()->json([
+            'status'                  => true,
+            'can_message'             => true,
+            'code'                    => 'MESSAGE_ALLOWED',
+            'message'                 => 'User is allowed to send messages.',
+            'is_free'                 => $isFree,
+            'free_messages_limit'     => $freeLimit,
+            'free_messages_used'      => $freeUsed,
+            'free_messages_remaining' => $freeRemaining,
+            'user_coins'              => (int) $sender->coins,
+            'user_gems'               => (int) $sender->coins,
+            'show_recharge_modal'     => false,
+            'target_user'             => $modalData['target_user'],
+        ], 200);
+    }
+
+    /**
+     * Helper to build full Dynamic Recharge Modal Data for Low-Balance / Reached Limit.
+     */
+    public function buildRechargeModalData(?User $sender, ?User $receiver, int $cost = 5, string $action = 'chat'): array
+    {
+        $config = CallSetting::getAllConfig();
+        $userCoins = $sender ? (int) $sender->coins : 0;
+        
+        $teaserText = $config['in_call_recharge_offer']['teaser_text'] 
+            ?? $config['call_recharge_teaser_text'] 
+            ?? 'I want to talk more with you. Recharge and call me back~';
+
+        $targetData = null;
+        if ($receiver) {
+            $targetData = [
+                'id'              => $receiver->id,
+                'account_id'      => $receiver->account_id,
+                'name'            => $receiver->display_name ?? $receiver->name ?? 'User',
+                'display_name'    => $receiver->display_name ?? $receiver->name ?? 'User',
+                'avatar_url'      => $receiver->avatar_url,
+                'profile_picture' => $receiver->avatar_url,
+                'gender'          => $receiver->gender ?? 'female',
+                'country'         => $receiver->country ?? 'Bangladesh',
+                'country_flag'    => $receiver->country_flag ?? '🇧🇩',
+                'age'             => $receiver->display_age,
+                'level'           => $receiver->display_level,
+                'is_online'       => (bool) $receiver->is_online,
+                'is_busy'         => (bool) $receiver->is_busy,
+                'video_call_rate' => (int) ($receiver->video_call_rate ?: 100),
+            ];
+        }
+
+        $packages = CoinPackage::where('is_active', true)
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get()
+            ->map(function ($pkg) {
+                $baseCoins = (int) $pkg->coins;
+                $bonusCoins = (int) ($pkg->bonus_coins ?: 0);
+                $totalCoins = $baseCoins + $bonusCoins;
+                $price = (float) $pkg->price;
+                $formattedPrice = 'BDT ' . number_format($price, 2);
+
+                return [
+                    'id'                  => $pkg->id,
+                    'title'               => $pkg->title ?: ($baseCoins . ' Coins'),
+                    'coins'               => $baseCoins,
+                    'base_coins'          => $baseCoins,
+                    'bonus_coins'         => $bonusCoins,
+                    'total_coins'         => $totalCoins,
+                    'formatted_coins'     => (string) $baseCoins,
+                    'price'               => $price,
+                    'price_bdt'           => $price,
+                    'formatted_price'     => $formattedPrice,
+                    'badge'               => $pkg->badge ?: null,
+                    'badge_color'         => $pkg->badge_color ?: 'danger',
+                    'badge_tag'           => ($baseCoins <= 7560 || $pkg->id === 1) ? 'ONCE' : null,
+                    'is_once_offer'       => ($baseCoins <= 7560 || $pkg->id === 1),
+                    'png_url'             => $pkg->png_url ?? $pkg->icon_full_url,
+                    'svg_url'             => $pkg->svg_url ?? $pkg->icon_full_url,
+                    'image_url'           => $pkg->image_url ?? $pkg->icon_full_url,
+                    'icon_url'            => $pkg->icon_url,
+                    'icon_full_url'       => $pkg->icon_full_url,
+                    'is_popular'          => (bool) $pkg->is_popular,
+                    'button_text'         => "Recharge {$baseCoins} Coins ({$formattedPrice})",
+                ];
+            });
+
+        $defaultSelectedId = $packages->firstWhere('is_popular', true)['id'] ?? ($packages->first()['id'] ?? 1);
+
+        return [
+            'header_title'                => $teaserText,
+            'teaser_text'                 => $teaserText,
+            'action_type'                 => $action,
+            'receiver'                    => $targetData,
+            'target_user'                 => $targetData,
+            'user_coins'                  => $userCoins,
+            'user_gems'                   => $userCoins,
+            'formatted_user_coins'        => (string) $userCoins,
+            'formatted_user_gems'         => (string) $userCoins,
+            'wallet_text'                 => "My Gems: {$userCoins}",
+            'user_gems_text'              => "My Gems: {$userCoins}",
+            'currency_symbol'             => '💎',
+            'default_selected_package_id' => $defaultSelectedId,
+            'button_text'                 => 'Continue',
+            'recharge_button_text'        => 'Continue',
+            'packages'                    => $packages,
+        ];
     }
 }

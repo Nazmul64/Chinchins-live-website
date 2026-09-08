@@ -738,61 +738,110 @@ Widget buildCoinPackageCard(Map<String, dynamic> pkg, VoidCallback onRecharge) {
 
 # 9. 👤 Feature 8: User Profile & Admin Avatar Directory
 
-- **Upload Avatar API:** `POST /api/user/avatar` (Multipart `avatar` file or Base64 string).
-- **Profile API:** `GET /api/user/me` (Returns `avatar_url`, `display_name`, `coins`, `level`).
-- **Admin Panel View:** Admin directory at `/admin/users` automatically displays real user uploaded avatar photos with fallback initials.
+# 9. 👤 Feature 8: Streamers List & Hot Screen Feed (`GET /api/streamers`)
 
----
-
-# 10. 💳 Feature 9: In-Call & Low-Balance Video Call Recharge Modal
-
-### 📌 Problem & Workflow:
-When a user clicks the **Video Call** icon on any host profile/card (e.g. from the Hot/Match tab):
-1. The app checks if `user.coins >= host.video_rate` (or if user has free trial calls).
-2. If balance is **0 or insufficient**, the app immediately displays the **Dynamic In-Call Recharge Modal** (instead of failing or hardcoding).
-3. The modal displays:
-   - **Host Teaser Message:** `"I want to talk more with you. Recharge and call me back~"` (fetched dynamically from Admin Call Settings).
-   - **Coin Packages Grid:** Loaded from `GET /api/recharge/modal-data?receiver_id={hostId}` or `GET /api/coin-packages`.
-   - **Top Promo Deal:** 50% OFF `7560 Coins` for `BDT 150.00` (marked `ONCE`).
-   - **User Current Coins:** `"My Coins: 60"`
-   - **Continue Button:** Navigates to Payment Method / Instant Deposit Flow.
-
----
-
-### RESTful API: In-Call Recharge Modal
-- **Endpoint:** `GET /api/recharge/modal-data?receiver_id={host_id}&action=call`
-- **Headers:** `Authorization: Bearer <Sanctum_Token>` or `X-User-Id: <User_ID>`
+### 📌 Streamers / Hot Screen Flow:
+- **Endpoints:** `GET /api/streamers` (Aliases: `GET /api/home`, `GET /api/users`, `GET /api/live/streamers`, `GET /api/hot`)
+- **Query Parameters:**
+  - `country`: `BGD`, `BD`, `PAK`, `PK`, `IND`, `IN`, `All` (Optional, auto-normalizes ISO country codes)
+  - `gender`: `female`, `male`, `all` (Optional)
+  - `per_page`: Number of streamers per page (default: 30)
 - **Response Format (`200 OK`):**
 ```json
 {
   "status": true,
-  "message": "Recharge modal data retrieved successfully.",
-  "modal": {
+  "success": true,
+  "message": "Streamers loaded successfully from database",
+  "data": {
+    "users": [
+      {
+        "id": 2,
+        "account_id": "602281635",
+        "name": "Ayeena04",
+        "display_name": "Ayeena04",
+        "avatar": "https://chinchins.live/uploads/profile/avatar_2.jpg",
+        "avatar_url": "https://chinchins.live/uploads/profile/avatar_2.jpg",
+        "gender": "female",
+        "age": 27,
+        "display_age": 27,
+        "level": "Lv4",
+        "country": "Pakistan",
+        "country_code": "PK",
+        "country_flag": "🇵🇰",
+        "is_online": true,
+        "online_status": "online",
+        "status_text": "Online",
+        "is_busy": false,
+        "video_call_rate": 1800,
+        "rate_per_minute": 1800
+      }
+    ],
+    "total": 4,
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 30
+  }
+}
+```
+
+---
+
+# 10. 💳 Feature 9: In-Call & Video Call Insufficient Balance Modal
+
+### 📌 Problem & Workflow:
+When a user clicks the **Video Call** icon on any streamer/host card:
+1. The app calls `POST /api/call/check-permission` with `receiver_id` and `call_type`.
+2. If balance is **0 or insufficient** (and not a free trial), backend returns `show_recharge_modal: true` with the recipient's picture and the coin packages uploaded from admin panel.
+3. The modal displays:
+   - **Host Teaser Message:** `"I want to talk more with you. Recharge and call me back~"`
+   - **Target Host Avatar & Name**
+   - **Coin Packages Grid:** Loaded from `GET /api/recharge/modal-data?receiver_id={hostId}` (e.g. 7560 Coins for BDT 150.00 with 50% OFF & ONCE badge).
+   - **User Current Coins:** `"My Gems: 60"`
+   - **Continue Button:** Navigates to Payment / Instant Deposit Flow.
+
+---
+
+### RESTful API: Check Call Permission & Low-Balance Modal
+- **Endpoint:** `POST /api/call/check-permission` (or `GET /api/recharge/modal-data?receiver_id={id}`)
+- **Request Body:**
+  ```json
+  {
+    "receiver_id": 2,
+    "call_type": "video"
+  }
+  ```
+- **Response Format (`200 OK` - Insufficient Balance):**
+```json
+{
+  "status": false,
+  "can_call": false,
+  "code": "INSUFFICIENT_BALANCE",
+  "message": "Insufficient coin balance. You have 0 coins, but need at least 1800 coins.",
+  "user_gems": 0,
+  "wallet_label": "My Gems",
+  "required_coins": 1800,
+  "show_recharge_modal": true,
+  "recharge_modal_data": {
     "header_title": "I want to talk more with you. Recharge and call me back~",
     "teaser_text": "I want to talk more with you. Recharge and call me back~",
-    "action_type": "call",
-    "user_coins": 60,
-    "formatted_user_coins": "60",
-    "wallet_text": "My Coins: 60",
-    "currency_symbol": "💎",
-    "default_selected_package_id": 1,
+    "target_user": {
+      "id": 2,
+      "name": "Ayeena04",
+      "avatar_url": "https://chinchins.live/uploads/profile/avatar_2.jpg",
+      "video_call_rate": 1800
+    },
+    "user_gems": 0,
+    "user_gems_text": "My Gems: 0",
     "button_text": "Continue",
     "packages": [
       {
         "id": 1,
         "title": "7560 Coins",
         "coins": 7560,
-        "bonus_coins": 0,
-        "total_coins": 7560,
-        "formatted_coins": "7560",
         "price": 150.00,
         "formatted_price": "BDT 150.00",
-        "badge": "50%off",
-        "badge_color": "danger",
-        "png_url": "https://chinchins.live/assets/images/coins/gem-stack.png",
-        "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg",
-        "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg",
-        "is_popular": true,
+        "badge": "50% off",
+        "badge_tag": "ONCE",
         "is_once_offer": true
       },
       {
@@ -801,12 +850,57 @@ When a user clicks the **Video Call** icon on any host profile/card (e.g. from t
         "coins": 8100,
         "price": 300.00,
         "formatted_price": "BDT 300.00",
-        "badge": "17%off",
-        "png_url": "https://chinchins.live/assets/images/coins/gem-stack.png",
-        "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_small.svg",
-        "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_small.svg"
+        "badge": "17% off"
       }
     ]
+  }
+}
+```
+
+---
+
+# 11. 💬 Feature 10: In-Chat Free Message Limit & Recharge Modal
+
+### 📌 Problem & Workflow:
+1. When a user chats with a host, the admin panel sets a free message limit (e.g. 5 free messages).
+2. Before sending (or via `POST /api/chat/check-permission`), if the free limit has been reached and user has 0 coins:
+   - Backend returns `show_recharge_modal: true` with `MESSAGE_LIMIT_REACHED`.
+   - Displays the exact same Recharge Modal with recipient's picture and `"I want to talk more with you. Recharge and call me back~"`.
+
+---
+
+### RESTful API: Check Chat Permission
+- **Endpoint:** `POST /api/chat/check-permission` (or `POST /api/messages/check-permission`)
+- **Request Body:**
+  ```json
+  {
+    "receiver_id": 2
+  }
+  ```
+- **Response Format (`200 OK` - Limit Reached):**
+```json
+{
+  "status": false,
+  "can_message": false,
+  "code": "MESSAGE_LIMIT_REACHED",
+  "message": "You have reached your free limit of 5 messages. Please recharge coins to continue chatting.",
+  "free_messages_limit": 5,
+  "free_messages_used": 5,
+  "free_messages_remaining": 0,
+  "user_gems": 0,
+  "show_recharge_modal": true,
+  "recharge_modal_data": {
+    "header_title": "I want to talk more with you. Recharge and call me back~",
+    "teaser_text": "I want to talk more with you. Recharge and call me back~",
+    "target_user": {
+      "id": 2,
+      "name": "Ayeena04",
+      "avatar_url": "https://chinchins.live/uploads/profile/avatar_2.jpg"
+    },
+    "user_gems": 0,
+    "user_gems_text": "My Gems: 0",
+    "button_text": "Continue",
+    "packages": [...]
   }
 }
 ```

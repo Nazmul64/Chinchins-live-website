@@ -163,7 +163,7 @@ class User extends Authenticatable
 
     /**
      * Accessor for online status boolean.
-     * True only if user is active, not locked, and recently active (within last 5 minutes) or marked online.
+     * True if user is active, not locked, and not explicitly marked offline.
      */
     public function getIsOnlineAttribute(): bool
     {
@@ -171,19 +171,17 @@ class User extends Authenticatable
             return false;
         }
 
-        if (in_array($this->online_status, ['offline', 'inactive'])) {
-            return false;
-        }
-
-        if ($this->last_seen_at) {
-            return $this->last_seen_at->greaterThanOrEqualTo(now()->subMinutes(5));
+        if ($this->online_status === 'offline') {
+            if ($this->last_seen_at && $this->last_seen_at->greaterThanOrEqualTo(now()->subMinutes(15))) {
+                return true;
+            }
         }
 
         if (in_array($this->online_status, ['online', 'busy', 'in_call'])) {
             return true;
         }
 
-        return false;
+        return (bool) $this->is_active;
     }
 
     /**
@@ -512,7 +510,10 @@ class User extends Authenticatable
             }
         }
 
-        return null;
+        // Fallback 4: Dynamic UI Avatar with user display name
+        $name = !empty($this->display_name) ? $this->display_name : ($this->name ?: 'User');
+        $bg = ($this->gender === 'female') ? 'ec4899' : '3b82f6';
+        return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=' . $bg . '&color=ffffff&size=256&bold=true';
     }
 
     /**

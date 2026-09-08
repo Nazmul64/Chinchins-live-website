@@ -291,30 +291,64 @@ class PresenceController extends Controller
     public function getOnlineUsers(Request $request): JsonResponse
     {
         $gender = $request->input('gender');
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = (int) $request->input('per_page', 30);
 
         $query = User::where('is_active', true)
-            ->where('is_locked', false)
-            ->where(function ($q) {
-                $q->where('last_seen_at', '>=', now()->subMinutes(5))
-                  ->orWhereIn('online_status', ['online', 'busy', 'in_call']);
-            });
+            ->where('is_locked', false);
 
-        if ($gender) {
+        if ($gender && $gender !== 'all' && $gender !== 'any') {
             $query->where('gender', $gender);
         }
 
-        $users = $query->latest('last_seen_at')->paginate($perPage);
+        $users = $query->latest('last_seen_at')->latest()->paginate($perPage);
+
+        $formattedUsers = collect($users->items())->map(function ($u) {
+            $videoRate = (int) ($u->video_call_rate ?: 100);
+            return [
+                'id'              => $u->id,
+                'account_id'      => $u->account_id ?: (string) $u->id,
+                'name'            => $u->display_name,
+                'display_name'    => $u->display_name,
+                'nickname'        => $u->nickname ?: $u->display_name,
+                'avatar'          => $u->avatar_url,
+                'avatar_url'      => $u->avatar_url,
+                'profile_picture' => $u->avatar_url,
+                'cover_photo_url' => $u->cover_photo_url,
+                'gender'          => $u->gender ?: 'female',
+                'age'             => $u->display_age,
+                'level'           => $u->display_level,
+                'country'         => $u->country ?: 'Bangladesh',
+                'country_code'    => $u->country_code ?: 'BD',
+                'country_flag'    => $u->country_flag ?: '🇧🇩',
+                'city'            => $u->city ?: 'Dhaka',
+                'is_active'       => (bool) $u->is_active,
+                'is_online'       => true,
+                'online_status'   => 'online',
+                'status_text'     => 'Online',
+                'is_busy'         => (bool) $u->is_busy,
+                'is_free_caller'  => (bool) $u->is_free_caller,
+                'is_verified'     => (bool) $u->is_verified,
+                'video_call_rate' => $videoRate,
+                'rate_per_minute' => $videoRate,
+                'coins'           => (int) $u->coins,
+            ];
+        });
 
         return response()->json([
-            'status' => true,
-            'message' => 'Online users loaded successfully.',
-            'data' => [
-                'users'        => $users->items(),
+            'status'     => true,
+            'success'    => true,
+            'message'    => 'Online users loaded successfully.',
+            'data'       => [
+                'users'        => $formattedUsers,
+                'streamers'    => $formattedUsers,
+                'hosts'        => $formattedUsers,
                 'total_online' => $users->total(),
                 'current_page' => $users->currentPage(),
                 'last_page'    => $users->lastPage(),
             ],
+            'users'      => $formattedUsers,
+            'streamers'  => $formattedUsers,
+            'hosts'      => $formattedUsers,
         ], 200);
     }
 }

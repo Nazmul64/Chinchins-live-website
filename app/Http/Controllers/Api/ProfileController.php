@@ -23,18 +23,46 @@ class ProfileController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = User::with(['kycVerification', 'wallet']);
+        $query = User::with(['kycVerification', 'wallet'])
+            ->where('is_active', true)
+            ->where('is_locked', false);
 
-        // Optional filters
-        if ($request->has('is_active')) {
-            $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
-        }
-
+        // Normalize country filter (BGD, BD, PK, PAK, IND, IN, etc.)
         if ($request->filled('country')) {
-            $query->where('country', 'LIKE', '%' . trim($request->country) . '%');
+            $country = trim($request->country);
+            $countryUpper = strtoupper($country);
+            if (!in_array($countryUpper, ['ALL', 'GLOBAL', 'WORLD', 'ANY', ''])) {
+                $countryMap = [
+                    'BGD' => 'Bangladesh',
+                    'BD'  => 'Bangladesh',
+                    'PAK' => 'Pakistan',
+                    'PK'  => 'Pakistan',
+                    'IND' => 'India',
+                    'IN'  => 'India',
+                    'USA' => 'United States',
+                    'US'  => 'United States',
+                    'GBR' => 'United Kingdom',
+                    'UK'  => 'United Kingdom',
+                ];
+                $matchedCountry = $countryMap[$countryUpper] ?? $country;
+
+                $hasCountryMatches = (clone $query)->where(function ($q) use ($matchedCountry, $country, $countryUpper) {
+                    $q->where('country', 'LIKE', "%{$matchedCountry}%")
+                      ->orWhere('country', 'LIKE', "%{$country}%")
+                      ->orWhere('country', 'LIKE', "%{$countryUpper}%");
+                })->exists();
+
+                if ($hasCountryMatches) {
+                    $query->where(function ($q) use ($matchedCountry, $country, $countryUpper) {
+                        $q->where('country', 'LIKE', "%{$matchedCountry}%")
+                          ->orWhere('country', 'LIKE', "%{$country}%")
+                          ->orWhere('country', 'LIKE', "%{$countryUpper}%");
+                    });
+                }
+            }
         }
 
-        if ($request->filled('gender')) {
+        if ($request->filled('gender') && $request->gender !== 'all' && $request->gender !== 'any') {
             $query->where('gender', $request->gender);
         }
 
@@ -52,20 +80,66 @@ class ProfileController extends Controller
         // Order by latest active users
         $query->orderByDesc('is_active')->latest();
 
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = (int) $request->input('per_page', 30);
         $users = $query->paginate($perPage);
 
+        $formattedUsers = collect($users->items())->map(function ($u) {
+            $videoRate = (int) ($u->video_call_rate ?: 100);
+            return [
+                'id'              => $u->id,
+                'account_id'      => $u->account_id ?: (string) $u->id,
+                'name'            => $u->display_name,
+                'display_name'    => $u->display_name,
+                'nickname'        => $u->nickname ?: $u->display_name,
+                'avatar'          => $u->avatar_url,
+                'avatar_url'      => $u->avatar_url,
+                'profile_picture' => $u->avatar_url,
+                'cover_photo_url' => $u->cover_photo_url,
+                'gallery_images'  => $u->gallery_image_urls,
+                'photos'          => $u->gallery_image_urls,
+                'gender'          => $u->gender ?: 'female',
+                'age'             => $u->display_age,
+                'display_age'     => $u->display_age,
+                'level'           => $u->display_level,
+                'level_number'    => (int) preg_replace('/[^0-9]/', '', (string) $u->display_level) ?: 1,
+                'display_level'   => $u->display_level,
+                'country'         => $u->country ?: 'Bangladesh',
+                'country_code'    => $u->country_code ?: 'BD',
+                'country_flag'    => $u->country_flag ?: '🇧🇩',
+                'city'            => $u->city ?: 'Dhaka',
+                'is_active'       => (bool) $u->is_active,
+                'is_online'       => true,
+                'online_status'   => 'online',
+                'status_text'     => 'Online',
+                'is_busy'         => (bool) $u->is_busy,
+                'is_free_caller'  => (bool) $u->is_free_caller,
+                'is_verified'     => (bool) $u->is_verified,
+                'video_call_rate' => $videoRate,
+                'rate_per_minute' => $videoRate,
+                'audio_call_rate' => 60,
+                'coins'           => (int) $u->coins,
+                'introduction'    => $u->introduction ?: 'Welcome to my live room! Feel free to video call me.',
+                'tags'            => $u->tags ?: ['Sweet', 'Online', 'Live'],
+            ];
+        });
+
         return response()->json([
-            'status'  => true,
-            'message' => 'Home feed loaded successfully from database',
-            'data'    => [
-                'users'        => $users->items(),
+            'status'     => true,
+            'success'    => true,
+            'message'    => 'Streamers loaded successfully from database',
+            'data'       => [
+                'users'        => $formattedUsers,
+                'streamers'    => $formattedUsers,
+                'hosts'        => $formattedUsers,
                 'total'        => $users->total(),
                 'current_page' => $users->currentPage(),
                 'last_page'    => $users->lastPage(),
                 'per_page'     => $users->perPage(),
             ],
-        ]);
+            'users'      => $formattedUsers,
+            'streamers'  => $formattedUsers,
+            'hosts'      => $formattedUsers,
+        ], 200);
     }
 
     /**

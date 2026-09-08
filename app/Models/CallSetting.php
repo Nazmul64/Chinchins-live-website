@@ -31,7 +31,7 @@ class CallSetting extends Model
             'host_earning_percent' => '50.00', // 50% to host/female user
             'admin_commission_percent' => '50.00', // 50% to platform revenue
             'free_message_chances' => '2', // 2 free message chances during call
-            'call_recharge_teaser_text' => "Let's play baby! Recharge and call me,I want to show you 💋",
+            'call_recharge_teaser_text' => 'I want to talk more with you. Recharge and call me back~',
             'call_top_badge_text' => 'VIDEO NOW! Sexy Girl request video chat!',
             'call_quick_messages' => json_encode([
                 'Be my girlfriend',
@@ -44,7 +44,7 @@ class CallSetting extends Model
             'in_call_promo_coins' => '7560',
             'in_call_promo_price_bdt' => '150.00',
             'in_call_promo_original_price_bdt' => '300.00',
-            'in_call_promo_teaser' => 'Girls are still eagerly waiting for your reply. Recharge and enjoy happy time with her now~',
+            'in_call_promo_teaser' => 'I want to talk more with you. Recharge and call me back~',
             'in_call_promo_badge' => '50% OFF',
         ];
     }
