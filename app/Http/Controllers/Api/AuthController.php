@@ -28,8 +28,8 @@ class AuthController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'first_name'            => ['required', 'string', 'max:100'],
-            'last_name'             => ['required', 'string', 'max:100'],
+            'first_name'            => ['nullable', 'string', 'max:100'],
+            'last_name'             => ['nullable', 'string', 'max:100'],
             'phone'                 => ['required', 'string', 'max:25', 'unique:users,phone'],
             'country'               => ['nullable', 'string', 'max:100'],
             'email'                 => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
@@ -55,69 +55,89 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $firstName = trim($request->first_name);
-        $lastName  = trim($request->last_name);
-        $fullName  = trim($firstName . ' ' . $lastName);
-        $phone     = trim($request->phone);
+        $phone      = trim($request->phone);
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+
+        // Derive name from first_name, nickname, email, or phone
+        $firstName = trim($request->first_name ?? '');
+        $lastName  = trim($request->last_name ?? '');
+        if (empty($firstName)) {
+            if ($request->filled('nickname')) {
+                $firstName = trim($request->nickname);
+            } elseif ($request->filled('email')) {
+                $emailPrefix = explode('@', trim($request->email))[0] ?? '';
+                $firstName = ucfirst(preg_replace('/[^a-zA-Z0-9]/', '', $emailPrefix)) ?: 'User';
+            } else {
+                $firstName = 'User_' . (strlen($cleanPhone) >= 4 ? substr($cleanPhone, -4) : rand(1000, 9999));
+            }
+        }
+        $fullName = trim($firstName . ($lastName !== '' ? ' ' . $lastName : ''));
 
         // If email not provided, generate a clean placeholder email
-        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
-        $email      = $request->filled('email') 
+        $email = $request->filled('email') 
             ? strtolower(trim($request->email)) 
             : ($cleanPhone ? $cleanPhone . '@user.chinchins.live' : 'user_' . time() . '@user.chinchins.live');
 
         // Country and Flag Resolution for any country worldwide
-        $country = $request->filled('country') ? trim($request->country) : 'Pakistan';
+        $country = $request->filled('country') ? trim($request->country) : 'Bangladesh';
         $countryFlag = \App\Services\CountryService::toFlag($country);
 
         // Parse speaking languages
-        $rawLangs = $request->input('speaking_languages', $request->input('languages', ['English', 'Urdu']));
+        $rawLangs = $request->input('speaking_languages', $request->input('languages', ['English', 'Bengali']));
         if (is_string($rawLangs)) {
             $decoded = json_decode($rawLangs, true);
             $rawLangs = is_array($decoded) ? $decoded : array_map('trim', explode(',', $rawLangs));
         }
-        $languages = array_values(array_filter((array) $rawLangs)) ?: ['English', 'Urdu'];
+        $languages = array_values(array_filter((array) $rawLangs)) ?: ['English', 'Bengali'];
 
         // Parse interest tags
-        $rawTags = $request->input('interest_tags', $request->input('tags', ['late night fun', 'fun show baby', 'sexy body']));
+        $rawTags = $request->input('interest_tags', $request->input('tags', ['Live Chat', 'Music', 'Gaming']));
         if (is_string($rawTags)) {
             $decoded = json_decode($rawTags, true);
             $rawTags = is_array($decoded) ? $decoded : array_map('trim', explode(',', $rawTags));
         }
-        $tags = array_values(array_filter((array) $rawTags)) ?: ['late night fun', 'fun show baby', 'sexy body'];
+        $tags = array_values(array_filter((array) $rawTags)) ?: ['Live Chat', 'Music', 'Gaming'];
 
-        $user = User::create([
-            'first_name'      => $firstName,
-            'last_name'       => $lastName,
-            'name'            => $fullName,
-            'nickname'        => $request->filled('nickname') ? trim($request->nickname) : $firstName,
-            'phone'           => $phone,
-            'email'           => $email,
-            'password'        => Hash::make($request->password),
-            'country'         => $country,
-            'country_flag'    => $countryFlag,
-            'city'            => $request->input('city'),
-            'gender'          => $request->input('gender', 'female'),
-            'age'             => $request->input('age', 27),
-            'introduction'    => $request->input('introduction', 'Sweet girl looking for honest talk ❤️'),
-            'languages'       => $languages,
-            'tags'            => $tags,
-            'video_call_rate' => $request->input('video_call_rate', 1800),
-            'is_active'       => true,
-            'level'           => 'Lv4',
-            'charm_level'     => 'Lv4',
-        ]);
+        try {
+            $user = User::create([
+                'first_name'      => $firstName,
+                'last_name'       => $lastName,
+                'name'            => $fullName,
+                'nickname'        => $request->filled('nickname') ? trim($request->nickname) : $firstName,
+                'phone'           => $phone,
+                'email'           => $email,
+                'password'        => Hash::make($request->password),
+                'country'         => $country,
+                'country_flag'    => $countryFlag,
+                'city'            => $request->input('city'),
+                'gender'          => $request->input('gender', 'male'),
+                'age'             => $request->input('age', 22),
+                'introduction'    => $request->input('introduction', 'Welcome to my ChinChins Live profile! 🎉'),
+                'languages'       => $languages,
+                'tags'            => $tags,
+                'video_call_rate' => $request->input('video_call_rate', 100),
+                'is_active'       => true,
+                'level'           => 'Lv1',
+                'charm_level'     => 'Lv1',
+            ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+            $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
-            'status'     => true,
-            'message'    => 'Registration successful',
-            'data'       => [
-                'user'       => $user->fresh(),
-                'token'      => $token,
-                'token_type' => 'Bearer',
-            ],
+            return response()->json([
+                'status'     => true,
+                'message'    => 'Registration successful',
+                'data'       => [
+                    'user'       => $user->fresh(),
+                    'token'      => $token,
+                    'token_type' => 'Bearer',
+                ],
+            ], 201);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Registration failed: ' . $e->getMessage(),
+            ], 500);
+        }
         ], 201);
     }
 
