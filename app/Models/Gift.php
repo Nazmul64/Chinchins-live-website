@@ -55,36 +55,23 @@ class Gift extends Model
     {
         $src = $this->attributes['icon_url'] ?? $this->attributes['image'] ?? null;
         if (empty($src)) {
-            return url('uploads/gifts/diamond_ring_gift.png');
+            return CoinPackage::resolveAssetUrl('uploads/gifts/diamond_ring_gift.svg');
         }
-
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
-            return $src;
-        }
-
-        $clean = ltrim($src, '/');
-        return url($clean);
+        return CoinPackage::resolveAssetUrl($src);
     }
 
     /**
-     * Get direct PNG image URL (ensures Flutter Image.network and CachedNetworkImage render smoothly).
+     * Get direct PNG image URL.
      */
     public function getPngUrlAttribute(): string
     {
         $src = $this->attributes['icon_url'] ?? $this->attributes['image'] ?? null;
         if (empty($src)) {
-            return url('uploads/gifts/diamond_ring_gift.png');
+            return CoinPackage::resolveAssetUrl('uploads/gifts/diamond_ring_gift.png');
         }
 
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
-            // Replace .svg extension with .png if present
-            return preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
-        }
-
-        $clean = ltrim($src, '/');
-        // If file ends with .svg, replace with .png if available
-        $pngPath = preg_replace('/\.svg$/i', '.png', $clean);
-        return url($pngPath);
+        $pngPath = preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
+        return CoinPackage::resolveAssetUrl($pngPath);
     }
 
     /**
@@ -94,24 +81,19 @@ class Gift extends Model
     {
         $src = $this->attributes['icon_url'] ?? $this->attributes['image'] ?? null;
         if (empty($src)) {
-            return url('uploads/gifts/diamond_ring_gift.svg');
+            return CoinPackage::resolveAssetUrl('uploads/gifts/diamond_ring_gift.svg');
         }
 
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
-            return preg_replace('/\.png(\?.*)?$/i', '.svg$1', $src);
-        }
-
-        $clean = ltrim($src, '/');
-        $svgPath = preg_replace('/\.png$/i', '.svg', $clean);
-        return url($svgPath);
+        $svgPath = preg_replace('/\.png(\?.*)?$/i', '.svg$1', $src);
+        return CoinPackage::resolveAssetUrl($svgPath);
     }
 
     /**
-     * Alias for icon_url accessor.
+     * Alias for icon_url accessor (provides direct vector SVG URL).
      */
     public function getIconUrlAttribute(): string
     {
-        return $this->getPngUrlAttribute();
+        return $this->getSvgUrlAttribute();
     }
 
     /**
@@ -124,11 +106,7 @@ class Gift extends Model
             return null;
         }
 
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
-            return $src;
-        }
-
-        return url(ltrim($src, '/'));
+        return CoinPackage::resolveAssetUrl($src);
     }
 
     /**

@@ -877,7 +877,9 @@ class PaymentController extends Controller
             ->latest('id')
             ->first();
 
+        $wallet = \App\Models\Wallet::firstOrCreate(['user_id' => $user->id]);
         $coins = (int) $user->coins;
+        $earnings = (int) $wallet->earnings;
 
         return response()->json([
             'status' => true,
@@ -888,6 +890,9 @@ class PaymentController extends Controller
                 'display_name' => $user->display_name,
                 'coins' => $coins,
                 'gems' => $coins,
+                'earnings' => $earnings,
+                'formatted_earnings' => number_format($earnings),
+                'can_convert_earnings' => $earnings > 0,
                 'beans' => (int) ($user->beans ?? 0),
                 'formatted_coins' => number_format($coins),
                 'total_deposited_coins' => $totalDepositedCoins,
@@ -926,6 +931,64 @@ class PaymentController extends Controller
                 ] : null,
             ],
         ], 200);
+    }
+
+    /**
+     * Convert Host / Receiver Gift Earnings into Main Coin Balance (so they can gift or call other users).
+     * POST /api/wallet/convert-earnings (or POST /api/gifts/convert-to-balance)
+     */
+    public function convertEarningsToCoins(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated. Please login.',
+            ], 401);
+        }
+
+        $wallet = \App\Models\Wallet::firstOrCreate(['user_id' => $user->id]);
+        $earnings = (int) $wallet->earnings;
+
+        $amount = (int) ($request->input('amount') ?? $earnings); // default convert all if not specified
+        if ($amount <= 0) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Please enter a valid amount of earnings to convert (minimum 1).',
+            ], 422);
+        }
+
+        if ($earnings < $amount) {
+            return response()->json([
+                'status' => false,
+                'message' => "Insufficient earnings! You have {$earnings} earnings but tried to convert {$amount}.",
+                'current_earnings' => $earnings,
+            ], 400);
+        }
+
+        return DB::transaction(function () use ($user, $wallet, $amount) {
+            $wallet->decrement('earnings', $amount);
+            $wallet->increment('balance', $amount);
+            $user->increment('coins', $amount);
+
+            CoinTransaction::create([
+                'user_id' => $user->id,
+                'type' => 'earnings_converted_to_coins',
+                'amount' => $amount,
+                'balance_after' => (int) $user->fresh()->coins,
+                'description' => "Converted {$amount} gift earnings into main spending gems",
+            ]);
+
+            return response()->json([
+                'status' => true,
+                'message' => "Successfully converted {$amount} gift earnings into main spending gems!",
+                'data' => [
+                    'converted_amount' => $amount,
+                    'new_coins_balance' => (int) $user->fresh()->coins,
+                    'remaining_earnings' => (int) $wallet->fresh()->earnings,
+                ],
+            ], 200);
+        });
     }
 
     /**

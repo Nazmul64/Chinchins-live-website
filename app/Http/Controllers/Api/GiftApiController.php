@@ -125,11 +125,14 @@ class GiftApiController extends Controller
                     'coins'           => $sender ? $sender->coins : 0,
                     'formatted_coins' => $sender ? Gift::formatCoins($sender->coins) : '0',
                 ],
-                'categories'      => array_merge(['all' => $totalActive], $catCounts),
-                'categories_list' => $categoriesList,
-                'selected_category' => $request->input('category', 'all'),
-                'total_gifts'     => $gifts->count(),
-                'gifts'           => $gifts,
+                'categories'         => array_merge(['all' => $totalActive], $catCounts),
+                'categories_list'    => $categoriesList,
+                'selected_category'  => $request->input('category', 'all'),
+                'multipliers'        => [1, 10, 66, 99, 520, 1314],
+                'default_multiplier' => 1,
+                'recharge_url'       => '/api/recharge/modal-data',
+                'total_gifts'        => $gifts->count(),
+                'gifts'              => $gifts,
             ],
         ]);
     }
@@ -463,14 +466,19 @@ class GiftApiController extends Controller
              }
  
              if (!$senderWallet || $senderWallet->balance < $totalCost) {
-                 return response()->json([
-                     'status'         => false,
-                     'message'        => "Insufficient coins! You need {$totalCost} coins but have " . ($senderWallet ? $senderWallet->balance : 0) . " coins.",
-                     'required_coins' => $totalCost,
-                     'current_coins'  => $senderWallet ? $senderWallet->balance : 0,
-                     'shortage'       => $totalCost - ($senderWallet ? $senderWallet->balance : 0),
-                 ], 400);
-             }
+                return response()->json([
+                    'status'              => false,
+                    'can_send'            => false,
+                    'code'                => 'INSUFFICIENT_BALANCE',
+                    'show_recharge_modal' => true,
+                    'message'             => "Insufficient coins! You need {$totalCost} coins but have " . ($senderWallet ? $senderWallet->balance : 0) . " coins.",
+                    'required_coins'      => $totalCost,
+                    'current_coins'       => $senderWallet ? $senderWallet->balance : 0,
+                    'user_gems'           => $senderWallet ? $senderWallet->balance : 0,
+                    'shortage'            => $totalCost - ($senderWallet ? $senderWallet->balance : 0),
+                    'recharge_url'        => '/api/recharge/modal-data',
+                ], 200);
+            }
  
              // 2. Deduct coins from sender wallet & user balance
              $senderWallet->decrement('balance', $totalCost);

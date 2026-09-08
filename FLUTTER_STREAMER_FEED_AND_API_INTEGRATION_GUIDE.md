@@ -13,8 +13,11 @@
 3. [Fixing SVG Diamond Icons in Flutter (`flutter_svg` Guide)](#3-fixing-svg-diamond-icons-in-flutter)
 4. [Master RESTful API: Public Home Feed & Streamers List (`GET /api/home`)](#4-master-restful-api-public-home-feed--streamers-list)
 5. [User Search & Single Profile Details APIs](#5-user-search--single-profile-details-apis)
-6. [Ready-to-Copy Flutter Dart Implementation Code](#6-ready-to-copy-flutter-dart-implementation-code)
-7. [Developer Checklist](#7-developer-checklist)
+6. [Gifts & Rewards System: Catalog, Dynamic Multipliers & Sending Flow](#6-gifts--rewards-system-catalog-dynamic-multipliers--sending-flow)
+7. [Host Earnings & Converting Gift Earnings to Main Coins Balance](#7-host-earnings--converting-gift-earnings-to-main-coins-balance)
+8. [VIP & Package Daily Claim Rewards in "Me" Section](#8-vip--package-daily-claim-rewards-in-me-section)
+9. [Ready-to-Copy Flutter Dart Implementation Code](#9-ready-to-copy-flutter-dart-implementation-code)
+10. [Developer Checklist](#10-developer-checklist)
 
 ---
 
@@ -143,90 +146,6 @@ Use this endpoint to load the recharge bottom sheet with all active packages and
       "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_double.png",
       "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_double.svg",
       "is_popular": false
-    },
-    {
-      "id": 3,
-      "title": "Popular Pack",
-      "coins": 16380,
-      "base_coins": 16380,
-      "bonus_coins": 0,
-      "total_coins": 16380,
-      "formatted_coins": "16,380",
-      "price": 600.00,
-      "price_bdt": 600.00,
-      "formatted_price": "BDT 600.00",
-      "badge": "17% off",
-      "badge_color": "pink",
-      "is_once_offer": false,
-      "icon_url": "uploads/coin_packages/gem_tier3_triple.svg",
-      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier3_triple.svg",
-      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier3_triple.svg",
-      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier3_triple.png",
-      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier3_triple.svg",
-      "is_popular": false
-    },
-    {
-      "id": 4,
-      "title": "Super Pack",
-      "coins": 32940,
-      "base_coins": 32940,
-      "bonus_coins": 0,
-      "total_coins": 32940,
-      "formatted_coins": "32,940",
-      "price": 1200.00,
-      "price_bdt": 1200.00,
-      "formatted_price": "BDT 1,200.00",
-      "badge": "30% off",
-      "badge_color": "pink",
-      "is_once_offer": false,
-      "icon_url": "uploads/coin_packages/gem_tier4_stack.svg",
-      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier4_stack.svg",
-      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier4_stack.svg",
-      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier4_stack.png",
-      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier4_stack.svg",
-      "is_popular": false
-    },
-    {
-      "id": 5,
-      "title": "Mega Pack",
-      "coins": 66600,
-      "base_coins": 66600,
-      "bonus_coins": 0,
-      "total_coins": 66600,
-      "formatted_coins": "66,600",
-      "price": 2400.00,
-      "price_bdt": 2400.00,
-      "formatted_price": "BDT 2,400.00",
-      "badge": "60% off",
-      "badge_color": "pink",
-      "is_once_offer": false,
-      "icon_url": "uploads/coin_packages/gem_tier5_tray.svg",
-      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier5_tray.svg",
-      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier5_tray.svg",
-      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier5_tray.png",
-      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier5_tray.svg",
-      "is_popular": false
-    },
-    {
-      "id": 6,
-      "title": "VIP King Pack",
-      "coins": 167400,
-      "base_coins": 167400,
-      "bonus_coins": 0,
-      "total_coins": 167400,
-      "formatted_coins": "167,400",
-      "price": 6100.00,
-      "price_bdt": 6100.00,
-      "formatted_price": "BDT 6,100.00",
-      "badge": "80% off",
-      "badge_color": "pink",
-      "is_once_offer": false,
-      "icon_url": "uploads/coin_packages/gem_tier6_chest.svg",
-      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier6_chest.svg",
-      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier6_chest.svg",
-      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier6_chest.png",
-      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier6_chest.svg",
-      "is_popular": false
     }
   ]
 }
@@ -241,80 +160,6 @@ Previously, the app showed a dark purple square with a person icon (`Icons.perso
 Two factors caused this:
 1. **SVG `<feDropShadow>` filters:** Flutter's `flutter_svg` package throws parser errors when encountering SVG `<filter>` tags like `<feDropShadow>`. The backend SVGs have now been completely updated to be 100% SVG 1.1 compliant without filters.
 2. **Localhost URLs:** In CLI or unconfigured environments, URLs could previously default to `http://localhost`. The backend now strictly resolves all paths to `https://chinchins.live/uploads/coin_packages/...`.
-
-### Correct Flutter Widget for Rendering Package Diamonds
-In `lib/features/wallet/widgets/recharge_gems_sheet.dart`:
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-
-Widget buildPackageIcon(Map<String, dynamic> pkg, int index, bool isSelected) {
-  // 1. Pick the best image URL from the API response
-  final String? rawUrl = pkg['svg_url'] ?? 
-                         pkg['icon_full_url'] ?? 
-                         pkg['image_url'] ?? 
-                         pkg['icon_url'];
-
-  if (rawUrl != null && rawUrl.trim().isNotEmpty) {
-    String cleanUrl = rawUrl.trim();
-    
-    // Fix: If on an Android device or emulator and URL contains localhost, rewrite to live domain
-    if (cleanUrl.contains('localhost') || cleanUrl.contains('127.0.0.1')) {
-      cleanUrl = cleanUrl.replaceAll(RegExp(r'https?://(localhost|127\.0\.0\.1)(:\d+)?/'), 'https://chinchins.live/');
-    }
-
-    // 2. Render SVG with flutter_svg
-    if (cleanUrl.toLowerCase().endsWith('.svg') || cleanUrl.contains('.svg?')) {
-      return SvgPicture.network(
-        cleanUrl,
-        width: 44,
-        height: 44,
-        fit: BoxFit.contain,
-        placeholderBuilder: (context) => _buildDiamondFallback(index, isSelected),
-      );
-    }
-
-    // 3. Fallback to raster image if PNG/WebP
-    return Image.network(
-      cleanUrl,
-      width: 44,
-      height: 44,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) => _buildDiamondFallback(index, isSelected),
-    );
-  }
-
-  // 4. Default native diamond artwork
-  return _buildDiamondFallback(index, isSelected);
-}
-
-/// Native Flutter golden diamond backup (never shows purple person icon!)
-Widget _buildDiamondFallback(int index, bool isSelected) {
-  return Container(
-    width: 40,
-    height: 40,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      gradient: RadialGradient(
-        colors: isSelected 
-          ? [const Color(0xFFFFE066), const Color(0xFFF59E0B)]
-          : [const Color(0xFFFBBF24), const Color(0xFFD97706)],
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: const Color(0xFFF59E0B).withOpacity(0.4),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: const Center(
-      child: Text('💎', style: TextStyle(fontSize: 22)),
-    ),
-  );
-}
-```
 
 ---
 
@@ -333,8 +178,6 @@ Widget _buildDiamondFallback(int index, bool isSelected) {
 | `page` | integer | `1` | Pagination page number | `1`, `2`, `3` |
 | `per_page` | integer | `20` | Results per page | `20`, `30`, `50` |
 
-> 💡 **Best Practice:** Keep default country parameter set to `'All'` so when the user opens the Hot tab, all streamers worldwide are visible immediately without empty state.
-
 ---
 
 ## 🔍 5. User Search & Single Profile Details APIs
@@ -346,93 +189,243 @@ Widget _buildDiamondFallback(int index, bool isSelected) {
 
 ---
 
-## 💻 6. Ready-to-Copy Flutter Dart Implementation Code
+## 🎁 6. Gifts & Rewards System: Catalog, Dynamic Multipliers & Sending Flow
 
-### Call Button Tap Handler (With 0-Delay Instant Recharge Sheet)
+The in-chat and in-call gifts bottom sheet displays 160 active gifts grouped into tabs (`Hot`, `Lucky`, `SVIP`, `Intimacy`, etc.).
 
-Place this logic inside your call button handler on the Streamer Card / Profile Screen:
+### 1. Fetch Gift Catalog
+- **Endpoint:** `GET https://chinchins.live/api/gifts/catalog` (or `GET /api/gifts`)
+- **Query Params:** `category` (optional, e.g. `hot`, `lucky`, `all`)
+- **Headers:** `Authorization: Bearer <token>`
 
+### Response Structure (`200 OK`):
+```json
+{
+  "status": true,
+  "message": "Gifts catalog loaded successfully.",
+  "data": {
+    "user_balance": {
+      "coins": 0,
+      "formatted_coins": "0"
+    },
+    "selected_category": "all",
+    "multipliers": [1, 10, 66, 99, 520, 1314],
+    "default_multiplier": 1,
+    "recharge_url": "/api/recharge/modal-data",
+    "total_gifts": 160,
+    "categories_list": [
+      { "key": "all", "label": "All", "emoji": "🎁", "count": 160 },
+      { "key": "hot", "label": "Hot", "emoji": "🔥", "count": 71 },
+      { "key": "lucky", "label": "Lucky", "emoji": "🍀", "count": 20 }
+    ],
+    "gifts": [
+      {
+        "id": 1,
+        "name": "Trophy Cup",
+        "coins": 500,
+        "coin_price": 500,
+        "category": "hot",
+        "badge": "HOT",
+        "image_url": "https://chinchins.live/uploads/gifts/trophy_cup.svg",
+        "svg_url": "https://chinchins.live/uploads/gifts/trophy_cup.svg",
+        "png_url": "https://chinchins.live/uploads/gifts/trophy_cup.png",
+        "icon_url": "https://chinchins.live/uploads/gifts/trophy_cup.svg"
+      },
+      {
+        "id": 2,
+        "name": "Mystery Box",
+        "coins": 888,
+        "coin_price": 888,
+        "category": "hot",
+        "badge": "MUST WIN",
+        "image_url": "https://chinchins.live/uploads/gifts/mystery_box.svg",
+        "svg_url": "https://chinchins.live/uploads/gifts/mystery_box.svg",
+        "png_url": "https://chinchins.live/uploads/gifts/mystery_box.png",
+        "icon_url": "https://chinchins.live/uploads/gifts/mystery_box.svg"
+      }
+    ]
+  }
+}
+```
+
+### 2. Multipliers (Replacing Hardcoded `x1, x5, x10, x99`):
+> [!NOTE]
+> Do **NOT** hardcode `x1, x5, x10, x99` buttons! Use the API-provided `data.multipliers` list (`[1, 10, 66, 99, 520, 1314]`).  
+> Users tap any multiplier button to select quantity. Default quantity is `1`.
+
+### 3. Send Gift with Instant Balance Verification
+- **Endpoint:** `POST https://chinchins.live/api/gifts/send`
+- **Headers:** `Authorization: Bearer <token>`
+- **Request Body:**
+```json
+{
+  "receiver_id": 2,
+  "gift_id": 1,
+  "quantity": 1,
+  "context": "chat" 
+}
+```
+
+> [!TIP]
+> **Client-Side Pre-Check:** Before calling `POST /api/gifts/send`:
+> ```dart
+> final int totalCost = selectedGift.coins * selectedQuantity;
+> if (currentUser.coins < totalCost) {
+>   // Instantly open RechargeGemsSheet without network delay!
+>   RechargeGemsSheet.show(context, receiverId: host.id, ...);
+>   return;
+> }
+> ```
+
+---
+
+## 💰 7. Host Earnings & Converting Gift Earnings to Main Coins Balance
+
+When a streamer/host receives gifts:
+1. Gifts appear in their profile under **Gifts Received** (`GET /api/profile/{id}/gifts` or `GET /api/gifts/received/{id}`).
+2. **Earnings Wallet:** The full value of received gifts credits into the host's `earnings` wallet.
+3. **Convert Earnings to Main Coins Balance:**  
+   The host can convert their gift earnings into main spending gems/coins (to gift other streamers or use for calls):
+   - **Endpoint:** `POST https://chinchins.live/api/wallet/convert-earnings`
+   - **Alias:** `POST https://chinchins.live/api/gifts/convert-to-balance`
+   - **Request Body:**
+   ```json
+   {
+     "amount": 500
+   }
+   ```
+   *(If `amount` is omitted, it converts 100% of available earnings).*
+   - **Response (`200 OK`):**
+   ```json
+   {
+     "status": true,
+     "message": "Successfully converted 500 gift earnings into main spending gems!",
+     "data": {
+       "converted_amount": 500,
+       "new_coins_balance": 500,
+       "remaining_earnings": 0
+     }
+   }
+   ```
+
+---
+
+## 🎁 8. VIP & Package Daily Claim Rewards in "Me" Section
+
+When users purchase VIP or special reward packages, daily scheduled rewards appear in their **Me** profile section:
+
+1. **Check Active VIP Cards & Claim Status:**  
+   - `GET https://chinchins.live/api/vip-cards`  
+   - Returns `has_claimed_today: false` if ready to claim today.
+2. **Claim Today's Reward:**  
+   - `POST https://chinchins.live/api/vip-cards/claim-daily`  
+   - Adds today's reward gems directly to the user's main wallet balance!
+3. **Spend Less Get More Daily Bonus:**  
+   - `POST https://chinchins.live/api/spend-less-get-more/claim`
+
+---
+
+## 💻 9. Ready-to-Copy Flutter Dart Implementation Code
+
+### A. Rendering Gift Card SVG Images in Flutter
 ```dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../services/call_api_service.dart';
-import '../widgets/recharge_gems_sheet.dart';
-import '../screens/agora_call_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-Future<void> handleCallButtonPressed({
-  required BuildContext context,
-  required dynamic host, // Host model or Map
-  required String callType, // 'video' or 'audio'
-}) async {
-  // 1. Get current logged-in user balance from provider/state
-  final userState = Provider.of<UserProvider>(context, listen: false);
-  final int userCoins = userState.user?.coins ?? 0;
-  
-  final int ratePerMinute = (callType == 'audio')
-      ? (host.audioCallRate ?? 60)
-      : (host.videoCallRate ?? host.ratePerMinute ?? 1800);
+Widget buildGiftIcon(Map<String, dynamic> gift) {
+  final String? rawUrl = gift['svg_url'] ?? gift['image_url'] ?? gift['icon_url'];
 
-  // -------------------------------------------------------------
-  // ⚡ ZERO-DELAY INSTANT CHECK (< 0.01s):
-  // If user has 0 coins or less than 1 minute of call rate,
-  // DO NOT navigate to CallScreen!
-  // DO NOT show "Call connecting..." or any loading spinner!
-  // Immediately show RechargeGemsSheet!
-  // -------------------------------------------------------------
-  if (userCoins < ratePerMinute) {
-    RechargeGemsSheet.show(
-      context,
-      receiverId: host.id.toString(),
-      receiverName: host.name ?? host.displayName ?? 'Streamer',
-      receiverAvatar: host.avatarUrl ?? host.avatar,
-      ratePerMinute: ratePerMinute,
-      currentCoins: userCoins,
-      action: 'call',
+  if (rawUrl != null && rawUrl.trim().isNotEmpty) {
+    String cleanUrl = rawUrl.trim();
+    
+    // Rewrite localhost to live domain if running on mobile device
+    if (cleanUrl.contains('localhost') || cleanUrl.contains('127.0.0.1')) {
+      cleanUrl = cleanUrl.replaceAll(RegExp(r'https?://(localhost|127\.0\.0\.1)(:\d+)?/'), 'https://chinchins.live/');
+    }
+
+    if (cleanUrl.toLowerCase().endsWith('.svg') || cleanUrl.contains('.svg?')) {
+      return SvgPicture.network(
+        cleanUrl,
+        width: 48,
+        height: 48,
+        fit: BoxFit.contain,
+        placeholderBuilder: (_) => const Center(child: Text('🎁', style: TextStyle(fontSize: 28))),
+      );
+    }
+
+    return Image.network(
+      cleanUrl,
+      width: 48,
+      height: 48,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => const Center(child: Text('🎁', style: TextStyle(fontSize: 28))),
     );
-    return; // Exit immediately!
   }
 
-  // 2. User has coins locally -> verify with server permission API
-  final result = await CallApiService.checkCallPermission(
-    receiverId: host.id.toString(),
-    callType: callType,
-  );
+  return const Center(child: Text('🎁', style: TextStyle(fontSize: 28)));
+}
+```
 
-  if (!context.mounted) return;
+### B. Send Gift Handler (With Instant Low-Balance Modal)
+```dart
+Future<void> onSendGiftPressed({
+  required BuildContext context,
+  required dynamic host,
+  required Map<String, dynamic> selectedGift,
+  required int quantity,
+}) async {
+  final userState = Provider.of<UserProvider>(context, listen: false);
+  final int userCoins = userState.user?.coins ?? 0;
+  final int cost = ((selectedGift['coins'] as num?)?.toInt() ?? 100) * quantity;
 
-  if (result['can_call'] == true) {
-    // 3. Permitted -> launch actual Agora / WebRTC calling screen
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AgoraCallScreen(
-          callId: result['call_id'],
-          channelName: result['channel_name'],
-          host: host,
-          callType: callType,
-        ),
-      ),
-    );
-  } else {
-    // 4. Server indicated insufficient balance -> show recharge sheet
+  // 1. Instant local balance check (< 0.01s)
+  if (userCoins < cost) {
     RechargeGemsSheet.show(
       context,
       receiverId: host.id.toString(),
-      receiverName: host.name,
-      receiverAvatar: host.avatarUrl,
-      ratePerMinute: ratePerMinute,
-      currentCoins: result['user_balance'] ?? userCoins,
-      action: 'call',
+      receiverName: host.displayName ?? host.name ?? 'Streamer',
+      receiverAvatar: host.avatarUrl ?? host.avatar,
+      currentCoins: userCoins,
+      action: 'gift',
     );
+    return;
+  }
+
+  // 2. Sufficient coins -> send via API
+  final response = await http.post(
+    Uri.parse('https://chinchins.live/api/gifts/send'),
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${userState.token}',
+    },
+    body: jsonEncode({
+      'receiver_id': host.id,
+      'gift_id': selectedGift['id'],
+      'quantity': quantity,
+      'context': 'chat',
+    }),
+  );
+
+  final res = jsonDecode(response.body);
+  if (res['status'] == true) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Sent ${selectedGift['name']} successfully!')),
+    );
+  } else if (res['show_recharge_modal'] == true) {
+    RechargeGemsSheet.show(context, receiverId: host.id.toString());
   }
 }
 ```
 
 ---
 
-## ✅ 7. Developer Checklist
+## ✅ 10. Developer Checklist
 
-- [x] **SVG Format:** All 6 package SVG illustrations (`gem_tier1_single.svg` through `gem_tier6_chest.svg`) are 100% SVG 1.1 compliant without `<feDropShadow>` filters.
-- [x] **URL Resolution:** Backend returns absolute `https://chinchins.live/uploads/coin_packages/...` URLs for `svg_url`, `png_url`, and `icon_full_url`.
-- [x] **Zero-Delay Balance Check:** Call button checks `userCoins < ratePerMinute` in-memory first; never shows "Call connecting..." or Agora screen when balance is 0.
-- [x] **Recharge Modal:** Loads all 6 packages instantly with badges (`50% off`, `ONCE`, `17% off`, etc.) and exact BDT pricing.
-- [x] **Streamer Feed:** Explore screen loads all global streamers on start with country filter support for `BGD`, `PAK`, `Global`, etc.
+- [x] **SVG Format:** All 160 Gift SVGs in `public/uploads/gifts/` and all 6 Coin Package SVGs are 100% SVG 1.1 compliant without `<feDropShadow>` filters.
+- [x] **Asset URLs:** All Gift endpoints return absolute `https://chinchins.live/uploads/gifts/...` URLs for `svg_url`, `png_url`, and `image_url`.
+- [x] **Zero-Delay Call Check:** Never shows "Call connecting..." or Agora screen when balance is 0; opens `RechargeGemsSheet` in < 0.1s.
+- [x] **Dynamic Multipliers:** Replaced hardcoded `x1, x5, x10, x99` with backend list `[1, 10, 66, 99, 520, 1314]`.
+- [x] **Send Gift Pre-Check:** Checks `userCoins < gift.coins * quantity` locally before sending; triggers instant recharge modal if low.
+- [x] **Earnings Conversion:** Endpoint `POST /api/wallet/convert-earnings` allows receivers to convert gift earnings to main coins to gift others.
+- [x] **VIP Daily Claims:** Users can claim daily rewards via `POST /api/vip-cards/claim-daily` which adds directly to their gems balance.

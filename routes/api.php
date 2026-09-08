@@ -198,6 +198,8 @@ Route::get('/wallet/summary', [PaymentController::class, 'getWalletBalance']);
 Route::get('/coins/balance', [PaymentController::class, 'getWalletBalance']);
 Route::get('/wallet/transactions', [PaymentController::class, 'getTransactions']);
 Route::get('/coins/transactions', [PaymentController::class, 'getTransactions']);
+Route::post('/wallet/convert-earnings', [PaymentController::class, 'convertEarningsToCoins']);
+Route::post('/gifts/convert-to-balance', [PaymentController::class, 'convertEarningsToCoins']);
 
 // Coin Package Instant Purchase Flow
 Route::post('/coins/purchase', [PaymentController::class, 'purchaseCoinPackage']);
