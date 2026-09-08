@@ -138,7 +138,6 @@ class AuthController extends Controller
                 'message' => 'Registration failed: ' . $e->getMessage(),
             ], 500);
         }
-        ], 201);
     }
 
     /**
