@@ -96,6 +96,37 @@ class CoinPackage extends Model
     }
 
     /**
+     * Resolve asset path to a valid public URL reachable by mobile apps.
+     */
+    public static function resolveAssetUrl(?string $path, string $fallback = ''): string
+    {
+        $src = $path ?: $fallback;
+        if (empty($src)) return '';
+
+        // If it's already an absolute URL
+        if (preg_match('#^https?://#i', $src)) {
+            if (preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?/(.*)$#i', $src, $matches)) {
+                $host = (request() && !in_array(request()->getHost(), ['localhost', '127.0.0.1']))
+                    ? request()->getSchemeAndHttpHost()
+                    : 'https://chinchins.live';
+                return rtrim($host, '/') . '/' . ltrim($matches[3], '/');
+            }
+            return $src;
+        }
+
+        // Relative path
+        $cleanPath = ltrim($src, '/');
+        
+        $host = (request() && !in_array(request()->getHost(), ['localhost', '127.0.0.1']))
+            ? request()->getSchemeAndHttpHost()
+            : (config('app.url') && !in_array(parse_url(config('app.url'), PHP_URL_HOST), ['localhost', '127.0.0.1'])
+                ? config('app.url')
+                : 'https://chinchins.live');
+
+        return rtrim($host, '/') . '/' . $cleanPath;
+    }
+
+    /**
      * Full URL for image / icon
      */
     public function getImageUrlAttribute(): ?string
@@ -109,12 +140,9 @@ class CoinPackage extends Model
     public function getPngUrlAttribute(): ?string
     {
         $src = $this->icon_url;
-        if (empty($src)) return url('assets/images/coins/gem-stack.png');
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
-            return preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
-        }
-        $pngPath = preg_replace('/\.svg$/i', '.png', ltrim($src, '/'));
-        return url($pngPath);
+        if (empty($src)) return self::resolveAssetUrl('uploads/coin_packages/gem_tier1_single.svg');
+        $pngPath = preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
+        return self::resolveAssetUrl($pngPath);
     }
 
     /**
@@ -123,11 +151,8 @@ class CoinPackage extends Model
     public function getSvgUrlAttribute(): ?string
     {
         $src = $this->icon_url;
-        if (empty($src)) return url('uploads/coin_packages/gem_tier1_single.svg');
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
-            return $src;
-        }
-        return url(ltrim($src, '/'));
+        if (empty($src)) return self::resolveAssetUrl('uploads/coin_packages/gem_tier1_single.svg');
+        return self::resolveAssetUrl($src);
     }
 
     /**
@@ -136,12 +161,9 @@ class CoinPackage extends Model
     public function getIconFullUrlAttribute(): ?string
     {
         if (empty($this->icon_url)) {
-            return url('assets/images/coins/gem-stack.png');
+            return self::resolveAssetUrl('uploads/coin_packages/gem_tier1_single.svg');
         }
-        if (str_starts_with($this->icon_url, 'http://') || str_starts_with($this->icon_url, 'https://')) {
-            return $this->icon_url;
-        }
-        return url(ltrim($this->icon_url, '/'));
+        return self::resolveAssetUrl($this->icon_url);
     }
 
     /**
@@ -152,10 +174,7 @@ class CoinPackage extends Model
         if (empty($this->animation_url)) {
             return null;
         }
-        if (str_starts_with($this->animation_url, 'http://') || str_starts_with($this->animation_url, 'https://')) {
-            return $this->animation_url;
-        }
-        return asset(ltrim($this->animation_url, '/'));
+        return self::resolveAssetUrl($this->animation_url);
     }
 
     /**

@@ -189,6 +189,9 @@ class PaymentController extends Controller
                         'bonus_percentage' => $baseCoins > 0 && $bonusCoins > 0 ? (int) round(($bonusCoins / $baseCoins) * 100) : 0,
                         'icon_url' => $pkg->icon_url,
                         'icon_full_url' => $pkg->icon_full_url,
+                        'svg_url' => $pkg->svg_url,
+                        'png_url' => $pkg->png_url,
+                        'image_url' => $pkg->image_url,
                         'animation_url' => $pkg->animation_url,
                         'animation_full_url' => $pkg->animation_full_url,
                         'format' => $pkg->format ?: 'image',
@@ -204,12 +207,14 @@ class PaymentController extends Controller
                 'status' => true,
                 'message' => 'Coin packages retrieved successfully from database.',
                 'data' => $packages,
+                'packages' => $packages,
             ], 200);
         } catch (\Throwable $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Error retrieving coin packages: ' . $e->getMessage(),
                 'data' => [],
+                'packages' => [],
             ], 500);
         }
     }
@@ -287,6 +292,10 @@ class PaymentController extends Controller
             return response()->json([
                 'status' => true,
                 'message' => 'Recharge modal data retrieved successfully.',
+                'packages' => $packages,
+                'user_gems' => $userCoins,
+                'wallet_label' => 'My Gems',
+                'button_text' => 'Continue',
                 'modal' => [
                     'title' => $teaserText,
                     'header_title' => $teaserText,

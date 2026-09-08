@@ -1,314 +1,438 @@
-# 📱 Chinchins Live — Streamer Feed & Mobile API Integration Guide
+# 📱 Chinchins Live — Flutter Integration & Master API Guide
 
 **Document:** `FLUTTER_STREAMER_FEED_AND_API_INTEGRATION_GUIDE.md`  
-**Target:** Flutter Mobile App Developers, Backend Engineers & Technical Team  
-**Backend:** Laravel REST API Engine (`https://chinchins.live/api`)  
-**Auth Header:** `Authorization: Bearer <Sanctum_Token>` or `X-User-Id: <User_ID>`  
+**Target Audience:** Flutter Mobile App Developers & Backend Engineers  
+**Production API Base:** `https://chinchins.live/api`  
+**Authorization Header:** `Authorization: Bearer <Sanctum_Token>` or `X-User-Id: <User_ID>`  
 
 ---
 
-## 📌 1. Summary: Why "No Streamers Found" Happened & How It Was Resolved
-
-When users opened the **Hot** tab on the mobile app, the screen previously displayed **"No Streamers Found"**, even though registered users were visible in the Admin Panel (`chinchins.live/admin/users`). 
-
-Investigation revealed three distinct root causes:
-
-| # | Root Cause | Detail | Status |
-|---|---|---|---|
-| 1 | **Hardcoded Exclusion in Flutter Code** | In `lib/features/explore/screens/hot_explore_screen.dart` and `lib/core/services/profile_api_service.dart`, the code explicitly skipped any user named `ayeena04` (`name == 'ayeena04' \|\| name == 'ayeena'`). | **Fixed** (Removed hardcoded exclusion) |
-| 2 | **Country Filter Mismatch & Country Selector Default** | The app's explore screen was defaulted to `BGD` (`Bangladesh`). In the database, the registered streamers (`Ayeena04` and `Nazmul`) were registered under `Pakistan`, while `Regular User` had an empty country string. When filtered by `country=Bangladesh`, Pakistan users were filtered out and `Regular User` was skipped due to empty string in DB. | **Fixed** (Backend now handles country variants, defaults app country to `Global 🌐 (All)` so all streamers load on start, and added Pakistan to country picker) |
-| 3 | **Database Streamer Profile Data** | `Regular User` had missing country (`Bangladesh`), gender, and avatar photo in database. | **Fixed** (Profile updated with complete country, gender, and Unsplash HD avatar) |
+## 📑 Table of Contents
+1. [Zero-Delay Pre-Call Balance Check & Instant Recharge Modal (CRITICAL UX REQUIREMENT)](#1-zero-delay-pre-call-balance-check--instant-recharge-modal)
+2. [Coin Packages & Recharge Modal API (`GET /api/recharge/modal-data`)](#2-coin-packages--recharge-modal-api)
+3. [Fixing SVG Diamond Icons in Flutter (`flutter_svg` Guide)](#3-fixing-svg-diamond-icons-in-flutter)
+4. [Master RESTful API: Public Home Feed & Streamers List (`GET /api/home`)](#4-master-restful-api-public-home-feed--streamers-list)
+5. [User Search & Single Profile Details APIs](#5-user-search--single-profile-details-apis)
+6. [Ready-to-Copy Flutter Dart Implementation Code](#6-ready-to-copy-flutter-dart-implementation-code)
+7. [Developer Checklist](#7-developer-checklist)
 
 ---
 
-## 🚀 2. Master RESTful API: Public Home Feed & Streamers List
+## ⚡ 1. Zero-Delay Pre-Call Balance Check & Instant Recharge Modal
 
-Use this endpoint to populate the **Hot Screen**, **Home Streamers Grid**, **Discover Page**, and **Host Listings**.
+> [!CAUTION]
+> **STRICT UX RULE:** When a user taps the **Call** (Audio or Video) button and has **0 balance** (or less than the host's rate per minute), the app **MUST NOT** show **"Call connecting..."**, **"Calling..."**, or any loading spinner!
+> Showing a calling screen when the user has no balance confuses the user. Instead, the Recharge Modal (`RechargeGemsSheet`) **MUST open INSTANTLY (< 0.1s)** directly from the current screen!
 
-### Endpoint Details
-- **Primary Route:** `GET https://chinchins.live/api/home`
-- **Aliases (All point to the same controller):**
-  - `GET https://chinchins.live/api/users`
-  - `GET https://chinchins.live/api/hot`
-  - `GET https://chinchins.live/api/streamers`
-  - `GET https://chinchins.live/api/home/streamers`
+### The Two-Tier Instant Verification Flow:
 
-### Query Parameters
+```
+[User Taps Call Button]
+         │
+         ▼
+[Step 1: Local In-Memory Fast Check (0.00s Instant)]
+ └─ Check: (currentUser.coins < host.ratePerMinute)
+         │
+         ├─── YES (Coins < Rate or Coins == 0) ──────► [Instantly Open RechargeGemsSheet]
+         │                                            ⛔ NO "Call connecting..."
+         │                                            ⛔ NO Agora screen
+         │                                            ⛔ NO network waiting delay
+         │
+         └─── NO (User has enough coins locally) ───► [Step 2: Backend Check]
+                                                      └─ POST /api/call/check-permission
+                                                           │
+                                                           ├── can_call: false ──► [Open RechargeGemsSheet]
+                                                           └── can_call: true  ──► [Open Agora Calling Screen]
+```
 
-| Parameter | Type | Required | Default | Description | Example Values |
-|---|---|---|---|---|---|
-| `country` | string | No | `All` | Filter by country name, ISO code, or Alpha-3 | `All`, `BGD`, `BD`, `Bangladesh`, `PAK`, `PK`, `Pakistan`, `IND`, `USA` |
-| `country_code`| string | No | null | Alternative param for 2-letter ISO code | `BD`, `PK`, `IN`, `US` |
-| `region` | string | No | null | Alias for country | `Global`, `Bangladesh`, `Pakistan` |
-| `gender` | string | No | `all` | Filter by gender | `female`, `male`, `all` |
-| `search` | string | No | null | Search by Name, Nickname, 8-digit Account ID, or City | `Ayeena`, `602281635`, `Dhaka` |
-| `page` | integer | No | `1` | Pagination page number | `1`, `2`, `3` |
-| `per_page` | integer | No | `20` | Number of items per page | `20`, `30`, `50` |
-
-> 💡 **Best Practice for Mobile App:** Default your country parameter to `'All'` (or omit it) so that when a user first opens the app, they immediately see all active live streamers worldwide!
-
----
-
-### Response Structure (`200 OK`)
-
+### Pre-Call Permission Verification API
+- **Route:** `POST https://chinchins.live/api/call/check-permission`
+- **Aliases:** `POST /api/call/can-call`, `POST /api/call/check-balance`
+- **Headers:** `Authorization: Bearer <token>`
+- **Request Body:**
 ```json
 {
-  "status": true,
-  "success": true,
-  "message": "Streamers loaded successfully from database",
-  "data": {
-    "users": [
-      {
-        "id": 2,
-        "account_id": "602281635",
-        "name": "Ayeena04",
-        "display_name": "Ayeena04",
-        "nickname": "Ayeena04",
-        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
-        "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
-        "profile_picture": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
-        "cover_photo_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80",
-        "gallery_images": [
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
-          "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&auto=format&fit=crop&q=80"
-        ],
-        "photos": [
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80"
-        ],
-        "gender": "female",
-        "age": 27,
-        "display_age": 27,
-        "level": "Lv4",
-        "level_number": 4,
-        "display_level": "Lv4",
-        "country": "Pakistan",
-        "country_code": "PK",
-        "country_flag": "🇵🇰",
-        "city": "Lahore",
-        "is_active": true,
-        "is_online": true,
-        "online_status": "online",
-        "status_text": "Online",
-        "is_busy": false,
-        "is_free_caller": false,
-        "is_verified": true,
-        "video_call_rate": 1800,
-        "rate_per_minute": 1800,
-        "audio_call_rate": 60,
-        "coins": 0,
-        "introduction": "Sweet girl looking for honest talk ❤️",
-        "tags": [
-          "Live video",
-          "Music"
-        ]
-      },
-      {
-        "id": 4,
-        "account_id": "1000008888",
-        "name": "Regular User",
-        "display_name": "Regular User",
-        "nickname": "Regular User",
-        "avatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop&q=80",
-        "avatar_url": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop&q=80",
-        "profile_picture": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop&q=80",
-        "cover_photo_url": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&auto=format&fit=crop&q=80",
-        "gallery_images": [
-          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop&q=80"
-        ],
-        "gender": "female",
-        "age": 24,
-        "display_age": 24,
-        "level": "Lv4",
-        "level_number": 4,
-        "display_level": "Lv4",
-        "country": "Bangladesh",
-        "country_code": "BD",
-        "country_flag": "🇧🇩",
-        "city": "Dhaka",
-        "is_active": true,
-        "is_online": true,
-        "online_status": "online",
-        "status_text": "Online",
-        "is_busy": false,
-        "is_free_caller": false,
-        "is_verified": true,
-        "video_call_rate": 1800,
-        "rate_per_minute": 1800,
-        "audio_call_rate": 60,
-        "coins": 0,
-        "introduction": "Friendly streamer from Dhaka! Let's video call.",
-        "tags": [
-          "Sweet",
-          "Online",
-          "Live"
-        ]
-      }
-    ],
-    "total": 2,
-    "current_page": 1,
-    "last_page": 1,
-    "per_page": 20
+  "receiver_id": 2,
+  "call_type": "video"
+}
+```
+
+### Response When Balance is Insufficient (`200 OK`):
+```json
+{
+  "status": false,
+  "can_call": false,
+  "code": "INSUFFICIENT_BALANCE",
+  "message": "Insufficient coin balance. You have 0 coins, but need at least 1800 coins.",
+  "user_balance": 0,
+  "user_gems": 0,
+  "wallet_label": "My Gems",
+  "required_coins": 1800,
+  "rate_per_minute": 1800,
+  "show_recharge_modal": true,
+  "recharge_modal_data": {
+    "title": "I want to talk more with you. Recharge and call me back~",
+    "teaser_text": "I want to talk more with you. Recharge and call me back~",
+    "user_gems": 0,
+    "user_gems_text": "My Gems: 0",
+    "packages": [...]
   }
 }
 ```
 
 ---
 
-## 🔍 3. Search Users API (by 8-digit Account ID or Name)
+## 💎 2. Coin Packages & Recharge Modal API
 
-- **Endpoint:** `GET https://chinchins.live/api/search?q={query}`
-- **Alternative:** `GET https://chinchins.live/api/users/search?search={query}`
+Use this endpoint to load the recharge bottom sheet with all active packages and live SVG illustrations.
 
-### Example Requests:
-- By 8-digit Account ID: `GET /api/search?q=602281635`
-- By Name: `GET /api/search?q=Ayeena`
+### Endpoint Details
+- **Route:** `GET https://chinchins.live/api/recharge/modal-data`
+- **Alias:** `GET https://chinchins.live/api/coin-packages`
+- **Query Parameters (Optional):**
+  - `receiver_id`: Target streamer/host ID (e.g. `2`)
+  - `action`: `call` or `chat`
+
+### Response Structure (`200 OK`):
+```json
+{
+  "status": true,
+  "message": "Recharge modal data retrieved successfully.",
+  "user_gems": 0,
+  "wallet_label": "My Gems",
+  "button_text": "Continue",
+  "packages": [
+    {
+      "id": 1,
+      "title": "Starter Pack",
+      "coins": 7560,
+      "base_coins": 7560,
+      "bonus_coins": 0,
+      "total_coins": 7560,
+      "formatted_coins": "7,560",
+      "price": 150.00,
+      "price_bdt": 150.00,
+      "formatted_price": "BDT 150.00",
+      "badge": "50% off",
+      "badge_color": "danger",
+      "is_once_offer": true,
+      "icon_url": "uploads/coin_packages/gem_tier1_single.svg",
+      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg",
+      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg",
+      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.png",
+      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier1_single.svg",
+      "is_popular": true
+    },
+    {
+      "id": 2,
+      "title": "Basic Pack",
+      "coins": 8100,
+      "base_coins": 8100,
+      "bonus_coins": 0,
+      "total_coins": 8100,
+      "formatted_coins": "8,100",
+      "price": 300.00,
+      "price_bdt": 300.00,
+      "formatted_price": "BDT 300.00",
+      "badge": "17% off",
+      "badge_color": "pink",
+      "is_once_offer": false,
+      "icon_url": "uploads/coin_packages/gem_tier2_double.svg",
+      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_double.svg",
+      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_double.svg",
+      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_double.png",
+      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier2_double.svg",
+      "is_popular": false
+    },
+    {
+      "id": 3,
+      "title": "Popular Pack",
+      "coins": 16380,
+      "base_coins": 16380,
+      "bonus_coins": 0,
+      "total_coins": 16380,
+      "formatted_coins": "16,380",
+      "price": 600.00,
+      "price_bdt": 600.00,
+      "formatted_price": "BDT 600.00",
+      "badge": "17% off",
+      "badge_color": "pink",
+      "is_once_offer": false,
+      "icon_url": "uploads/coin_packages/gem_tier3_triple.svg",
+      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier3_triple.svg",
+      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier3_triple.svg",
+      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier3_triple.png",
+      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier3_triple.svg",
+      "is_popular": false
+    },
+    {
+      "id": 4,
+      "title": "Super Pack",
+      "coins": 32940,
+      "base_coins": 32940,
+      "bonus_coins": 0,
+      "total_coins": 32940,
+      "formatted_coins": "32,940",
+      "price": 1200.00,
+      "price_bdt": 1200.00,
+      "formatted_price": "BDT 1,200.00",
+      "badge": "30% off",
+      "badge_color": "pink",
+      "is_once_offer": false,
+      "icon_url": "uploads/coin_packages/gem_tier4_stack.svg",
+      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier4_stack.svg",
+      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier4_stack.svg",
+      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier4_stack.png",
+      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier4_stack.svg",
+      "is_popular": false
+    },
+    {
+      "id": 5,
+      "title": "Mega Pack",
+      "coins": 66600,
+      "base_coins": 66600,
+      "bonus_coins": 0,
+      "total_coins": 66600,
+      "formatted_coins": "66,600",
+      "price": 2400.00,
+      "price_bdt": 2400.00,
+      "formatted_price": "BDT 2,400.00",
+      "badge": "60% off",
+      "badge_color": "pink",
+      "is_once_offer": false,
+      "icon_url": "uploads/coin_packages/gem_tier5_tray.svg",
+      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier5_tray.svg",
+      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier5_tray.svg",
+      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier5_tray.png",
+      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier5_tray.svg",
+      "is_popular": false
+    },
+    {
+      "id": 6,
+      "title": "VIP King Pack",
+      "coins": 167400,
+      "base_coins": 167400,
+      "bonus_coins": 0,
+      "total_coins": 167400,
+      "formatted_coins": "167,400",
+      "price": 6100.00,
+      "price_bdt": 6100.00,
+      "formatted_price": "BDT 6,100.00",
+      "badge": "80% off",
+      "badge_color": "pink",
+      "is_once_offer": false,
+      "icon_url": "uploads/coin_packages/gem_tier6_chest.svg",
+      "icon_full_url": "https://chinchins.live/uploads/coin_packages/gem_tier6_chest.svg",
+      "svg_url": "https://chinchins.live/uploads/coin_packages/gem_tier6_chest.svg",
+      "png_url": "https://chinchins.live/uploads/coin_packages/gem_tier6_chest.png",
+      "image_url": "https://chinchins.live/uploads/coin_packages/gem_tier6_chest.svg",
+      "is_popular": false
+    }
+  ]
+}
+```
 
 ---
 
-## 👤 4. Single Profile Details API
+## 🎨 3. Fixing SVG Diamond Icons in Flutter
 
-- **Endpoint:** `GET https://chinchins.live/api/profile/{id}`
-- **Alternative:** `GET https://chinchins.live/api/profile/{account_id}`
+### Why the Purple Person Placeholder Box Appeared
+Previously, the app showed a dark purple square with a person icon (`Icons.person`) inside the package card.
+Two factors caused this:
+1. **SVG `<feDropShadow>` filters:** Flutter's `flutter_svg` package throws parser errors when encountering SVG `<filter>` tags like `<feDropShadow>`. The backend SVGs have now been completely updated to be 100% SVG 1.1 compliant without filters.
+2. **Localhost URLs:** In CLI or unconfigured environments, URLs could previously default to `http://localhost`. The backend now strictly resolves all paths to `https://chinchins.live/uploads/coin_packages/...`.
 
-Supports lookup by either internal numeric ID (`2`) or public 8-digit Account ID (`602281635`).
-
----
-
-## ⚙️ 5. Clean Flutter Dart Integration Code
-
-Here is the recommended Flutter implementation for fetching and displaying the live feed smoothly without unintended client-side filtering:
-
-### Model Parsing (`lib/core/models/model_profile.dart`)
+### Correct Flutter Widget for Rendering Package Diamonds
+In `lib/features/wallet/widgets/recharge_gems_sheet.dart`:
 
 ```dart
-class ModelProfile {
-  final String id;
-  final String accountId;
-  final String name;
-  final String avatarUrl;
-  final String? coverPhotoUrl;
-  final List<String> galleryUrls;
-  final String country;
-  final String countryCode;
-  final String countryFlag;
-  final String gender;
-  final int age;
-  final int pricePerMin;
-  final bool isOnline;
-  final bool isVerified;
-  final String intro;
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-  ModelProfile({
-    required this.id,
-    required this.accountId,
-    required this.name,
-    required this.avatarUrl,
-    this.coverPhotoUrl,
-    required this.galleryUrls,
-    required this.country,
-    required this.countryCode,
-    required this.countryFlag,
-    required this.gender,
-    required this.age,
-    required this.pricePerMin,
-    required this.isOnline,
-    required this.isVerified,
-    required this.intro,
-  });
+Widget buildPackageIcon(Map<String, dynamic> pkg, int index, bool isSelected) {
+  // 1. Pick the best image URL from the API response
+  final String? rawUrl = pkg['svg_url'] ?? 
+                         pkg['icon_full_url'] ?? 
+                         pkg['image_url'] ?? 
+                         pkg['icon_url'];
 
-  factory ModelProfile.fromJson(Map<String, dynamic> json) {
-    List<String> parseGallery(dynamic list) {
-      if (list is List) {
-        return list.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
-      }
-      return [];
+  if (rawUrl != null && rawUrl.trim().isNotEmpty) {
+    String cleanUrl = rawUrl.trim();
+    
+    // Fix: If on an Android device or emulator and URL contains localhost, rewrite to live domain
+    if (cleanUrl.contains('localhost') || cleanUrl.contains('127.0.0.1')) {
+      cleanUrl = cleanUrl.replaceAll(RegExp(r'https?://(localhost|127\.0\.0\.1)(:\d+)?/'), 'https://chinchins.live/');
     }
 
-    final avatar = json['avatar_url'] ??
-        json['avatar'] ??
-        json['profile_picture'] ??
-        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(json['name'] ?? 'User')}';
+    // 2. Render SVG with flutter_svg
+    if (cleanUrl.toLowerCase().endsWith('.svg') || cleanUrl.contains('.svg?')) {
+      return SvgPicture.network(
+        cleanUrl,
+        width: 44,
+        height: 44,
+        fit: BoxFit.contain,
+        placeholderBuilder: (context) => _buildDiamondFallback(index, isSelected),
+      );
+    }
 
-    return ModelProfile(
-      id: json['id']?.toString() ?? '',
-      accountId: json['account_id']?.toString() ?? '',
-      name: json['display_name'] ?? json['name'] ?? 'User',
-      avatarUrl: avatar,
-      coverPhotoUrl: json['cover_photo_url'],
-      galleryUrls: parseGallery(json['gallery_images'] ?? json['photos']),
-      country: json['country'] ?? 'Bangladesh',
-      countryCode: json['country_code'] ?? 'BD',
-      countryFlag: json['country_flag'] ?? '🇧🇩',
-      gender: json['gender'] ?? 'female',
-      age: (json['display_age'] as num?)?.toInt() ?? (json['age'] as num?)?.toInt() ?? 24,
-      pricePerMin: (json['rate_per_minute'] as num?)?.toInt() ?? (json['video_call_rate'] as num?)?.toInt() ?? 1800,
-      isOnline: json['is_online'] == true || json['is_active'] == true,
-      isVerified: json['is_verified'] == true,
-      intro: json['introduction'] ?? '',
+    // 3. Fallback to raster image if PNG/WebP
+    return Image.network(
+      cleanUrl,
+      width: 44,
+      height: 44,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => _buildDiamondFallback(index, isSelected),
+    );
+  }
+
+  // 4. Default native diamond artwork
+  return _buildDiamondFallback(index, isSelected);
+}
+
+/// Native Flutter golden diamond backup (never shows purple person icon!)
+Widget _buildDiamondFallback(int index, bool isSelected) {
+  return Container(
+    width: 40,
+    height: 40,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: RadialGradient(
+        colors: isSelected 
+          ? [const Color(0xFFFFE066), const Color(0xFFF59E0B)]
+          : [const Color(0xFFFBBF24), const Color(0xFFD97706)],
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFFF59E0B).withOpacity(0.4),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: const Center(
+      child: Text('💎', style: TextStyle(fontSize: 22)),
+    ),
+  );
+}
+```
+
+---
+
+## 🚀 4. Master RESTful API: Public Home Feed & Streamers List
+
+- **Endpoint:** `GET https://chinchins.live/api/home`
+- **Aliases:** `GET /api/users`, `GET /api/hot`, `GET /api/streamers`
+
+### Query Parameters
+
+| Parameter | Type | Default | Description | Example Values |
+|---|---|---|---|---|
+| `country` | string | `All` | Filter by Country name or ISO Alpha-2/Alpha-3 | `All`, `BGD`, `BD`, `Pakistan`, `PK`, `USA` |
+| `gender` | string | `all` | Filter by streamer gender | `female`, `male`, `all` |
+| `search` | string | null | Search by Name, Nickname, or 8-digit Account ID | `Ayeena`, `602281635`, `Dhaka` |
+| `page` | integer | `1` | Pagination page number | `1`, `2`, `3` |
+| `per_page` | integer | `20` | Results per page | `20`, `30`, `50` |
+
+> 💡 **Best Practice:** Keep default country parameter set to `'All'` so when the user opens the Hot tab, all streamers worldwide are visible immediately without empty state.
+
+---
+
+## 🔍 5. User Search & Single Profile Details APIs
+
+- **User Search:** `GET https://chinchins.live/api/search?q={query}`  
+  Supports searching by 8-digit Account ID (`602281635`) or streamer Name (`Ayeena`).
+- **Single Profile:** `GET https://chinchins.live/api/profile/{id_or_account_id}`  
+  Returns comprehensive host profile with avatar, gallery images, video call rate, and bio.
+
+---
+
+## 💻 6. Ready-to-Copy Flutter Dart Implementation Code
+
+### Call Button Tap Handler (With 0-Delay Instant Recharge Sheet)
+
+Place this logic inside your call button handler on the Streamer Card / Profile Screen:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/call_api_service.dart';
+import '../widgets/recharge_gems_sheet.dart';
+import '../screens/agora_call_screen.dart';
+
+Future<void> handleCallButtonPressed({
+  required BuildContext context,
+  required dynamic host, // Host model or Map
+  required String callType, // 'video' or 'audio'
+}) async {
+  // 1. Get current logged-in user balance from provider/state
+  final userState = Provider.of<UserProvider>(context, listen: false);
+  final int userCoins = userState.user?.coins ?? 0;
+  
+  final int ratePerMinute = (callType == 'audio')
+      ? (host.audioCallRate ?? 60)
+      : (host.videoCallRate ?? host.ratePerMinute ?? 1800);
+
+  // -------------------------------------------------------------
+  // ⚡ ZERO-DELAY INSTANT CHECK (< 0.01s):
+  // If user has 0 coins or less than 1 minute of call rate,
+  // DO NOT navigate to CallScreen!
+  // DO NOT show "Call connecting..." or any loading spinner!
+  // Immediately show RechargeGemsSheet!
+  // -------------------------------------------------------------
+  if (userCoins < ratePerMinute) {
+    RechargeGemsSheet.show(
+      context,
+      receiverId: host.id.toString(),
+      receiverName: host.name ?? host.displayName ?? 'Streamer',
+      receiverAvatar: host.avatarUrl ?? host.avatar,
+      ratePerMinute: ratePerMinute,
+      currentCoins: userCoins,
+      action: 'call',
+    );
+    return; // Exit immediately!
+  }
+
+  // 2. User has coins locally -> verify with server permission API
+  final result = await CallApiService.checkCallPermission(
+    receiverId: host.id.toString(),
+    callType: callType,
+  );
+
+  if (!context.mounted) return;
+
+  if (result['can_call'] == true) {
+    // 3. Permitted -> launch actual Agora / WebRTC calling screen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AgoraCallScreen(
+          callId: result['call_id'],
+          channelName: result['channel_name'],
+          host: host,
+          callType: callType,
+        ),
+      ),
+    );
+  } else {
+    // 4. Server indicated insufficient balance -> show recharge sheet
+    RechargeGemsSheet.show(
+      context,
+      receiverId: host.id.toString(),
+      receiverName: host.name,
+      receiverAvatar: host.avatarUrl,
+      ratePerMinute: ratePerMinute,
+      currentCoins: result['user_balance'] ?? userCoins,
+      action: 'call',
     );
   }
 }
 ```
 
-### Feed Service Call (`lib/core/services/profile_api_service.dart`)
-
-```dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
-class ProfileApiService {
-  static const String baseUrl = 'https://chinchins.live/api';
-
-  static Future<List<ModelProfile>> fetchStreamers({
-    String? country,
-    String? gender,
-    int page = 1,
-    int perPage = 20,
-    String? token,
-  }) async {
-    final queryParams = <String, String>{
-      'page': page.toString(),
-      'per_page': perPage.toString(),
-    };
-
-    if (country != null && country.isNotEmpty && country != 'All') {
-      queryParams['country'] = country;
-    }
-    if (gender != null && gender.isNotEmpty && gender != 'all') {
-      queryParams['gender'] = gender;
-    }
-
-    final uri = Uri.parse('$baseUrl/home').replace(queryParameters: queryParams);
-    final headers = {
-      'Accept': 'application/json',
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
-
-    final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
-
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-      final List? userList = decoded['data']?['users'] ?? decoded['users'];
-      if (userList != null) {
-        return userList
-            .whereType<Map<String, dynamic>>()
-            .map((item) => ModelProfile.fromJson(item))
-            // Exclude only admin system account
-            .where((u) => u.name.toLowerCase() != 'admin' && !u.accountId.startsWith('1000000001'))
-            .toList();
-      }
-    }
-    return [];
-  }
-}
-```
-
 ---
 
-## 🎯 6. Key Takeaways & Checklist
+## ✅ 7. Developer Checklist
 
-- [x] **Backend Country Matching:** Fully supports `All`, `BGD`, `BD`, `Bangladesh`, `PAK`, `PK`, `Pakistan`, `IND`, `USA`, etc.
-- [x] **Streamers Profile Data:** Registered streamers in MySQL have valid avatar, cover, gallery, age, rate, and country.
-- [x] **No Hardcoded Exclusions:** Removed `ayeena04` / `ayeena` blocks from client-side parser.
-- [x] **Default Region:** App defaults to `Global 🌐 (All)` so the explore screen is populated immediately on cold start.
-- [x] **Live Database Live Synced:** Newly registered users appear directly in both Admin Panel and Mobile App.
+- [x] **SVG Format:** All 6 package SVG illustrations (`gem_tier1_single.svg` through `gem_tier6_chest.svg`) are 100% SVG 1.1 compliant without `<feDropShadow>` filters.
+- [x] **URL Resolution:** Backend returns absolute `https://chinchins.live/uploads/coin_packages/...` URLs for `svg_url`, `png_url`, and `icon_full_url`.
+- [x] **Zero-Delay Balance Check:** Call button checks `userCoins < ratePerMinute` in-memory first; never shows "Call connecting..." or Agora screen when balance is 0.
+- [x] **Recharge Modal:** Loads all 6 packages instantly with badges (`50% off`, `ONCE`, `17% off`, etc.) and exact BDT pricing.
+- [x] **Streamer Feed:** Explore screen loads all global streamers on start with country filter support for `BGD`, `PAK`, `Global`, etc.
