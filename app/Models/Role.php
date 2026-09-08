@@ -76,4 +76,36 @@ class Role extends Model
     {
         return $query->where('status', 'active');
     }
+
+    /**
+     * Accessor for is_system compatibility (maps to is_default).
+     */
+    public function getIsSystemAttribute(): bool
+    {
+        return (bool) ($this->attributes['is_default'] ?? false);
+    }
+
+    /**
+     * Mutator for is_system compatibility (maps to is_default).
+     */
+    public function setIsSystemAttribute($value): void
+    {
+        $this->attributes['is_default'] = (bool) $value;
+    }
+
+    /**
+     * Accessor for is_active compatibility (maps to status == 'active').
+     */
+    public function getIsActiveAttribute(): bool
+    {
+        return ($this->attributes['status'] ?? 'active') === 'active';
+    }
+
+    /**
+     * Mutator for is_active compatibility (maps to status).
+     */
+    public function setIsActiveAttribute($value): void
+    {
+        $this->attributes['status'] = $value ? 'active' : 'inactive';
+    }
 }

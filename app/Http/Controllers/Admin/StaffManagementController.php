@@ -52,7 +52,7 @@ class StaffManagementController extends Controller
         }
 
         $staffMembers = $query->latest()->paginate(15)->withQueryString();
-        $roles = Role::where('is_active', true)->get();
+        $roles = Role::active()->get();
 
         return view('admin.staff.index', compact('staffMembers', 'roles'));
     }
@@ -62,7 +62,7 @@ class StaffManagementController extends Controller
      */
     public function create()
     {
-        $roles = Role::where('is_active', true)->get();
+        $roles = Role::active()->get();
         return view('admin.staff.create', compact('roles'));
     }
 
@@ -111,7 +111,7 @@ class StaffManagementController extends Controller
      */
     public function edit(User $staff)
     {
-        $roles = Role::where('is_active', true)->get();
+        $roles = Role::active()->get();
         return view('admin.staff.edit', compact('staff', 'roles'));
     }
 

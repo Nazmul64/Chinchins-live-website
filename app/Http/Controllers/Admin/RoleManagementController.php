@@ -25,7 +25,7 @@ class RoleManagementController extends Controller
      */
     public function index()
     {
-        $roles = Role::withCount(['users', 'permissions'])->orderBy('is_system', 'desc')->get();
+        $roles = Role::withCount(['users', 'permissions'])->orderBy('is_default', 'desc')->get();
         return view('admin.roles.index', compact('roles'));
     }
 
@@ -63,8 +63,8 @@ class RoleManagementController extends Controller
             'name'        => $request->name,
             'slug'        => $slug,
             'description' => $request->description,
-            'is_system'   => false,
-            'is_active'   => true,
+            'is_default'  => false,
+            'status'      => 'active',
         ]);
 
         // Sync permissions
@@ -108,8 +108,8 @@ class RoleManagementController extends Controller
         ];
 
         // System roles cannot be deactivated
-        if (!$role->is_system) {
-            $updates['is_active'] = $request->boolean('is_active', true);
+        if (!$role->is_default) {
+            $updates['status'] = $request->boolean('is_active', true) ? 'active' : 'inactive';
         }
 
         $role->update($updates);
@@ -130,7 +130,7 @@ class RoleManagementController extends Controller
      */
     public function destroy(Role $role)
     {
-        if ($role->is_system) {
+        if ($role->is_default) {
             return back()->with('error', 'Default system roles cannot be deleted.');
         }
 
