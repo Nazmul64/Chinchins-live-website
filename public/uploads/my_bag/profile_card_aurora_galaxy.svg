@@ -9,13 +9,13 @@
       <stop offset="0%" stop-color="#00F2FE"/>
       <stop offset="100%" stop-color="#4FACFE"/>
     </linearGradient>
-    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.4"/>
-    </filter>
   </defs>
 
+  <!-- Card Shadow Base -->
+  <rect x="20" y="24" width="320" height="180" rx="20" fill="#000000" opacity="0.3"/>
+
   <!-- Main Card Body -->
-  <rect x="20" y="20" width="320" height="180" rx="20" fill="url(#cardGrad)" stroke="url(#cardBorder)" stroke-width="2.5" filter="url(#cardShadow)"/>
+  <rect x="20" y="20" width="320" height="180" rx="20" fill="url(#cardGrad)" stroke="url(#cardBorder)" stroke-width="2.5"/>
 
   <!-- Holographic Wave Mesh -->
   <path d="M 20 120 Q 100 80 180 140 T 340 100 L 340 200 L 20 200 Z" fill="#FFFFFF" opacity="0.12"/>

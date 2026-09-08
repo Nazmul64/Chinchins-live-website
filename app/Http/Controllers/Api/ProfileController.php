@@ -197,7 +197,7 @@ class ProfileController extends Controller
 
         $query = User::with(['kycVerification', 'wallet']);
 
-        // Exact match prioritized for Account ID
+        // Exact match prioritized for Account ID or internal ID
         if (is_numeric($term)) {
             $exactUser = User::with(['kycVerification', 'wallet'])
                 ->where('account_id', $term)
@@ -206,17 +206,22 @@ class ProfileController extends Controller
 
             if ($exactUser) {
                 return response()->json([
-                    'status'  => true,
-                    'message' => "User found with ID {$term}",
-                    'data'    => [
+                    'status'      => true,
+                    'message'     => "User found with ID {$term}",
+                    'data'        => [
                         'exact_match' => true,
+                        'user'        => $exactUser,
                         'users'       => [$exactUser],
+                        'total'       => 1,
                     ],
-                ]);
+                    'user'        => $exactUser,
+                    'users'       => [$exactUser],
+                    'exact_match' => true,
+                ], 200);
             }
         }
 
-        // Fuzzy search by Name, Nickname, Account ID
+        // Fuzzy search by Name, Nickname, Account ID, Phone
         $users = $query->where(function ($q) use ($term) {
             $q->where('account_id', 'LIKE', "%{$term}%")
               ->orWhere('name', 'LIKE', "%{$term}%")
@@ -224,14 +229,21 @@ class ProfileController extends Controller
               ->orWhere('phone', 'LIKE', "%{$term}%");
         })->latest()->take(30)->get();
 
+        $firstUser = $users->first();
+
         return response()->json([
-            'status'  => true,
-            'message' => count($users) . ' users found for search query.',
-            'data'    => [
+            'status'      => true,
+            'message'     => count($users) . ' users found for search query.',
+            'data'        => [
                 'exact_match' => false,
+                'user'        => $firstUser,
                 'users'       => $users,
+                'total'       => count($users),
             ],
-        ]);
+            'user'        => $firstUser,
+            'users'       => $users,
+            'exact_match' => false,
+        ], 200);
     }
 
     /**

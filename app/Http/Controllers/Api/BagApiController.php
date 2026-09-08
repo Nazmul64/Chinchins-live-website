@@ -125,7 +125,7 @@ class BagApiController extends Controller
                 'name'          => $label,
                 'count'         => $count,
                 'is_active_tab' => $category === $key || ($category === 'all' && $key === 'coupon'),
-                'icon_url'      => asset("uploads/my_bag/" . match($key) {
+                'icon_url'      => \App\Models\CoinPackage::resolveAssetUrl("uploads/my_bag/" . match($key) {
                     'coupon'          => 'coupon_sale_yellow.svg',
                     'avatar_frame'    => 'frame_royal_amethyst.svg',
                     'chat_style'      => 'chat_bubble_neon_pink.svg',
@@ -485,16 +485,33 @@ class BagApiController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'receiver_id'      => 'required|exists:users,id',
-            'bag_item_id'      => 'required_without:user_bag_item_id|nullable|exists:bag_items,id',
-            'user_bag_item_id' => 'required_without:bag_item_id|nullable|exists:user_bag_items,id',
+            'receiver_id'         => 'nullable',
+            'receiver_account_id' => 'nullable',
+            'account_id'          => 'nullable',
+            'bag_item_id'         => 'required_without:user_bag_item_id|nullable|exists:bag_items,id',
+            'user_bag_item_id'    => 'required_without:bag_item_id|nullable|exists:user_bag_items,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['status' => false, 'message' => $validator->errors()->first()], 422);
         }
 
-        $receiver = User::findOrFail($request->receiver_id);
+        $receiverIdentifier = $request->input('receiver_account_id') 
+            ?? $request->input('account_id') 
+            ?? $request->input('receiver_id');
+
+        if (!$receiverIdentifier) {
+            return response()->json(['status' => false, 'message' => 'Receiver ID or Account ID is required.'], 422);
+        }
+
+        $receiver = User::where('account_id', (string) $receiverIdentifier)
+            ->orWhere('id', is_numeric($receiverIdentifier) ? (int) $receiverIdentifier : 0)
+            ->first();
+
+        if (!$receiver) {
+            return response()->json(['status' => false, 'message' => "Recipient user '{$receiverIdentifier}' not found."], 404);
+        }
+
         if ($receiver->id === $sender->id) {
             return response()->json(['status' => false, 'message' => 'You cannot gift items to yourself.'], 400);
         }
@@ -595,5 +612,70 @@ class BagApiController extends Controller
         }
 
         return response()->json(['status' => false, 'message' => 'Invalid request parameters.'], 400);
+    }
+
+    /**
+     * 7. Search Recipient User by 8-Digit Account ID or Name for Gifting.
+     * GET /api/bag/search-user?q={account_id_or_name}
+     */
+    public function searchRecipient(Request $request): JsonResponse
+    {
+        $query = trim($request->input('q', $request->input('query', $request->input('account_id', ''))));
+
+        if (empty($query)) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Please provide an Account ID or name to search.',
+                'data'    => null,
+            ], 422);
+        }
+
+        // Exact match by account_id or database id first
+        $user = User::where('account_id', $query)
+            ->orWhere('id', is_numeric($query) ? (int) $query : 0)
+            ->first();
+
+        if (!$user) {
+            // Partial match on username, name, or phone
+            $user = User::where('username', 'like', "%{$query}%")
+                ->orWhere('name', 'like', "%{$query}%")
+                ->orWhere('mobile_no', 'like', "%{$query}%")
+                ->first();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'status'  => false,
+                'message' => "User with Account ID or name '{$query}' not found.",
+                'data'    => null,
+            ], 404);
+        }
+
+        // Format user avatar properly using CoinPackage helper
+        $avatarUrl = $user->profile_image ?? $user->image ?? $user->avatar;
+        if (!empty($avatarUrl) && !str_starts_with($avatarUrl, 'http')) {
+            $avatarUrl = \App\Models\CoinPackage::resolveAssetUrl(ltrim($avatarUrl, '/'));
+        }
+        if (empty($avatarUrl)) {
+            $avatarUrl = \App\Models\CoinPackage::resolveAssetUrl('uploads/all_image/default_avatar.png');
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Recipient user found successfully.',
+            'data'    => [
+                'id'           => $user->id,
+                'account_id'   => $user->account_id ?? (string) $user->id,
+                'name'         => $user->name ?? $user->username ?? 'Chinchins User',
+                'username'     => $user->username ?? $user->name,
+                'display_name' => $user->display_name ?? $user->name ?? $user->username,
+                'avatar'       => $avatarUrl,
+                'avatar_url'   => $avatarUrl,
+                'level'        => $user->level ?? 1,
+                'country_flag' => $user->country_flag ?? '🇧🇩',
+                'gender'       => $user->gender ?? 'male',
+                'coins'        => (int) ($user->coins ?? 0),
+            ],
+        ], 200);
     }
 }

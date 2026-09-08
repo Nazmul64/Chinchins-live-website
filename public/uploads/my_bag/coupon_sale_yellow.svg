@@ -9,24 +9,20 @@
       <stop offset="0%" stop-color="#FCD34D"/>
       <stop offset="100%" stop-color="#F59E0B"/>
     </linearGradient>
-    <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.35"/>
-    </filter>
   </defs>
 
   <!-- Back Secondary Ticket Layer -->
-  <g transform="translate(10, -8) rotate(-6 200 120)" opacity="0.85" filter="url(#shadow)">
+  <g transform="translate(10, -8) rotate(-6 200 120)" opacity="0.85">
     <rect x="50" y="45" width="300" height="150" rx="16" fill="url(#backTicket)"/>
     <circle cx="50" cy="120" r="16" fill="#181428"/>
     <circle cx="350" cy="120" r="16" fill="#181428"/>
   </g>
 
+  <!-- Front Primary Ticket Shadow Base -->
+  <path d="M 66 44 L 334 44 A 16 16 0 0 1 350 60 L 350 100 A 20 20 0 0 0 350 140 L 350 188 A 16 16 0 0 1 334 204 L 66 204 A 16 16 0 0 1 50 188 L 50 140 A 20 20 0 0 0 50 100 L 50 60 A 16 16 0 0 1 66 44 Z" fill="#000000" opacity="0.25"/>
+
   <!-- Front Primary Ticket -->
-  <g filter="url(#shadow)">
+  <g>
     <!-- Ticket Body with cutouts -->
     <path d="M 66 40 
              L 334 40 
@@ -48,11 +44,14 @@
 
     <!-- Left Perforation Holes / Badge -->
     <circle cx="85" cy="85" r="5" fill="#FFF" opacity="0.75"/>
-    <circle cx="85" cy="120" r="7" fill="#FF5E62" filter="url(#goldGlow)"/>
+    <circle cx="85" cy="120" r="8" fill="#FFF" opacity="0.4"/>
+    <circle cx="85" cy="120" r="6" fill="#FF5E62"/>
     <circle cx="85" cy="155" r="5" fill="#FFF" opacity="0.75"/>
 
+    <!-- Text drop shadow -->
+    <text x="235" y="134" font-family="'Outfit', 'Impact', sans-serif" font-size="46" font-weight="900" fill="#B45309" text-anchor="middle" letter-spacing="4" opacity="0.4">SALE</text>
     <!-- Main SALE Text -->
-    <text x="235" y="132" font-family="'Outfit', 'Impact', sans-serif" font-size="46" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="4" filter="url(#shadow)">SALE</text>
+    <text x="235" y="132" font-family="'Outfit', 'Impact', sans-serif" font-size="46" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">SALE</text>
     
     <!-- Subtitle / 50% OFF -->
     <text x="235" y="165" font-family="'Inter', sans-serif" font-size="14" font-weight="800" fill="#7C2D12" text-anchor="middle" letter-spacing="2">SUPER DISCOUNT COUPON</text>

@@ -10,18 +10,17 @@
       <stop offset="50%" stop-color="#312E81"/>
       <stop offset="100%" stop-color="#4C1D95"/>
     </linearGradient>
-    <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
   </defs>
 
+  <!-- Banner Capsule Body Shadow -->
+  <rect x="50" y="54" width="250" height="80" rx="40" fill="#000000" opacity="0.25"/>
+
   <!-- Banner Capsule Body -->
-  <rect x="50" y="50" width="250" height="80" rx="40" fill="url(#bubbleBanner)" stroke="#F59E0B" stroke-width="2.5" filter="url(#goldGlow)"/>
+  <rect x="50" y="50" width="250" height="80" rx="40" fill="url(#bubbleBanner)" stroke="#F59E0B" stroke-width="2.5"/>
 
   <!-- Left Golden Coin Emblem (Matches screenshot icon) -->
   <g transform="translate(60, 90)">
-    <circle cx="0" cy="0" r="32" fill="url(#goldCoin)" stroke="#FFF" stroke-width="2" filter="url(#goldGlow)"/>
+    <circle cx="0" cy="0" r="32" fill="url(#goldCoin)" stroke="#FFF" stroke-width="2"/>
     <circle cx="0" cy="0" r="25" fill="none" stroke="#78350F" stroke-width="1.5" stroke-dasharray="4,3"/>
     
     <!-- Mini Crown on Coin -->

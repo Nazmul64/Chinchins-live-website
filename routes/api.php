@@ -649,6 +649,7 @@ Route::prefix('bag')->group(function () {
     Route::get('/list', [\App\Http\Controllers\Api\BagApiController::class, 'index']);
     Route::get('/store', [\App\Http\Controllers\Api\BagApiController::class, 'storeCatalog']);
     Route::get('/catalog', [\App\Http\Controllers\Api\BagApiController::class, 'storeCatalog']);
+    Route::get('/search-user', [\App\Http\Controllers\Api\BagApiController::class, 'searchRecipient']);
     Route::post('/purchase', [\App\Http\Controllers\Api\BagApiController::class, 'purchase']);
     Route::post('/buy', [\App\Http\Controllers\Api\BagApiController::class, 'purchase']);
     Route::post('/use', [\App\Http\Controllers\Api\BagApiController::class, 'useItem']);
@@ -664,6 +665,7 @@ Route::prefix('my-bag')->group(function () {
     Route::get('/items', [\App\Http\Controllers\Api\BagApiController::class, 'index']);
     Route::get('/store', [\App\Http\Controllers\Api\BagApiController::class, 'storeCatalog']);
     Route::get('/catalog', [\App\Http\Controllers\Api\BagApiController::class, 'storeCatalog']);
+    Route::get('/search-user', [\App\Http\Controllers\Api\BagApiController::class, 'searchRecipient']);
     Route::post('/purchase', [\App\Http\Controllers\Api\BagApiController::class, 'purchase']);
     Route::post('/buy', [\App\Http\Controllers\Api\BagApiController::class, 'purchase']);
     Route::post('/use', [\App\Http\Controllers\Api\BagApiController::class, 'useItem']);

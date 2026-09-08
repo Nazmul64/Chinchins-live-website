@@ -118,55 +118,65 @@ class BagItem extends Model
 
     public function getIconFullUrlAttribute(): ?string
     {
-        $src = $this->icon_url ?: $this->image_url;
+        $src = $this->attributes['icon_url'] ?? $this->attributes['image_url'] ?? null;
         if (empty($src)) return null;
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) return $src;
-        return url(ltrim($src, '/'));
+        return CoinPackage::resolveAssetUrl($src);
     }
 
     public function getImageFullUrlAttribute(): ?string
     {
-        $src = $this->image_url ?: $this->icon_url;
+        $src = $this->attributes['image_url'] ?? $this->attributes['icon_url'] ?? null;
         if (empty($src)) return null;
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) return $src;
-        return url(ltrim($src, '/'));
+        return CoinPackage::resolveAssetUrl($src);
+    }
+
+    public function getIconUrlAttribute(): ?string
+    {
+        return $this->getIconFullUrlAttribute();
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->getImageFullUrlAttribute();
     }
 
     public function getPngUrlAttribute(): ?string
     {
-        $src = $this->image_url ?: $this->icon_url ?: $this->preview_url;
+        $src = $this->attributes['image_url'] ?? $this->attributes['icon_url'] ?? $this->attributes['preview_url'] ?? null;
         if (empty($src)) return null;
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
-            return preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
-        }
-        $pngPath = preg_replace('/\.svg$/i', '.png', ltrim($src, '/'));
-        return url($pngPath);
+        $pngPath = preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
+        return CoinPackage::resolveAssetUrl($pngPath);
     }
 
     public function getSvgUrlAttribute(): ?string
     {
-        $src = $this->image_url ?: $this->icon_url ?: $this->preview_url;
+        $src = $this->attributes['image_url'] ?? $this->attributes['icon_url'] ?? $this->attributes['preview_url'] ?? null;
         if (empty($src)) return null;
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
-            return $src;
-        }
-        return url(ltrim($src, '/'));
+        return CoinPackage::resolveAssetUrl($src);
     }
 
     public function getPreviewFullUrlAttribute(): ?string
     {
-        $src = $this->preview_url ?: $this->image_url ?: $this->icon_url;
+        $src = $this->attributes['preview_url'] ?? $this->attributes['image_url'] ?? $this->attributes['icon_url'] ?? null;
         if (empty($src)) return null;
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) return $src;
-        return url(ltrim($src, '/'));
+        return CoinPackage::resolveAssetUrl($src);
+    }
+
+    public function getPreviewUrlAttribute(): ?string
+    {
+        return $this->getPreviewFullUrlAttribute();
     }
 
     public function getAnimationFullUrlAttribute(): ?string
     {
-        $src = $this->animation_url ?: $this->preview_url ?: $this->image_url;
+        $src = $this->attributes['animation_url'] ?? $this->attributes['preview_url'] ?? $this->attributes['image_url'] ?? null;
         if (empty($src)) return null;
-        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) return $src;
-        return url(ltrim($src, '/'));
+        return CoinPackage::resolveAssetUrl($src);
+    }
+
+    public function getAnimationUrlAttribute(): ?string
+    {
+        return $this->getAnimationFullUrlAttribute();
     }
 
     public function getFormattedPriceAttribute(): string
