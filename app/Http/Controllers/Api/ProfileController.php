@@ -28,35 +28,46 @@ class ProfileController extends Controller
             ->where('is_locked', false);
 
         // Normalize country filter (BGD, BD, PK, PAK, IND, IN, etc.)
-        if ($request->filled('country')) {
-            $country = trim($request->country);
+        $countryParam = $request->input('country') ?? $request->input('country_code') ?? $request->input('region');
+        if (!empty($countryParam)) {
+            $country = trim($countryParam);
             $countryUpper = strtoupper($country);
             if (!in_array($countryUpper, ['ALL', 'GLOBAL', 'WORLD', 'ANY', ''])) {
                 $countryMap = [
-                    'BGD' => 'Bangladesh',
-                    'BD'  => 'Bangladesh',
-                    'PAK' => 'Pakistan',
-                    'PK'  => 'Pakistan',
-                    'IND' => 'India',
-                    'IN'  => 'India',
-                    'USA' => 'United States',
-                    'US'  => 'United States',
-                    'GBR' => 'United Kingdom',
-                    'UK'  => 'United Kingdom',
+                    'BGD'            => ['Bangladesh', 'BD', 'BGD'],
+                    'BD'             => ['Bangladesh', 'BD', 'BGD'],
+                    'BANGLADESH'     => ['Bangladesh', 'BD', 'BGD'],
+                    'PAK'            => ['Pakistan', 'PK', 'PAK'],
+                    'PK'             => ['Pakistan', 'PK', 'PAK'],
+                    'PAKISTAN'       => ['Pakistan', 'PK', 'PAK'],
+                    'IND'            => ['India', 'IN', 'IND'],
+                    'IN'             => ['India', 'IN', 'IND'],
+                    'INDIA'          => ['India', 'IN', 'IND'],
+                    'USA'            => ['United States', 'US', 'USA'],
+                    'US'             => ['United States', 'US', 'USA'],
+                    'UNITED STATES'  => ['United States', 'US', 'USA'],
+                    'GBR'            => ['United Kingdom', 'GB', 'UK', 'GBR'],
+                    'UK'             => ['United Kingdom', 'GB', 'UK', 'GBR'],
+                    'UNITED KINGDOM' => ['United Kingdom', 'GB', 'UK', 'GBR'],
+                    'PHL'            => ['Philippines', 'PH', 'PHL'],
+                    'PH'             => ['Philippines', 'PH', 'PHL'],
+                    'PHILIPPINES'    => ['Philippines', 'PH', 'PHL'],
                 ];
-                $matchedCountry = $countryMap[$countryUpper] ?? $country;
+                $variants = $countryMap[$countryUpper] ?? [$country, $countryUpper];
 
-                $hasCountryMatches = (clone $query)->where(function ($q) use ($matchedCountry, $country, $countryUpper) {
-                    $q->where('country', 'LIKE', "%{$matchedCountry}%")
-                      ->orWhere('country', 'LIKE', "%{$country}%")
-                      ->orWhere('country', 'LIKE', "%{$countryUpper}%");
+                $hasCountryMatches = (clone $query)->where(function ($q) use ($variants) {
+                    foreach ($variants as $v) {
+                        $q->orWhere('country', 'LIKE', "%{$v}%");
+                    }
                 })->exists();
 
                 if ($hasCountryMatches) {
-                    $query->where(function ($q) use ($matchedCountry, $country, $countryUpper) {
-                        $q->where('country', 'LIKE', "%{$matchedCountry}%")
-                          ->orWhere('country', 'LIKE', "%{$country}%")
-                          ->orWhere('country', 'LIKE', "%{$countryUpper}%");
+                    $query->where(function ($q) use ($variants) {
+                        $q->where(function ($sub) use ($variants) {
+                            foreach ($variants as $v) {
+                                $sub->orWhere('country', 'LIKE', "%{$v}%");
+                            }
+                        });
                     });
                 }
             }
