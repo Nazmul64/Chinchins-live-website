@@ -123,9 +123,15 @@ curl -X GET "https://chinchins.live/api/profile/229051289" \
     },
     "video_call_rate": 1800,
     "video_call_rate_text": "1800/min",
+    "i_like": 0,
+    "like_me": 0,
+    "my_gems": 45000,
+    "beans_central": 0,
     "likes": {
       "total_likes": 2740,
-      "formatted_likes": "2.74K"
+      "formatted_likes": "2.74K",
+      "i_like": 0,
+      "like_me": 0
     },
     "gifts_count": 16,
     "gifts_total_coins": 916710,

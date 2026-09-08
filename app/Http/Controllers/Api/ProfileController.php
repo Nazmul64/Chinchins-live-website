@@ -427,8 +427,11 @@ class ProfileController extends Controller
         // Charm Level dynamically calculated from configured admin level thresholds
         $charmLevel = \App\Models\CharmLevelSetting::calculateLevel($totalCoinsReceived);
         $totalLikes = (int) \App\Models\UserLike::where('user_id', $user->id)->sum('likes_count');
+        $iLikeCount = (int) \App\Models\UserLike::where('sender_id', $user->id)->count();
 
         $videoRate = (int) ($user->video_call_rate ?: 1800);
+        $gemsBalance = (int) $user->coins;
+        $beansBalance = (int) ($user->wallet?->beans ?? $user->wallet?->earnings ?? 0);
 
         return response()->json([
             'status' => true,
@@ -445,9 +448,19 @@ class ProfileController extends Controller
                 'top_fan'               => $topFan,
                 'video_call_rate'       => $videoRate,
                 'video_call_rate_text'  => $videoRate . '/min',
+                'i_like'                => $iLikeCount,
+                'i_like_count'          => $iLikeCount,
+                'like_me'               => $totalLikes,
+                'like_me_count'         => $totalLikes,
+                'my_gems'               => $gemsBalance,
+                'gems'                  => $gemsBalance,
+                'beans'                 => $beansBalance,
+                'beans_central'         => $beansBalance,
                 'likes'                 => [
                     'total_likes'     => $totalLikes,
                     'formatted_likes' => Gift::formatCoins($totalLikes),
+                    'i_like'          => $iLikeCount,
+                    'like_me'         => $totalLikes,
                 ],
                 'close_friends'         => [
                     'current' => 0,
