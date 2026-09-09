@@ -59,6 +59,11 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy')->middleware('permission:users.delete');
     Route::post('/users/{id}/delete', [UserController::class, 'destroy'])->name('users.delete')->middleware('permission:users.delete');
 
+    // 🎧 24/7 Live Support for App Users
+    Route::get('/support', [\App\Http\Controllers\Admin\UserSupportAdminController::class, 'index'])->name('support.index');
+    Route::get('/support/user/{userId}', [\App\Http\Controllers\Admin\UserSupportAdminController::class, 'showUserChat'])->name('support.user');
+    Route::post('/support/user/{userId}/reply', [\App\Http\Controllers\Admin\UserSupportAdminController::class, 'reply'])->name('support.reply');
+
     // Payment Methods Management
     Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index')->middleware('permission:payment_methods.view');
     Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store')->middleware('permission:payment_methods.create');

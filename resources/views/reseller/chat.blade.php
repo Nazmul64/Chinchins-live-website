@@ -191,14 +191,9 @@
                         <small class="text-muted">Stock: {{ number_format($reseller->coins_balance) }} gems</small>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-0">
                         <label class="form-label fw-bold" style="font-size: 13px;">Amount Paid (BDT)</label>
                         <input type="number" step="0.01" name="amount_bdt" class="form-control" placeholder="150.00">
-                    </div>
-
-                    <div class="mb-0">
-                        <label class="form-label fw-bold" style="font-size: 13px;">Payment TrxID</label>
-                        <input type="text" name="transaction_id" class="form-control font-monospace" placeholder="e.g. 9H8A7B6C">
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">

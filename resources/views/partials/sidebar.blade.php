@@ -32,6 +32,7 @@
         try { $pendingReportsCount = \App\Models\UserReport::where('status', 'pending')->count(); } catch (\Throwable $e) {}
         try { $pendingResellerDepCount = \App\Models\ResellerDeposit::where('status', 'pending')->count(); } catch (\Throwable $e) {}
         try { $pendingResellerWithCount = \App\Models\ResellerWithdrawal::where('status', 'pending')->count(); } catch (\Throwable $e) {}
+        try { $unreadUserSupportCount = \App\Models\UserAdminSupportMessage::where('sender_type', 'user')->where('is_read_by_admin', false)->count(); } catch (\Throwable $e) {}
     @endphp
 
     <div class="sidebar-menu">
@@ -55,6 +56,17 @@
             </div>
         </a>
         @endhasPermission
+
+        <!-- Live Chat Users & 24/7 Support -->
+        <a href="{{ route('admin.support.index') }}" class="menu-item {{ request()->routeIs('admin.support.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-headset" style="color: #ec4899;"></i>
+                <span>Live Chat Users</span>
+            </div>
+            @if(isset($unreadUserSupportCount) && $unreadUserSupportCount > 0)
+                <span class="badge bg-danger rounded-pill px-2" style="font-size: 11px;">{{ $unreadUserSupportCount }}</span>
+            @endif
+        </a>
 
         <!-- Payment Methods -->
         @hasPermission('payment_methods.view')

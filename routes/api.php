@@ -64,6 +64,12 @@ Route::post('/user/delete-account', [AuthController::class, 'deleteAccount']);
 Route::delete('/user/account', [AuthController::class, 'deleteAccount']);
 Route::post('/user/account/delete', [AuthController::class, 'deleteAccount']);
 
+// 🎧 24/7 User Live Support & Customer Service (FREE)
+Route::get('/support/messages', [\App\Http\Controllers\Api\UserSupportApiController::class, 'getMessages']);
+Route::post('/support/send', [\App\Http\Controllers\Api\UserSupportApiController::class, 'sendMessage']);
+Route::post('/support/upload', [\App\Http\Controllers\Api\UserSupportApiController::class, 'uploadMedia']);
+Route::get('/support/unread-count', [\App\Http\Controllers\Api\UserSupportApiController::class, 'getUnreadCount']);
+
 // 🔐 Forgot Password, Email/Phone OTP & Password Reset Flow
 Route::post('/forgot-password', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'sendResetCode']);
 Route::post('/password/forgot', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'sendResetCode']);
