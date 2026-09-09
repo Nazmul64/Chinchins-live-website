@@ -56,6 +56,8 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::match(['get', 'post'], '/users/{id}/toggle-free-host', [UserController::class, 'toggleFreeCaller'])->name('users.toggle-free-host')->middleware('permission:users.free_caller');
     Route::match(['get', 'post'], '/users/{id}/free-caller', [UserController::class, 'toggleFreeCaller'])->middleware('permission:users.free_caller');
     Route::match(['get', 'post'], '/users/{id}/free-host', [UserController::class, 'toggleFreeCaller'])->middleware('permission:users.free_caller');
+    Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy')->middleware('permission:users.delete');
+    Route::post('/users/{id}/delete', [UserController::class, 'destroy'])->name('users.delete')->middleware('permission:users.delete');
 
     // Payment Methods Management
     Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index')->middleware('permission:payment_methods.view');

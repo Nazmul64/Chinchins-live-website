@@ -15,6 +15,12 @@
             <button type="button" class="btn-ch-gold" onclick="openAdjustCoinModal('{{ $user->id }}', '{{ addslashes($user->display_name) }}', '{{ $user->coins }}', '{{ $user->avatar_url }}')">
                 <i class="fa-solid fa-coins"></i> Adjust Coins Balance
             </button>
+            <form action="{{ route('admin.users.delete', $user->id) }}" method="POST" class="d-inline" onsubmit="return confirm('⚠️ Are you sure you want to delete user \'{{ addslashes($user->display_name) }}\' (ID: {{ $user->account_id ?: $user->id }})?\n\nThis user will be logged out of all devices and blocked from logging in.');">
+                @csrf
+                <button type="submit" class="btn btn-outline-danger d-inline-flex align-items-center gap-1" style="border-radius: 10px; font-weight: 600; font-size: 13px; padding: 8px 16px;">
+                    <i class="fa-solid fa-trash-can me-1"></i> Delete Account
+                </button>
+            </form>
         </div>
     </div>
 

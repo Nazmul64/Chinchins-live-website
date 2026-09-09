@@ -302,6 +302,17 @@
                                     <a href="{{ route('admin.users.show', $user->id) }}" class="btn-ch-icon" title="View Full Profile & History">
                                         <i class="fa-solid fa-eye text-primary"></i>
                                     </a>
+
+                                    <!-- Delete User Account -->
+                                    <form action="{{ route('admin.users.delete', $user->id) }}" method="POST" class="d-inline" onsubmit="return confirm('⚠️ Are you sure you want to delete user \'{{ addslashes($user->display_name) }}\' (ID: {{ $user->account_id ?: $user->id }})?\n\nThis user will be logged out of all devices and blocked from logging in.');">
+                                        @csrf
+                                        <button type="submit" 
+                                                class="btn btn-sm btn-outline-danger" 
+                                                style="border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600;" 
+                                                title="Delete User Account">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

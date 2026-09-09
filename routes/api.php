@@ -59,6 +59,10 @@ Route::post('/notifications/test-push', [\App\Http\Controllers\Api\AppUpdateApiC
 // Public Authentication & Registration Routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout']);
+Route::post('/user/delete-account', [AuthController::class, 'deleteAccount']);
+Route::delete('/user/account', [AuthController::class, 'deleteAccount']);
+Route::post('/user/account/delete', [AuthController::class, 'deleteAccount']);
 
 // 🔐 Forgot Password, Email/Phone OTP & Password Reset Flow
 Route::post('/forgot-password', [\App\Http\Controllers\Api\PasswordResetApiController::class, 'sendResetCode']);

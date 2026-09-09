@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -13,7 +14,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -29,6 +30,9 @@ class User extends Authenticatable
         'phone',
         'email',
         'password',
+        'deleted_at',
+        'deleted_reason',
+        'deleted_by',
         'avatar',
         'cover_photo',
         'gallery_images',

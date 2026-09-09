@@ -177,13 +177,40 @@ class AuthController extends Controller
         if (!$user && !filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
             $cleanPhone = preg_replace('/[^0-9]/', '', $identifier);
             if (strlen($cleanPhone) >= 9) {
-                $user = User::where('phone', 'LIKE', '%' . substr($cleanPhone, -10))
-                    ->orWhere('account_id', $cleanPhone)
-                    ->first();
+        if (!$user) {
+            // Check if account was deleted
+            $trashedUser = User::onlyTrashed()->where(function ($q) use ($identifier) {
+                $q->where('email', $identifier)
+                  ->orWhere('phone', $identifier)
+                  ->orWhere('email', 'LIKE', "%{$identifier}%")
+                  ->orWhere('phone', 'LIKE', "%{$identifier}%")
+                  ->orWhere('account_id', $identifier);
+            })->first();
+
+            if ($trashedUser) {
+                return response()->json([
+                    'status' => false,
+                    'is_deleted' => true,
+                    'message' => 'Your account has been deleted by administration. Please register a new account to continue.',
+                    'action' => 'register_new'
+                ], 403);
             }
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Invalid email/phone/account ID or password',
+            ], 401);
         }
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if ($user->is_locked) {
+            return response()->json([
+                'status' => false,
+                'is_locked' => true,
+                'message' => 'Your account has been blocked: ' . ($user->locked_reason ?: 'Please contact administration.'),
+            ], 403);
+        }
+
+        if (!Hash::check($password, $user->password)) {
             return response()->json([
                 'status'  => false,
                 'message' => 'Invalid email/phone/account ID or password',
@@ -205,6 +232,62 @@ class AuthController extends Controller
                 'token_type' => 'Bearer',
             ],
         ], 200);
+    }
+
+    /**
+     * Delete user account from Mobile App.
+     * POST /api/user/delete-account
+     */
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated user. Please log in first.',
+            ], 401);
+        }
+
+        $reason = $request->input('reason', 'User requested self deletion from Mobile App');
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // Revoke active tokens
+            $user->tokens()->delete();
+
+            $user->is_active = false;
+            $user->is_locked = true;
+            $user->locked_reason = 'Account deleted';
+            $user->deleted_reason = $reason;
+            $user->deleted_by = 'user';
+
+            // Free up phone / email so user can register fresh account later
+            $timestamp = time();
+            if ($user->phone && !str_starts_with($user->phone, 'deleted_')) {
+                $user->phone = "deleted_{$timestamp}_" . $user->phone;
+            }
+            if ($user->email && !str_starts_with($user->email, 'deleted_')) {
+                $user->email = "deleted_{$timestamp}_" . $user->email;
+            }
+            $user->save();
+
+            // Soft delete user record
+            $user->delete();
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'is_deleted' => true,
+                'message' => 'Your account has been deleted successfully. You may register a new account anytime.',
+            ], 200);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to delete account: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

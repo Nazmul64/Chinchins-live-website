@@ -210,4 +210,61 @@ class UserController extends Controller
 
         return back()->with('success', "User {$user->display_name} has been {$freeStr}.");
     }
+
+    /**
+     * Delete user permanently or soft-delete with audit reason.
+     */
+    public function destroy(Request $request, $id)
+    {
+        $user = User::withTrashed()->findOrFail($id);
+        $displayName = $user->display_name;
+        $reason = $request->input('reason', 'Deleted by Administrator');
+
+        DB::beginTransaction();
+        try {
+            // 1. Revoke all active API tokens
+            $user->tokens()->delete();
+
+            // 2. Mark user inactive & locked
+            $user->is_active = false;
+            $user->is_locked = true;
+            $user->locked_reason = 'Account has been deleted by Administrator';
+            $user->deleted_reason = $reason;
+            $user->deleted_by = auth()->user() ? (auth()->user()->name ?: 'Admin') : 'admin';
+
+            // 3. Free up phone / email so a new account can register if needed later
+            $timestamp = time();
+            if ($user->phone && !str_starts_with($user->phone, 'deleted_')) {
+                $user->phone = "deleted_{$timestamp}_" . $user->phone;
+            }
+            if ($user->email && !str_starts_with($user->email, 'deleted_')) {
+                $user->email = "deleted_{$timestamp}_" . $user->email;
+            }
+            $user->save();
+
+            // 4. Soft delete
+            $user->delete();
+
+            DB::commit();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => true,
+                    'message' => "User {$displayName} has been successfully deleted.",
+                ]);
+            }
+
+            return redirect()->route('admin.users.index')
+                ->with('success', "User '{$displayName}' has been successfully deleted and logged out of all devices.");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Failed to delete user: ' . $e->getMessage(),
+                ], 500);
+            }
+            return back()->with('error', 'Failed to delete user: ' . $e->getMessage());
+        }
+    }
 }
