@@ -1369,11 +1369,12 @@ class PartyRoomApiController extends Controller
             ], 402);
         }
 
-        // Split Calculation (50% Host, 50% Admin)
-        $hostPercentage = (float) ($room->host_commission_percentage ?: 50.00) / 100.0;
-        $adminPercentage = (float) ($room->admin_commission_percentage ?: 50.00) / 100.0;
+        // Dynamic Split Calculation from Admin Panel Settings
+        $globalSettings = PartyRoomSetting::getSettings();
+        $hostPct = (float) ($globalSettings->host_commission_percentage ?? $room->host_commission_percentage ?? 50.00);
+        $adminPct = (float) ($globalSettings->admin_commission_percentage ?? $room->admin_commission_percentage ?? (100.00 - $hostPct));
 
-        $hostCoins = (int) round($totalCost * $hostPercentage);
+        $hostCoins = (int) round($totalCost * ($hostPct / 100.0));
         $adminCoins = (int) ($totalCost - $hostCoins);
 
         return DB::transaction(function () use ($user, $room, $seat, $totalCost, $hostCoins, $adminCoins) {
