@@ -141,10 +141,108 @@ class PaymentController extends Controller
                 ];
             });
 
+        $resellerBadge = class_exists('\App\Models\ResellerSetting') ? \App\Models\ResellerSetting::get('reseller_offer_badge', 'Up To 29%↑') : 'Up To 29%↑';
+        $activeResellersCount = class_exists('\App\Models\Reseller') ? \App\Models\Reseller::where('is_active', true)->count() : 0;
+
         return response()->json([
             'status' => true,
             'message' => 'Payment methods retrieved successfully.',
+            'reseller_enabled' => true,
+            'reseller_badge' => $resellerBadge,
+            'active_resellers_count' => $activeResellersCount,
             'data' => $methods,
+        ], 200);
+    }
+
+    /**
+     * Get Payment Options Screen Data (Matching Figma/Mobile App design)
+     * GET /api/payment-options
+     */
+    public function getPaymentOptions(Request $request): JsonResponse
+    {
+        $packageId = $request->input('package_id');
+        $amount = (float) ($request->input('amount') ?: $request->input('price') ?: 150.00);
+        $coins = (int) ($request->input('coins') ?: $request->input('gems') ?: 7560);
+
+        if ($packageId) {
+            $pkg = CoinPackage::find($packageId);
+            if ($pkg) {
+                $amount = (float) $pkg->price;
+                $coins = (int) $pkg->coins + (int) ($pkg->bonus_coins ?: 0);
+            }
+        }
+
+        $formattedAmount = 'BDT ' . number_format($amount, 2);
+
+        $paymentMethods = PaymentMethod::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        $options = [];
+
+        foreach ($paymentMethods as $pm) {
+            $options[] = [
+                'id' => $pm->id,
+                'key' => strtolower($pm->code ?: $pm->name),
+                'name' => $pm->name,
+                'type' => 'gateway',
+                'account_type' => $pm->account_type,
+                'account_number' => $pm->account_number,
+                'icon' => $pm->icon_url ?: $pm->icon,
+                'badge' => null,
+                'instructions' => $pm->instructions,
+            ];
+        }
+
+        // Add Google Play option
+        $options[] = [
+            'id' => 'google_play',
+            'key' => 'google_play',
+            'name' => 'Google Play',
+            'type' => 'in_app_purchase',
+            'account_type' => 'Official In-App Store',
+            'account_number' => null,
+            'icon' => 'https://upload.wikimedia.org/wikipedia/commons/7/7a/Google_Play_2022_logo.svg',
+            'badge' => null,
+            'instructions' => 'Instant Google Play in-app purchase.',
+        ];
+
+        // Add Reseller option with badge (matching design screenshot)
+        $resellerBadge = class_exists('\App\Models\ResellerSetting') ? \App\Models\ResellerSetting::get('reseller_offer_badge', 'Up To 29%↑') : 'Up To 29%↑';
+        $activeResellers = class_exists('\App\Models\Reseller') ? \App\Models\Reseller::where('is_active', true)->count() : 0;
+
+        $options[] = [
+            'id' => 'reseller',
+            'key' => 'reseller',
+            'name' => 'Reseller',
+            'type' => 'reseller',
+            'account_type' => 'Direct Agent Chat',
+            'account_number' => null,
+            'icon' => 'https://ui-avatars.com/api/?name=Reseller&background=1e1b4b&color=fbbf24&bold=true',
+            'badge' => $resellerBadge,
+            'badge_color' => '#ef4444',
+            'active_count' => $activeResellers,
+            'instructions' => 'Recharge via authorized live resellers with exclusive discounts.',
+        ];
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Payment options retrieved successfully.',
+            'package_id' => $packageId,
+            'amount' => $amount,
+            'coins' => $coins,
+            'formatted_amount' => $formattedAmount,
+            'header_title' => 'Payment options',
+            'options_title' => 'Options for you',
+            'button_text' => 'Continue',
+            'default_selected' => 'reseller',
+            'options' => $options,
+            'data' => [
+                'formatted_amount' => $formattedAmount,
+                'amount' => $amount,
+                'coins' => $coins,
+                'options' => $options,
+            ]
         ], 200);
     }
 

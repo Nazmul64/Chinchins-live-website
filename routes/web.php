@@ -64,6 +64,40 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::delete('/payment-methods/{id}', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy')->middleware('permission:payment_methods.delete');
     Route::post('/payment-methods/{id}/toggle-status', [PaymentMethodController::class, 'toggleStatus'])->name('payment-methods.toggle-status')->middleware('permission:payment_methods.toggle_status');
 
+    // Resellers Management
+    Route::prefix('resellers')->name('resellers.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'store'])->name('store');
+        Route::put('/{id}', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'update'])->name('update');
+        Route::delete('/{id}', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/toggle-status', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{id}/toggle-online', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'toggleOnline'])->name('toggle-online');
+        Route::post('/{id}/adjust-coins', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'adjustCoins'])->name('adjust-coins');
+
+        // Admin <-> Reseller Live Support Chat
+        Route::get('/chat/{resellerId?}', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'chat'])->name('chat');
+        Route::get('/chat/reseller/{resellerId}', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'chat'])->name('chat.selected');
+        Route::post('/chat/send', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'sendAdminMessage'])->name('chat.send');
+
+        // Reseller Transfers Ledger
+        Route::get('/transfers', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'transfers'])->name('transfers');
+
+        // Reseller Deposits (Refill Requests)
+        Route::get('/deposits', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'deposits'])->name('deposits');
+        Route::post('/deposits/{id}/approve', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'approveDeposit'])->name('deposits.approve');
+        Route::post('/deposits/{id}/reject', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'rejectDeposit'])->name('deposits.reject');
+
+        // Reseller Withdrawals
+        Route::get('/withdrawals', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'withdrawals'])->name('withdrawals');
+        Route::post('/withdrawals/{id}/approve', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'approveWithdrawal'])->name('withdrawals.approve');
+        Route::post('/withdrawals/{id}/reject', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'rejectWithdrawal'])->name('withdrawals.reject');
+
+        // Reseller Settings
+        Route::get('/settings', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'settings'])->name('settings');
+        Route::post('/settings', [\App\Http\Controllers\Admin\ResellerAdminController::class, 'updateSettings'])->name('settings.update');
+    });
+
     // Coin Packages Management
     Route::get('/coin-packages', [CoinPackageController::class, 'index'])->name('coin-packages.index')->middleware('permission:coin_packages.view');
     Route::post('/coin-packages', [CoinPackageController::class, 'store'])->name('coin-packages.store')->middleware('permission:coin_packages.create');
@@ -264,6 +298,35 @@ Route::post('/api/call/initiate', [\App\Http\Controllers\Api\CallController::cla
 Route::post('/api/call/start', [\App\Http\Controllers\Api\CallController::class, 'start']);
 Route::post('/api/call/connect', [\App\Http\Controllers\Api\CallController::class, 'start']);
 Route::post('/api/call/deduct-interval', [\App\Http\Controllers\Api\CallController::class, 'deductInterval']);
-Route::post('/api/call/pulse', [\App\Http\Controllers\Api\CallController::class, 'deductInterval']);
 Route::post('/api/call/end', [\App\Http\Controllers\Api\CallController::class, 'end']);
 Route::get('/api/call/history', [\App\Http\Controllers\Api\CallController::class, 'history']);
+
+// ==========================================
+// 🏪 Reseller Web Portal Routes
+// ==========================================
+Route::prefix('reseller')->name('reseller.')->group(function () {
+    Route::get('/login', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'login'])->name('login.submit');
+    Route::post('/logout', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'logout'])->name('logout');
+
+    // Authenticated Reseller Portal
+    Route::get('/dashboard', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'dashboard'])->name('dashboard');
+    Route::get('/validate-user', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'validateUser'])->name('validate-user');
+    Route::post('/transfer', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'transferCoins'])->name('transfer');
+    Route::post('/deposit/submit', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'submitDeposit'])->name('deposit.submit');
+    Route::post('/withdrawal/submit', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'submitWithdrawal'])->name('withdrawal.submit');
+
+    // Live Chat Interface (Customer Chats)
+    Route::get('/chat/{userId?}', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'chat'])->name('chat');
+    Route::get('/chat/user/{userId}', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'chat'])->name('chat.user');
+    Route::post('/chat/send', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'sendMessage'])->name('chat.send');
+
+    // Admin Live Support Chat (Reseller <-> Admin)
+    Route::get('/admin-support', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'adminChat'])->name('admin-chat');
+    Route::post('/admin-support/send', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'sendAdminChatMessage'])->name('admin-chat.send');
+
+    // Reseller Ledger & Lists
+    Route::get('/transfers', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'transfers'])->name('transfers');
+    Route::get('/deposits', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'deposits'])->name('deposits');
+    Route::get('/withdrawals', [\App\Http\Controllers\Reseller\ResellerPortalController::class, 'withdrawals'])->name('withdrawals');
+});

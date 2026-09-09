@@ -191,6 +191,25 @@ Route::match(['post', 'delete'], '/clear-gallery', [ProfileController::class, 'c
 // Payment methods list (bKash, Nagad, etc.) & Coin Packages
 Route::get('/payment-methods', [PaymentController::class, 'getPaymentMethods']);
 Route::get('/deposit/methods', [PaymentController::class, 'getPaymentMethods']);
+Route::get('/payment-options', [PaymentController::class, 'getPaymentOptions']);
+Route::match(['get', 'post'], '/deposit/options', [PaymentController::class, 'getPaymentOptions']);
+
+// ==========================================
+// 🏪 Resellers & Reseller Chat APIs
+// ==========================================
+Route::get('/resellers', [\App\Http\Controllers\Api\ResellerApiController::class, 'getResellers']);
+Route::get('/resellers/{id}', [\App\Http\Controllers\Api\ResellerApiController::class, 'showReseller'])->whereNumber('id');
+Route::get('/resellers/{id}/messages', [\App\Http\Controllers\Api\ResellerApiController::class, 'getChatMessages'])->whereNumber('id');
+Route::post('/resellers/{id}/messages', [\App\Http\Controllers\Api\ResellerApiController::class, 'sendUserMessage'])->whereNumber('id');
+Route::match(['get', 'post'], '/reseller/chat/{resellerId}', [\App\Http\Controllers\Api\ResellerApiController::class, 'getChatMessages'])->whereNumber('resellerId');
+Route::post('/reseller/chat/send', [\App\Http\Controllers\Api\ResellerApiController::class, 'sendUserMessage']);
+Route::post('/reseller/chat/upload', [\App\Http\Controllers\Api\ResellerApiController::class, 'uploadMedia']);
+Route::post('/reseller/chat/gift', [\App\Http\Controllers\Api\ResellerApiController::class, 'sendGiftToReseller']);
+
+// Reseller Mobile App / Web REST API Endpoints
+Route::post('/reseller/login', [\App\Http\Controllers\Api\ResellerApiController::class, 'resellerLogin']);
+Route::post('/reseller/validate-user', [\App\Http\Controllers\Api\ResellerApiController::class, 'apiValidateUser']);
+Route::post('/reseller/transfer-coins', [\App\Http\Controllers\Api\ResellerApiController::class, 'apiTransferCoins']);
 
 // Coin Packages RESTful CRUD APIs & Recharge Modal
 Route::get('/coin-packages', [PaymentController::class, 'getCoinPackages']);

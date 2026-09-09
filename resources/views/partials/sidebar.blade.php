@@ -18,6 +18,8 @@
         $pendingWithCount = 0;
         $pendingKycCount = 0;
         $pendingReportsCount = 0;
+        $pendingResellerDepCount = 0;
+        $pendingResellerWithCount = 0;
 
         try { $activeGiftsTotal = \App\Models\Gift::where('is_active', true)->count(); } catch (\Throwable $e) {}
         try { $activeBagItemsCount = \App\Models\BagItem::where('is_active', true)->count(); } catch (\Throwable $e) {}
@@ -28,6 +30,8 @@
         try { $pendingWithCount = \App\Models\WithdrawRequest::where('status', 'pending')->count(); } catch (\Throwable $e) {}
         try { $pendingKycCount = \App\Models\KycVerification::where('status', 'pending')->count(); } catch (\Throwable $e) {}
         try { $pendingReportsCount = \App\Models\UserReport::where('status', 'pending')->count(); } catch (\Throwable $e) {}
+        try { $pendingResellerDepCount = \App\Models\ResellerDeposit::where('status', 'pending')->count(); } catch (\Throwable $e) {}
+        try { $pendingResellerWithCount = \App\Models\ResellerWithdrawal::where('status', 'pending')->count(); } catch (\Throwable $e) {}
     @endphp
 
     <div class="sidebar-menu">
@@ -61,6 +65,58 @@
             </div>
         </a>
         @endhasPermission
+
+        <!-- Resellers Management (New) -->
+        <div class="menu-item-group {{ request()->routeIs('admin.resellers.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.resellers.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-store" style="color: #f59e0b;"></i>
+                    <span>Resellers</span>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    @if(($pendingResellerDepCount + $pendingResellerWithCount) > 0)
+                        <span class="badge bg-danger rounded-pill" style="font-size: 10px; padding: 2px 6px;">{{ $pendingResellerDepCount + $pendingResellerWithCount }}</span>
+                    @endif
+                    <i class="fa-solid fa-chevron-right menu-arrow"></i>
+                </div>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.resellers.*') ? 'display: block;' : '' }}">
+                <a href="{{ route('admin.resellers.index') }}" class="submenu-item {{ request()->routeIs('admin.resellers.index') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>All Resellers</span>
+                </a>
+                <a href="{{ route('admin.resellers.create') }}" class="submenu-item {{ request()->routeIs('admin.resellers.create') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>+ Add New Reseller</span>
+                </a>
+                <a href="{{ route('admin.resellers.chat') }}" class="submenu-item {{ request()->routeIs('admin.resellers.chat*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Reseller Live Chat</span>
+                </a>
+                <a href="{{ route('admin.resellers.transfers') }}" class="submenu-item {{ request()->routeIs('admin.resellers.transfers') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Transfer Ledger</span>
+                </a>
+                <a href="{{ route('admin.resellers.deposits') }}" class="submenu-item {{ request()->routeIs('admin.resellers.deposits*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Coin Refills</span>
+                    @if($pendingResellerDepCount > 0)
+                        <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">{{ $pendingResellerDepCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('admin.resellers.withdrawals') }}" class="submenu-item {{ request()->routeIs('admin.resellers.withdrawals*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Withdrawals</span>
+                    @if($pendingResellerWithCount > 0)
+                        <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">{{ $pendingResellerWithCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('admin.resellers.settings') }}" class="submenu-item {{ request()->routeIs('admin.resellers.settings*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Reseller Settings</span>
+                </a>
+            </div>
+        </div>
 
         <!-- Coin Packages / Gems Store -->
         @hasPermission('coin_packages.view')
