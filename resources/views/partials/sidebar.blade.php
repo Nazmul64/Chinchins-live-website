@@ -343,6 +343,36 @@
         </div>
         @endhasPermission
 
+        <!-- Party Rooms (Voice & Video Multi-Guest Stage) -->
+        <div class="menu-item-group {{ request()->routeIs('admin.party-rooms.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.party-rooms.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-microphone-lines" style="color: #6366f1;"></i>
+                    <span>Party Rooms</span>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    @php
+                        $activePartyRoomsCount = 0;
+                        try { $activePartyRoomsCount = \App\Models\PartyRoom::where('status', 'active')->count(); } catch (\Throwable $e) {}
+                    @endphp
+                    @if($activePartyRoomsCount > 0)
+                        <span class="badge bg-success rounded-pill" style="font-size: 10px; padding: 2px 6px;">{{ $activePartyRoomsCount }} Live</span>
+                    @endif
+                    <i class="fa-solid fa-chevron-right menu-arrow"></i>
+                </div>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.party-rooms.*') ? 'display: block;' : '' }}">
+                <a href="{{ route('admin.party-rooms.index') }}" class="submenu-item {{ request()->routeIs('admin.party-rooms.index') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>All Party Rooms</span>
+                </a>
+                <a href="{{ route('admin.party-rooms.settings') }}" class="submenu-item {{ request()->routeIs('admin.party-rooms.settings') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Room & 50/50 Split Settings</span>
+                </a>
+            </div>
+        </div>
+
         <!-- Coin Transactions -->
         @hasPermission('transactions.view')
         <a href="{{ route('admin.transactions.index') }}" class="menu-item {{ request()->routeIs('admin.transactions.*') ? 'active' : '' }}" style="margin-bottom: 4px;">

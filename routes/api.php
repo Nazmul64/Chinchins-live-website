@@ -723,6 +723,69 @@ Route::prefix('my-bag')->group(function () {
     Route::post('/send-gift', [\App\Http\Controllers\Api\BagApiController::class, 'sendGift']);
 });
 
+// ==========================================
+// 🎙️ Party Rooms & Multi-Guest Live Stages (Voice & Video)
+// ==========================================
+Route::prefix('party-rooms')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'index']);
+    Route::get('/config', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getConfig']);
+    Route::post('/create', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'create']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'show']);
+    Route::post('/{id}/join', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'join']);
+    Route::post('/{id}/leave', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leave']);
+    Route::post('/{id}/end', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'endRoom']);
+    
+    // Multi-Guest Invites & Liked Friends Search
+    Route::get('/{id}/search-invitees', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'searchInvitees']);
+    Route::get('/{id}/invitees', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'searchInvitees']);
+    Route::post('/{id}/invite-guest', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'inviteGuest']);
+    Route::post('/{id}/invite', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'inviteGuest']);
+    Route::post('/{id}/respond-invite', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondInvite']);
+    
+    // Seats Management (10 Seats Grid)
+    Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
+    Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
+    Route::post('/{id}/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
+    Route::post('/{id}/kick-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'kickSeat']);
+    Route::post('/{id}/toggle-mic', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleMic']);
+    Route::post('/{id}/toggle-video', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleVideo']);
+    
+    // In-Room Chat, Photo Uploads (uploads/host_image) & Gifting
+    Route::get('/{id}/messages', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getMessages']);
+    Route::post('/{id}/messages/send', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'sendMessage']);
+    Route::post('/{id}/send-message', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'sendMessage']);
+    Route::post('/{id}/send-gift', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'sendGift']);
+    Route::post('/{id}/gift', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'sendGift']);
+    
+    // 50/50 Revenue Split Billing Engine
+    Route::post('/{id}/deduct-interval', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'deductInterval']);
+    Route::post('/{id}/billing-heartbeat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'deductInterval']);
+});
+
+// Direct Aliases for /party-room
+Route::prefix('party-room')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'index']);
+    Route::get('/list', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'index']);
+    Route::get('/config', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getConfig']);
+    Route::post('/create', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'create']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'show']);
+    Route::post('/{id}/join', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'join']);
+    Route::post('/{id}/leave', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leave']);
+    Route::post('/{id}/end', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'endRoom']);
+    Route::get('/{id}/search-invitees', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'searchInvitees']);
+    Route::post('/{id}/invite-guest', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'inviteGuest']);
+    Route::post('/{id}/respond-invite', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondInvite']);
+    Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
+    Route::post('/{id}/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
+    Route::post('/{id}/kick-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'kickSeat']);
+    Route::post('/{id}/toggle-mic', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleMic']);
+    Route::post('/{id}/toggle-video', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleVideo']);
+    Route::get('/{id}/messages', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getMessages']);
+    Route::post('/{id}/messages/send', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'sendMessage']);
+    Route::post('/{id}/send-gift', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'sendGift']);
+    Route::post('/{id}/deduct-interval', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'deductInterval']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);

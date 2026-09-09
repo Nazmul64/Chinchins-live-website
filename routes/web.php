@@ -223,6 +223,13 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::get('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'index'])->name('settings.streaming.index')->middleware('permission:streaming.view');
     Route::post('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'update'])->name('settings.streaming.update')->middleware('permission:streaming.update');
 
+    // Party Rooms & Multi-Guest Live Stages Management
+    Route::get('/party-rooms', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'index'])->name('party-rooms.index');
+    Route::get('/party-rooms/settings', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'settings'])->name('party-rooms.settings');
+    Route::post('/party-rooms/settings', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'updateSettings'])->name('party-rooms.settings.update');
+    Route::get('/party-rooms/{id}', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'show'])->name('party-rooms.show');
+    Route::post('/party-rooms/{id}/force-close', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'forceClose'])->name('party-rooms.force-close');
+
     // Coin Transaction Ledger
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index')->middleware('permission:transactions.view');
 });

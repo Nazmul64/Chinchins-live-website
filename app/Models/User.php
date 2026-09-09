@@ -1064,8 +1064,36 @@ class User extends Authenticatable
 
         return false;
     }
+
+    /**
+     * Hosted Party Rooms.
+     */
+    public function hostedPartyRooms()
+    {
+        return $this->hasMany(PartyRoom::class, 'host_id');
+    }
+
+    /**
+     * Party Room Seats occupied.
+     */
+    public function partyRoomSeats()
+    {
+        return $this->hasMany(PartyRoomSeat::class, 'user_id');
+    }
+
+    /**
+     * Likes given by this user.
+     */
+    public function likesGiven()
+    {
+        return $this->hasMany(UserLike::class, 'sender_id');
+    }
+
+    /**
+     * Likes received by this user.
+     */
+    public function likesReceived()
+    {
+        return $this->hasMany(UserLike::class, 'user_id');
+    }
 }
-
-
-
-
