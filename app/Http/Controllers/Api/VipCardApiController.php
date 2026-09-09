@@ -135,7 +135,9 @@ class VipCardApiController extends Controller
     public function index(Request $request): JsonResponse
     {
         // Seed default 4 cards if empty
-        VipPrivilegeCard::seedDefaultCards();
+        if (!VipPrivilegeCard::exists()) {
+            VipPrivilegeCard::seedDefaultCards();
+        }
 
         $user = $this->resolveUser($request);
 

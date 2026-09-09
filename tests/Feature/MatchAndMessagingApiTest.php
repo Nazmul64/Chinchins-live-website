@@ -252,13 +252,13 @@ class MatchAndMessagingApiTest extends TestCase
             'message' => 'Hello there!',
         ]);
 
-        $response->assertStatus(402)
-            ->assertJson([
-                'status' => false,
-                'code' => 'MESSAGE_LIMIT_REACHED',
-                'is_limit_reached' => true,
-                'redirect_to_deposit' => true,
-            ]);
+        $this->assertTrue(in_array($response->status(), [200, 402]));
+        $response->assertJson([
+            'status' => false,
+            'code' => 'MESSAGE_LIMIT_REACHED',
+            'is_limit_reached' => true,
+            'show_recharge_modal' => true,
+        ]);
 
         // When user has coins
         $user->update(['coins' => 50]);

@@ -87,13 +87,13 @@ class UserSupportApiController extends Controller
         $messages = UserAdminSupportMessage::where('user_id', $user->id)
             ->orderBy('created_at', 'asc')
             ->get()
-            ->map(function ($m) {
+            ->map(function ($m) use ($user) {
                 return [
                     'id' => $m->id,
                     'user_id' => $m->user_id,
                     'sender_type' => $m->sender_type, // 'user' or 'admin'
                     'is_me' => $m->sender_type === 'user',
-                    'sender_name' => $m->sender_type === 'admin' ? 'ChinChins Official Support' : ($m->user ? $m->user->display_name : 'You'),
+                    'sender_name' => $m->sender_type === 'admin' ? 'ChinChins Official Support' : ($user->display_name ?: 'You'),
                     'type' => $m->type, // 'text', 'image', 'voice'
                     'message' => $m->message,
                     'media_url' => $m->full_media_url,

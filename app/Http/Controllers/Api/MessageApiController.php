@@ -140,9 +140,11 @@ class MessageApiController extends Controller
                 }
 
                 if ($lastMessage->created_at->isToday()) {
-                    if ($lastMessage->created_at->diffInMinutes(now()) < 60) {
-                        $mins = max(1, $lastMessage->created_at->diffInMinutes(now()));
-                        $timestamp = "{$mins} minutes";
+                    $diffMins = (int) round($lastMessage->created_at->diffInMinutes(now()));
+                    if ($diffMins <= 1) {
+                        $timestamp = 'Just now';
+                    } elseif ($diffMins < 60) {
+                        $timestamp = "{$diffMins} mins ago";
                     } else {
                         $timestamp = $lastMessage->created_at->format('H:i');
                     }
@@ -153,6 +155,8 @@ class MessageApiController extends Controller
                 }
             }
 
+            $diffMins = $lastMessage ? (int) round($lastMessage->created_at->diffInMinutes(now())) : 0;
+
             $conversations[] = [
                 'user_id'         => $contact->id,
                 'account_id'      => $contact->account_id,
@@ -162,11 +166,14 @@ class MessageApiController extends Controller
                 'is_busy'         => (bool) $contact->is_busy,
                 'unread_count'    => $unreadCount,
                 'last_message'    => [
-                    'text'       => $preview,
-                    'type'       => $previewType,
-                    'time'       => $timestamp,
-                    'media_url'  => $lastMessage ? $lastMessage->media_url : null,
-                    'created_at' => $lastMessage ? $lastMessage->created_at->toIso8601String() : null,
+                    'text'            => $preview,
+                    'type'            => $previewType,
+                    'time'            => $timestamp,
+                    'time_formatted'  => $timestamp,
+                    'time_ago'        => $timestamp,
+                    'minutes_ago'     => $diffMins,
+                    'media_url'       => $lastMessage ? $lastMessage->media_url : null,
+                    'created_at'      => $lastMessage ? $lastMessage->created_at->toIso8601String() : null,
                 ],
                 'video_call_rate' => (int) ($contact->video_call_rate ?: 100),
             ];
@@ -805,8 +812,9 @@ class MessageApiController extends Controller
             ], 200);
         }
 
-        // Check if host is currently available (online and not busy talking to someone else)
-        $isHostAvailable = (bool) $host->is_online && !(bool) $host->is_busy;
+        // Check if host is currently available (online and not busy in another call)
+        $isHostBusy = $host->isBusy();
+        $isHostAvailable = (bool) $host->is_online && !$isHostBusy;
 
         // Record profile view in ledger
         $profileView = ProfileView::create([
@@ -879,7 +887,7 @@ class MessageApiController extends Controller
                     'display_name'    => $host->display_name,
                     'avatar_url'      => $host->avatar_url,
                     'is_online'       => (bool) $host->is_online,
-                    'is_busy'         => (bool) $host->is_busy,
+                    'is_busy'         => (bool) $isHostBusy,
                     'is_available'    => $isHostAvailable,
                     'video_call_rate' => $ratePerMinute,
                     'country'         => $host->country ?: 'Bangladesh',
@@ -896,6 +904,7 @@ class MessageApiController extends Controller
                 'callback'     => [
                     'auto_call_triggered' => $isHostAvailable,
                     'host_is_available'   => $isHostAvailable,
+                    'is_busy'             => $isHostBusy,
                     'viewer_can_receive'  => $hasSufficientBalance,
                     'required_coins'      => $ratePerMinute,
                     'viewer_coins'        => (int) $viewer->coins,
@@ -940,11 +949,15 @@ class MessageApiController extends Controller
 
             $timeAgo = 'Recently';
             if ($view->viewed_at) {
-                if ($view->viewed_at->diffInMinutes(now()) < 60) {
-                    $mins = max(1, $view->viewed_at->diffInMinutes(now()));
-                    $timeAgo = "{$mins} mins ago";
-                } elseif ($view->viewed_at->isToday()) {
-                    $timeAgo = $view->viewed_at->format('H:i');
+                if ($view->viewed_at->isToday()) {
+                    $diffMins = (int) round($view->viewed_at->diffInMinutes(now()));
+                    if ($diffMins <= 1) {
+                        $timeAgo = 'Just now';
+                    } elseif ($diffMins < 60) {
+                        $timeAgo = "{$diffMins} mins ago";
+                    } else {
+                        $timeAgo = $view->viewed_at->format('H:i');
+                    }
                 } elseif ($view->viewed_at->isYesterday()) {
                     $timeAgo = 'Yesterday';
                 } else {

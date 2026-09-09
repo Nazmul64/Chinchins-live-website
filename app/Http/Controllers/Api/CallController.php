@@ -358,6 +358,24 @@ class CallController extends Controller
             ], 400);
         }
 
+        // 🛑 Check if receiver is currently busy talking to someone else
+        if ($receiver->isBusy()) {
+            return response()->json([
+                'status'   => false,
+                'can_call' => false,
+                'code'     => 'USER_BUSY',
+                'is_busy'  => true,
+                'message'  => "{$receiver->display_name} is currently busy in another call. Please try again in a few moments.",
+                'receiver' => [
+                    'id'           => $receiver->id,
+                    'account_id'   => $receiver->account_id,
+                    'display_name' => $receiver->display_name,
+                    'avatar'       => $receiver->avatar_url,
+                    'is_busy'      => true,
+                ],
+            ], 200);
+        }
+
         $config = CallSetting::getAllConfig();
         if (!$config['is_call_enabled']) {
             return response()->json([
@@ -749,12 +767,12 @@ class CallController extends Controller
         }
         $call->save();
 
-        // Update online status of caller & receiver to in_call
+        // Update online status of caller & receiver to in_call and mark busy
         if ($call->caller) {
-            $call->caller->update(['online_status' => 'in_call']);
+            $call->caller->update(['online_status' => 'in_call', 'is_busy' => true]);
         }
         if ($call->receiver) {
-            $call->receiver->update(['online_status' => 'in_call']);
+            $call->receiver->update(['online_status' => 'in_call', 'is_busy' => true]);
         }
 
         return response()->json([
@@ -908,12 +926,12 @@ class CallController extends Controller
         $call->ended_at = now();
         $call->save();
 
-        // Restore online status
+        // Restore online status and clear busy flag
         if ($call->caller) {
-            $call->caller->update(['online_status' => 'online']);
+            $call->caller->update(['online_status' => 'online', 'is_busy' => false]);
         }
         if ($call->receiver) {
-            $call->receiver->update(['online_status' => 'online']);
+            $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
         }
 
         return response()->json([
@@ -951,12 +969,12 @@ class CallController extends Controller
         $call->ended_at = now();
         $call->save();
 
-        // Restore online status
+        // Restore online status and clear busy flag
         if ($call->caller) {
-            $call->caller->update(['online_status' => 'online']);
+            $call->caller->update(['online_status' => 'online', 'is_busy' => false]);
         }
         if ($call->receiver) {
-            $call->receiver->update(['online_status' => 'online']);
+            $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
         }
 
         return response()->json([
@@ -1495,12 +1513,12 @@ class CallController extends Controller
         $call->duration_seconds = $durationSeconds;
         $call->save();
 
-        // Reset online status back to online
+        // Reset online status back to online and clear busy flag
         if ($call->caller) {
-            $call->caller->update(['online_status' => 'online']);
+            $call->caller->update(['online_status' => 'online', 'is_busy' => false]);
         }
         if ($call->receiver) {
-            $call->receiver->update(['online_status' => 'online']);
+            $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
         }
 
         // Broadcast 'bye' signal to the other party so their screen terminates immediately

@@ -373,13 +373,11 @@ class KycApiController extends Controller
             ], 401);
         }
 
-        $latestKyc = KycVerification::where('user_id', $user->id)
-            ->latest('id')
-            ->first();
-
         $history = KycVerification::where('user_id', $user->id)
             ->latest('id')
             ->get();
+
+        $latestKyc = $history->first();
 
         $kycStatus = $latestKyc ? $latestKyc->status : ($user->is_verified ? 'approved' : 'not_submitted');
 

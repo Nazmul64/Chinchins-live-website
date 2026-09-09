@@ -11,17 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'deleted_at')) {
+        if (!Schema::hasColumn('users', 'deleted_at')) {
+            Schema::table('users', function (Blueprint $table) {
                 $table->softDeletes();
-            }
-            if (!Schema::hasColumn('users', 'deleted_reason')) {
-                $table->string('deleted_reason')->nullable()->after('deleted_at');
-            }
-            if (!Schema::hasColumn('users', 'deleted_by')) {
-                $table->string('deleted_by', 50)->nullable()->default('admin')->after('deleted_reason');
-            }
-        });
+            });
+        }
+        if (!Schema::hasColumn('users', 'deleted_reason')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->string('deleted_reason')->nullable();
+            });
+        }
+        if (!Schema::hasColumn('users', 'deleted_by')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->string('deleted_by', 50)->nullable()->default('admin');
+            });
+        }
     }
 
     /**

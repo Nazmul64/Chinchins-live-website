@@ -70,7 +70,9 @@ class BagApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        BagItem::seedDefaultItems();
+        if (!BagItem::exists()) {
+            BagItem::seedDefaultItems();
+        }
 
         $user = $this->resolveUser($request);
         if (!$user) {
@@ -112,13 +114,19 @@ class BagApiController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        // Calculate count per category for tabs
+        // Calculate count per category in 1 single fast query
+        $categoryCounts = DB::table('user_bag_items')
+            ->join('bag_items', 'bag_items.id', '=', 'user_bag_items.bag_item_id')
+            ->where('user_bag_items.user_id', $user->id)
+            ->where('user_bag_items.status', $status === 'all' ? 'unused' : $status)
+            ->groupBy('bag_items.category')
+            ->select('bag_items.category', DB::raw('COUNT(*) as total'))
+            ->pluck('total', 'category')
+            ->toArray();
+
         $categoriesList = [];
         foreach (BagItem::categories() as $key => $label) {
-            $count = UserBagItem::where('user_id', $user->id)
-                ->where('status', $status === 'all' ? 'unused' : $status)
-                ->whereHas('bagItem', fn($q) => $q->where('category', $key))
-                ->count();
+            $count = (int) ($categoryCounts[$key] ?? 0);
 
             $categoriesList[] = [
                 'category'      => $key,
@@ -193,7 +201,9 @@ class BagApiController extends Controller
      */
     public function storeCatalog(Request $request): JsonResponse
     {
-        BagItem::seedDefaultItems();
+        if (!BagItem::exists()) {
+            BagItem::seedDefaultItems();
+        }
 
         $category = $request->input('category', 'all');
 

@@ -303,6 +303,45 @@ class User extends Authenticatable
     }
 
     /**
+     * Accessor for is_busy boolean.
+     * Checks database flag, online_status, or active call sessions in real-time.
+     */
+    public function getIsBusyAttribute(): bool
+    {
+        if (!empty($this->attributes['is_busy'])) {
+            return true;
+        }
+
+        if (in_array($this->online_status, ['busy', 'in_call'])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Real-time check if user is currently busy in an active video or audio call session.
+     */
+    public function isBusy(): bool
+    {
+        if ($this->is_busy || in_array($this->online_status, ['busy', 'in_call'])) {
+            return true;
+        }
+
+        if (class_exists(\App\Models\CallSession::class)) {
+            return \App\Models\CallSession::where(function ($q) {
+                $q->where('caller_id', $this->id)
+                  ->orWhere('receiver_id', $this->id);
+            })
+            ->whereIn('status', ['connected', 'active'])
+            ->where('created_at', '>=', now()->subHours(2))
+            ->exists();
+        }
+
+        return false;
+    }
+
+    /**
      * Check if user is designated as Free Caller / Free Host.
      */
     public function isFreeCaller(): bool
