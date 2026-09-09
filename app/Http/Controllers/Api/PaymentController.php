@@ -181,20 +181,27 @@ class PaymentController extends Controller
         $options = [];
 
         foreach ($paymentMethods as $pm) {
+            $code = strtolower($pm->code ?: $pm->name);
+            $iconPath = $pm->icon_url ?: asset($pm->icon ?: "uploads/payment_methods/{$code}.svg");
+
             $options[] = [
                 'id' => $pm->id,
-                'key' => strtolower($pm->code ?: $pm->name),
+                'key' => $code,
                 'name' => $pm->name,
                 'type' => 'gateway',
                 'account_type' => $pm->account_type,
                 'account_number' => $pm->account_number,
-                'icon' => $pm->icon_url ?: $pm->icon,
+                'icon' => $iconPath,
+                'icon_url' => $iconPath,
+                'svg_url' => $iconPath,
+                'png_url' => $iconPath,
                 'badge' => null,
                 'instructions' => $pm->instructions,
             ];
         }
 
-        // Add Google Play option
+        // Add Google Play option with local clean asset icon
+        $googlePlayIcon = asset('uploads/payment_methods/google_play.svg');
         $options[] = [
             'id' => 'google_play',
             'key' => 'google_play',
@@ -202,28 +209,37 @@ class PaymentController extends Controller
             'type' => 'in_app_purchase',
             'account_type' => 'Official In-App Store',
             'account_number' => null,
-            'icon' => 'https://upload.wikimedia.org/wikipedia/commons/7/7a/Google_Play_2022_logo.svg',
+            'icon' => $googlePlayIcon,
+            'icon_url' => $googlePlayIcon,
+            'svg_url' => $googlePlayIcon,
+            'png_url' => $googlePlayIcon,
             'badge' => null,
             'instructions' => 'Instant Google Play in-app purchase.',
         ];
 
-        // Add Reseller option with badge (matching design screenshot)
-        $resellerBadge = class_exists('\App\Models\ResellerSetting') ? \App\Models\ResellerSetting::get('reseller_offer_badge', 'Up To 29%↑') : 'Up To 29%↑';
+        // Add Reseller option dynamically only if active resellers exist in database
         $activeResellers = class_exists('\App\Models\Reseller') ? \App\Models\Reseller::where('is_active', true)->count() : 0;
+        $resellerBadge = class_exists('\App\Models\ResellerSetting') ? \App\Models\ResellerSetting::get('reseller_offer_badge', 'Up To 29%↑') : 'Up To 29%↑';
 
-        $options[] = [
-            'id' => 'reseller',
-            'key' => 'reseller',
-            'name' => 'Reseller',
-            'type' => 'reseller',
-            'account_type' => 'Direct Agent Chat',
-            'account_number' => null,
-            'icon' => 'https://ui-avatars.com/api/?name=Reseller&background=1e1b4b&color=fbbf24&bold=true',
-            'badge' => $resellerBadge,
-            'badge_color' => '#ef4444',
-            'active_count' => $activeResellers,
-            'instructions' => 'Recharge via authorized live resellers with exclusive discounts.',
-        ];
+        if ($activeResellers > 0) {
+            $resellerIcon = asset('uploads/payment_methods/reseller.svg');
+            $options[] = [
+                'id' => 'reseller',
+                'key' => 'reseller',
+                'name' => 'Reseller',
+                'type' => 'reseller',
+                'account_type' => 'Direct Agent Chat',
+                'account_number' => null,
+                'icon' => $resellerIcon,
+                'icon_url' => $resellerIcon,
+                'svg_url' => $resellerIcon,
+                'png_url' => $resellerIcon,
+                'badge' => $resellerBadge,
+                'badge_color' => '#ef4444',
+                'active_count' => $activeResellers,
+                'instructions' => 'Recharge via authorized live resellers with exclusive discounts.',
+            ];
+        }
 
         return response()->json([
             'status' => true,
@@ -235,7 +251,7 @@ class PaymentController extends Controller
             'header_title' => 'Payment options',
             'options_title' => 'Options for you',
             'button_text' => 'Continue',
-            'default_selected' => 'reseller',
+            'default_selected' => $activeResellers > 0 ? 'reseller' : ($options[0]['key'] ?? 'bkash'),
             'options' => $options,
             'data' => [
                 'formatted_amount' => $formattedAmount,

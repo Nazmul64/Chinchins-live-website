@@ -303,12 +303,12 @@ class ResellerApiController extends Controller
         if ($request->hasFile('image') || $request->hasFile('media') || $request->hasFile('file') || $request->hasFile('screenshot')) {
             $file = $request->file('image') ?: ($request->file('media') ?: ($request->file('file') ?: $request->file('screenshot')));
             $filename = 'chat_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
-            $destDir = public_path('uploads/reseller');
+            $destDir = public_path('uploads/reseller_chat_images');
             if (!file_exists($destDir)) {
                 @mkdir($destDir, 0777, true);
             }
             $file->move($destDir, $filename);
-            $mediaUrl = 'uploads/reseller/' . $filename;
+            $mediaUrl = 'uploads/reseller_chat_images/' . $filename;
             $type = 'image';
         }
 
@@ -316,12 +316,12 @@ class ResellerApiController extends Controller
         if ($request->hasFile('voice') || $request->hasFile('audio')) {
             $file = $request->file('voice') ?: $request->file('audio');
             $filename = 'voice_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
-            $destDir = public_path('uploads/reseller');
+            $destDir = public_path('uploads/reseller_chat_images');
             if (!file_exists($destDir)) {
                 @mkdir($destDir, 0777, true);
             }
             $file->move($destDir, $filename);
-            $mediaUrl = 'uploads/reseller/' . $filename;
+            $mediaUrl = 'uploads/reseller_chat_images/' . $filename;
             $type = 'voice';
         }
 
@@ -385,12 +385,12 @@ class ResellerApiController extends Controller
         $prefix = $isAudio ? 'voice_' : 'img_';
 
         $filename = $prefix . time() . '_' . Str::random(6) . '.' . $ext;
-        $destDir = public_path('uploads/reseller');
+        $destDir = public_path('uploads/reseller_chat_images');
         if (!file_exists($destDir)) {
             @mkdir($destDir, 0777, true);
         }
         $file->move($destDir, $filename);
-        $relativePath = 'uploads/reseller/' . $filename;
+        $relativePath = 'uploads/reseller_chat_images/' . $filename;
 
         return response()->json([
             'status' => true,
