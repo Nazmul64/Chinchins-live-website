@@ -15,7 +15,7 @@ class AdminAuthAndDashboardTest extends TestCase
         $response = $this->get('/');
         $response->assertStatus(200);
         $response->assertSee('Onedash');
-        $response->assertSee('admin@gmail.com');
+        $response->assertSee('Sign in to your admin dashboard');
     }
 
     public function test_admin_can_login_with_default_credentials(): void

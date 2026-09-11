@@ -15,25 +15,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Admin User
-        User::updateOrCreate(
-            ['email' => 'admin@gmail.com'],
-            [
-                'first_name' => 'Admin',
-                'last_name'  => 'User',
-                'name'       => 'Jhon Deo',
-                'nickname'   => 'Admin',
-                'phone'      => '01700000000',
-                'password'   => bcrypt('admin@gmail.com'),
-                'account_id' => '1000000001',
-                'level'      => 'Lv10',
-                'is_active'  => true,
-                'email_verified_at' => now(),
-            ]
-        );
-
-        // Seed Roles and Permissions
+        // 1. Seed Roles and Permissions
         $this->call(RoleAndPermissionSeeder::class);
+
+        // 2. Admin User (Create / Restore)
+        $this->call(AdminUserSeeder::class);
 
         // Chinchins Live Featured Mock Profile (matching screenshot Ayeena04)
         User::updateOrCreate(

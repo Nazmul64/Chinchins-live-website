@@ -38,18 +38,19 @@
             @csrf
 
             <div class="form-group">
-                <label class="form-label" for="email">Email Address</label>
+                <label class="form-label" for="email">Email Address or Account ID</label>
                 <div class="input-group">
                     <i class="fa-regular fa-envelope input-icon"></i>
                     <input 
-                        type="email" 
+                        type="text" 
                         id="email" 
                         name="email" 
                         class="form-control" 
-                        value="{{ old('email', 'admin@gmail.com') }}" 
+                        value="{{ old('email') }}" 
                         required 
                         autofocus
-                        placeholder="admin@gmail.com"
+                        placeholder="Enter email or account ID"
+                        autocomplete="username"
                     >
                 </div>
             </div>
@@ -63,16 +64,17 @@
                         id="password" 
                         name="password" 
                         class="form-control" 
-                        value="admin@gmail.com" 
+                        value="" 
                         required
-                        placeholder="••••••••"
+                        placeholder="Enter password"
+                        autocomplete="current-password"
                     >
                 </div>
             </div>
 
             <div class="auth-meta">
                 <label class="checkbox-label">
-                    <input type="checkbox" name="remember" id="remember" checked>
+                    <input type="checkbox" name="remember" id="remember">
                     <span>Remember me</span>
                 </label>
                 <a href="javascript:void(0)" style="color: var(--primary); text-decoration: none; font-size: 0.82rem;">Forgot password?</a>
@@ -82,26 +84,6 @@
                 <i class="fa-solid fa-right-to-bracket" style="margin-right: 6px;"></i> Sign In
             </button>
         </form>
-
-        <div class="quick-credentials-box">
-            <div style="font-weight: 600; margin-bottom: 4px;">
-                <i class="fa-solid fa-circle-info"></i> Default Credentials:
-            </div>
-            <div><strong>Email:</strong> admin@gmail.com</div>
-            <div><strong>Password:</strong> admin@gmail.com</div>
-            <button type="button" class="quick-fill-btn" onclick="fillCredentials()">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-fill Credentials
-            </button>
-        </div>
     </div>
 </div>
-
-@push('scripts')
-<script>
-function fillCredentials() {
-    document.getElementById('email').value = 'admin@gmail.com';
-    document.getElementById('password').value = 'admin@gmail.com';
-}
-</script>
-@endpush
 @endsection

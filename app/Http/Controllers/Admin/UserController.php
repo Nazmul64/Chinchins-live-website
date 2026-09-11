@@ -220,6 +220,17 @@ class UserController extends Controller
         $displayName = $user->display_name;
         $reason = $request->input('reason', 'Deleted by Administrator');
 
+        // Prevent deleting Super Admin accounts or the currently logged-in admin
+        if ($user->isSuperAdmin() || in_array(strtolower($user->email ?? ''), ['admin@gmail.com', 'admin@chinchins.live', 'nazmul@gmail.com', 'admin@admin.com']) || ($user->account_id ?? '') === '1000000001' || $user->id === auth()->id()) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Super Administrator account cannot be deleted.',
+                ], 403);
+            }
+            return back()->with('error', 'Super Administrator account cannot be deleted.');
+        }
+
         DB::beginTransaction();
         try {
             // 1. Revoke all active API tokens

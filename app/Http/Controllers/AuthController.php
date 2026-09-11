@@ -19,7 +19,13 @@ class AuthController extends Controller
     public function showLoginForm()
     {
         if (Auth::check()) {
-            return $this->redirectToRoleDashboard(Auth::user());
+            $user = Auth::user();
+            if ($user && method_exists($user, 'isSuperAdmin')) {
+                return $this->redirectToRoleDashboard($user);
+            }
+            Auth::logout();
+            session()->invalidate();
+            session()->regenerateToken();
         }
 
         return view('auth.login');
@@ -48,11 +54,35 @@ class AuthController extends Controller
             '01700000000',
         ]);
 
-        // Find user by email, phone, or account_id
-        $user = User::where('email', $identifier)
-            ->orWhere('phone', $identifier)
-            ->orWhere('account_id', $identifier)
+        // Find user by email, phone, or account_id (including soft-deleted)
+        $user = User::withTrashed()
+            ->where(function ($q) use ($identifier) {
+                $q->where('email', $identifier)
+                  ->orWhere('phone', $identifier)
+                  ->orWhere('account_id', $identifier)
+                  ->orWhere('email', 'like', "%_{$identifier}")
+                  ->orWhere('phone', 'like', "%_{$identifier}");
+            })
             ->first();
+
+        // If soft-deleted default admin or super admin, auto-restore
+        if ($user && $user->trashed() && ($isDefaultAdmin || $user->isSuperAdmin())) {
+            $user->restore();
+            if (str_starts_with($user->email ?? '', 'deleted_')) {
+                $user->email = str_contains($identifier, '@') ? $identifier : 'admin@gmail.com';
+            }
+            if (str_starts_with($user->phone ?? '', 'deleted_')) {
+                $user->phone = !str_contains($identifier, '@') ? $identifier : '01700000000';
+            }
+            $user->is_active = true;
+            $user->status = 'active';
+            $user->is_locked = false;
+            $user->locked_reason = null;
+            $user->locked_until = null;
+            $user->deleted_reason = null;
+            $user->deleted_by = null;
+            $user->save();
+        }
 
         // If default admin does not exist in DB yet, auto-create it
         if (!$user && $isDefaultAdmin) {
@@ -77,6 +107,7 @@ class AuthController extends Controller
                 'status'                => 'active',
                 'is_active'             => true,
                 'is_verified'           => true,
+                'is_locked'             => false,
                 'failed_login_attempts' => 0,
                 'locked_until'          => null,
             ]);
@@ -216,6 +247,10 @@ class AuthController extends Controller
      */
     protected function redirectToRoleDashboard($user)
     {
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
         if ($user->isSuperAdmin()) {
             return redirect()->route('admin.dashboard');
         }
