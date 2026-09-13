@@ -716,16 +716,27 @@ Widget build(BuildContext context) {
 }
 ```
 
-## 11. Admin Remote Debugging Mode & Diagnostics HUD
+## 11. Admin Remote Debugging Mode, Sidebar Control & Error Logs
 
-### 🛠️ Architecture & Overview
-- The application includes an in-app **Real-Time Debugging & Diagnostic HUD** that displays:
-  - **Live WebRTC Statistics:** Resolution, FPS (Frames Per Second), Bitrate (kbps), Packet Loss %, and Round-Trip Latency (ms).
-  - **API Latency Monitor:** Response times for background API requests in milliseconds.
-  - **Memory & Render Metrics:** Active texture memory and UI frame render duration.
-- **Admin Control:** The debugging overlay is controlled remotely from the Laravel Admin Panel / Remote Config via `debug_mode_enabled`.
-  - When `debug_mode_enabled: true` in `GET /api/app/remote-config`, the diagnostic HUD floats over the screen for developer inspection.
-  - When `debug_mode_enabled: false`, the overlay is completely hidden and disabled for production end-users.
+### 📍 Admin Panel Location & Route
+- **Sidebar Menu:** **Administration** ➔ **App Debug & Logs** (Icon: `<i class="fa-solid fa-bug"></i>`) with live `LIVE ON` / `OFF` dynamic badge.
+- **Direct Admin URL:** `https://your-domain.com/admin/settings/debug`
+
+### 🛠️ Key Admin Panel Features
+1. **1-Click Debug Mode Toggle:**
+   - Big toggle button at the top of `/admin/settings/debug` switches `debug_mode_enabled` between `ON` and `OFF` instantly.
+   - When **ON**, all mobile app clients receive `debug_mode_enabled: true` in `/api/app/remote-config` and show the real-time WebRTC & API latency diagnostic HUD.
+   - When **OFF**, the app operates in clean production mode with 0 debug overhead.
+2. **Remote Security & Feature Switches:**
+   - Toggle **Screenshot Protection (`FLAG_SECURE`)**.
+   - Toggle **Screen Recording Shield**.
+   - Toggle **TikTok-Style Camera Filters**.
+   - Toggle **Back Button Call Minimization (PiP)**.
+3. **Live System Error Logs Inspector:**
+   - Real-time terminal log viewer on `/admin/settings/debug` reading the last 250 lines from `storage/logs/laravel.log`.
+   - Color-coded (Red for Errors, Yellow for Warnings, Blue for Info).
+   - Shows exactly why an error occurred, request exceptions, and WebRTC signaling issues.
+   - 1-Click **"Clear Logs"** and **"Refresh"** buttons.
 
 ### 📱 Flutter Diagnostic HUD Integration (`debug_hud_overlay.dart`)
 ```dart

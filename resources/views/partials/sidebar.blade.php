@@ -430,9 +430,25 @@
         @endhasPermission
         @endcanAnyPermission
 
+        <!-- App Debugging & Diagnostics Mode -->
+        @php
+            $isDebugOn = (bool) \App\Models\AppSetting::get('debug_mode_enabled', '0');
+        @endphp
+        <a href="{{ route('admin.settings.debug') }}" class="menu-item {{ request()->routeIs('admin.settings.debug*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-bug" style="color: {{ $isDebugOn ? '#ef4444' : '#64748b' }};"></i>
+                <span>App Debug & Logs</span>
+            </div>
+            @if($isDebugOn)
+                <span class="badge bg-danger rounded-pill px-2" style="font-size: 10px; font-weight: 700; animation: pulse 2s infinite;">LIVE ON</span>
+            @else
+                <span class="badge bg-secondary rounded-pill px-2" style="font-size: 10px; opacity: 0.7;">OFF</span>
+            @endif
+        </a>
+
         <!-- App Branding & Settings -->
         @hasPermission('settings.view')
-        <a href="{{ route('admin.settings.index') }}" class="menu-item {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}" style="margin-bottom: 4px;">
+        <a href="{{ route('admin.settings.index') }}" class="menu-item {{ request()->routeIs('admin.settings.index') || (request()->routeIs('admin.settings.*') && !request()->routeIs('admin.settings.debug*')) ? 'active' : '' }}" style="margin-bottom: 4px;">
             <div class="menu-item-left">
                 <i class="fa-solid fa-sliders" style="color: #06b6d4;"></i>
                 <span>App Branding & Config</span>

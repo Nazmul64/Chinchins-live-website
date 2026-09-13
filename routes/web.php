@@ -219,6 +219,12 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::post('/settings/version', [\App\Http\Controllers\Admin\AppSettingController::class, 'publishVersion'])->name('settings.version.publish')->middleware('permission:settings.update');
     Route::post('/settings/push-broadcast', [\App\Http\Controllers\Admin\AppSettingController::class, 'sendPushBroadcast'])->name('settings.push.broadcast')->middleware('permission:settings.push_broadcast');
 
+    // 🐛 App Debugging, Diagnostics & Error Logs (Remote Admin Controls)
+    Route::get('/settings/debug', [\App\Http\Controllers\Admin\AppSettingController::class, 'debugSettings'])->name('settings.debug');
+    Route::post('/settings/debug', [\App\Http\Controllers\Admin\AppSettingController::class, 'updateDebugSettings'])->name('settings.debug.update');
+    Route::post('/settings/debug/toggle', [\App\Http\Controllers\Admin\AppSettingController::class, 'toggleDebugMode'])->name('settings.debug.toggle');
+    Route::post('/settings/debug/clear-logs', [\App\Http\Controllers\Admin\AppSettingController::class, 'clearLogs'])->name('settings.debug.clear-logs');
+
     // Streaming & Video Calling Engine Management (Agora Cloud vs VPS WebRTC)
     Route::get('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'index'])->name('settings.streaming.index')->middleware('permission:streaming.view');
     Route::post('/settings/streaming', [\App\Http\Controllers\Admin\StreamingAdminController::class, 'update'])->name('settings.streaming.update')->middleware('permission:streaming.update');

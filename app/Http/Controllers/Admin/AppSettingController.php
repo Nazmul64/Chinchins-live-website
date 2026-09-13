@@ -241,4 +241,121 @@ class AppSettingController extends Controller
             return back()->with('error', 'Push broadcast failed: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Display App Debugging, Diagnostics & Error Logs page.
+     */
+    public function debugSettings()
+    {
+        $settings = AppSetting::all()->pluck('value', 'key')->toArray();
+        $defaults = AppSetting::defaults();
+        $merged = array_merge($defaults, $settings);
+
+        // Read last 200 lines from laravel.log
+        $logPath = storage_path('logs/laravel.log');
+        $logs = [];
+        $logFileSize = '0 KB';
+
+        if (File::exists($logPath)) {
+            $bytes = File::size($logPath);
+            $logFileSize = round($bytes / 1024, 2) . ' KB';
+            if ($bytes > 1024 * 1024) {
+                $logFileSize = round($bytes / (1024 * 1024), 2) . ' MB';
+            }
+
+            $content = File::get($logPath);
+            $lines = explode("\n", trim($content));
+            $recentLines = array_slice($lines, -250);
+            $logs = array_reverse($recentLines);
+        }
+
+        $activeCallsCount = 0;
+        try {
+            $activeCallsCount = \App\Models\CallSession::whereIn('status', ['connected', 'active', 'ringing'])->count();
+        } catch (\Throwable $e) {}
+
+        $onlineUsersCount = 0;
+        try {
+            $onlineUsersCount = \App\Models\UserPresence::where('is_online', true)->count();
+        } catch (\Throwable $e) {}
+
+        return view('admin.settings.debug', compact(
+            'merged',
+            'logs',
+            'logFileSize',
+            'activeCallsCount',
+            'onlineUsersCount'
+        ));
+    }
+
+    /**
+     * Update remote debugging and protection flags.
+     */
+    public function updateDebugSettings(Request $request)
+    {
+        try {
+            $fields = [
+                'debug_mode_enabled',
+                'debug_logs_enabled',
+                'screenshot_protection_enabled',
+                'screen_recording_protection_enabled',
+                'camera_filters_enabled',
+                'call_minimize_enabled',
+            ];
+
+            foreach ($fields as $field) {
+                $val = $request->has($field) ? '1' : '0';
+                AppSetting::set($field, $val, 'security');
+                \App\Models\CallSetting::set($field, $val, 'security');
+            }
+
+            AppSetting::clearCache();
+            \App\Models\CallSetting::clearCache();
+
+            return back()->with('success', 'Remote App Debug & Security settings updated successfully!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Update failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 1-Click Toggle for Debugging Mode.
+     */
+    public function toggleDebugMode(Request $request)
+    {
+        try {
+            $current = (bool) AppSetting::get('debug_mode_enabled', '0');
+            $newVal = $current ? '0' : '1';
+
+            AppSetting::set('debug_mode_enabled', $newVal, 'security');
+            \App\Models\CallSetting::set('debug_mode_enabled', $newVal, 'security');
+
+            AppSetting::clearCache();
+            \App\Models\CallSetting::clearCache();
+
+            $msg = $newVal === '1' 
+                ? '🐛 Mobile App Debugging Mode is now ON (Real-time HUD active in apps)!'
+                : '✅ Mobile App Debugging Mode is now OFF (Production Clean Mode)!';
+
+            return back()->with('success', $msg);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Toggle failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Clear system error logs.
+     */
+    public function clearLogs()
+    {
+        try {
+            $logPath = storage_path('logs/laravel.log');
+            if (File::exists($logPath)) {
+                File::put($logPath, '');
+            }
+            return back()->with('success', 'System error logs cleared successfully!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Clear logs failed: ' . $e->getMessage());
+        }
+    }
 }
