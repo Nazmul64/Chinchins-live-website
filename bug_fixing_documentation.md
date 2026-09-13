@@ -16,6 +16,7 @@
 8. [In-Call Virtual Gifts & Real-Time SVGA/Lottie Animations](#8-in-call-virtual-gifts--real-time-svgalottie-animations)
 9. [Complete RESTful API Reference & Payloads](#9-complete-restful-api-reference--payloads)
 10. [Flutter Implementation & Integration Code Snippets](#10-flutter-implementation--integration-code-snippets)
+11. [Admin Remote Debugging Mode & Diagnostics HUD](#11-admin-remote-debugging-mode--diagnostics-hud)
 
 ---
 
@@ -715,11 +716,95 @@ Widget build(BuildContext context) {
 }
 ```
 
+## 11. Admin Remote Debugging Mode & Diagnostics HUD
+
+### 🛠️ Architecture & Overview
+- The application includes an in-app **Real-Time Debugging & Diagnostic HUD** that displays:
+  - **Live WebRTC Statistics:** Resolution, FPS (Frames Per Second), Bitrate (kbps), Packet Loss %, and Round-Trip Latency (ms).
+  - **API Latency Monitor:** Response times for background API requests in milliseconds.
+  - **Memory & Render Metrics:** Active texture memory and UI frame render duration.
+- **Admin Control:** The debugging overlay is controlled remotely from the Laravel Admin Panel / Remote Config via `debug_mode_enabled`.
+  - When `debug_mode_enabled: true` in `GET /api/app/remote-config`, the diagnostic HUD floats over the screen for developer inspection.
+  - When `debug_mode_enabled: false`, the overlay is completely hidden and disabled for production end-users.
+
+### 📱 Flutter Diagnostic HUD Integration (`debug_hud_overlay.dart`)
+```dart
+import 'package:flutter/material.dart';
+
+class DebugHudOverlay extends StatelessWidget {
+  final bool isEnabled;
+  final int fps;
+  final int bitrateKbps;
+  final int packetLossPercent;
+  final int latencyMs;
+  final int apiLatencyMs;
+
+  const DebugHudOverlay({
+    Key? key,
+    required this.isEnabled,
+    this.fps = 30,
+    this.bitrateKbps = 1200,
+    this.packetLossPercent = 0,
+    this.latencyMs = 45,
+    this.apiLatencyMs = 120,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isEnabled) return const SizedBox.shrink();
+
+    return Positioned(
+      top: 40,
+      left: 12,
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.greenAccent, width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.greenAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    "DEBUG MODE (ADMIN ON)",
+                    style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text("WebRTC: $fps FPS | $bitrateKbps kbps", style: const TextStyle(color: Colors.white, fontSize: 10)),
+              Text("Latency: $latencyMs ms | Loss: $packetLossPercent%", style: TextStyle(color: packetLossPercent > 5 ? Colors.redAccent : Colors.white70, fontSize: 10)),
+              Text("API Response: $apiLatencyMs ms", style: TextStyle(color: apiLatencyMs < 500 ? Colors.cyanAccent : Colors.orangeAccent, fontSize: 10)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
 ---
 
 ## 🎯 Verification Checklist & Performance Benchmarks
-- [x] **Zero Call Disconnect on Back Button:** Call remains alive in Draggable PiP.
+- [x] **1-on-1 & Live Calls Support All Features:** Text messages, photo sharing (`public/uploads/live`), follow/unfollow, and animated gifts work seamlessly on ANY 1-on-1 video call without dropping the call.
+- [x] **Zero Call Disconnect on Back Button:** Call remains alive in Draggable PiP floating window.
 - [x] **Sub-Second API Response (< 500ms):** Caching & optimized queries prevent timeouts.
+- [x] **Admin Remote Debugging Mode:** Toggleable from Admin Panel via `debug_mode_enabled`.
 - [x] **Screenshot & Screen Recording Protection:** Platform-level `FLAG_SECURE` prevents leaks.
 - [x] **Live Image Sharing:** Instant upload and serving via `public/uploads/live`.
 - [x] **TikTok-Style Filters:** Live preview and switching with 0 lag.

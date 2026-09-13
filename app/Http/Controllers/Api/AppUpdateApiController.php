@@ -59,6 +59,7 @@ class AppUpdateApiController extends Controller
         $remoteFlags['screen_recording_protection_enabled'] = (bool) AppSetting::get('screen_recording_protection_enabled', '1');
         $remoteFlags['camera_filters_enabled'] = (bool) AppSetting::get('camera_filters_enabled', '1');
         $remoteFlags['call_minimize_enabled'] = (bool) AppSetting::get('call_minimize_enabled', '1');
+        $remoteFlags['debug_mode_enabled'] = (bool) AppSetting::get('debug_mode_enabled', '0');
 
         return response()->json([
             'status' => true,
@@ -79,6 +80,7 @@ class AppUpdateApiController extends Controller
                 'screen_recording_protection_enabled' => (bool) AppSetting::get('screen_recording_protection_enabled', '1'),
                 'camera_filters_enabled' => (bool) AppSetting::get('camera_filters_enabled', '1'),
                 'call_minimize_enabled' => (bool) AppSetting::get('call_minimize_enabled', '1'),
+                'debug_mode_enabled'   => (bool) AppSetting::get('debug_mode_enabled', '0'),
                 'remote_flags'         => $remoteFlags,
                 'support_email'        => AppSetting::get('support_email', 'support@chinchins.live'),
                 'support_whatsapp'     => AppSetting::get('support_whatsapp', '+8801700000000'),

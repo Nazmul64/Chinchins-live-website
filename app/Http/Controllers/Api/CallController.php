@@ -172,6 +172,7 @@ class CallController extends Controller
                 'screen_recording_protection_enabled' => (bool) ($config['screen_recording_protection_enabled'] ?? true),
                 'camera_filters_enabled' => (bool) ($config['camera_filters_enabled'] ?? true),
                 'call_minimize_enabled' => (bool) ($config['call_minimize_enabled'] ?? true),
+                'debug_mode_enabled' => (bool) ($config['debug_mode_enabled'] ?? false),
                 'video_split' => [
                     'total_rate' => $config['video_call_rate_per_minute'],
                     'host_receives' => $config['video_host_earning_per_min'],

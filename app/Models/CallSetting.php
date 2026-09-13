@@ -50,6 +50,7 @@ class CallSetting extends Model
             'screen_recording_protection_enabled' => '1',
             'camera_filters_enabled' => '1',
             'call_minimize_enabled' => '1',
+            'debug_mode_enabled' => '0',
         ];
     }
 
