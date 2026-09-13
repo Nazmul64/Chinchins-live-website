@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\CallMessageSent;
 use App\Http\Controllers\Controller;
+use App\Models\CallMessage;
 use App\Models\CallSession;
 use App\Models\CallSetting;
 use App\Models\CoinTransaction;
@@ -166,6 +168,10 @@ class CallController extends Controller
                 'call_quick_messages' => $config['call_quick_messages'],
                 'incoming_ringtone_url' => $config['incoming_ringtone_url'],
                 'outgoing_ringtone_url' => $config['outgoing_ringtone_url'],
+                'screenshot_protection_enabled' => (bool) ($config['screenshot_protection_enabled'] ?? true),
+                'screen_recording_protection_enabled' => (bool) ($config['screen_recording_protection_enabled'] ?? true),
+                'camera_filters_enabled' => (bool) ($config['camera_filters_enabled'] ?? true),
+                'call_minimize_enabled' => (bool) ($config['call_minimize_enabled'] ?? true),
                 'video_split' => [
                     'total_rate' => $config['video_call_rate_per_minute'],
                     'host_receives' => $config['video_host_earning_per_min'],
@@ -1994,6 +2000,399 @@ class CallController extends Controller
                 'rate_per_minute' => $ratePerMinute,
                 'is_free_trial'   => $isEligibleForFree,
                 'is_free_caller'  => $isCallerFree,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Send live text or image chat message during video call.
+     * POST /api/call/chat/send or POST /api/call/send-message
+     */
+    public function sendCallMessage(Request $request): JsonResponse
+    {
+        $sender = $this->resolveUser($request);
+        if (!$sender) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated user.',
+            ], 401);
+        }
+
+        $data = $this->getRequestData($request);
+        $callSessionId = $data['call_session_id'] ?? $data['call_id'] ?? $data['channel_name'] ?? null;
+        $receiverId = $data['receiver_id'] ?? $data['target_user_id'] ?? null;
+        $type = $data['type'] ?? 'text';
+        $messageText = trim($data['message'] ?? $data['text'] ?? '');
+        $imageUrl = $data['image_url'] ?? null;
+
+        // If receiverId is not provided, try to find it from CallSession
+        if (!$receiverId && $callSessionId) {
+            $session = CallSession::where('call_session_id', $callSessionId)
+                ->orWhere('id', $callSessionId)
+                ->first();
+            if ($session) {
+                $receiverId = ($session->caller_id == $sender->id) ? $session->receiver_id : $session->caller_id;
+            }
+        }
+
+        if (!$receiverId) {
+            return response()->json([
+                'status' => false,
+                'message' => 'receiver_id or valid call_session_id is required.',
+            ], 422);
+        }
+
+        if ($type === 'text' && empty($messageText)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Message content cannot be empty.',
+            ], 422);
+        }
+
+        if ($type === 'image' && empty($imageUrl) && !$request->hasFile('image')) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Image file or image_url is required for image message.',
+            ], 422);
+        }
+
+        // Handle uploaded image if attached directly
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $filename = 'live_' . time() . '_' . Str::random(12) . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/live'), $filename);
+            $imageUrl = url('uploads/live/' . $filename);
+        }
+
+        $callMessage = CallMessage::create([
+            'call_session_id' => $callSessionId,
+            'sender_id' => $sender->id,
+            'receiver_id' => $receiverId,
+            'type' => $type,
+            'message' => $messageText,
+            'image_url' => $imageUrl,
+            'metadata' => [
+                'sender_name' => $sender->name ?? $sender->nickname ?? 'User',
+                'sender_avatar' => $sender->avatar_url,
+                'timestamp' => now()->toIso8601String(),
+            ],
+            'is_read' => false,
+        ]);
+
+        $payload = [
+            'id' => $callMessage->id,
+            'call_session_id' => $callSessionId,
+            'sender_id' => $sender->id,
+            'sender_name' => $sender->name ?? $sender->nickname ?? 'User',
+            'sender_avatar' => $sender->avatar_url,
+            'receiver_id' => (int) $receiverId,
+            'type' => $type,
+            'message' => $messageText,
+            'image_url' => $imageUrl,
+            'created_at' => $callMessage->created_at->toIso8601String(),
+        ];
+
+        // Broadcast real-time event to receiver / call channel
+        try {
+            if ($callSessionId) {
+                event(new CallMessageSent($callSessionId, $payload));
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'message' => 'Message sent successfully during video call.',
+            'data' => $payload,
+        ], 200);
+    }
+
+    /**
+     * Get live messages for a call session.
+     * GET /api/call/{callId}/messages or GET /api/call/chat/messages
+     */
+    public function getCallMessages(Request $request, $callId = null): JsonResponse
+    {
+        $sessionId = $callId ?? $request->input('call_session_id') ?? $request->input('call_id');
+        $page = (int) $request->input('page', 1);
+        $perPage = min((int) $request->input('per_page', 50), 100);
+
+        $query = CallMessage::query();
+        if ($sessionId) {
+            $query->where('call_session_id', $sessionId);
+        }
+
+        $messages = $query->with('sender:id,account_id,name,nickname,avatar')
+            ->orderByDesc('id')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $items = collect($messages->items())->map(function ($msg) {
+            return [
+                'id' => $msg->id,
+                'call_session_id' => $msg->call_session_id,
+                'sender_id' => $msg->sender_id,
+                'sender_name' => $msg->sender?->name ?? $msg->sender?->nickname ?? 'User',
+                'sender_avatar' => $msg->sender?->avatar_url,
+                'receiver_id' => $msg->receiver_id,
+                'type' => $msg->type,
+                'message' => $msg->message,
+                'image_url' => $msg->image_url,
+                'created_at' => $msg->created_at ? $msg->created_at->toIso8601String() : null,
+            ];
+        })->reverse()->values();
+
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'data' => [
+                'total' => $messages->total(),
+                'messages' => $items,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Upload live image during video call to public/uploads/live folder.
+     * POST /api/call/upload-image or POST /api/call/chat/upload
+     */
+    public function uploadLiveImage(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated user.',
+            ], 401);
+        }
+
+        if (!$request->hasFile('image') && !$request->hasFile('file') && !$request->hasFile('photo')) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Image file is required (image, file, or photo field).',
+            ], 422);
+        }
+
+        $file = $request->file('image') ?? $request->file('file') ?? $request->file('photo');
+
+        // Validation for image types
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (!in_array($ext, $allowedExtensions)) {
+            $ext = 'jpg';
+        }
+
+        $uploadDirectory = public_path('uploads/live');
+        if (!file_exists($uploadDirectory)) {
+            mkdir($uploadDirectory, 0777, true);
+        }
+
+        $filename = 'live_' . time() . '_' . Str::random(12) . '.' . $ext;
+        $file->move($uploadDirectory, $filename);
+
+        $imageUrl = url('uploads/live/' . $filename);
+        $relativePath = 'uploads/live/' . $filename;
+
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'message' => 'Image uploaded successfully.',
+            'data' => [
+                'image_url' => $imageUrl,
+                'file_url' => $imageUrl,
+                'relative_path' => $relativePath,
+                'filename' => $filename,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Synchronize call minimized / floating window state.
+     * POST /api/call/minimize
+     */
+    public function minimizeCall(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        $data = $this->getRequestData($request);
+        $callSessionId = $data['call_session_id'] ?? $data['call_id'] ?? null;
+
+        if ($callSessionId) {
+            CallSession::where('call_session_id', $callSessionId)
+                ->orWhere('id', $callSessionId)
+                ->update(['updated_at' => now()]);
+        }
+
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'message' => 'Call state minimized. Call session remains active and ongoing.',
+            'data' => [
+                'call_session_id' => $callSessionId,
+                'is_minimized' => true,
+                'is_active' => true,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Restore call to full-screen mode.
+     * POST /api/call/restore
+     */
+    public function restoreCall(Request $request): JsonResponse
+    {
+        $data = $this->getRequestData($request);
+        $callSessionId = $data['call_session_id'] ?? $data['call_id'] ?? null;
+
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'message' => 'Call restored to full-screen mode.',
+            'data' => [
+                'call_session_id' => $callSessionId,
+                'is_minimized' => false,
+                'is_active' => true,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get TikTok-style camera filters & beauty effect catalog.
+     * GET /api/call/filters or GET /api/filters
+     */
+    public function getFilters(Request $request): JsonResponse
+    {
+        $filters = [
+            [
+                'id' => 'none',
+                'name' => 'Original',
+                'name_bn' => 'স্বাভাবিক',
+                'category' => 'none',
+                'icon_url' => url('assets/images/filters/normal.png'),
+                'shader_key' => 'normal',
+                'parameters' => [
+                    'smoothness' => 0.0,
+                    'brightness' => 1.0,
+                    'contrast' => 1.0,
+                    'saturation' => 1.0,
+                    'whitening' => 0.0,
+                    'rosy' => 0.0,
+                ],
+            ],
+            [
+                'id' => 'beauty_glow',
+                'name' => 'Beauty Glow',
+                'name_bn' => 'বিউটি গ্লো',
+                'category' => 'beauty',
+                'icon_url' => url('assets/images/filters/beauty.png'),
+                'shader_key' => 'beauty_smooth',
+                'parameters' => [
+                    'smoothness' => 0.65,
+                    'brightness' => 1.15,
+                    'contrast' => 1.05,
+                    'saturation' => 1.10,
+                    'whitening' => 0.40,
+                    'rosy' => 0.25,
+                ],
+            ],
+            [
+                'id' => 'smooth_skin',
+                'name' => 'Smooth Skin',
+                'name_bn' => 'স্মুথ স্কিন',
+                'category' => 'beauty',
+                'icon_url' => url('assets/images/filters/smooth.png'),
+                'shader_key' => 'bilateral_blur',
+                'parameters' => [
+                    'smoothness' => 0.85,
+                    'brightness' => 1.05,
+                    'contrast' => 1.00,
+                    'saturation' => 1.00,
+                    'whitening' => 0.30,
+                    'rosy' => 0.15,
+                ],
+            ],
+            [
+                'id' => 'rosy_cheeks',
+                'name' => 'Rosy Pink',
+                'name_bn' => 'গোলাপি আভা',
+                'category' => 'beauty',
+                'icon_url' => url('assets/images/filters/rosy.png'),
+                'shader_key' => 'rosy_lut',
+                'parameters' => [
+                    'smoothness' => 0.60,
+                    'brightness' => 1.10,
+                    'contrast' => 1.08,
+                    'saturation' => 1.25,
+                    'whitening' => 0.35,
+                    'rosy' => 0.55,
+                ],
+            ],
+            [
+                'id' => 'warm_sunshine',
+                'name' => 'Warm Sunshine',
+                'name_bn' => 'উষ্ণ রোদ',
+                'category' => 'color',
+                'icon_url' => url('assets/images/filters/warm.png'),
+                'shader_key' => 'warm_lut',
+                'parameters' => [
+                    'smoothness' => 0.40,
+                    'brightness' => 1.12,
+                    'contrast' => 1.10,
+                    'saturation' => 1.20,
+                    'temperature' => 0.35,
+                ],
+            ],
+            [
+                'id' => 'cool_breeze',
+                'name' => 'Cool Breeze',
+                'name_bn' => 'কুল ব্রিজ',
+                'category' => 'color',
+                'icon_url' => url('assets/images/filters/cool.png'),
+                'shader_key' => 'cool_lut',
+                'parameters' => [
+                    'smoothness' => 0.40,
+                    'brightness' => 1.08,
+                    'contrast' => 1.05,
+                    'saturation' => 1.15,
+                    'temperature' => -0.30,
+                ],
+            ],
+            [
+                'id' => 'vintage_film',
+                'name' => 'Vintage Film',
+                'name_bn' => 'ভিন্টেজ ফিল্ম',
+                'category' => 'color',
+                'icon_url' => url('assets/images/filters/vintage.png'),
+                'shader_key' => 'vintage_lut',
+                'parameters' => [
+                    'smoothness' => 0.20,
+                    'brightness' => 0.95,
+                    'contrast' => 1.25,
+                    'saturation' => 0.80,
+                    'grain' => 0.15,
+                ],
+            ],
+            [
+                'id' => 'cyber_neon',
+                'name' => 'Cyber Neon',
+                'name_bn' => 'সাইবার নিয়ন',
+                'category' => 'effects',
+                'icon_url' => url('assets/images/filters/neon.png'),
+                'shader_key' => 'cyber_lut',
+                'parameters' => [
+                    'smoothness' => 0.30,
+                    'brightness' => 1.20,
+                    'contrast' => 1.30,
+                    'saturation' => 1.50,
+                ],
+            ],
+        ];
+
+        return response()->json([
+            'status' => true,
+            'success' => true,
+            'message' => 'Camera filters retrieved successfully.',
+            'data' => [
+                'categories' => ['all', 'beauty', 'color', 'effects'],
+                'filters' => $filters,
             ],
         ], 200);
     }

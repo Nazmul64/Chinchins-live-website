@@ -1135,4 +1135,56 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserLike::class, 'user_id');
     }
+
+    /**
+     * Follow records where this user is being followed.
+     */
+    public function followerRecords()
+    {
+        return $this->hasMany(UserFollow::class, 'user_id');
+    }
+
+    /**
+     * Follow records where this user is following others.
+     */
+    public function followingRecords()
+    {
+        return $this->hasMany(UserFollow::class, 'follower_id');
+    }
+
+    /**
+     * Users who follow this user.
+     */
+    public function followers()
+    {
+        return $this->belongsToMany(User::class, 'user_follows', 'user_id', 'follower_id')->withTimestamps();
+    }
+
+    /**
+     * Users who this user is following.
+     */
+    public function followings()
+    {
+        return $this->belongsToMany(User::class, 'user_follows', 'follower_id', 'user_id')->withTimestamps();
+    }
+
+    /**
+     * Check if this user is followed by another user.
+     */
+    public function isFollowedBy($userId): bool
+    {
+        if (!$userId) return false;
+        $id = $userId instanceof User ? $userId->id : (int) $userId;
+        return $this->followerRecords()->where('follower_id', $id)->exists();
+    }
+
+    /**
+     * Check if this user is following another user.
+     */
+    public function isFollowing($userId): bool
+    {
+        if (!$userId) return false;
+        $id = $userId instanceof User ? $userId->id : (int) $userId;
+        return $this->followingRecords()->where('user_id', $id)->exists();
+    }
 }

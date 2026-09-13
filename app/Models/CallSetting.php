@@ -46,6 +46,10 @@ class CallSetting extends Model
             'in_call_promo_original_price_bdt' => '300.00',
             'in_call_promo_teaser' => 'I want to talk more with you. Recharge and call me back~',
             'in_call_promo_badge' => '50% OFF',
+            'screenshot_protection_enabled' => '1',
+            'screen_recording_protection_enabled' => '1',
+            'camera_filters_enabled' => '1',
+            'call_minimize_enabled' => '1',
         ];
     }
 

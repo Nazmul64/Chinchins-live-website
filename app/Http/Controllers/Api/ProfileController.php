@@ -423,14 +423,22 @@ class ProfileController extends Controller
         $totalLikes = (int) \App\Models\UserLike::where('user_id', $user->id)->sum('likes_count');
         $iLikeCount = (int) \App\Models\UserLike::where('sender_id', $user->id)->count();
 
-        $videoRate = (int) ($user->video_call_rate ?: 1800);
-        $gemsBalance = (int) $user->coins;
-        $beansBalance = (int) ($user->wallet?->beans ?? $user->wallet?->earnings ?? 0);
+        // Follow calculations
+        $authViewer = $this->resolveUser($request);
+        $isFollowing = false;
+        if ($authViewer && $authViewer->id !== $user->id) {
+            $isFollowing = \App\Models\UserFollow::where('user_id', $user->id)->where('follower_id', $authViewer->id)->exists();
+        }
+        $followersCount = \App\Models\UserFollow::where('user_id', $user->id)->count();
+        $followingCount = \App\Models\UserFollow::where('follower_id', $user->id)->count();
 
         return response()->json([
             'status' => true,
             'data'   => [
                 'user'                  => $user->fresh(),
+                'is_following'          => $isFollowing,
+                'followers_count'       => $followersCount,
+                'following_count'       => $followingCount,
                 'interest_tags'         => $user->interest_tags,
                 'speaking_languages'    => $user->speaking_languages,
                 'country'               => $user->country ?: 'Pakistan',

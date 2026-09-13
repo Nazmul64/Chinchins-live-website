@@ -375,6 +375,25 @@ Route::prefix('call')->group(function () {
     Route::post('/send-quick-message', [CallController::class, 'sendQuickMessage']);
     Route::post('/quick-message', [CallController::class, 'sendQuickMessage']);
 
+    // Live In-Call Text Chat, Live Image Upload (uploads/live) & Real-Time Sync
+    Route::post('/chat/send', [CallController::class, 'sendCallMessage']);
+    Route::post('/send-message', [CallController::class, 'sendCallMessage']);
+    Route::post('/message', [CallController::class, 'sendCallMessage']);
+    Route::get('/{callId}/messages', [CallController::class, 'getCallMessages']);
+    Route::get('/chat/messages', [CallController::class, 'getCallMessages']);
+    Route::post('/chat/upload-image', [CallController::class, 'uploadLiveImage']);
+    Route::post('/upload-image', [CallController::class, 'uploadLiveImage']);
+    Route::post('/upload', [CallController::class, 'uploadLiveImage']);
+    Route::post('/live/upload', [CallController::class, 'uploadLiveImage']);
+
+    // Video Call Minimization / In-App Floating PiP State Sync
+    Route::post('/minimize', [CallController::class, 'minimizeCall']);
+    Route::post('/restore', [CallController::class, 'restoreCall']);
+
+    // TikTok-Style Real-Time Camera Filters & Beauty Catalog
+    Route::get('/filters', [CallController::class, 'getFilters']);
+    Route::get('/effects', [CallController::class, 'getFilters']);
+
     // End Call & History
     Route::match(['get', 'post'], '/end', [CallController::class, 'end']);
     Route::match(['get', 'post'], '/finish', [CallController::class, 'end']);
@@ -583,7 +602,24 @@ Route::post('/user/{id}/hi', [\App\Http\Controllers\Api\MessageApiController::cl
 Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
 Route::post('/live/send-gift', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
 Route::post('/live-stream/gift', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
-Route::post('/gifts/upload', [\App\Http\Controllers\Admin\GiftController::class, 'storeGift']);
+// ==========================================
+// 👥 Follow & Unfollow User APIs
+// ==========================================
+Route::post('/user/follow', [\App\Http\Controllers\Api\UserFollowApiController::class, 'follow']);
+Route::post('/follow', [\App\Http\Controllers\Api\UserFollowApiController::class, 'follow']);
+Route::post('/user/unfollow', [\App\Http\Controllers\Api\UserFollowApiController::class, 'unfollow']);
+Route::post('/unfollow', [\App\Http\Controllers\Api\UserFollowApiController::class, 'unfollow']);
+Route::get('/user/{id}/follow-status', [\App\Http\Controllers\Api\UserFollowApiController::class, 'status']);
+Route::get('/follow/status/{id?}', [\App\Http\Controllers\Api\UserFollowApiController::class, 'status']);
+Route::get('/user/{id}/followers', [\App\Http\Controllers\Api\UserFollowApiController::class, 'followers']);
+Route::get('/followers/{id?}', [\App\Http\Controllers\Api\UserFollowApiController::class, 'followers']);
+Route::get('/user/{id}/following', [\App\Http\Controllers\Api\UserFollowApiController::class, 'following']);
+Route::get('/following/{id?}', [\App\Http\Controllers\Api\UserFollowApiController::class, 'following']);
+
+// 💄 TikTok-Style Camera Filters & Beauty Effects
+Route::get('/filters', [CallController::class, 'getFilters']);
+Route::get('/camera/filters', [CallController::class, 'getFilters']);
+Route::get('/effects', [CallController::class, 'getFilters']);
 
 // Authenticated & Session Verification Routes
 Route::match(['get', 'post'], '/auth/check', [AuthController::class, 'me']);

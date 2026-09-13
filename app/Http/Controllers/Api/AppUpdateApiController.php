@@ -55,6 +55,10 @@ class AppUpdateApiController extends Controller
         $latestVersion = AppVersion::getLatest();
 
         $remoteFlags = $latestVersion?->remote_flags ?? AppVersion::defaultRemoteFlags();
+        $remoteFlags['screenshot_protection_enabled'] = (bool) AppSetting::get('screenshot_protection_enabled', '1');
+        $remoteFlags['screen_recording_protection_enabled'] = (bool) AppSetting::get('screen_recording_protection_enabled', '1');
+        $remoteFlags['camera_filters_enabled'] = (bool) AppSetting::get('camera_filters_enabled', '1');
+        $remoteFlags['call_minimize_enabled'] = (bool) AppSetting::get('call_minimize_enabled', '1');
 
         return response()->json([
             'status' => true,
@@ -71,6 +75,10 @@ class AppUpdateApiController extends Controller
                 'free_trial_duration'  => (int) ($callConfig['free_call_duration_seconds'] ?? 15),
                 'incoming_ringtone'    => $callConfig['incoming_ringtone_url'],
                 'outgoing_ringtone'    => $callConfig['outgoing_ringtone_url'],
+                'screenshot_protection_enabled' => (bool) AppSetting::get('screenshot_protection_enabled', '1'),
+                'screen_recording_protection_enabled' => (bool) AppSetting::get('screen_recording_protection_enabled', '1'),
+                'camera_filters_enabled' => (bool) AppSetting::get('camera_filters_enabled', '1'),
+                'call_minimize_enabled' => (bool) AppSetting::get('call_minimize_enabled', '1'),
                 'remote_flags'         => $remoteFlags,
                 'support_email'        => AppSetting::get('support_email', 'support@chinchins.live'),
                 'support_whatsapp'     => AppSetting::get('support_whatsapp', '+8801700000000'),

@@ -612,11 +612,18 @@ class GiftApiController extends Controller
                  'coins_spent'    => $totalCost,
              ];
  
-             // 8. Trigger Laravel Reverb Real-Time Broadcast Event (live-stream.{stream_id} -> gift.received)
+             // 8. Trigger Laravel Reverb Real-Time Broadcast Event (live-stream.{stream_id} -> gift.received & GiftSent)
              try {
                  broadcast(new LiveGiftSentEvent($streamId, $eventData))->toOthers();
              } catch (\Throwable $e) {
                  \Illuminate\Support\Facades\Log::warning("Reverb broadcast error: " . $e->getMessage());
+             }
+
+             try {
+                 $callSessionChannel = $request->input('call_session_id') ?: $streamId;
+                 broadcast(new \App\Events\GiftSent($callSessionChannel, $eventData))->toOthers();
+             } catch (\Throwable $e) {
+                 \Illuminate\Support\Facades\Log::warning("GiftSent broadcast error: " . $e->getMessage());
              }
  
              // 9. Send In-App & FCM Push Notification
