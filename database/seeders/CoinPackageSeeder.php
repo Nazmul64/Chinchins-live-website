@@ -21,6 +21,9 @@ class CoinPackageSeeder extends Seeder
                 'currency' => 'BDT',
                 'badge' => '50% off',
                 'badge_color' => 'danger',
+                'icon_url' => 'uploads/coin_packages/burst.png',
+                'animation_url' => 'uploads/coin_packages/burst_animated.svg',
+                'format' => 'svg',
                 'is_popular' => true,
                 'is_active' => true,
                 'sort_order' => 1,
@@ -33,6 +36,9 @@ class CoinPackageSeeder extends Seeder
                 'currency' => 'BDT',
                 'badge' => '17% off',
                 'badge_color' => 'pink',
+                'icon_url' => 'uploads/coin_packages/diamond_orb.png',
+                'animation_url' => 'uploads/coin_packages/diamond_orb_animated.svg',
+                'format' => 'svg',
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 2,
@@ -45,6 +51,9 @@ class CoinPackageSeeder extends Seeder
                 'currency' => 'BDT',
                 'badge' => '17% off',
                 'badge_color' => 'pink',
+                'icon_url' => 'uploads/coin_packages/diamond_crown.png',
+                'animation_url' => 'uploads/coin_packages/diamond_crown_animated.svg',
+                'format' => 'svg',
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 3,
@@ -57,6 +66,9 @@ class CoinPackageSeeder extends Seeder
                 'currency' => 'BDT',
                 'badge' => '30% off',
                 'badge_color' => 'pink',
+                'icon_url' => 'uploads/coin_packages/crystal_crown.png',
+                'animation_url' => 'uploads/coin_packages/crystal_crown_animated.svg',
+                'format' => 'svg',
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 4,
@@ -69,6 +81,9 @@ class CoinPackageSeeder extends Seeder
                 'currency' => 'BDT',
                 'badge' => '60% off',
                 'badge_color' => 'pink',
+                'icon_url' => 'uploads/coin_packages/magic_bag.png',
+                'animation_url' => 'uploads/coin_packages/magic_bag_animated.svg',
+                'format' => 'svg',
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 5,
@@ -81,17 +96,20 @@ class CoinPackageSeeder extends Seeder
                 'currency' => 'BDT',
                 'badge' => '80% off',
                 'badge_color' => 'danger',
+                'icon_url' => 'uploads/coin_packages/royal_chest.png',
+                'animation_url' => 'uploads/coin_packages/royal_chest_animated.svg',
+                'format' => 'svg',
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 6,
             ],
         ];
 
+        // Clean out and synchronize coin packages
+        CoinPackage::truncate();
+
         foreach ($packages as $pkg) {
-            CoinPackage::updateOrCreate(
-                ['coins' => $pkg['coins']],
-                $pkg
-            );
+            CoinPackage::create($pkg);
         }
     }
 }

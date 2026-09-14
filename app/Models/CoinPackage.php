@@ -140,8 +140,9 @@ class CoinPackage extends Model
     public function getPngUrlAttribute(): ?string
     {
         $src = $this->icon_url;
-        if (empty($src)) return self::resolveAssetUrl('uploads/coin_packages/gem_tier1_single.svg');
-        $pngPath = preg_replace('/\.svg(\?.*)?$/i', '.png$1', $src);
+        if (empty($src)) return self::resolveAssetUrl('uploads/coin_packages/burst.png');
+        $pngPath = preg_replace('/_animated\.svg(\?.*)?$/i', '.png$1', $src);
+        $pngPath = preg_replace('/\.svg(\?.*)?$/i', '.png$1', $pngPath);
         return self::resolveAssetUrl($pngPath);
     }
 
@@ -150,9 +151,13 @@ class CoinPackage extends Model
      */
     public function getSvgUrlAttribute(): ?string
     {
+        if (!empty($this->animation_url)) {
+            return self::resolveAssetUrl($this->animation_url);
+        }
         $src = $this->icon_url;
-        if (empty($src)) return self::resolveAssetUrl('uploads/coin_packages/gem_tier1_single.svg');
-        return self::resolveAssetUrl($src);
+        if (empty($src)) return self::resolveAssetUrl('uploads/coin_packages/burst_animated.svg');
+        $svgPath = preg_replace('/\.png(\?.*)?$/i', '_animated.svg$1', $src);
+        return self::resolveAssetUrl($svgPath);
     }
 
     /**
@@ -193,7 +198,8 @@ class CoinPackage extends Model
                 'is_popular' => true,
                 'is_active' => true,
                 'sort_order' => 1,
-                'icon_url' => 'uploads/coin_packages/gem_tier1_single.svg',
+                'icon_url' => 'uploads/coin_packages/burst.png',
+                'animation_url' => 'uploads/coin_packages/burst_animated.svg',
             ],
             2 => [
                 'title' => 'Basic Pack',
@@ -205,7 +211,8 @@ class CoinPackage extends Model
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 2,
-                'icon_url' => 'uploads/coin_packages/gem_tier2_double.svg',
+                'icon_url' => 'uploads/coin_packages/diamond_orb.png',
+                'animation_url' => 'uploads/coin_packages/diamond_orb_animated.svg',
             ],
             3 => [
                 'title' => 'Popular Pack',
@@ -217,7 +224,8 @@ class CoinPackage extends Model
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 3,
-                'icon_url' => 'uploads/coin_packages/gem_tier3_triple.svg',
+                'icon_url' => 'uploads/coin_packages/diamond_crown.png',
+                'animation_url' => 'uploads/coin_packages/diamond_crown_animated.svg',
             ],
             4 => [
                 'title' => 'Super Pack',
@@ -229,7 +237,8 @@ class CoinPackage extends Model
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 4,
-                'icon_url' => 'uploads/coin_packages/gem_tier4_stack.svg',
+                'icon_url' => 'uploads/coin_packages/crystal_crown.png',
+                'animation_url' => 'uploads/coin_packages/crystal_crown_animated.svg',
             ],
             5 => [
                 'title' => 'Mega Pack',
@@ -241,7 +250,8 @@ class CoinPackage extends Model
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 5,
-                'icon_url' => 'uploads/coin_packages/gem_tier5_tray.svg',
+                'icon_url' => 'uploads/coin_packages/magic_bag.png',
+                'animation_url' => 'uploads/coin_packages/magic_bag_animated.svg',
             ],
             6 => [
                 'title' => 'VIP King Pack',
@@ -253,13 +263,14 @@ class CoinPackage extends Model
                 'is_popular' => false,
                 'is_active' => true,
                 'sort_order' => 6,
-                'icon_url' => 'uploads/coin_packages/gem_tier6_chest.svg',
+                'icon_url' => 'uploads/coin_packages/royal_chest.png',
+                'animation_url' => 'uploads/coin_packages/royal_chest_animated.svg',
             ],
         ];
 
         foreach ($defaults as $sort => $data) {
             $data['currency'] = 'BDT';
-            $data['format'] = 'image';
+            $data['format'] = 'svg';
             self::updateOrCreate(
                 ['coins' => $data['coins']],
                 $data

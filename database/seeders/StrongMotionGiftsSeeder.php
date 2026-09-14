@@ -14,10 +14,6 @@ class StrongMotionGiftsSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Shift existing gifts so our 30 strong-motion animated gifts take sort_order 1 to 30
-        DB::table('gifts')->where('sort_order', '<', 50)->update([
-            'sort_order' => DB::raw('sort_order + 30')
-        ]);
 
         $gifts = [
             [
@@ -592,11 +588,18 @@ class StrongMotionGiftsSeeder extends Seeder
             ],
         ];
 
+        // Clean out ALL old/legacy gifts completely so ONLY the 30 strong-motion gifts exist
+        try {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            DB::table('gifts')->truncate();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } catch (\Throwable $e) {
+            $activeSlugs = array_column($gifts, 'slug');
+            Gift::whereNotIn('slug', $activeSlugs)->orWhereNull('slug')->delete();
+        }
+
         foreach ($gifts as $giftData) {
-            Gift::updateOrCreate(
-                ['slug' => $giftData['slug']],
-                $giftData
-            );
+            Gift::create($giftData);
         }
     }
 }
