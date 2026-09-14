@@ -101,57 +101,62 @@ class PaymentController extends Controller
      */
     public function getPaymentMethods(): JsonResponse
     {
-        $methods = PaymentMethod::where('is_active', true)
-            ->orderBy('sort_order')
-            ->get()
-            ->map(function ($pm) {
-                $rateCoins = (int) ($pm->rate_coins ?: (($pm->rate_per_bdt ?: 10) * 10));
-                $bonusCoins = (int) ($pm->bonus_coins ?: 0);
-                $totalCoins = $rateCoins + $bonusCoins;
-                $rateBdt = (float) ($pm->rate_bdt ?: 10.00);
-                $ratePerBdt = (float) ($pm->rate_per_bdt ?: ($rateBdt > 0 ? round($rateCoins / $rateBdt, 2) : 10));
-                $bonusPercent = ($rateCoins > 0 && $bonusCoins > 0) ? (int) round(($bonusCoins / $rateCoins) * 100) : 0;
+        $data = \Illuminate\Support\Facades\Cache::remember('api_payment_methods_full', 3600, function () {
+            $methods = PaymentMethod::where('is_active', true)
+                ->orderBy('sort_order')
+                ->get()
+                ->map(function ($pm) {
+                    $rateCoins = (int) ($pm->rate_coins ?: (($pm->rate_per_bdt ?: 10) * 10));
+                    $bonusCoins = (int) ($pm->bonus_coins ?: 0);
+                    $totalCoins = $rateCoins + $bonusCoins;
+                    $rateBdt = (float) ($pm->rate_bdt ?: 10.00);
+                    $ratePerBdt = (float) ($pm->rate_per_bdt ?: ($rateBdt > 0 ? round($rateCoins / $rateBdt, 2) : 10));
+                    $bonusPercent = ($rateCoins > 0 && $bonusCoins > 0) ? (int) round(($bonusCoins / $rateCoins) * 100) : 0;
 
-                return [
-                    'id' => $pm->id,
-                    'name' => $pm->name,
-                    'code' => $pm->code,
-                    'account_type' => $pm->account_type,
-                    'account_number' => $pm->account_number,
-                    'instructions' => $pm->instructions,
-                    'icon' => $pm->icon_url ?: $pm->icon,
-                    'qr_code' => $pm->qr_code_url ?: $pm->qr_code,
-                    'min_deposit' => (float) $pm->min_deposit,
-                    'max_deposit' => (float) $pm->max_deposit,
-                    'rate_coins' => $rateCoins,
-                    'bonus_coins' => $bonusCoins,
-                    'total_coins' => $totalCoins,
-                    'rate_bdt' => $rateBdt,
-                    'price' => $rateBdt,
-                    'price_bdt' => $rateBdt,
-                    'formatted_price' => '৳' . number_format($rateBdt, (floor($rateBdt) == $rateBdt ? 0 : 2)),
-                    'rate_per_bdt' => $ratePerBdt, // Base Coins per 1 BDT
-                    'offer_tag' => $pm->offer_tag ?: null,
-                    'badge' => $pm->offer_tag ?: null,
-                    'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
-                    'bonus_percentage' => $bonusPercent,
-                    'button_text' => "Recharge {$totalCoins} Gems (৳" . number_format($rateBdt, (floor($rateBdt) == $rateBdt ? 0 : 2)) . ")",
-                    'rate_text' => $bonusCoins > 0 ? "{$rateCoins} + {$bonusCoins} Bonus = ৳{$rateBdt} BDT" : "{$rateCoins} Coins = ৳{$rateBdt} BDT",
-                    'example' => $bonusCoins > 0 ? "{$rateCoins} + {$bonusCoins} Bonus ({$totalCoins} Total) = ৳{$rateBdt} BDT" : "{$rateCoins} Coins = ৳{$rateBdt} BDT (1 BDT = {$ratePerBdt} Coins)",
-                ];
-            });
+                    return [
+                        'id' => $pm->id,
+                        'name' => $pm->name,
+                        'code' => $pm->code,
+                        'account_type' => $pm->account_type,
+                        'account_number' => $pm->account_number,
+                        'instructions' => $pm->instructions,
+                        'icon' => $pm->icon_url ?: $pm->icon,
+                        'qr_code' => $pm->qr_code_url ?: $pm->qr_code,
+                        'min_deposit' => (float) $pm->min_deposit,
+                        'max_deposit' => (float) $pm->max_deposit,
+                        'rate_coins' => $rateCoins,
+                        'bonus_coins' => $bonusCoins,
+                        'total_coins' => $totalCoins,
+                        'rate_bdt' => $rateBdt,
+                        'price' => $rateBdt,
+                        'price_bdt' => $rateBdt,
+                        'formatted_price' => '৳' . number_format($rateBdt, (floor($rateBdt) == $rateBdt ? 0 : 2)),
+                        'rate_per_bdt' => $ratePerBdt,
+                        'offer_tag' => $pm->offer_tag ?: null,
+                        'badge' => $pm->offer_tag ?: null,
+                        'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
+                        'bonus_percentage' => $bonusPercent,
+                        'button_text' => "Recharge {$totalCoins} Gems (৳" . number_format($rateBdt, (floor($rateBdt) == $rateBdt ? 0 : 2)) . ")",
+                        'rate_text' => $bonusCoins > 0 ? "{$rateCoins} + {$bonusCoins} Bonus = ৳{$rateBdt} BDT" : "{$rateCoins} Coins = ৳{$rateBdt} BDT",
+                        'example' => $bonusCoins > 0 ? "{$rateCoins} + {$bonusCoins} Bonus ({$totalCoins} Total) = ৳{$rateBdt} BDT" : "{$rateCoins} Coins = ৳{$rateBdt} BDT (1 BDT = {$ratePerBdt} Coins)",
+                    ];
+                });
 
-        $resellerBadge = class_exists('\App\Models\ResellerSetting') ? \App\Models\ResellerSetting::get('reseller_offer_badge', 'Up To 29%↑') : 'Up To 29%↑';
-        $activeResellersCount = class_exists('\App\Models\Reseller') ? \App\Models\Reseller::where('is_active', true)->count() : 0;
+            $resellerBadge = class_exists('\App\Models\ResellerSetting') ? \App\Models\ResellerSetting::get('reseller_offer_badge', 'Up To 29%↑') : 'Up To 29%↑';
+            $activeResellersCount = class_exists('\App\Models\Reseller') ? \App\Models\Reseller::where('is_active', true)->count() : 0;
 
-        return response()->json([
+            return [
+                'reseller_enabled' => true,
+                'reseller_badge' => $resellerBadge,
+                'active_resellers_count' => $activeResellersCount,
+                'data' => $methods,
+            ];
+        });
+
+        return response()->json(array_merge([
             'status' => true,
             'message' => 'Payment methods retrieved successfully.',
-            'reseller_enabled' => true,
-            'reseller_badge' => $resellerBadge,
-            'active_resellers_count' => $activeResellersCount,
-            'data' => $methods,
-        ], 200);
+        ], $data), 200)->header('Cache-Control', 'public, max-age=120, stale-while-revalidate=600');
     }
 
     /**
@@ -269,60 +274,62 @@ class PaymentController extends Controller
     public function getCoinPackages(): JsonResponse
     {
         try {
-            $packages = CoinPackage::where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('id', 'asc')
-                ->get()
-                ->map(function ($pkg) {
-                    $baseCoins = (int) $pkg->coins;
-                    $bonusCoins = (int) ($pkg->bonus_coins ?: 0);
-                    $totalCoins = $baseCoins + $bonusCoins;
-                    $price = (float) $pkg->price;
-                    $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
+            $packages = \Illuminate\Support\Facades\Cache::remember('api_coin_packages_catalog', 3600, function () {
+                return CoinPackage::where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('id', 'asc')
+                    ->get()
+                    ->map(function ($pkg) {
+                        $baseCoins = (int) $pkg->coins;
+                        $bonusCoins = (int) ($pkg->bonus_coins ?: 0);
+                        $totalCoins = $baseCoins + $bonusCoins;
+                        $price = (float) $pkg->price;
+                        $formattedPrice = '৳' . number_format($price, (floor($price) == $price ? 0 : 2));
 
-                    return [
-                        'id' => $pkg->id,
-                        'title' => $pkg->title ?: ($baseCoins . ' Gems Pack'),
-                        'coins' => $baseCoins, // Base Coins (e.g. 32000)
-                        'base_coins' => $baseCoins, // Base Coins (e.g. 32000)
-                        'bonus_coins' => $bonusCoins, // Bonus Coins (e.g. 8000)
-                        'total_coins' => $totalCoins, // Total Coins (32000 + 8000 = 40000)
-                        'formatted_coins' => number_format($baseCoins), // "32,000"
-                        'formatted_base_coins' => number_format($baseCoins), // "32,000"
-                        'formatted_bonus_coins' => $bonusCoins > 0 ? ('+' . number_format($bonusCoins) . ' Bonus') : null,
-                        'formatted_total_coins' => number_format($totalCoins), // "40,000"
-                        'coins_title' => (string) $baseCoins, // "32000"
-                        'display_coins' => (string) $baseCoins, // "32000"
-                        'display_bonus' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus Gems" : null,
-                        'price' => $price,
-                        'price_bdt' => $price,
-                        'formatted_price' => $formattedPrice,
-                        'badge' => $pkg->badge ?: null,
-                        'badge_color' => $pkg->badge_color ?: 'pink',
-                        'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
-                        'bonus_percentage' => $baseCoins > 0 && $bonusCoins > 0 ? (int) round(($bonusCoins / $baseCoins) * 100) : 0,
-                        'icon_url' => $pkg->icon_url,
-                        'icon_full_url' => $pkg->icon_full_url,
-                        'svg_url' => $pkg->svg_url,
-                        'png_url' => $pkg->png_url,
-                        'image_url' => $pkg->image_url,
-                        'animation_url' => $pkg->animation_url,
-                        'animation_full_url' => $pkg->animation_full_url,
-                        'format' => $pkg->format ?: 'image',
-                        'is_popular' => (bool) $pkg->is_popular,
-                        'popular' => (bool) $pkg->is_popular,
-                        'button_text' => "Recharge {$baseCoins} Gems ({$formattedPrice})",
-                        'currency' => $pkg->currency ?: 'BDT',
-                        'currency_symbol' => $pkg->currency === 'USD' ? '$' : '৳',
-                    ];
-                });
+                        return [
+                            'id' => $pkg->id,
+                            'title' => $pkg->title ?: ($baseCoins . ' Gems Pack'),
+                            'coins' => $baseCoins,
+                            'base_coins' => $baseCoins,
+                            'bonus_coins' => $bonusCoins,
+                            'total_coins' => $totalCoins,
+                            'formatted_coins' => number_format($baseCoins),
+                            'formatted_base_coins' => number_format($baseCoins),
+                            'formatted_bonus_coins' => $bonusCoins > 0 ? ('+' . number_format($bonusCoins) . ' Bonus') : null,
+                            'formatted_total_coins' => number_format($totalCoins),
+                            'coins_title' => (string) $baseCoins,
+                            'display_coins' => (string) $baseCoins,
+                            'display_bonus' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus Gems" : null,
+                            'price' => $price,
+                            'price_bdt' => $price,
+                            'formatted_price' => $formattedPrice,
+                            'badge' => $pkg->badge ?: null,
+                            'badge_color' => $pkg->badge_color ?: 'pink',
+                            'bonus_text' => $bonusCoins > 0 ? "+{$bonusCoins} Bonus" : null,
+                            'bonus_percentage' => $baseCoins > 0 && $bonusCoins > 0 ? (int) round(($bonusCoins / $baseCoins) * 100) : 0,
+                            'icon_url' => $pkg->icon_url,
+                            'icon_full_url' => $pkg->icon_full_url,
+                            'svg_url' => $pkg->svg_url,
+                            'png_url' => $pkg->png_url,
+                            'image_url' => $pkg->image_url,
+                            'animation_url' => $pkg->animation_url,
+                            'animation_full_url' => $pkg->animation_full_url,
+                            'format' => $pkg->format ?: 'image',
+                            'is_popular' => (bool) $pkg->is_popular,
+                            'popular' => (bool) $pkg->is_popular,
+                            'button_text' => "Recharge {$baseCoins} Gems ({$formattedPrice})",
+                            'currency' => $pkg->currency ?: 'BDT',
+                            'currency_symbol' => $pkg->currency === 'USD' ? '$' : '৳',
+                        ];
+                    });
+            });
 
             return response()->json([
                 'status' => true,
                 'message' => 'Coin packages retrieved successfully from database.',
                 'data' => $packages,
                 'packages' => $packages,
-            ], 200);
+            ], 200)->header('Cache-Control', 'public, max-age=120, stale-while-revalidate=600');
         } catch (\Throwable $e) {
             return response()->json([
                 'status' => false,

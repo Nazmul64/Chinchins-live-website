@@ -45,14 +45,20 @@ class UserDiscoveryController extends Controller
             });
         }
 
-        $users = $query->orderBy('is_online', 'desc')
-                       ->orderBy('last_seen_at', 'desc')
-                       ->paginate((int) $request->input('per_page', 30));
+        $page = (int) $request->input('page', 1);
+        $perPage = (int) $request->input('per_page', 30);
+        $cacheKey = 'api_user_discovery_' . ($allowOffline ? 'all' : 'online') . '_p' . $page . '_' . $perPage;
+
+        $users = \Illuminate\Support\Facades\Cache::remember($cacheKey, 10, function () use ($query, $perPage) {
+            return $query->orderBy('is_online', 'desc')
+                         ->orderBy('last_seen_at', 'desc')
+                         ->paginate($perPage);
+        });
 
         return response()->json([
             'status'             => 'success',
             'show_offline_users' => $allowOffline,
             'data'               => $users,
-        ], 200);
+        ], 200)->header('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
     }
 }

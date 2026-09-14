@@ -50,21 +50,20 @@ class AppUpdateApiController extends Controller
      */
     public function getRemoteConfig(Request $request): JsonResponse
     {
-        $appConfig = AppSetting::getAppConfig();
-        $callConfig = CallSetting::getAllConfig();
-        $latestVersion = AppVersion::getLatest();
+        $data = \Illuminate\Support\Facades\Cache::remember('api_remote_config_data', 3600, function () {
+            $appConfig = AppSetting::getAppConfig();
+            $callConfig = CallSetting::getAllConfig();
+            $latestVersion = AppVersion::getLatest();
 
-        $remoteFlags = $latestVersion?->remote_flags ?? AppVersion::defaultRemoteFlags();
-        $remoteFlags['screenshot_protection_enabled'] = (bool) filter_var(AppSetting::get('screenshot_protection_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
-        $remoteFlags['screen_recording_protection_enabled'] = (bool) filter_var(AppSetting::get('screen_recording_protection_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
-        $remoteFlags['camera_filters_enabled'] = (bool) filter_var(AppSetting::get('camera_filters_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
-        $remoteFlags['call_minimize_enabled'] = (bool) filter_var(AppSetting::get('call_minimize_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
-        $remoteFlags['debug_mode_enabled'] = (bool) filter_var(AppSetting::get('debug_mode_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
-        $remoteFlags['debug_logs_enabled'] = (bool) filter_var(AppSetting::get('debug_logs_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+            $remoteFlags = $latestVersion?->remote_flags ?? AppVersion::defaultRemoteFlags();
+            $remoteFlags['screenshot_protection_enabled'] = (bool) filter_var(AppSetting::get('screenshot_protection_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+            $remoteFlags['screen_recording_protection_enabled'] = (bool) filter_var(AppSetting::get('screen_recording_protection_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+            $remoteFlags['camera_filters_enabled'] = (bool) filter_var(AppSetting::get('camera_filters_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+            $remoteFlags['call_minimize_enabled'] = (bool) filter_var(AppSetting::get('call_minimize_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+            $remoteFlags['debug_mode_enabled'] = (bool) filter_var(AppSetting::get('debug_mode_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+            $remoteFlags['debug_logs_enabled'] = (bool) filter_var(AppSetting::get('debug_logs_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
 
-        return response()->json([
-            'status' => true,
-            'data'   => [
+            return [
                 'app_name'             => $appConfig['app_name'],
                 'app_tagline'          => $appConfig['app_tagline'],
                 'app_logo_url'         => $appConfig['app_logo_url'],
@@ -86,8 +85,13 @@ class AppUpdateApiController extends Controller
                 'remote_flags'         => $remoteFlags,
                 'support_email'        => AppSetting::get('support_email', 'support@chinchins.live'),
                 'support_whatsapp'     => AppSetting::get('support_whatsapp', '+8801700000000'),
-            ]
-        ], 200);
+            ];
+        });
+
+        return response()->json([
+            'status' => true,
+            'data'   => $data,
+        ], 200)->header('Cache-Control', 'public, max-age=120, stale-while-revalidate=600');
     }
 
     /**
