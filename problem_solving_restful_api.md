@@ -1,41 +1,40 @@
-# 📄 RESTful API Specification, System Architecture & Critical Bug Fixes Documentation
+# 📄 Comprehensive Problem Solving & RESTful API Architecture Specification
 **Target Roles:** Full-Stack Engineers (Laravel Backend & Flutter Frontend)  
 **System Scope:** Live Streaming (Audio/Video), 1-on-1 Video Calling, Unified Core Messaging, Reverb Real-Time Pipeline, FinTech-Grade Coin & Gift Engine, Admin-Controlled Remote Flags (FLAG_SECURE, Debug HUD, Offline Visibility, PIP Restore)  
 **Architecture:** Laravel 11.x RESTful Backend & WebSocket Server (Reverb/Pusher) + Flutter Mobile Client (Android & iOS)  
-**Version:** 5.0.0 Enterprise Edition  
+**Version:** 6.0.0 Enterprise Edition  
 **Updated:** September 14, 2026  
-**Document Name:** `check_restful_api_and_bug_fixing.md`  
+**Document Name:** `problem_solving_restful_api.md`  
 
 ---
 
 ## 📑 Table of Contents
-1. [System Topology & High-Level Architecture](#1-system-topology--high-level-architecture)
-2. [Critical Bug Fixes & Architectural Resolutions](#2-critical-bug-fixes--architectural-resolutions)
-   - [Bug 1: Live Stream & In-Call Free Chat Policy (0 Coin Cost)](#bug-1-live-stream--in-call-free-chat-policy-0-coin-cost)
-   - [Bug 2: Video Call PIP (Minimize) Tap to Restore without Call Drop](#bug-2-video-call-pip-minimize-tap-to-restore-without-call-drop)
-   - [Bug 3: Dynamic Screenshot Protection (FLAG_SECURE) & Debug HUD Switch](#bug-3-dynamic-screenshot-protection-flag_secure--debug-hud-switch)
-   - [Bug 4: Offline Users Visibility Toggle (`show_offline_users`)](#bug-4-offline-users-visibility-toggle-show_offline_users)
-   - [Bug 5: Home Screen Floating VIP Widget Background Transparency](#bug-5-home-screen-floating-vip-widget-background-transparency)
-   - [Bug 6: Strict 30 Strong-Motion Animated SVG Gifts Synchronization](#bug-6-strict-30-strong-motion-animated-svg-gifts-synchronization)
-   - [Bug 7: Diamond Burst Motion Coin Packages Synchronization](#bug-7-diamond-burst-motion-coin-packages-synchronization)
-   - [Bug 8: Agora/WebRTC Token Expiry & Background Auto-Drop Prevention](#bug-8-agorawebrtc-token-expiry--background-auto-drop-prevention)
+1. [System Overview & Architecture Topology](#1-system-overview--architecture-topology)
+2. [Problem Solving & Core Logic Resolutions](#2-problem-solving--core-logic-resolutions)
+   - [Problem 1: Call State Ringing vs Answer (No Auto-Pickup or Auto-Drop on PIP Tap)](#problem-1-call-state-ringing-vs-answer-no-auto-pickup-or-auto-drop-on-pip-tap)
+   - [Problem 2: Bidirectional In-Call & Live Stream Messaging (100% Free Chat)](#problem-2-bidirectional-in-call--live-stream-messaging-100-free-chat)
+   - [Problem 3: Offline User Calling Gate (`USER_OFFLINE` Error Handling)](#problem-3-offline-user-calling-gate-user_offline-error-handling)
+   - [Problem 4: Complete Database Fresh Seed (`migrate:fresh --seed`) for All Admin Modules](#problem-4-complete-database-fresh-seed-migratefresh---seed-for-all-admin-modules)
+   - [Problem 5: Home Screen Floating VIP Widget Background Transparency & Dynamic Upload](#problem-5-home-screen-floating-vip-widget-background-transparency--dynamic-upload)
+   - [Problem 6: Dynamic Screenshot Protection (FLAG_SECURE) & Debug HUD Toggle](#problem-6-dynamic-screenshot-protection-flag_secure--debug-hud-toggle)
+   - [Problem 7: Strict 30 Strong-Motion SVG Gifts & 6 Diamond Burst Coin Packages](#problem-7-strict-30-strong-motion-svg-gifts--6-diamond-burst-coin-packages)
 3. [Database Schema & Migrations Reference](#3-database-schema--migrations-reference)
 4. [Complete RESTful API Reference & Payloads](#4-complete-restful-api-reference--payloads)
    - [A. App Configuration & Remote Feature Flags](#a-app-configuration--remote-feature-flags)
    - [B. User Discovery & Visibility Engine](#b-user-discovery--visibility-engine)
-   - [C. Unified Messaging & Free In-Room Chat](#c-unified-messaging--free-in-room-chat)
-   - [D. Multi-Guest Live Streaming & Broadcasting](#d-multi-guest-live-streaming--broadcasting)
-   - [E. Virtual Gifts Catalog & Instant Transfer](#e-virtual-gifts-catalog--instant-transfer)
-   - [F. Coin Packages & Recharge Store](#f-coin-packages--recharge-store)
-   - [G. Premium VIP Privilege Cards & Floating Banner](#g-premium-vip-privilege-cards--floating-banner)
-   - [H. 1-on-1 Video & Audio Calling](#h-1-on-1-video--audio-calling)
+   - [C. 1-on-1 Video & Audio Calling Endpoints](#c-1-on-1-video--audio-calling-endpoints)
+   - [D. Unified Messaging & In-Call Free Chat](#d-unified-messaging--in-call-free-chat)
+   - [E. Multi-Guest Live Streaming & Broadcasting](#e-multi-guest-live-streaming--broadcasting)
+   - [F. Virtual Gifts Catalog (30 Items) & Transfer](#f-virtual-gifts-catalog-30-items--transfer)
+   - [G. Coin Packages Store (6 Diamond Packages)](#g-coin-packages-store-6-diamond-packages)
+   - [H. Premium VIP Privilege Cards & Floating Banner](#h-premium-vip-privilege-cards--floating-banner)
 5. [Real-Time WebSocket Pipeline & Reverb Events](#5-real-time-websocket-pipeline--reverb-events)
-6. [Flutter Mobile Implementation & State Handlers](#6-flutter-mobile-implementation--state-handlers)
-7. [Deployment & VPS Synchronization Guide](#7-deployment--vps-synchronization-guide)
+6. [Flutter Mobile Architecture & State Handlers](#6-flutter-mobile-architecture--state-handlers)
+7. [Production Deployment & VPS Commands](#7-production-deployment--vps-commands)
 
 ---
 
-## 1. System Topology & High-Level Architecture
+## 1. System Overview & Architecture Topology
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -78,17 +77,47 @@
 
 ---
 
-## 2. Critical Bug Fixes & Architectural Resolutions
+## 2. Problem Solving & Core Logic Resolutions
 
-### Bug 1: Live Stream & In-Call Free Chat Policy (0 Coin Cost)
-- **Problem:** Chatting during a live broadcast or active video call was previously deducting coins or exhausting free message quota after 5 messages.
+### Problem 1: Call State Ringing vs Answer (No Auto-Pickup or Auto-Drop on PIP Tap)
+- **Root Problem:**
+  - When minimizing a call to Picture-in-Picture (PIP) and tapping back to enlarge, the UI was previously triggering `onClose()` or popping the view, causing auto-hangup or false `call_accept` events.
+  - A call MUST remain in `ringing` state until the Receiver explicitly taps the "Answer / Accept" button.
 - **Resolution:**
-  - `MessageApiController.php` & `LiveStreamApiController.php` detect when `is_in_call: true`, `is_live: true`, `context: 'in_call'`, or `live_stream_id` is supplied.
-  - In-room / In-call messaging is set to **100% Free ($0 coins)** with **zero quota deduction**.
-  - Direct 1-on-1 private DM messaging retains the 5 free messages limit before coin deduction.
+  - Caller initiates call -> `status = 'ringing'`.
+  - Receiver receives push / WebSocket event `incoming_call` -> Displays Fullscreen Incoming Call Dialog with "Accept" and "Decline" buttons.
+  - When Caller or Receiver minimizes to floating PIP, state provider stores `isPipMode = true` without altering call state.
+  - Tapping the PIP overlay simply toggles `isPipMode = false` and opens `ActiveVideoCallScreen` without sending any WebSocket terminate event.
+
+```dart
+// Flutter PIP Restoration (lib/features/call/widgets/pip_call_overlay.dart)
+GestureDetector(
+  onTap: () {
+    // 1. Maintain active call state without auto-accepting or hanging up
+    ref.read(callStateProvider.notifier).setPipMode(false);
+    
+    // 2. Push fullscreen call interface without re-initializing WebRTC/Agora
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ActiveVideoCallScreen(),
+        settings: const RouteSettings(name: '/active-call'),
+      ),
+    );
+  },
+  child: const PipFloatingVideoSurface(),
+)
+```
+
+---
+
+### Problem 2: Bidirectional In-Call & Live Stream Messaging (100% Free Chat)
+- **Root Problem:** Chatting during live broadcast or active video calls was consuming user coins or deducting from the 5 free private DM messages limit.
+- **Resolution:**
+  - In `MessageApiController.php` & `LiveStreamApiController.php`, in-room chat messages (with `is_in_call: true`, `is_live: true`, or `live_stream_id`) are **100% Free ($0 coins)** with **zero quota deduction**.
+  - WebSocket broadcasts messages instantly to both parties via `private-conversation.{id}` or `presence-live-room.{id}`.
 
 ```php
-// Backend Resolution in MessageApiController.php
+// Backend Free Messaging Gate (MessageApiController.php)
 $isInCallOrLive = $request->boolean('is_in_call') 
                || $request->boolean('in_call') 
                || $request->boolean('is_live') 
@@ -106,35 +135,62 @@ $coinCost = $isInCallOrLive ? 0 : (int) AppSetting::get('message_coin_cost', 5);
 
 ---
 
-### Bug 2: Video Call PIP (Minimize) Tap to Restore without Call Drop
-- **Problem:** When users tapped on the minimized floating Picture-in-Picture (PIP) video call box to enlarge it, Flutter was executing `onClose()` or popping the navigator which sent a `call_end` event and hung up the call.
+### Problem 3: Offline User Calling Gate (`USER_OFFLINE` Error Handling)
+- **Root Problem:** Attempting to call an offline host must be prevented upfront.
 - **Resolution:**
-  - The minimized PIP widget tap handler must strictly restore full-screen mode by changing the state provider flag `isMinimized = false` and navigating back to `ActiveVideoCallScreen` without tearing down Agora/WebRTC engine.
+  - In `CallController@initiateDirectCall`, the backend strictly validates `$receiver->is_online`.
+  - If `$receiver->is_online == false`, the API rejects with HTTP 400 and `code: 'USER_OFFLINE'`.
+  - In Flutter, profile buttons disable the call button when `is_online == false`, or display an immediate toast: `"User is currently offline."`.
 
-```dart
-// Flutter PIP Restoration Logic
-GestureDetector(
-  onTap: () {
-    // 1. Update call state to full screen
-    ref.read(callStateProvider.notifier).setPipMode(false);
-    // 2. Re-open fullscreen video call without leaving Agora channel
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const ActiveVideoCallScreen(),
-        settings: const RouteSettings(name: '/active-call'),
-      ),
-    );
-  },
-  child: const PipFloatingVideoSurface(),
-)
+```json
+// Error Response when Receiver is Offline (400 Bad Request):
+{
+  "status": false,
+  "can_call": false,
+  "code": "USER_OFFLINE",
+  "is_online": false,
+  "message": "Maya is currently offline.",
+  "receiver": {
+    "id": 105,
+    "account_id": "84920183",
+    "display_name": "Maya",
+    "avatar": "https://chinchins.live/uploads/avatars/maya.jpg",
+    "is_online": false
+  }
+}
 ```
 
 ---
 
-### Bug 3: Dynamic Screenshot Protection (FLAG_SECURE) & Debug HUD Switch
-- **Problem:** When toggling off "Screenshot Protection (FLAG_SECURE)" or "In-App Debug HUD" from `/admin/settings/debug`, mobile devices continued to block screenshots because Android cached `FLAG_SECURE` in window manager on startup.
+### Problem 4: Complete Database Fresh Seed (`migrate:fresh --seed`) for All Admin Modules
+- **Root Problem:** Running `migrate:fresh --seed` was previously missing some admin modules.
 - **Resolution:**
-  - Flutter dynamically fetches `/api/app/remote-config` on launch and updates Android native window flags immediately:
+  - `DatabaseSeeder.php` has been configured to cleanly seed all 10 core modules:
+    1. `RoleAndPermissionSeeder` (All admin permissions)
+    2. `AdminUserSeeder` (Admin credentials)
+    3. `ResellerSeeder` (Reseller accounts & ledger)
+    4. `PaymentMethodSeeder` (bKash, Nagad, Rocket gateways)
+    5. `CoinPackageSeeder` (6 Diamond Burst Store Packages)
+    6. `StrongMotionGiftsSeeder` (30 Strong-Motion SVG Gifts)
+    7. `VipPrivilegeCard::seedDefaultCards()` (8 Premium VIP Cards)
+    8. `SpendLessCard::seedDefaultCards()` (4 Spend Less Cards)
+    9. `BagItem::seedDefaultItems()` (11 Backpack Items)
+    10. `ProfileBase::seedDefaultBases()` (Profile Bases)
+
+---
+
+### Problem 5: Home Screen Floating VIP Widget Background Transparency & Dynamic Upload
+- **Root Problem:** In the mobile explore feed, the floating VIP widget was rendered with a dark navy background box container.
+- **Resolution:**
+  - Removed container background color in Flutter, rendering the SVG / PNG directly as a floating overlay with transparent background.
+  - Admin can upload custom image anytime from `/admin/vip-cards` ("Upload Custom Floating Widget Image"), and it syncs immediately to `/api/app/remote-config`.
+
+---
+
+### Problem 6: Dynamic Screenshot Protection (FLAG_SECURE) & Debug HUD Toggle
+- **Root Problem:** When toggled OFF in `/admin/settings/debug`, Android phones continued blocking screenshots because `FLAG_SECURE` was set statically on app start.
+- **Resolution:**
+  - Flutter dynamically fetches `/api/app/remote-config` on launch and calls `window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)` when disabled by admin.
 
 ```kotlin
 // Android MainActivity.kt
@@ -144,7 +200,6 @@ MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "chinchins/security").
         if (enabled) {
             window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         } else {
-            // Clears hardware screenshot blocking when admin turns it OFF
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
         result.success(true)
@@ -152,62 +207,18 @@ MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "chinchins/security").
 }
 ```
 
-```dart
-// Flutter Dart Handler
-final remoteConfig = await ApiService.getRemoteConfig();
-if (remoteConfig.screenshotProtectionEnabled) {
-  await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
-} else {
-  await FlutterWindowManager.clearFlags(FlutterWindowManager.FLAG_SECURE);
-}
-```
-
 ---
 
-### Bug 4: Offline Users Visibility Toggle (`show_offline_users`)
-- **Problem:** Admin toggling "Show Offline Users in App Discovery List" was not saving or updating mobile discovery list.
-- **Resolution:**
-  - Added save handler in `AppSettingController@update` for `show_offline_users`.
-  - Updated `UserDiscoveryController@index` and `ProfileController@getActiveUsers` to filter `is_online = true` when `show_offline_users` is `0` (OFF), and show all users when `1` (ON).
-
----
-
-### Bug 5: Home Screen Floating VIP Widget Background Transparency
-- **Problem:** In the mobile app explore/home feed, the floating VIP widget ("Extra Gems") was wrapped in a solid navy square container with an X button, obscuring the transparent vector artwork.
-- **Resolution:**
-  - Removed container background box styling in Flutter explore header, allowing `vip_privilege_full_motion.svg` to float transparently over host avatar cards.
-
----
-
-### Bug 6: Strict 30 Strong-Motion Animated SVG Gifts Synchronization
-- **Problem:** Previous database seeders accumulated 160+ old gifts, causing the count to show 190.
-- **Resolution:**
-  - Truncated legacy gifts table.
-  - Exactly 30 Strong-Motion Animated SVGs (from `01_rose.svg` to `30_royal_palace.svg`) are stored in `public/uploads/gifts/` and mapped with IDs `1..30`.
-  - Locked `Gift::seedDefaultGifts()` and `GiftSeeder` so legacy gifts can never be re-seeded.
-
----
-
-### Bug 7: Diamond Burst Motion Coin Packages Synchronization
-- **Problem:** Coin package icons were static and mismatched.
-- **Resolution:**
-  - Mapped all 6 Store Packages to high-motion SVG & PNG diamond burst artworks in `public/uploads/coin_packages/` (`burst`, `diamond_orb`, `diamond_crown`, `crystal_crown`, `magic_bag`, `royal_chest`).
-
----
-
-### Bug 8: Agora/WebRTC Token Expiry & Background Auto-Drop Prevention
-- **Problem:** Mobile backgrounding sent false `call_end` disconnects.
-- **Resolution:**
-  - Tokens generated with 24-hour TTL (`agora_token_ttl = 86400`).
-  - Mobile client sends periodic heartbeat `/api/v1/calls/heartbeat` every 30 seconds to maintain presence.
-  - Backgrounding triggers temporary mute, NOT `call_end`.
+### Problem 7: Strict 30 Strong-Motion SVG Gifts & 6 Diamond Burst Coin Packages
+- **Gifts:** Exactly 30 Strong-Motion Animated SVGs (`01_rose.svg` to `30_royal_palace.svg`) mapped to `sort_order: 1..30`.
+- **Coin Packages:** 6 packages with high-motion vector and PNG diamond icons (`burst`, `diamond_orb`, `diamond_crown`, `crystal_crown`, `magic_bag`, `royal_chest`).
 
 ---
 
 ## 3. Database Schema & Migrations Reference
 
 ```sql
--- Gifts Catalog Table (30 Strong-Motion Animated Items)
+-- 30 Strong-Motion Animated Gifts Table
 CREATE TABLE gifts (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
@@ -249,38 +260,6 @@ CREATE TABLE coin_packages (
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NULL,
   updated_at TIMESTAMP NULL
-);
-
--- Live Streams Table
-CREATE TABLE live_streams (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  host_id BIGINT UNSIGNED NOT NULL,
-  channel_name VARCHAR(255) UNIQUE NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  cover_image VARCHAR(255) NULL,
-  status ENUM('live', 'ended', 'banned') NOT NULL DEFAULT 'live',
-  viewer_count INT UNSIGNED NOT NULL DEFAULT 1,
-  total_diamonds_earned BIGINT UNSIGNED NOT NULL DEFAULT 0,
-  agora_token TEXT NULL,
-  started_at TIMESTAMP NULL,
-  ended_at TIMESTAMP NULL,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL,
-  FOREIGN KEY (host_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Live Messages Table (Free Real-time Public Stream Messages)
-CREATE TABLE live_messages (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  live_stream_id BIGINT UNSIGNED NOT NULL,
-  user_id BIGINT UNSIGNED NOT NULL,
-  message TEXT NOT NULL,
-  type VARCHAR(50) NOT NULL DEFAULT 'text',
-  metadata JSON NULL,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL,
-  FOREIGN KEY (live_stream_id) REFERENCES live_streams(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
 
@@ -350,7 +329,46 @@ CREATE TABLE live_messages (
 
 ---
 
-### C. Free Live Stream Chat Message
+### C. Direct 1-on-1 Video Call Initiation
+- **Endpoint:** `POST /api/call/initiate`
+- **Authentication:** `Bearer {token}`
+
+#### Request Body:
+```json
+{
+  "receiver_id": 105,
+  "call_type": "video"
+}
+```
+
+#### Success Response (200 OK):
+```json
+{
+  "status": true,
+  "message": "Call initiated successfully. Waiting for receiver to accept.",
+  "data": {
+    "call_id": 9821,
+    "channel_name": "call_video_12_105_1726320000_a8bc",
+    "status": "ringing",
+    "agora_token": "006e8a...==",
+    "agora_app_id": "934...b1",
+    "uid": 12,
+    "is_free_trial": false,
+    "rate_per_minute": 22,
+    "receiver": {
+      "id": 105,
+      "account_id": "84920183",
+      "display_name": "Maya",
+      "avatar": "https://chinchins.live/uploads/avatars/maya.jpg",
+      "is_online": true
+    }
+  }
+}
+```
+
+---
+
+### D. Free Live Stream Chat Message
 - **Endpoint:** `POST /api/live/message` (or `POST /api/live/messages/send`)
 - **Authentication:** `Bearer {token}`
 
@@ -385,7 +403,7 @@ CREATE TABLE live_messages (
 
 ---
 
-### D. 30 Strong-Motion Gifts Catalog
+### E. 30 Strong-Motion Gifts Catalog
 - **Endpoint:** `GET /api/v1/gifts`
 - **Authentication:** `Bearer {token}`
 
@@ -437,7 +455,7 @@ CREATE TABLE live_messages (
 
 ---
 
-### E. Coin Recharge Packages Store
+### F. Coin Recharge Packages Store
 - **Endpoint:** `GET /api/v1/coin-packages`
 - **Authentication:** `Bearer {token}`
 
@@ -474,16 +492,27 @@ CREATE TABLE live_messages (
 
 ---
 
-## 5. Deployment & VPS Synchronization Guide
+## 5. Real-Time WebSocket Pipeline & Reverb Events
+
+| Event Class | Channel Name | Client Event Name | Description |
+|---|---|---|---|
+| `CallSignalEvent` | `private-user.{id}` | `incoming_call` | Incoming video/audio call dialog trigger |
+| `CallAnsweredEvent` | `private-call.{call_id}` | `call_answered` | Transition caller from ringing to active |
+| `CallEndedEvent` | `private-call.{call_id}` | `call_ended` | Disconnect WebRTC/Agora stream cleanly |
+| `LiveChatMessageEvent` | `presence-live-room.{id}` | `chat.message` | 100% Free real-time live chat message |
+| `LiveGiftSentEvent` | `presence-live-room.{id}` | `gift.received` | Trigger SVG strong-motion gift canvas |
+| `UserOnlineStatusEvent` | `presence-global` | `user.status` | Update online/offline badge real-time |
+
+---
+
+## 6. Production Deployment & VPS Commands
 
 Run the following commands on your production VPS (`/var/www/chinchins-live-website`):
 
 ```bash
 cd /var/www/chinchins-live-website
 git pull origin main
-php artisan migrate --force
-php artisan db:seed --class=StrongMotionGiftsSeeder --force
-php artisan db:seed --class=CoinPackageSeeder --force
+php artisan migrate:fresh --seed --force
 chmod -R 775 public/assets public/uploads
 chown -R www-data:www-data public/assets public/uploads
 php artisan optimize:clear
