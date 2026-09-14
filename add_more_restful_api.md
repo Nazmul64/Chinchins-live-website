@@ -27,6 +27,7 @@
    - [B. Zero-Freeze In-Call Chat Overlay Component (`in_call_chat_overlay.dart`)](#b-zero-freeze-in-call-chat-overlay-component-in_call_chat_overlaydart)
    - [C. Hardware-Accelerated Supercar / Gift Overlay Canvas (`live_room_screen.dart`)](#c-hardware-accelerated-supercar--gift-overlay-canvas-live_room_screendart)
 10. [End-to-End Test Matrix & Quality Verification](#10-end-to-end-test-matrix--quality-verification)
+11. [Admin Panel Dashboard, Sidebar & Management Architecture](#11-admin-panel-dashboard-sidebar--management-architecture)
 
 ---
 
@@ -980,4 +981,62 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with SingleTickerProvid
 | **Visibility** | Admin sets `show_offline_users = false` | `/api/v1/users/discovery` filters strictly by `is_online: true`. | Offline users disappear from discovery lists without session drops. |
 
 ---
+
+## 11. Admin Panel Dashboard, Sidebar & Management Architecture
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                      ADMIN PANEL SIDEBAR NAVIGATION                     │
+│                                                                        │
+│   ├── 🏠 Dashboard                                                     │
+│   ├── 👥 Users & Balance                                               │
+│   ├── 🎧 Live Chat Users & 24/7 Support                                │
+│   ├── 💳 Payment Methods                                               │
+│   ├── 🏪 Resellers Management (Deposits, Withdrawals, Chat)            │
+│   ├── 💎 Coin Packages                                                 │
+│   ├── 🎁 Gifts & Rewards System                                        │
+│   ├── 🎒 My Bag Items                                                  │
+│   ├── 👑 Premium VIP                                                   │
+│   ├── 💎 Spend Less, Get More                                          │
+│   ├── 🏅 Level Badges & Frames                                         │
+│   ├── 💸 Deposit Requests                                              │
+│   ├── 💵 Withdrawals                                                   │
+│   ├── 🪪 KYC Verification                                              │
+│   ├── ⚠️ User Reports Moderation                                       │
+│   ├── 📹 Call & Revenue (Sessions & Ringtone Settings)                 │
+│   │                                                                    │
+│   ├── 📡 Live Streaming (Multi-Guest Broadcasts) [NEW]                 │
+│   │     ├── 🔴 All Live Streams (`/admin/live-streams`)                │
+│   │     ├── 📜 Gift Transactions Log (`/admin/live-streams/gift-tx`)   │
+│   │     └── ⚡ Streaming Driver Engine (`/admin/settings/streaming`)   │
+│   │                                                                    │
+│   ├── 🎙️ Party Rooms                                                   │
+│   ├── 🪙 Coin Ledger                                                   │
+│   ├── 🛡️ Staff & Roles (RBAC)                                          │
+│   ├── 📜 Activity Audit Logs                                           │
+│   ├── 🚪 Login History                                                 │
+│   ├── 🐛 App Debug & Logs                                              │
+│   └── ⚙️ App Branding & Config (`/admin/settings`)                     │
+│         └── 👁️ Show Offline Users in App Toggle [NEW]                  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1. Live Streaming Broadcasts Management (`/admin/live-streams`)
+- **Route:** `GET /admin/live-streams` (`Admin\LiveStreamAdminController@index`)
+- **Real-Time Active Count Badge:** Displays live count in sidebar with pulse animation (e.g. `2 Live`).
+- **Monitoring Table:** Shows Stream ID, Host Profile, Channel Name, Viewer Count, Diamonds Earned, and Started Time.
+- **Immediate Termination Action:** `POST /admin/live-streams/{id}/force-close` immediately marks stream `status = 'ended'`, disconnects all participants, resets host status to `available`, and broadcasts `LiveStreamEnded` WebSocket event.
+
+### 2. Virtual Gift Transactions Audit Log (`/admin/live-streams/gift-transactions`)
+- **Route:** `GET /admin/live-streams/gift-transactions` (`Admin\LiveStreamAdminController@giftTransactions`)
+- **Ledger Overview:** Displays total gifts sent, total coins spent, sender info, receiver (host) info, coins spent vs host earnings (50% split), associated live stream ID, and ISO timestamp.
+
+### 3. App Settings — Offline Users Visibility Toggle (`/admin/settings`)
+- **Route:** `POST /admin/settings` with `show_offline_users: "1"` or `"0"`
+- **Storage:** Saved in `app_settings` table under `key: show_offline_users`.
+- **Cache Invalidation:** Automatically invalidates `app_setting_show_offline_users` cache upon update.
+- **Client Impact:** Immediately affects `/api/v1/users/discovery` and `/api/v1/users/active` query outputs.
+
+---
 *Chinchins Live Technical Specification — Confidential & Proprietary*
+
