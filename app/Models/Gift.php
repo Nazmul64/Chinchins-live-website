@@ -180,14 +180,14 @@ class Gift extends Model
     }
 
     /**
-     * Seed comprehensive 160+ animated live streaming gifts across all categories if table is empty.
+     * Seed the 30 strong-motion animated live streaming gifts if table is empty.
      */
     public static function seedDefaultGifts(): void
     {
-        if (static::count() >= 50) {
+        if (static::count() >= 30) {
             return;
         }
-        (new \Database\Seeders\GiftSeeder())->run();
+        (new \Database\Seeders\StrongMotionGiftsSeeder())->run();
     }
 
     /**
