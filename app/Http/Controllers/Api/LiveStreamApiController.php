@@ -767,4 +767,154 @@ class LiveStreamApiController extends Controller
             'data'    => $kickPayload,
         ], 200);
     }
+
+    /**
+     * 11. Host Invite Viewer to Co-Host (Max 4-5 persons check).
+     * POST /api/v1/stream/invite-cohost or POST /api/live/invite-cohost
+     */
+    public function inviteCoHost(Request $request): JsonResponse
+    {
+        $host = $this->resolveUser($request);
+        $streamId = $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $targetUserId = $request->input('user_id') ?? $request->input('target_user_id');
+
+        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+        if (!$stream || $stream->status !== 'live') {
+            return response()->json(['status' => false, 'message' => 'Active live stream not found.'], 404);
+        }
+
+        $activeCoHosts = LiveParticipant::where('live_stream_id', $stream->id)
+            ->where('role', 'guest')
+            ->whereNull('left_at')
+            ->count();
+
+        if ($activeCoHosts >= 5) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Maximum multi-host limit reached (Max 5 persons in split grid).',
+                'active_count' => $activeCoHosts,
+                'max_limit' => 5,
+            ], 400);
+        }
+
+        $targetUser = User::find($targetUserId);
+        if (!$targetUser) {
+            return response()->json(['status' => false, 'message' => 'Target user not found.'], 404);
+        }
+
+        $invitePayload = [
+            'action'         => 'invited',
+            'stream_id'      => (string) $stream->id,
+            'user_id'        => (int) $targetUser->id,
+            'user_name'      => $targetUser->display_name ?? $targetUser->name,
+            'user_avatar'    => $targetUser->avatar_url,
+            'co_hosts_count' => $activeCoHosts + 1,
+            'max_limit'      => 5,
+            'timestamp'      => now()->toIso8601String(),
+        ];
+
+        try {
+            event(new \App\Events\CoHostStatusEvent((string) $stream->id, $invitePayload));
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => 'Co-host invitation sent successfully.',
+            'data'    => $invitePayload,
+        ], 200);
+    }
+
+    /**
+     * 12. Viewer Accept Co-Host Invitation.
+     * POST /api/v1/stream/accept-cohost or POST /api/live/accept-cohost
+     */
+    public function acceptCoHost(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $streamId = $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+        if (!$stream || $stream->status !== 'live') {
+            return response()->json(['status' => false, 'message' => 'Active live stream not found.'], 404);
+        }
+
+        $activeCoHosts = LiveParticipant::where('live_stream_id', $stream->id)
+            ->where('role', 'guest')
+            ->whereNull('left_at')
+            ->count();
+
+        if ($activeCoHosts >= 5) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Cannot accept: Maximum multi-host limit reached (Max 5 persons).',
+                'active_count' => $activeCoHosts,
+                'max_limit' => 5,
+            ], 400);
+        }
+
+        LiveParticipant::updateOrCreate(
+            ['live_stream_id' => $stream->id, 'user_id' => $user->id],
+            ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
+        );
+
+        $acceptPayload = [
+            'action'         => 'accepted',
+            'stream_id'      => (string) $stream->id,
+            'user_id'        => (int) $user->id,
+            'user_name'      => $user->display_name ?? $user->name,
+            'user_avatar'    => $user->avatar_url,
+            'co_hosts_count' => $activeCoHosts + 1,
+            'max_limit'      => 5,
+            'timestamp'      => now()->toIso8601String(),
+        ];
+
+        try {
+            event(new \App\Events\CoHostStatusEvent((string) $stream->id, $acceptPayload));
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => 'Co-host accepted. Device camera/mic activated in multi-video grid.',
+            'data'    => $acceptPayload,
+        ], 200);
+    }
+
+    /**
+     * 13. Send WebRTC Stream Signaling for Multi-Host P2P Mesh.
+     * POST /api/v1/stream/signal or POST /api/live/signal
+     */
+    public function sendStreamSignal(Request $request): JsonResponse
+    {
+        $sender = $this->resolveUser($request);
+        $streamId = $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $targetUserId = $request->input('target_user_id') ?? $request->input('to_user_id');
+        $type = $request->input('type', 'offer'); // 'offer', 'answer', 'candidate'
+        $payload = $request->input('sdp_or_candidate') ?? $request->input('payload');
+
+        $signalData = [
+            'stream_id'        => (string) $streamId,
+            'sender_id'        => $sender ? $sender->id : (int) $request->input('sender_id'),
+            'target_user_id'   => (int) $targetUserId,
+            'type'             => $type,
+            'sdp_or_candidate' => $payload,
+            'payload'          => $payload,
+            'timestamp'        => now()->toIso8601String(),
+        ];
+
+        try {
+            event(new \App\Events\StreamSignalingEvent((string) $streamId, $signalData));
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => "Stream signal '{$type}' broadcast successfully.",
+            'data'    => $signalData,
+        ], 200);
+    }
 }

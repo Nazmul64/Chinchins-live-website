@@ -69,10 +69,35 @@ Broadcast::channel('live.{liveId}', function ($user, $liveId) {
 });
 
 Broadcast::channel('live-stream.{streamId}', function ($user, $streamId) {
-    return true;
+    if (!$user) return true;
+    return [
+        'id'           => $user->id,
+        'account_id'   => $user->account_id,
+        'name'         => $user->display_name ?? $user->name,
+        'display_name' => $user->display_name ?? $user->name,
+        'avatar'       => $user->avatar_url,
+        'avatar_url'   => $user->avatar_url,
+        'level'        => $user->level ?: 'Lv1',
+        'role'         => ($user->is_host || (string)$user->id === (string)$streamId) ? 'host' : 'viewer',
+    ];
+});
+
+Broadcast::channel('presence-live-stream.{streamId}', function ($user, $streamId) {
+    if (!$user) return true;
+    return [
+        'id'           => $user->id,
+        'account_id'   => $user->account_id,
+        'name'         => $user->display_name ?? $user->name,
+        'display_name' => $user->display_name ?? $user->name,
+        'avatar'       => $user->avatar_url,
+        'avatar_url'   => $user->avatar_url,
+        'level'        => $user->level ?: 'Lv1',
+        'role'         => ($user->is_host || (string)$user->id === (string)$streamId) ? 'host' : 'viewer',
+    ];
 });
 
 Broadcast::channel('presence-live.{liveId}', function ($user, $liveId) {
+    if (!$user) return true;
     return [
         'id'           => $user->id,
         'account_id'   => $user->account_id,

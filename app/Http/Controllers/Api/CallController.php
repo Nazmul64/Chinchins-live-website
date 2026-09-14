@@ -1386,6 +1386,15 @@ class CallController extends Controller
                     $sdpMLineIndex = is_array($payload) ? ($payload['sdpMLineIndex'] ?? $payload['sdp_mline_index'] ?? 0) : 0;
                     event(new \App\Events\WebRTCICECandidate((int)$receiverId, (int)$callId, (string)$roomId, $candStr, $sdpMid, (int)$sdpMLineIndex));
                 }
+
+                // Standard CallSignalingEvent broadcast for Flutter Laravel Echo
+                event(new \App\Events\CallSignalingEvent($callId, [
+                    'sender_id'   => $senderId,
+                    'receiver_id' => (int) $receiverId,
+                    'type'        => $type,
+                    'payload'     => $payload,
+                    'timestamp'   => now()->toIso8601String(),
+                ]));
             } catch (\Throwable $e) {}
         }
 
@@ -2157,6 +2166,7 @@ class CallController extends Controller
         try {
             $sessionIdForBroadcast = $session ? (string)$session->id : (string)$callSessionId;
             event(new CallMessageSent($sessionIdForBroadcast, $payload));
+            event(new \App\Events\CallMessageEvent($sessionIdForBroadcast, $payload));
             event(new \App\Events\InCallMessageSent($sessionIdForBroadcast, $payload));
         } catch (\Throwable $e) {}
 

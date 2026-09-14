@@ -24,10 +24,13 @@ class LiveChatMessageEvent implements ShouldBroadcastNow
      */
     public function broadcastOn()
     {
-        $streamId = $this->messageData['stream_id'] ?? $this->messageData['live_stream_id'] ?? '1';
+        $streamId = (string) ($this->messageData['stream_id'] ?? $this->messageData['live_stream_id'] ?? '1');
         return [
+            new \Illuminate\Broadcasting\PresenceChannel('live-stream.' . $streamId),
+            new \Illuminate\Broadcasting\PresenceChannel('live-room.' . $streamId),
             new Channel('live-stream.' . $streamId),
-            new Channel('presence-live.' . $streamId),
+            new Channel('live-room.' . $streamId),
+            new Channel('live.' . $streamId),
         ];
     }
 
@@ -36,7 +39,7 @@ class LiveChatMessageEvent implements ShouldBroadcastNow
      */
     public function broadcastAs()
     {
-        return 'chat.message';
+        return 'LiveChatMessageEvent';
     }
 
     /**
@@ -44,6 +47,16 @@ class LiveChatMessageEvent implements ShouldBroadcastNow
      */
     public function broadcastWith()
     {
-        return $this->messageData;
+        return [
+            'id'          => $this->messageData['id'] ?? null,
+            'stream_id'   => $this->messageData['stream_id'] ?? $this->messageData['live_stream_id'] ?? '1',
+            'user_id'     => $this->messageData['user_id'] ?? null,
+            'user_name'   => $this->messageData['user_name'] ?? $this->messageData['sender_name'] ?? 'User',
+            'user_avatar' => $this->messageData['user_avatar'] ?? $this->messageData['sender_avatar'] ?? null,
+            'message'     => $this->messageData['message'] ?? '',
+            'type'        => $this->messageData['type'] ?? 'text',
+            'level'       => $this->messageData['level'] ?? 'Lv1',
+            'timestamp'   => $this->messageData['timestamp'] ?? now()->toIso8601String(),
+        ];
     }
 }

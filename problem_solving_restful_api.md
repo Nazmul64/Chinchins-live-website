@@ -1,553 +1,274 @@
-# 📄 Comprehensive Problem Solving & RESTful API Architecture Specification
+# 📑 Live Streaming & 1-on-1 Video Calling System Architecture & Problem Solving
 **Target Roles:** Full-Stack Engineers (Laravel Backend & Flutter Frontend)  
-**System Scope:** Live Streaming (Audio/Video), 1-on-1 Video Calling, Unified Core Messaging, Reverb Real-Time Pipeline, FinTech-Grade Coin & Gift Engine, Admin-Controlled Remote Flags (FLAG_SECURE, Debug HUD, Offline Visibility, PIP Restore)  
-**Architecture:** Laravel 11.x RESTful Backend & WebSocket Server (Reverb/Pusher) + Flutter Mobile Client (Android & iOS)  
-**Version:** 6.0.0 Enterprise Edition  
+**System Scope:** 1-on-1 Personal Video Calling & In-Call Real-Time Chat, Multi-User Live Streaming (Viewer Mode), Multi-Host Co-Hosting (Max 4-5 Persons Video Grid), WebRTC Signaling & Laravel Reverb Real-Time Pipeline, FinTech-Grade Coin & Gift Engine  
+**Backend:** Laravel 11.x RESTful Backend & WebSocket Server (Reverb/Pusher)  
+**Mobile Client:** Flutter (Android & iOS) with `flutter_webrtc` and `laravel_echo`  
+**Version:** 7.0.0 Enterprise Live Edition  
 **Updated:** September 14, 2026  
-**Document Name:** `problem_solving_restful_api.md`  
+**Document Name:** `problem_solving_restful_api.md`
 
 ---
 
 ## 📑 Table of Contents
-1. [System Overview & Architecture Topology](#1-system-overview--architecture-topology)
-2. [Problem Solving & Core Logic Resolutions](#2-problem-solving--core-logic-resolutions)
-   - [Problem 1: Call State Ringing vs Answer (No Auto-Pickup or Auto-Drop on PIP Tap)](#problem-1-call-state-ringing-vs-answer-no-auto-pickup-or-auto-drop-on-pip-tap)
-   - [Problem 2: Bidirectional In-Call & Live Stream Messaging (100% Free Chat)](#problem-2-bidirectional-in-call--live-stream-messaging-100-free-chat)
-   - [Problem 3: Offline User Calling Gate (`USER_OFFLINE` Error Handling)](#problem-3-offline-user-calling-gate-user_offline-error-handling)
-   - [Problem 4: Complete Database Fresh Seed (`migrate:fresh --seed`) for All Admin Modules](#problem-4-complete-database-fresh-seed-migratefresh---seed-for-all-admin-modules)
-   - [Problem 5: Home Screen Floating VIP Widget Background Transparency & Dynamic Upload](#problem-5-home-screen-floating-vip-widget-background-transparency--dynamic-upload)
-   - [Problem 6: Dynamic Screenshot Protection (FLAG_SECURE) & Debug HUD Toggle](#problem-6-dynamic-screenshot-protection-flag_secure--debug-hud-toggle)
-   - [Problem 7: Strict 30 Strong-Motion SVG Gifts & 6 Diamond Burst Coin Packages](#problem-7-strict-30-strong-motion-svg-gifts--6-diamond-burst-coin-packages)
-3. [Database Schema & Migrations Reference](#3-database-schema--migrations-reference)
-4. [Complete RESTful API Reference & Payloads](#4-complete-restful-api-reference--payloads)
-   - [A. App Configuration & Remote Feature Flags](#a-app-configuration--remote-feature-flags)
-   - [B. User Discovery & Visibility Engine](#b-user-discovery--visibility-engine)
-   - [C. 1-on-1 Video & Audio Calling Endpoints](#c-1-on-1-video--audio-calling-endpoints)
-   - [D. Unified Messaging & In-Call Free Chat](#d-unified-messaging--in-call-free-chat)
-   - [E. Multi-Guest Live Streaming & Broadcasting](#e-multi-guest-live-streaming--broadcasting)
-   - [F. Virtual Gifts Catalog (30 Items) & Transfer](#f-virtual-gifts-catalog-30-items--transfer)
-   - [G. Coin Packages Store (6 Diamond Packages)](#g-coin-packages-store-6-diamond-packages)
-   - [H. Premium VIP Privilege Cards & Floating Banner](#h-premium-vip-privilege-cards--floating-banner)
-5. [Real-Time WebSocket Pipeline & Reverb Events](#5-real-time-websocket-pipeline--reverb-events)
-6. [Flutter Mobile Architecture & State Handlers](#6-flutter-mobile-architecture--state-handlers)
-7. [Production Deployment & VPS Commands](#7-production-deployment--vps-commands)
+1. [১. সিস্টেম ওভারভিউ (System Overview)](#১-সিস্টেম-ওভারভিউ-system-overview)
+2. [২. লারাভেল ব্যাকএন্ড স্পেসিফিকেশন (Laravel Backend Spec)](#২-লারাভেল-ব্যাকএন্ড-স্পেসিফিকেশন-laravel-backend-spec)
+   - [২.১ WebRTC Signaling & Reverb Channels (`routes/channels.php`)](#২১-webrtc-signaling--reverb-channels-routeschannelsphp)
+   - [২.২ ব্রডকাস্ট ইভেন্টস (Broadcast Events)](#২২-ব্রডকাস্ট-ইভেন্টস-broadcast-events)
+   - [২.৩ সম্পূর্ণ RESTful APIs রেফারেন্স](#২৩-সম্পূর্ণ-restful-apis-রেফারেন্স)
+3. [৩. ফ্লাটার ফ্রন্টএন্ড স্পেসিফিকেশন (Flutter Frontend Spec)](#৩-ফ্লাটার-ফ্রন্টএন্ড-স্পেসিফিকেশন-flutter-frontend-spec)
+   - [৩.১ ডিপেনডেন্সি (Dependencies)](#৩১-ডিপেনডেন্সি-dependencies)
+   - [৩.২ ফিচার ১: ১-অন-১ পার্সোনাল ভিডিও কল ও রিয়েল-টাইম চ্যাট](#৩২-ফিচার-১-১-অন-১-পার্সোনাল-ভিডিও-কল-ও-রিয়েল-টাইম-চ্যাট)
+   - [৩.৩ ফিচার ২: লাইভ স্ট্রিমিং ও মাল্টি-হোস্ট গ্রিড (সর্বোচ্চ ৪-৫ জন)](#৩৩-ফিচার-২-লাইভ-স্ট্রিমিং-ও-মাল্টি-হোস্ট-গ্রিড-সর্বোচ্চ-৪-৫-জন)
+4. [৪. ডেভেলপারদের কাজের চেকলিস্ট (Developer Checklist)](#৪-ডেভেলপারদের-কাজের-চেকলিস্ট-developer-checklist)
+5. [৫. প্রডাকশন ডেপ্লয়মেন্ট ও কমান্ডস (Production Deployment Commands)](#৫-প্রডাকশন-ডেপ্লয়মেন্ট-ও-কমান্ডস-production-deployment-commands)
 
 ---
 
-## 1. System Overview & Architecture Topology
+## ১. সিস্টেম ওভারভিউ (System Overview)
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                 FLUTTER CLIENT                                         │
 │                                                                                        │
-│  ┌───────────────────────┐  ┌────────────────────────┐  ┌───────────────────────────┐  │
-│  │ Unified Messaging UI  │  │ Video Call + Chat Sheet │  │ Live Room (Audio / Video) │  │
-│  └───────────┬───────────┘  └───────────┬────────────┘  └─────────────┬─────────────┘  │
-└──────────────┼──────────────────────────┼─────────────────────────────┼────────────────┘
-               │                          │                             │
-    HTTP / REST (Bearer Token)            │                  WebSocket (Presence/Private)
-               │                          │                             │
-               ▼                          ▼                             ▼
+│  ┌───────────────────────────┐  ┌───────────────────────────┐  ┌────────────────────┐  │
+│  │ 1-on-1 Video Call + Chat  │  │ Live Room (Viewer Mode)   │  │ Co-Host 5-Grid UI  │  │
+│  └─────────────┬─────────────┘  └─────────────┬─────────────┘  └──────────┬─────────┘  │
+└────────────────┼──────────────────────────────┼───────────────────────────┼────────────┘
+                 │                              │                           │
+      HTTP / REST (Bearer Token)                │                WebSocket (Presence/Private)
+                 │                              │                           │
+                 ▼                              ▼                           ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              LARAVEL BACKEND ECOSYSTEM                                 │
+│                                LARAVEL REVERB & BACKEND                                │
 │                                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
-│  │ REST Routing & Middleware (Sanctum Auth, Idempotency Guard, Input Validation)   │  │
-│  └──────────────────────────────────────┬───────────────────────────────────────────┘  │
-│                                         │                                              │
-│                               DB Transaction Block                                     │
-│                     ┌───────────────────┴───────────────────┐                          │
-│                     ▼                                       ▼                          │
-│      ┌─────────────────────────────┐         ┌─────────────────────────────┐           │
-│      │   Pessimistic Row Lock      │         │ Unified Conversation &      │           │
-│      │   `lockForUpdate()` Balance │         │ Messaging Service Engine    │           │
-│      └──────────────┬──────────────┘         └──────────────┬──────────────┘           │
-│                     │                                       │                          │
-│                     ▼                                       ▼                          │
-│           [ MySQL 8.0 InnoDB ]                     Dispatch Job / Event                │
-│                                                             │                          │
-│                                                             ▼                          │
-│                                                  [ Laravel Reverb Server ]             │
-│                                                             │ (Broadcasting)           │
-│ └────────────────────────────────────────────────────────────┼──────────────────────────┘
-                                                              │
-                                                              ▼
-                                            Subscribed Channels (Clients Update UI)
+│  │ Private Channel: `call.{callId}` -> CallSignalingEvent & CallMessageEvent        │  │
+│  │ Presence Channel: `live-stream.{streamId}` -> LiveChatMessageEvent & Signaling   │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                        │
+│                     ┌────────────────────────────────────────┐                         │
+│                     │  Pessimistic Row Lock Coin Deduction   │                         │
+│                     │  Max 5 Co-Hosts Grid Gate Validation   │                         │
+│                     └────────────────────────────────────────┘                         │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **1-on-1 Personal Call:** ব্যবহারকারী কাউকে কল দিলে সরাসরি কল যাবে। কথা ও ভিডিও আদান-প্রদান হবে এবং কল চলাকালীন রিয়েল-টাইম টেক্সট ও ছবি সম্পূর্ণ ফ্রিতে আদান-প্রদান করা যাবে (Bidirectional Real-Time Chat & Photo Sharing)।
+2. **Live Streaming (Viewer Mode):** লাইভ অপশনে ক্লিক করলে যে হোস্ট লাইভে আছে, তার লাইভ ভিডিও ও অডিও ভিউয়ার তৎক্ষণাৎ দেখতে ও শুনতে পাবে। হাজার হাজার ভিউয়ার ফ্রিতে লাইভ চ্যাটে রিয়েল-টাইম কমেন্ট করতে পারবে এবং ভার্চুয়াল গিফট পাঠাতে পারবে।
+3. **Co-Host / Multi-Host Mode (Max 4-5 Persons):** হোস্ট চাইলে কোনো ভিউয়ারকে (বা গিফট পাঠানো ব্যক্তিকে) কো-হোস্ট হিসেবে লাইভে যুক্ত করতে পারবে। যুক্ত হলে তাদের সবার ভিডিও ও অডিও স্ক্রিনে গ্রিড আকারে স্প্লিট হয়ে লাইভে যুক্ত সকল ইউজারের কাছে ব্রডকাস্ট হবে।
+
+---
+
+## ২. লারাভেল ব্যাকএন্ড স্পেসিফিকেশন (Laravel Backend Spec)
+
+### ২.১ WebRTC Signaling & Reverb Channels (`routes/channels.php`)
+
+```php
+use Illuminate\Support\Facades\Broadcast;
+
+// ১. ১-অন-১ পার্সোনাল কল ও চ্যাট চ্যানেল
+Broadcast::channel('call.{callId}', function ($user, $callId) {
+    return true; // ভ্যালিডেশন লজিক (কলার এবং রিসিভার এলাও হবে)
+});
+
+// ২. লাইভ স্ট্রিমিং প্রেজেন্স চ্যানেল (ভিউয়ার লিস্ট, লাইভ চ্যাট ও কো-হোস্ট সিগন্যালিং)
+Broadcast::channel('live-stream.{streamId}', function ($user, $streamId) {
+    if (!$user) return true;
+    return [
+        'id'           => $user->id,
+        'account_id'   => $user->account_id,
+        'name'         => $user->display_name ?? $user->name,
+        'display_name' => $user->display_name ?? $user->name,
+        'avatar'       => $user->avatar_url,
+        'avatar_url'   => $user->avatar_url,
+        'level'        => $user->level ?: 'Lv1',
+        'role'         => ($user->is_host || (string)$user->id === (string)$streamId) ? 'host' : 'viewer',
+    ];
+});
 ```
 
 ---
 
-## 2. Problem Solving & Core Logic Resolutions
+### ২.২ ব্রডকাস্ট ইভেন্টস (Broadcast Events)
 
-### Problem 1: Call State Ringing vs Answer (No Auto-Pickup or Auto-Drop on PIP Tap)
-- **Root Problem:**
-  - When minimizing a call to Picture-in-Picture (PIP) and tapping back to enlarge, the UI was previously triggering `onClose()` or popping the view, causing auto-hangup or false `call_accept` events.
-  - A call MUST remain in `ringing` state until the Receiver explicitly taps the "Answer / Accept" button.
-- **Resolution:**
-  - Caller initiates call -> `status = 'ringing'`.
-  - Receiver receives push / WebSocket event `incoming_call` -> Displays Fullscreen Incoming Call Dialog with "Accept" and "Decline" buttons.
-  - When Caller or Receiver minimizes to floating PIP, state provider stores `isPipMode = true` without altering call state.
-  - Tapping the PIP overlay simply toggles `isPipMode = false` and opens `ActiveVideoCallScreen` without sending any WebSocket terminate event.
+| Event Class | Channel Type & Name | Client Event Name | Payload Structure |
+|---|---|---|---|
+| `CallSignalingEvent` | Private: `call.{callId}` | `CallSignalingEvent` | `{ call_id, sender_id, receiver_id, type: "offer"\|"answer"\|"candidate"\|"bye", payload: sdp_or_candidate, timestamp }` |
+| `CallMessageEvent` | Private: `call.{callId}` | `CallMessageEvent` | `{ call_id, sender_id, sender_name, sender_avatar, receiver_id, message, media_url, image_url, type: "text"\|"image", timestamp }` |
+| `LiveChatMessageEvent` | Presence: `live-stream.{streamId}` | `LiveChatMessageEvent` | `{ stream_id, user_id, user_name, user_avatar, message, type: "text", level: "Lv3", timestamp }` |
+| `StreamSignalingEvent` | Presence: `live-stream.{streamId}` | `StreamSignalingEvent` | `{ stream_id, sender_id, target_user_id, type: "offer"\|"answer"\|"candidate", sdp_or_candidate, timestamp }` |
+| `CoHostStatusEvent` | Presence: `live-stream.{streamId}` | `CoHostStatusEvent` | `{ stream_id, action: "invited"\|"accepted"\|"rejected"\|"removed", user_id, user_name, user_avatar, co_hosts_count, max_limit: 5, timestamp }` |
+| `LiveGiftSentEvent` | Presence: `live-stream.{streamId}` | `LiveGiftSentEvent` | `{ stream_id, sender_id, sender_name, sender_avatar, gift_id, gift_name, animation_url, total_coins, timestamp }` |
+
+---
+
+### ২.৩ সম্পূর্ণ RESTful APIs রেফারেন্স
+
+| Method | Endpoint | Description | Request Body Example |
+|---|---|---|---|
+| `POST` | `/api/v1/call/initiate` | নতুন কল রিকোয়েস্ট তৈরি করে ও রিসিভারকে পুশ পাঠায় | `{"receiver_id": 105, "call_type": "video"}` |
+| `POST` | `/api/v1/call/signal` | Reverb-এর মাধ্যমে SDP ও ICE Candidate পাঠায় | `{"call_id": 482, "receiver_id": 105, "type": "offer", "payload": {"sdp": "..."}}` |
+| `POST` | `/api/v1/call/send-message` | কলের ভেতর মেসেজ ও ছবি পাঠায় (১০০% ফ্রি) | `{"call_id": 482, "receiver_id": 105, "message": "Hi handsome!", "image_url": "https://..."}` |
+| `POST` | `/api/v1/call/end` | কল সেশন সমাপ্ত করে ও সারাংশ চ্যাটে পাঠায় | `{"call_id": 482, "duration_seconds": 185}` |
+| `POST` | `/api/v1/stream/start` | হোস্ট লাইভ শুরু করে (stream_id জেনারেট হয়) | `{"title": "Evening Live Chat", "cover_image": "https://..."}` |
+| `POST` | `/api/v1/stream/end` | লাইভ সেশন সমাপ্ত ঘোষণা করে | `{"stream_id": 12}` |
+| `POST` | `/api/v1/stream/comment` | লাইভে পাবলিক মেসেজ পাঠায় (১০০% ফ্রি) | `{"stream_id": 12, "message": "Love from Dhaka ❤️"}` |
+| `POST` | `/api/v1/stream/invite-cohost` | হোস্ট ভিউয়ারকে কো-হোস্টের জন্য ইনভাইট পাঠায় | `{"stream_id": 12, "user_id": 105}` |
+| `POST` | `/api/v1/stream/accept-cohost` | ভিউয়ার এক্সেপ্ট করে (সর্বোচ্চ ৫ জন চেক করে) | `{"stream_id": 12}` |
+| `POST` | `/api/v1/stream/signal` | কো-হোস্টদের মধ্যে WebRTC হ্যান্ডশেক সিগন্যাল পাঠায় | `{"stream_id": 12, "target_user_id": 105, "type": "offer", "sdp_or_candidate": "..."}` |
+| `POST` | `/api/v1/stream/send-gift` | কয়েন কেটে হোস্টকে ৫০% দেয় এবং অ্যানিমেশন পাঠায় | `{"stream_id": 12, "gift_id": 5, "quantity": 1}` |
+| `GET` | `/api/v1/stream/active-streams`| বর্তমানে চলমান সব লাইভ স্ট্রিমের তালিকা পায় | `Query: ?page=1&per_page=20` |
+
+---
+
+## ৩. ফ্লাটার ফ্রন্টএন্ড স্পেসিফিকেশন (Flutter Frontend Spec)
+
+### ৩.১ ডিপেনডেন্সি (Dependencies)
+- `flutter_webrtc: ^0.10.0+` (ভিডিও ও অডিও স্ট্রিমের জন্য)
+- `laravel_echo: ^1.0.0` / `pusher_client: ^2.0.0` (Laravel Reverb রিয়েল-টাইম কানেকশনের জন্য)
+
+---
+
+### ৩.২ ফিচার ১: ১-অন-১ পার্সোনাল ভিডিও কল ও রিয়েল-টাইম চ্যাট
+
+#### ১. কল শুরু ও কানেকশন:
+- কলার ভিডিও কল বাটনে চাপ দিলে `POST /api/v1/call/initiate` কল হবে এবং লোকাল ক্যামেরা স্ট্রিম অন হবে:
+```dart
+MediaStream localStream = await navigator.mediaDevices.getUserMedia({
+  'audio': true,
+  'video': {'facingMode': 'user'},
+});
+_localRenderer.srcObject = localStream;
+```
+- রিসিভার কল রিসিভ করলে Reverb চ্যানেল `call.{callId}` দিয়ে `CallSignalingEvent`-এর মাধ্যমে WebRTC SDP ও ICE ক্যান্ডিডেট আদান-প্রদান হবে।
+- রিমোট ট্র্যাক পাওয়া মাত্র রেন্ডারারে সেট করতে হবে:
+```dart
+_peerConnection.onTrack = (RTCTrackEvent event) {
+  if (event.streams.isNotEmpty) {
+    setState(() {
+      _remoteRenderer.srcObject = event.streams[0];
+    });
+  }
+};
+```
+
+#### ২. ইন-কল চ্যাট ও ফটো শেয়ারিং (১০০% ফ্রি):
+- **মেসেজ সেন্ড করার সময়:**
+```dart
+// টেক্সট বা আপলোড করা ছবির URL API-তে পাঠানো হবে
+await http.post(
+  Uri.parse('$baseUrl/api/v1/call/send-message'),
+  headers: {'Authorization': 'Bearer $authToken'},
+  body: {
+    'call_id': callId.toString(),
+    'receiver_id': targetUserId.toString(),
+    'message': messageController.text,
+    'image_url': uploadedImageUrl,
+    'type': uploadedImageUrl != null ? 'image' : 'text',
+  },
+);
+```
+
+- **মেসেজ রিসিভ করার সময় (রিয়েল-টাইম স্ক্রিনে প্রদর্শন):**
+```dart
+echo.private('call.$callId')
+    .listen('.CallMessageEvent', (dynamic data) {
+      setState(() {
+        inCallMessagesList.add(CallMessageModel.fromJson(data));
+      });
+      _chatScrollController.animateTo(
+        _chatScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+```
+
+---
+
+### ৩.৩ ফিচার ২: লাইভ স্ট্রিমিং ও মাল্টি-হোস্ট গ্রিড (সর্বোচ্চ ৪-৫ জন)
+
+#### ১. ভিউয়ার মোড (হোস্টের ভিডিও ও অডিও প্লেব্যাক):
+- যখন একজন ভিউয়ার লাইভ রুমে প্রবেশ করবে:
+  1. সে `live-stream.{streamId}` প্রেজেন্স চ্যানেলে সাবস্ক্রাইব করবে।
+  2. হোস্ট ভিউয়ারকে রিসিভার মোডে WebRTC Offer পাঠাবে।
+  3. ভিউয়ার হ্যান্ডশেক সম্পন্ন করে হোস্টের অডিও/ভিডিও রেন্ডারারে বাইন্ড করবে:
+```dart
+_remoteLiveRenderer.srcObject = event.streams[0];
+```
+*(ভিউয়ারের ক্যামেরা ও মাইক তখন সম্পূর্ণ বন্ধ থাকবে)*
+
+#### ২. লাইভ পাবলিক চ্যাট ও অটো-স্ক্রল:
+```dart
+echo.join('live-stream.$streamId')
+    .listen('.LiveChatMessageEvent', (dynamic data) {
+      setState(() {
+        liveComments.add(LiveCommentModel.fromJson(data));
+      });
+      _chatScrollController.animateTo(
+        _chatScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+```
+
+#### ৩. কো-হোস্ট জয়েনিং (মাল্টি-ভিডিও স্প্লিট গ্রিড - সর্বোচ্চ ৪-৫ জন):
+- হোস্ট ভিউয়ারকে ইনভাইট পাঠালে বা ভিউয়ার রিকোয়েস্ট এক্সেপ্ট হলে:
+  1. কো-হোস্টের ডিভাইসের ক্যামেরা ও মাইক্রোফোন ওপেন হবে (`navigator.mediaDevices.getUserMedia`).
+  2. কো-হোস্ট সক্রিয় হোস্টদের সাথে Peer Connection তৈরি করবে।
+  3. ফ্লাটার স্ক্রিনে UI ডায়নামিক স্প্লিট গ্রিডে রেন্ডার হবে:
 
 ```dart
-// Flutter PIP Restoration (lib/features/call/widgets/pip_call_overlay.dart)
-GestureDetector(
-  onTap: () {
-    // 1. Maintain active call state without auto-accepting or hanging up
-    ref.read(callStateProvider.notifier).setPipMode(false);
-    
-    // 2. Push fullscreen call interface without re-initializing WebRTC/Agora
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const ActiveVideoCallScreen(),
-        settings: const RouteSettings(name: '/active-call'),
+// সর্বোচ্চ ৫ জনের জন্য Map-এ রেন্ডারার রাখা
+Map<String, RTCVideoRenderer> coHostRenderers = {};
+
+// UI Grid View (Dynamic Split Screen for 1, 2, 4, or 5 Users)
+GridView.builder(
+  physics: const NeverScrollableScrollPhysics(),
+  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: coHostRenderers.length > 2 ? 2 : 1,
+    childAspectRatio: coHostRenderers.length == 1 ? 9 / 16 : 1.0,
+    crossAxisSpacing: 4.0,
+    mainAxisSpacing: 4.0,
+  ),
+  itemCount: coHostRenderers.length,
+  itemBuilder: (context, index) {
+    var renderer = coHostRenderers.values.elementAt(index);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: RTCVideoView(
+        renderer,
+        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
       ),
     );
   },
-  child: const PipFloatingVideoSurface(),
-)
-```
-
----
-
-### Problem 2: Bidirectional In-Call & Live Stream Messaging (100% Free Chat)
-- **Root Problem:** Chatting during live broadcast or active video calls was consuming user coins or deducting from the 5 free private DM messages limit.
-- **Resolution:**
-  - In `MessageApiController.php` & `LiveStreamApiController.php`, in-room chat messages (with `is_in_call: true`, `is_live: true`, or `live_stream_id`) are **100% Free ($0 coins)** with **zero quota deduction**.
-  - WebSocket broadcasts messages instantly to both parties via `private-conversation.{id}` or `presence-live-room.{id}`.
-
-```php
-// Backend Free Messaging Gate (MessageApiController.php)
-$isInCallOrLive = $request->boolean('is_in_call') 
-               || $request->boolean('in_call') 
-               || $request->boolean('is_live') 
-               || $request->input('context') === 'in_call' 
-               || $request->input('context') === 'live' 
-               || $request->filled('call_id') 
-               || $request->filled('live_stream_id')
-               || $request->filled('live_id');
-
-$freeLimit = (int) AppSetting::get('free_messages_limit', $sender->free_messages_limit ?? 5);
-$freeUsed = $sender->free_messages_used ?? 0;
-$isFree = $isInCallOrLive || ($freeUsed < $freeLimit);
-$coinCost = $isInCallOrLive ? 0 : (int) AppSetting::get('message_coin_cost', 5);
-```
-
----
-
-### Problem 3: Offline User Calling Gate (`USER_OFFLINE` Error Handling)
-- **Root Problem:** Attempting to call an offline host must be prevented upfront.
-- **Resolution:**
-  - In `CallController@initiateDirectCall`, the backend strictly validates `$receiver->is_online`.
-  - If `$receiver->is_online == false`, the API rejects with HTTP 400 and `code: 'USER_OFFLINE'`.
-  - In Flutter, profile buttons disable the call button when `is_online == false`, or display an immediate toast: `"User is currently offline."`.
-
-```json
-// Error Response when Receiver is Offline (400 Bad Request):
-{
-  "status": false,
-  "can_call": false,
-  "code": "USER_OFFLINE",
-  "is_online": false,
-  "message": "Maya is currently offline.",
-  "receiver": {
-    "id": 105,
-    "account_id": "84920183",
-    "display_name": "Maya",
-    "avatar": "https://chinchins.live/uploads/avatars/maya.jpg",
-    "is_online": false
-  }
-}
-```
-
----
-
-### Problem 4: Complete Database Fresh Seed (`migrate:fresh --seed`) for All Admin Modules
-- **Root Problem:** Running `migrate:fresh --seed` was previously missing some admin modules.
-- **Resolution:**
-  - `DatabaseSeeder.php` has been configured to cleanly seed all 10 core modules:
-    1. `RoleAndPermissionSeeder` (All admin permissions)
-    2. `AdminUserSeeder` (Admin credentials)
-    3. `ResellerSeeder` (Reseller accounts & ledger)
-    4. `PaymentMethodSeeder` (bKash, Nagad, Rocket gateways)
-    5. `CoinPackageSeeder` (6 Diamond Burst Store Packages)
-    6. `StrongMotionGiftsSeeder` (30 Strong-Motion SVG Gifts)
-    7. `VipPrivilegeCard::seedDefaultCards()` (8 Premium VIP Cards)
-    8. `SpendLessCard::seedDefaultCards()` (4 Spend Less Cards)
-    9. `BagItem::seedDefaultItems()` (11 Backpack Items)
-    10. `ProfileBase::seedDefaultBases()` (Profile Bases)
-
----
-
-### Problem 5: Home Screen Floating VIP Widget Background Transparency & Dynamic Upload
-- **Root Problem:** In the mobile explore feed, the floating VIP widget was rendered with a dark navy background box container.
-- **Resolution:**
-  - Removed container background color in Flutter, rendering the SVG / PNG directly as a floating overlay with transparent background.
-  - Admin can upload custom image anytime from `/admin/vip-cards` ("Upload Custom Floating Widget Image"), and it syncs immediately to `/api/app/remote-config`.
-
----
-
-### Problem 6: Dynamic Screenshot Protection (FLAG_SECURE) & Debug HUD Toggle
-- **Root Problem:** When toggled OFF in `/admin/settings/debug`, Android phones continued blocking screenshots because `FLAG_SECURE` was set statically on app start.
-- **Resolution:**
-  - Flutter dynamically fetches `/api/app/remote-config` on launch and calls `window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)` when disabled by admin.
-
-```kotlin
-// Android MainActivity.kt
-MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "chinchins/security").setMethodCallHandler { call, result ->
-    if (call.method == "setScreenshotProtection") {
-        val enabled = call.argument<Boolean>("enabled") ?: false
-        if (enabled) {
-            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
-        result.success(true)
-    }
-}
-```
-
----
-
-### Problem 7: Strict 30 Strong-Motion SVG Gifts & 6 Diamond Burst Coin Packages
-- **Gifts:** Exactly 30 Strong-Motion Animated SVGs (`01_rose.svg` to `30_royal_palace.svg`) mapped to `sort_order: 1..30`.
-- **Coin Packages:** 6 packages with high-motion vector and PNG diamond icons (`burst`, `diamond_orb`, `diamond_crown`, `crystal_crown`, `magic_bag`, `royal_chest`).
-
----
-
-## 3. Database Schema & Migrations Reference
-
-```sql
--- 30 Strong-Motion Animated Gifts Table
-CREATE TABLE gifts (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  slug VARCHAR(255) UNIQUE NOT NULL,
-  coins INT UNSIGNED NOT NULL,
-  coin_price INT UNSIGNED NOT NULL,
-  category ENUM('hot', 'romantic', 'luxury', 'svip', 'wealth', 'cute', 'party', 'lucky') NOT NULL DEFAULT 'hot',
-  badge VARCHAR(50) NULL,
-  image VARCHAR(255) NOT NULL,
-  icon_url VARCHAR(255) NOT NULL,
-  animation_url VARCHAR(255) NOT NULL,
-  animation_asset_url VARCHAR(255) NOT NULL,
-  animation_type VARCHAR(50) NOT NULL DEFAULT 'svg',
-  format VARCHAR(50) NOT NULL DEFAULT 'svg',
-  display_type VARCHAR(50) NOT NULL DEFAULT 'fullscreen',
-  sort_order INT NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  is_broadcast BOOLEAN NOT NULL DEFAULT FALSE,
-  description VARCHAR(500) NULL,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL
-);
-
--- Coin Packages Recharge Store Table
-CREATE TABLE coin_packages (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  title VARCHAR(255) NOT NULL,
-  coins INT UNSIGNED NOT NULL,
-  bonus_coins INT UNSIGNED NOT NULL DEFAULT 0,
-  price DECIMAL(10,2) NOT NULL,
-  currency VARCHAR(10) NOT NULL DEFAULT 'BDT',
-  badge VARCHAR(50) NULL,
-  badge_color VARCHAR(50) NOT NULL DEFAULT 'pink',
-  icon_url VARCHAR(255) NOT NULL,
-  animation_url VARCHAR(255) NULL,
-  format VARCHAR(50) NOT NULL DEFAULT 'svg',
-  is_popular BOOLEAN NOT NULL DEFAULT FALSE,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  sort_order INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL
 );
 ```
 
 ---
 
-## 4. Complete RESTful API Reference & Payloads
+## ৪. ডেভেলপারদের কাজের চেকলিস্ট (Developer Checklist)
 
-### A. App Configuration & Remote Feature Flags
-- **Endpoint:** `GET /api/app/remote-config`
-- **Authentication:** Public / Optional Bearer Token
+### 💻 Laravel Backend Developer:
+- [x] Laravel Reverb সার্ভিস রানিং এবং `routes/channels.php`-তে `call.{callId}` ও `live-stream.{streamId}` কনফিগার করা হয়েছে।
+- [x] `CallSignalingEvent`, `CallMessageEvent`, `LiveChatMessageEvent`, `StreamSignalingEvent`, `CoHostStatusEvent` ইভেন্ট তৈরি ও ডিসপ্যাচ করা হয়েছে।
+- [x] কলের ভেতর মেসেজ ও ফটো আপলোডের ১০০% ফ্রি এন্ডপয়েন্ট (`POST /api/v1/call/send-message`) তৈরি করা হয়েছে।
+- [x] লাইভ স্ট্রিমিংয়ে সর্বোচ্চ ৫ জন কো-হোস্টের মাল্টি-হোস্ট ভ্যালিডেশন ফিল্টার যোগ করা হয়েছে।
+- [x] লাইভে গিফট সেন্ড করলে হোস্টের সাথে ৫০% রেভিনিউ শেয়ারিং এবং লাইভ মেসেজে অ্যানিমেশন ব্রডকাস্ট করা হয়েছে।
 
-#### Success Response (200 OK):
-```json
-{
-  "status": true,
-  "data": {
-    "app_name": "Chinchins Live",
-    "app_tagline": "Meet, Chat & Video Call Live",
-    "app_logo_url": "https://chinchins.live/assets/images/branding/logo.png",
-    "free_messages_limit": 5,
-    "message_coin_cost": 5,
-    "screenshot_protection_enabled": false,
-    "screen_recording_protection_enabled": false,
-    "camera_filters_enabled": true,
-    "call_minimize_enabled": true,
-    "debug_mode_enabled": false,
-    "floating_vip_banner": {
-      "is_enabled": true,
-      "title": "Extra Gems",
-      "tag": "Monthly Card",
-      "image_url": "https://chinchins.live/assets/images/vip/vip_privilege_full_motion.svg",
-      "action_type": "OPEN_PREMIUM_VIP",
-      "target_screen": "/premium-vip"
-    }
-  }
-}
-```
+### 📱 Flutter Frontend Developer:
+- [x] কল কানেক্ট হওয়ার পর `remoteRenderer.srcObject` যেন `null` না থাকে এবং `onTrack`-এ স্টেট রিফ্রেশ করা হয়েছে।
+- [x] কলের ব্যাকগ্রাউন্ডে Reverb চ্যানেলে লিসেন করে চ্যাট ও ইমেজ উভয় ইউজারের স্ক্রিনে ইনস্ট্যান্ট ডিসপ্লে করা হয়েছে।
+- [x] লাইভ স্ক্রিনে ভিউয়ার মোডে ঢোকার সাথে সাথে হোস্টের অডিও/ভিডিও প্লে হচ্ছে (শুধু অ্যাভাটার শো করে আটকে থাকছে না)।
+- [x] লাইভ চ্যাট বক্সে মেসেজ টাইপ করলে তা সবার স্ক্রিনে রিয়েল-টাইমে লাইভ চ্যাট লিস্টে স্ক্রল হচ্ছে।
+- [x] কো-হোস্ট অ্যাকসেপ্ট করার পর ভিউয়ারের ক্যামেরা ওপেন হয়ে স্ক্রিনে স্প্লিট গ্রিড (সর্বোচ্চ ৪-৫ জন) তৈরি হচ্ছে।
 
 ---
 
-### B. User Discovery & Visibility Engine
-- **Endpoint:** `GET /api/v1/users/discovery` (or `GET /api/v1/users/active`)
-- **Authentication:** Public / Bearer Token
+## ৫. প্রডাকশন ডেপ্লয়মেন্ট ও কমান্ডস (Production Deployment Commands)
 
-#### Success Response (200 OK):
-```json
-{
-  "status": "success",
-  "show_offline_users": false,
-  "data": {
-    "current_page": 1,
-    "data": [
-      {
-        "id": 105,
-        "name": "Maya",
-        "account_id": "84920183",
-        "avatar": "https://chinchins.live/uploads/avatars/maya.jpg",
-        "is_online": true,
-        "online_status": "online",
-        "current_status": "available",
-        "video_call_rate": 22
-      }
-    ]
-  }
-}
-```
-
----
-
-### C. Direct 1-on-1 Video Call Initiation
-- **Endpoint:** `POST /api/call/initiate`
-- **Authentication:** `Bearer {token}`
-
-#### Request Body:
-```json
-{
-  "receiver_id": 105,
-  "call_type": "video"
-}
-```
-
-#### Success Response (200 OK):
-```json
-{
-  "status": true,
-  "message": "Call initiated successfully. Waiting for receiver to accept.",
-  "data": {
-    "call_id": 9821,
-    "channel_name": "call_video_12_105_1726320000_a8bc",
-    "status": "ringing",
-    "agora_token": "006e8a...==",
-    "agora_app_id": "934...b1",
-    "uid": 12,
-    "is_free_trial": false,
-    "rate_per_minute": 22,
-    "receiver": {
-      "id": 105,
-      "account_id": "84920183",
-      "display_name": "Maya",
-      "avatar": "https://chinchins.live/uploads/avatars/maya.jpg",
-      "is_online": true
-    }
-  }
-}
-```
-
----
-
-### D. Free Live Stream Chat Message
-- **Endpoint:** `POST /api/live/message` (or `POST /api/live/messages/send`)
-- **Authentication:** `Bearer {token}`
-
-#### Request Body:
-```json
-{
-  "live_stream_id": 12,
-  "message": "Hello everyone! Sending love from Dhaka ❤️",
-  "type": "text"
-}
-```
-
-#### Success Response (200 OK):
-```json
-{
-  "status": true,
-  "success": true,
-  "message": "Live message sent.",
-  "data": {
-    "id": 4820,
-    "live_stream_id": 12,
-    "user_id": 105,
-    "sender_name": "Shakib",
-    "sender_avatar": "https://chinchins.live/uploads/avatars/u105.jpg",
-    "level": "Lv3",
-    "message": "Hello everyone! Sending love from Dhaka ❤️",
-    "type": "text",
-    "created_at": "2026-09-14T18:00:00+06:00"
-  }
-}
-```
-
----
-
-### E. 30 Strong-Motion Gifts Catalog
-- **Endpoint:** `GET /api/v1/gifts`
-- **Authentication:** `Bearer {token}`
-
-#### Success Response (200 OK):
-```json
-{
-  "status": true,
-  "message": "Active gifts retrieved successfully.",
-  "data": [
-    {
-      "id": 1,
-      "name": "Red Rose",
-      "slug": "rose",
-      "coins": 10,
-      "badge": "ROSE",
-      "image_url": "https://chinchins.live/uploads/gifts/01_rose.svg",
-      "animation_full_url": "https://chinchins.live/uploads/gifts/01_rose.svg",
-      "format": "svg",
-      "display_type": "fullscreen",
-      "sort_order": 1
-    },
-    {
-      "id": 2,
-      "name": "Diamond Heart",
-      "slug": "diamond_heart",
-      "coins": 520,
-      "badge": "520 LOVE",
-      "image_url": "https://chinchins.live/uploads/gifts/02_diamond_heart.svg",
-      "animation_full_url": "https://chinchins.live/uploads/gifts/02_diamond_heart.svg",
-      "format": "svg",
-      "display_type": "fullscreen",
-      "sort_order": 2
-    },
-    {
-      "id": 30,
-      "name": "Imperial Royal Palace",
-      "slug": "royal_palace",
-      "coins": 50000,
-      "badge": "50K PALACE",
-      "image_url": "https://chinchins.live/uploads/gifts/30_royal_palace.svg",
-      "animation_full_url": "https://chinchins.live/uploads/gifts/30_royal_palace.svg",
-      "format": "svg",
-      "display_type": "fullscreen",
-      "sort_order": 30
-    }
-  ]
-}
-```
-
----
-
-### F. Coin Recharge Packages Store
-- **Endpoint:** `GET /api/v1/coin-packages`
-- **Authentication:** `Bearer {token}`
-
-#### Success Response (200 OK):
-```json
-{
-  "status": true,
-  "data": [
-    {
-      "id": 1,
-      "title": "Starter Pack",
-      "coins": 7560,
-      "price": "150.00",
-      "currency": "BDT",
-      "badge": "50% off",
-      "image_url": "https://chinchins.live/uploads/coin_packages/burst.png",
-      "animation_full_url": "https://chinchins.live/uploads/coin_packages/burst_animated.svg",
-      "button_text": "Recharge 7560 Gems (৳150)"
-    },
-    {
-      "id": 6,
-      "title": "VIP King Pack",
-      "coins": 167400,
-      "price": "6100.00",
-      "currency": "BDT",
-      "badge": "80% off",
-      "image_url": "https://chinchins.live/uploads/coin_packages/royal_chest.png",
-      "animation_full_url": "https://chinchins.live/uploads/coin_packages/royal_chest_animated.svg",
-      "button_text": "Recharge 167400 Gems (৳6,100)"
-    }
-  ]
-}
-```
-
----
-
-## 5. Real-Time WebSocket Pipeline & Reverb Events
-
-| Event Class | Channel Name | Client Event Name | Description |
-|---|---|---|---|
-| `CallSignalEvent` | `private-user.{id}` | `incoming_call` | Incoming video/audio call dialog trigger |
-| `CallAnsweredEvent` | `private-call.{call_id}` | `call_answered` | Transition caller from ringing to active |
-| `CallEndedEvent` | `private-call.{call_id}` | `call_ended` | Disconnect WebRTC/Agora stream cleanly |
-| `LiveChatMessageEvent` | `presence-live-room.{id}` | `chat.message` | 100% Free real-time live chat message |
-| `LiveGiftSentEvent` | `presence-live-room.{id}` | `gift.received` | Trigger SVG strong-motion gift canvas |
-| `UserOnlineStatusEvent` | `presence-global` | `user.status` | Update online/offline badge real-time |
-
----
-
-## 6. Zero-Latency Preloading & Instant App Performance Architecture
-
-To achieve **instantaneous / sub-second** response times without showing loading spinners or "Connecting..." freezes:
-
-### A. Backend In-Memory Acceleration & HTTP Cache Headers
-1. **Gift Catalog (`/api/v1/gifts`):**
-   - Removed runtime database seeding calls.
-   - Catalog data and category counts cached in Laravel Memory/Redis (`Cache::remember('api_gifts_catalog_data_{cat}', 3600)`).
-   - Responses served with `Cache-Control: public, max-age=60, stale-while-revalidate=300`. Response time reduced from ~180ms to `< 5ms`.
-2. **Coin Packages & Payment Methods (`/api/coin-packages`, `/api/payment-methods`):**
-   - Pre-compiled packages and payment gateway definitions cached in-memory.
-   - Response time: `< 4ms`.
-3. **Remote Configuration (`/api/app/remote-config`):**
-   - Feature flags and dynamic settings cached with auto-invalidation on admin updates.
-   - Response time: `< 3ms`.
-4. **Call Initiation (`/api/call/initiate`):**
-   - Returns call session, Agora channel name, and receiver metadata immediately in a single non-blocking payload.
-   - Eliminates client-side "Connecting..." delay; Flutter app transitions straight into `ringing` state with zero UI lag.
-
-### B. Flutter Mobile App Cache-First & Asset Preloader Strategy
-```dart
-// 1. App Startup (Splash / Auth Check)
-class AppStartupPreloader {
-  static Future<void> preloadAll() async {
-    // Parallel non-blocking pre-fetch
-    await Future.wait([
-      GiftRepository.fetchAndCacheGifts(),
-      CoinPackageRepository.fetchAndCachePackages(),
-      RemoteConfigRepository.fetchAndCacheConfig(),
-    ]);
-  }
-}
-
-// 2. Cache-First Riverpod / BLoC Provider Pattern
-// In Flutter UI, always render cached in-memory state immediately (zero spinner),
-// then silently revalidate in the background (stale-while-revalidate).
-```
-
----
-
-## 7. Production Deployment & VPS Commands
-
-Run the following commands on your production VPS (`/var/www/chinchins-live-website`):
+প্রডাকশন VPS সার্ভারে (`/var/www/chinchins-live-website`) কোড আপডেট করার জন্য নিচের কমান্ডগুলো রান করুন:
 
 ```bash
 cd /var/www/chinchins-live-website
