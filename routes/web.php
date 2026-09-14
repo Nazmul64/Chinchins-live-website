@@ -236,6 +236,13 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::get('/party-rooms/{id}', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'show'])->name('party-rooms.show');
     Route::post('/party-rooms/{id}/force-close', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'forceClose'])->name('party-rooms.force-close');
 
+    // Live Streaming Broadcasts & Rooms Management
+    Route::prefix('live-streams')->name('live-streams.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\LiveStreamAdminController::class, 'index'])->name('index');
+        Route::post('/{id}/force-close', [\App\Http\Controllers\Admin\LiveStreamAdminController::class, 'forceClose'])->name('force-close');
+        Route::get('/gift-transactions', [\App\Http\Controllers\Admin\LiveStreamAdminController::class, 'giftTransactions'])->name('gift-transactions');
+    });
+
     // Coin Transaction Ledger
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index')->middleware('permission:transactions.view');
 });

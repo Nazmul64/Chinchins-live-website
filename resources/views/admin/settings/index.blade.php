@@ -174,6 +174,24 @@
                                 </div>
                             </div>
 
+                            <hr class="my-4">
+
+                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-eye text-success me-2"></i> User Visibility & Discovery Settings</h5>
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-12 col-md-8">
+                                    <label class="form-label fw-semibold" style="font-size: 13px;">Show Offline Users in App Discovery List</label>
+                                    <div class="form-check form-switch mt-1">
+                                        <input type="hidden" name="show_offline_users" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="showOfflineUsersSwitch" name="show_offline_users" value="1" {{ (!empty($merged['show_offline_users']) && ($merged['show_offline_users'] === '1' || $merged['show_offline_users'] === 'true' || $merged['show_offline_users'] === true)) ? 'checked' : '' }} style="width: 2.5em; height: 1.3em; cursor: pointer;">
+                                        <label class="form-check-label fw-bold ms-2" for="showOfflineUsersSwitch" style="font-size: 13px; cursor: pointer;">
+                                            Show Offline Users in App (ON / OFF)
+                                        </label>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 11px;">When ON: Online + Offline users are displayed in the app. When OFF: Only active online users (<code>is_online = true</code>) are shown.</small>
+                                </div>
+                            </div>
+
                             <div class="d-flex justify-content-end">
                                 <button type="submit" class="btn-ch-primary px-4 py-2">Save Branding Settings</button>
                             </div>

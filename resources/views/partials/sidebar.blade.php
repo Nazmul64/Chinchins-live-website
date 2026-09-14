@@ -20,6 +20,7 @@
         $pendingReportsCount = 0;
         $pendingResellerDepCount = 0;
         $pendingResellerWithCount = 0;
+        $activeLiveStreamsCount = 0;
 
         try { $activeGiftsTotal = \App\Models\Gift::where('is_active', true)->count(); } catch (\Throwable $e) {}
         try { $activeBagItemsCount = \App\Models\BagItem::where('is_active', true)->count(); } catch (\Throwable $e) {}
@@ -33,6 +34,7 @@
         try { $pendingResellerDepCount = \App\Models\ResellerDeposit::where('status', 'pending')->count(); } catch (\Throwable $e) {}
         try { $pendingResellerWithCount = \App\Models\ResellerWithdrawal::where('status', 'pending')->count(); } catch (\Throwable $e) {}
         try { $unreadUserSupportCount = \App\Models\UserAdminSupportMessage::where('sender_type', 'user')->where('is_read_by_admin', false)->count(); } catch (\Throwable $e) {}
+        try { $activeLiveStreamsCount = \App\Models\LiveStream::where('status', 'live')->count(); } catch (\Throwable $e) {}
     @endphp
 
     <div class="sidebar-menu">
@@ -342,6 +344,39 @@
             </div>
         </div>
         @endhasPermission
+
+        <!-- Live Streaming Broadcasts & Multi-Guest Rooms -->
+        <div class="menu-item-group {{ request()->routeIs('admin.live-streams.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.live-streams.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-tower-broadcast" style="color: #ef4444;"></i>
+                    <span>Live Streaming</span>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    @if($activeLiveStreamsCount > 0)
+                        <span class="badge bg-danger rounded-pill" style="font-size: 10px; padding: 2px 6px; animation: pulse 2s infinite;">{{ $activeLiveStreamsCount }} Live</span>
+                    @endif
+                    <i class="fa-solid fa-chevron-right menu-arrow"></i>
+                </div>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.live-streams.*') ? 'display: block;' : '' }}">
+                <a href="{{ route('admin.live-streams.index') }}" class="submenu-item {{ request()->routeIs('admin.live-streams.index') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>All Live Streams</span>
+                    @if($activeLiveStreamsCount > 0)
+                        <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">{{ $activeLiveStreamsCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('admin.live-streams.gift-transactions') }}" class="submenu-item {{ request()->routeIs('admin.live-streams.gift-transactions') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Gift Transactions Log</span>
+                </a>
+                <a href="{{ route('admin.settings.streaming.index') }}" class="submenu-item {{ request()->routeIs('admin.settings.streaming.*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Streaming Driver Engine</span>
+                </a>
+            </div>
+        </div>
 
         <!-- Party Rooms (Voice & Video Multi-Guest Stage) -->
         <div class="menu-item-group {{ request()->routeIs('admin.party-rooms.*') ? 'active open' : '' }}">
