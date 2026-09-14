@@ -440,12 +440,21 @@ class MessageApiController extends Controller
         }
 
         // ==========================================
-        // 🔒 Free Message Limit & Coin Balance Check
+        // 🔒 Free Message Limit & Coin Balance Check (Bypassed for Live Streams & In-Call Messages)
         // ==========================================
+        $isInCallOrLive = $request->boolean('is_in_call') 
+                       || $request->boolean('in_call') 
+                       || $request->boolean('is_live') 
+                       || $request->input('context') === 'in_call' 
+                       || $request->input('context') === 'live' 
+                       || $request->filled('call_id') 
+                       || $request->filled('live_stream_id')
+                       || $request->filled('live_id');
+
         $freeLimit = (int) AppSetting::get('free_messages_limit', $sender->free_messages_limit ?? 5);
         $freeUsed = $sender->free_messages_used ?? 0;
-        $isFree = $freeUsed < $freeLimit;
-        $coinCost = (int) AppSetting::get('message_coin_cost', 5);
+        $isFree = $isInCallOrLive || ($freeUsed < $freeLimit);
+        $coinCost = $isInCallOrLive ? 0 : (int) AppSetting::get('message_coin_cost', 5);
 
         if (!$isFree) {
             // Check if sender has enough coins to pay for message
@@ -484,8 +493,8 @@ class MessageApiController extends Controller
                 'balance_after' => (int) $sender->fresh()->coins,
                 'description'   => "Message sent to {$receiver->display_name}",
             ]);
-        } else {
-            // Increment free messages used
+        } elseif (!$isInCallOrLive) {
+            // Increment free messages used only for 1-on-1 private direct chat (free during live & calls)
             $sender->increment('free_messages_used');
         }
 
