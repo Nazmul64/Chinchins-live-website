@@ -908,7 +908,7 @@ class MessageApiController extends Controller
                     'viewer_can_receive'  => $hasSufficientBalance,
                     'required_coins'      => $ratePerMinute,
                     'viewer_coins'        => (int) $viewer->coins,
-                    'trigger_action'      => $isHostAvailable ? 'INCOMING_CALL' : 'CHAT_NOTIFICATION',
+                    'trigger_action'      => $isHostAvailable ? 'INCOMING_CALL' : 'NONE',
                 ],
                 'auto_message' => [
                     'id'         => $welcomeMessage->id,

@@ -55,11 +55,12 @@ class AppUpdateApiController extends Controller
         $latestVersion = AppVersion::getLatest();
 
         $remoteFlags = $latestVersion?->remote_flags ?? AppVersion::defaultRemoteFlags();
-        $remoteFlags['screenshot_protection_enabled'] = (bool) AppSetting::get('screenshot_protection_enabled', '1');
-        $remoteFlags['screen_recording_protection_enabled'] = (bool) AppSetting::get('screen_recording_protection_enabled', '1');
-        $remoteFlags['camera_filters_enabled'] = (bool) AppSetting::get('camera_filters_enabled', '1');
-        $remoteFlags['call_minimize_enabled'] = (bool) AppSetting::get('call_minimize_enabled', '1');
-        $remoteFlags['debug_mode_enabled'] = (bool) AppSetting::get('debug_mode_enabled', '0');
+        $remoteFlags['screenshot_protection_enabled'] = (bool) filter_var(AppSetting::get('screenshot_protection_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+        $remoteFlags['screen_recording_protection_enabled'] = (bool) filter_var(AppSetting::get('screen_recording_protection_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+        $remoteFlags['camera_filters_enabled'] = (bool) filter_var(AppSetting::get('camera_filters_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+        $remoteFlags['call_minimize_enabled'] = (bool) filter_var(AppSetting::get('call_minimize_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+        $remoteFlags['debug_mode_enabled'] = (bool) filter_var(AppSetting::get('debug_mode_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+        $remoteFlags['debug_logs_enabled'] = (bool) filter_var(AppSetting::get('debug_logs_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
 
         return response()->json([
             'status' => true,
@@ -76,11 +77,12 @@ class AppUpdateApiController extends Controller
                 'free_trial_duration'  => (int) ($callConfig['free_call_duration_seconds'] ?? 15),
                 'incoming_ringtone'    => $callConfig['incoming_ringtone_url'],
                 'outgoing_ringtone'    => $callConfig['outgoing_ringtone_url'],
-                'screenshot_protection_enabled' => (bool) AppSetting::get('screenshot_protection_enabled', '1'),
-                'screen_recording_protection_enabled' => (bool) AppSetting::get('screen_recording_protection_enabled', '1'),
-                'camera_filters_enabled' => (bool) AppSetting::get('camera_filters_enabled', '1'),
-                'call_minimize_enabled' => (bool) AppSetting::get('call_minimize_enabled', '1'),
-                'debug_mode_enabled'   => (bool) AppSetting::get('debug_mode_enabled', '0'),
+                'screenshot_protection_enabled' => (bool) filter_var(AppSetting::get('screenshot_protection_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+                'screen_recording_protection_enabled' => (bool) filter_var(AppSetting::get('screen_recording_protection_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+                'camera_filters_enabled' => (bool) filter_var(AppSetting::get('camera_filters_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+                'call_minimize_enabled' => (bool) filter_var(AppSetting::get('call_minimize_enabled', '1'), FILTER_VALIDATE_BOOLEAN),
+                'debug_mode_enabled'   => (bool) filter_var(AppSetting::get('debug_mode_enabled', '0'), FILTER_VALIDATE_BOOLEAN),
+                'debug_logs_enabled'   => (bool) filter_var(AppSetting::get('debug_logs_enabled', '0'), FILTER_VALIDATE_BOOLEAN),
                 'remote_flags'         => $remoteFlags,
                 'support_email'        => AppSetting::get('support_email', 'support@chinchins.live'),
                 'support_whatsapp'     => AppSetting::get('support_whatsapp', '+8801700000000'),

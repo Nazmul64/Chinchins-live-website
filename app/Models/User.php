@@ -181,16 +181,18 @@ class User extends Authenticatable
         }
 
         if ($this->online_status === 'offline') {
-            if ($this->last_seen_at && $this->last_seen_at->greaterThanOrEqualTo(now()->subMinutes(15))) {
-                return true;
-            }
+            return false;
         }
 
         if (in_array($this->online_status, ['online', 'busy', 'in_call'])) {
             return true;
         }
 
-        return (bool) $this->is_active;
+        if ($this->last_seen_at && $this->last_seen_at->greaterThanOrEqualTo(now()->subMinutes(5))) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

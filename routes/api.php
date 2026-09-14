@@ -375,7 +375,7 @@ Route::prefix('call')->group(function () {
     Route::post('/send-quick-message', [CallController::class, 'sendQuickMessage']);
     Route::post('/quick-message', [CallController::class, 'sendQuickMessage']);
 
-    // Live In-Call Text Chat, Live Image Upload (uploads/live) & Real-Time Sync
+    // Live In-Call Text Chat, Live Image Upload (uploads/live_chat & uploads/live_streaming) & Real-Time Sync
     Route::post('/chat/send', [CallController::class, 'sendCallMessage']);
     Route::post('/send-message', [CallController::class, 'sendCallMessage']);
     Route::post('/message', [CallController::class, 'sendCallMessage']);
@@ -385,6 +385,9 @@ Route::prefix('call')->group(function () {
     Route::post('/upload-image', [CallController::class, 'uploadLiveImage']);
     Route::post('/upload', [CallController::class, 'uploadLiveImage']);
     Route::post('/live/upload', [CallController::class, 'uploadLiveImage']);
+    Route::post('/live-chat/upload', [CallController::class, 'uploadLiveImage']);
+    Route::post('/live-stream/upload', [CallController::class, 'uploadLiveImage']);
+    Route::post('/live-streaming/upload', [CallController::class, 'uploadLiveImage']);
 
     // Video Call Minimization / In-App Floating PiP State Sync
     Route::post('/minimize', [CallController::class, 'minimizeCall']);

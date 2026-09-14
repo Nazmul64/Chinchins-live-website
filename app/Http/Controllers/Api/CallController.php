@@ -2015,25 +2015,28 @@ class CallController extends Controller
         if (!$sender) {
             return response()->json([
                 'status' => false,
-                'message' => 'Unauthenticated user.',
+                'message' => 'Unauthenticated user. Pass Authorization Bearer token or user_id.',
             ], 401);
         }
 
         $data = $this->getRequestData($request);
         $callSessionId = $data['call_session_id'] ?? $data['call_id'] ?? $data['channel_name'] ?? null;
-        $receiverId = $data['receiver_id'] ?? $data['target_user_id'] ?? null;
-        $type = $data['type'] ?? 'text';
+        $receiverId = $data['receiver_id'] ?? $data['target_user_id'] ?? $data['to_user_id'] ?? null;
+        $type = strtolower($data['type'] ?? 'text');
         $messageText = trim($data['message'] ?? $data['text'] ?? '');
-        $imageUrl = $data['image_url'] ?? null;
+        $imageUrl = $data['image_url'] ?? $data['file_url'] ?? null;
 
-        // If receiverId is not provided, try to find it from CallSession
-        if (!$receiverId && $callSessionId) {
+        $session = null;
+        if ($callSessionId) {
             $session = CallSession::where('call_session_id', $callSessionId)
                 ->orWhere('id', $callSessionId)
+                ->orWhere('channel_name', $callSessionId)
                 ->first();
-            if ($session) {
-                $receiverId = ($session->caller_id == $sender->id) ? $session->receiver_id : $session->caller_id;
-            }
+        }
+
+        // If receiverId is not provided, try to find it from CallSession
+        if (!$receiverId && $session) {
+            $receiverId = ($session->caller_id == $sender->id) ? $session->receiver_id : $session->caller_id;
         }
 
         if (!$receiverId) {
@@ -2050,7 +2053,7 @@ class CallController extends Controller
             ], 422);
         }
 
-        if ($type === 'image' && empty($imageUrl) && !$request->hasFile('image')) {
+        if ($type === 'image' && empty($imageUrl) && !$request->hasFile('image') && !$request->hasFile('file') && !$request->hasFile('photo')) {
             return response()->json([
                 'status' => false,
                 'message' => 'Image file or image_url is required for image message.',
@@ -2058,53 +2061,91 @@ class CallController extends Controller
         }
 
         // Handle uploaded image if attached directly
-        if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $filename = 'live_' . time() . '_' . Str::random(12) . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/live'), $filename);
-            $imageUrl = url('uploads/live/' . $filename);
+        if ($request->hasFile('image') || $request->hasFile('file') || $request->hasFile('photo')) {
+            $file = $request->file('image') ?? $request->file('file') ?? $request->file('photo');
+            $uploadDir = public_path('uploads/live_chat');
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            $filename = 'chat_' . time() . '_' . Str::random(12) . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            $imageUrl = url('uploads/live_chat/' . $filename);
+            $type = 'image';
         }
 
+        $senderName = $sender->display_name ?? $sender->name ?? $sender->nickname ?? 'User';
+        $senderAvatar = $sender->avatar_url;
+
+        // 1. Persist to CallMessage table
         $callMessage = CallMessage::create([
-            'call_session_id' => $callSessionId,
-            'sender_id' => $sender->id,
-            'receiver_id' => $receiverId,
-            'type' => $type,
-            'message' => $messageText,
-            'image_url' => $imageUrl,
-            'metadata' => [
-                'sender_name' => $sender->name ?? $sender->nickname ?? 'User',
-                'sender_avatar' => $sender->avatar_url,
-                'timestamp' => now()->toIso8601String(),
+            'call_session_id' => $session ? (string)$session->id : (string)$callSessionId,
+            'sender_id'       => $sender->id,
+            'receiver_id'     => (int) $receiverId,
+            'type'            => $type,
+            'message'         => $messageText ?: ($type === 'image' ? '[Image]' : ''),
+            'image_url'       => $imageUrl,
+            'metadata'        => [
+                'sender_name'   => $senderName,
+                'sender_avatar' => $senderAvatar,
+                'channel_name'  => $session?->channel_name,
+                'timestamp'     => now()->toIso8601String(),
             ],
-            'is_read' => false,
+            'is_read'         => false,
         ]);
 
         $payload = [
-            'id' => $callMessage->id,
-            'call_session_id' => $callSessionId,
-            'sender_id' => $sender->id,
-            'sender_name' => $sender->name ?? $sender->nickname ?? 'User',
-            'sender_avatar' => $sender->avatar_url,
-            'receiver_id' => (int) $receiverId,
-            'type' => $type,
-            'message' => $messageText,
-            'image_url' => $imageUrl,
-            'created_at' => $callMessage->created_at->toIso8601String(),
+            'id'              => $callMessage->id,
+            'call_id'         => $session ? $session->id : $callSessionId,
+            'call_session_id' => $session ? (string)$session->id : (string)$callSessionId,
+            'channel_name'    => $session?->channel_name ?: (string)$callSessionId,
+            'sender_id'       => $sender->id,
+            'sender_name'     => $senderName,
+            'sender_avatar'   => $senderAvatar,
+            'receiver_id'     => (int) $receiverId,
+            'type'            => $type,
+            'message'         => $messageText ?: ($type === 'image' ? '[Image]' : ''),
+            'image_url'       => $imageUrl,
+            'created_at'      => $callMessage->created_at->toIso8601String(),
         ];
 
-        // Broadcast real-time event to receiver / call channel
+        // 2. Broadcast via WebRTC CallSignal table (for WebRTC signaling stream / polling fallback)
         try {
-            if ($callSessionId) {
-                event(new CallMessageSent($callSessionId, $payload));
-            }
+            \App\Models\CallSignal::create([
+                'call_session_id' => $session?->id,
+                'channel_name'    => $session?->channel_name ?: (string) $callSessionId,
+                'sender_id'       => $sender->id,
+                'receiver_id'     => (int) $receiverId,
+                'type'            => 'chat_message',
+                'payload'         => $payload,
+                'is_read'         => false,
+            ]);
+        } catch (\Throwable $e) {}
+
+        // 3. Persist to persistent ChatMessage history for inbox sync
+        try {
+            \App\Models\ChatMessage::create([
+                'sender_id'   => $sender->id,
+                'receiver_id' => (int) $receiverId,
+                'message'     => $messageText ?: ($type === 'image' ? '[Image]' : ''),
+                'type'        => $type,
+                'image_url'   => $imageUrl,
+                'is_read'     => false,
+                'is_free'     => true,
+                'coin_cost'   => 0,
+            ]);
+        } catch (\Throwable $e) {}
+
+        // 4. Broadcast Real-Time WebSocket Event (Laravel Reverb / Pusher)
+        try {
+            $sessionIdForBroadcast = $session ? (string)$session->id : (string)$callSessionId;
+            event(new CallMessageSent($sessionIdForBroadcast, $payload));
         } catch (\Throwable $e) {}
 
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'success' => true,
             'message' => 'Message sent successfully during video call.',
-            'data' => $payload,
+            'data'    => $payload,
         ], 200);
     }
 
@@ -2114,13 +2155,27 @@ class CallController extends Controller
      */
     public function getCallMessages(Request $request, $callId = null): JsonResponse
     {
-        $sessionId = $callId ?? $request->input('call_session_id') ?? $request->input('call_id');
+        $sessionId = $callId 
+                  ?? $request->input('call_session_id') 
+                  ?? $request->input('call_id') 
+                  ?? $request->input('channel_name');
         $page = (int) $request->input('page', 1);
         $perPage = min((int) $request->input('per_page', 50), 100);
 
         $query = CallMessage::query();
         if ($sessionId) {
-            $query->where('call_session_id', $sessionId);
+            $session = CallSession::where('call_session_id', $sessionId)
+                ->orWhere('id', $sessionId)
+                ->orWhere('channel_name', $sessionId)
+                ->first();
+
+            $query->where(function ($q) use ($sessionId, $session) {
+                $q->where('call_session_id', (string) $sessionId);
+                if ($session) {
+                    $q->orWhere('call_session_id', (string) $session->id)
+                      ->orWhere('call_session_id', (string) $session->channel_name);
+                }
+            });
         }
 
         $messages = $query->with('sender:id,account_id,name,nickname,avatar')
@@ -2129,24 +2184,24 @@ class CallController extends Controller
 
         $items = collect($messages->items())->map(function ($msg) {
             return [
-                'id' => $msg->id,
+                'id'              => $msg->id,
                 'call_session_id' => $msg->call_session_id,
-                'sender_id' => $msg->sender_id,
-                'sender_name' => $msg->sender?->name ?? $msg->sender?->nickname ?? 'User',
-                'sender_avatar' => $msg->sender?->avatar_url,
-                'receiver_id' => $msg->receiver_id,
-                'type' => $msg->type,
-                'message' => $msg->message,
-                'image_url' => $msg->image_url,
-                'created_at' => $msg->created_at ? $msg->created_at->toIso8601String() : null,
+                'sender_id'       => $msg->sender_id,
+                'sender_name'     => $msg->sender?->display_name ?? $msg->sender?->name ?? $msg->sender?->nickname ?? 'User',
+                'sender_avatar'   => $msg->sender?->avatar_url,
+                'receiver_id'     => $msg->receiver_id,
+                'type'            => $msg->type,
+                'message'         => $msg->message,
+                'image_url'       => $msg->image_url,
+                'created_at'      => $msg->created_at ? $msg->created_at->toIso8601String() : null,
             ];
         })->reverse()->values();
 
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'success' => true,
-            'data' => [
-                'total' => $messages->total(),
+            'data'    => [
+                'total'    => $messages->total(),
                 'messages' => $items,
             ],
         ], 200);
@@ -2182,16 +2237,23 @@ class CallController extends Controller
             $ext = 'jpg';
         }
 
-        $uploadDirectory = public_path('uploads/live');
+        // Target folder selection (live_chat, live_streaming, or live)
+        $folder = strtolower($request->input('folder') ?? $request->input('type') ?? 'live_chat');
+        if (!in_array($folder, ['live_chat', 'live_streaming', 'live'])) {
+            $folder = 'live_chat';
+        }
+
+        $uploadDirectory = public_path('uploads/' . $folder);
         if (!file_exists($uploadDirectory)) {
             mkdir($uploadDirectory, 0777, true);
         }
 
-        $filename = 'live_' . time() . '_' . Str::random(12) . '.' . $ext;
+        $prefix = ($folder === 'live_streaming') ? 'stream_' : (($folder === 'live_chat') ? 'chat_' : 'live_');
+        $filename = $prefix . time() . '_' . Str::random(12) . '.' . $ext;
         $file->move($uploadDirectory, $filename);
 
-        $imageUrl = url('uploads/live/' . $filename);
-        $relativePath = 'uploads/live/' . $filename;
+        $imageUrl = url('uploads/' . $folder . '/' . $filename);
+        $relativePath = 'uploads/' . $folder . '/' . $filename;
 
         return response()->json([
             'status' => true,
@@ -2201,6 +2263,7 @@ class CallController extends Controller
                 'image_url' => $imageUrl,
                 'file_url' => $imageUrl,
                 'relative_path' => $relativePath,
+                'folder' => $folder,
                 'filename' => $filename,
             ],
         ], 200);

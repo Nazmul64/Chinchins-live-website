@@ -25,10 +25,16 @@ class CallMessageSent implements ShouldBroadcastNow
     {
         $channels = [
             new Channel('call.' . $this->callSessionId),
+            new Channel('call_chat.' . $this->callSessionId),
         ];
+
+        if (!empty($this->messageData['channel_name']) && $this->messageData['channel_name'] !== $this->callSessionId) {
+            $channels[] = new Channel('call.' . $this->messageData['channel_name']);
+        }
 
         if (!empty($this->messageData['receiver_id'])) {
             $channels[] = new Channel('user.' . $this->messageData['receiver_id']);
+            $channels[] = new Channel('chat.' . $this->messageData['receiver_id']);
         }
 
         return $channels;

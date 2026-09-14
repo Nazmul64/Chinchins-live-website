@@ -172,7 +172,12 @@ class CallSetting extends Model
             'call_top_badge_text' => $merged['call_top_badge_text'] ?? 'Continue Video Call',
             'call_quick_messages' => $quickMessages,
             'incoming_ringtone_url' => $incomingRingtone,
-            'outgoing_ringtone_url' => $outgoingRingtone,
+            'screenshot_protection_enabled' => (bool) filter_var($merged['screenshot_protection_enabled'] ?? '1', FILTER_VALIDATE_BOOLEAN),
+            'screen_recording_protection_enabled' => (bool) filter_var($merged['screen_recording_protection_enabled'] ?? '1', FILTER_VALIDATE_BOOLEAN),
+            'camera_filters_enabled' => (bool) filter_var($merged['camera_filters_enabled'] ?? '1', FILTER_VALIDATE_BOOLEAN),
+            'call_minimize_enabled' => (bool) filter_var($merged['call_minimize_enabled'] ?? '1', FILTER_VALIDATE_BOOLEAN),
+            'debug_mode_enabled' => (bool) filter_var($merged['debug_mode_enabled'] ?? '0', FILTER_VALIDATE_BOOLEAN),
+            'debug_logs_enabled' => (bool) filter_var($merged['debug_logs_enabled'] ?? '0', FILTER_VALIDATE_BOOLEAN),
             'in_call_recharge_offer' => [
                 'preview_seconds'           => $freeSecs,
                 'rate_per_minute'           => $videoRate,
