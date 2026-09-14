@@ -405,6 +405,34 @@ Route::prefix('call')->group(function () {
 });
 
 // ==========================================
+// 🔴 Multi-User Live Streaming, Broadcasting & Co-Hosting APIs
+// ==========================================
+Route::get('/lives/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+
+Route::prefix('live')->group(function () {
+    Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
+    Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
+    Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
+    Route::post('/{id}/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
+    Route::post('/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+    Route::post('/{id}/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+    Route::post('/message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
+    Route::post('/messages/send', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
+    Route::post('/gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
+    Route::post('/send-gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
+
+    // Co-Hosting / Guest Join Grid
+    Route::post('/join-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestJoin']);
+    Route::post('/request-join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestJoin']);
+    Route::post('/accept-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'respondJoinRequest']);
+    Route::post('/respond-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'respondJoinRequest']);
+    Route::post('/kick-guest', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
+    Route::post('/kick', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
+});
+
+// ==========================================
 // 🟢 User Online Presence, Heartbeat & Push Tokens
 // ==========================================
 Route::prefix('user')->group(function () {

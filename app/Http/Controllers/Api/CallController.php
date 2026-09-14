@@ -365,14 +365,32 @@ class CallController extends Controller
             ], 400);
         }
 
-        // 🛑 Check if receiver is currently busy talking to someone else
-        if ($receiver->isBusy()) {
+        // 🛑 Check if receiver is offline
+        if (!$receiver->is_online) {
+            return response()->json([
+                'status'    => false,
+                'can_call'  => false,
+                'code'      => 'USER_OFFLINE',
+                'is_online' => false,
+                'message'   => "{$receiver->display_name} is currently offline.",
+                'receiver'  => [
+                    'id'           => $receiver->id,
+                    'account_id'   => $receiver->account_id,
+                    'display_name' => $receiver->display_name,
+                    'avatar'       => $receiver->avatar_url,
+                    'is_online'    => false,
+                ],
+            ], 400);
+        }
+
+        // 🛑 Check if receiver is currently busy talking to someone else or in live broadcast
+        if (!$receiver->is_available || $receiver->isBusy()) {
             return response()->json([
                 'status'   => false,
                 'can_call' => false,
                 'code'     => 'USER_BUSY',
                 'is_busy'  => true,
-                'message'  => "{$receiver->display_name} is currently busy in another call. Please try again in a few moments.",
+                'message'  => "{$receiver->display_name} is currently busy in another call or live broadcast.",
                 'receiver' => [
                     'id'           => $receiver->id,
                     'account_id'   => $receiver->account_id,
@@ -380,7 +398,7 @@ class CallController extends Controller
                     'avatar'       => $receiver->avatar_url,
                     'is_busy'      => true,
                 ],
-            ], 200);
+            ], 400);
         }
 
         $config = CallSetting::getAllConfig();
@@ -2135,10 +2153,11 @@ class CallController extends Controller
             ]);
         } catch (\Throwable $e) {}
 
-        // 4. Broadcast Real-Time WebSocket Event (Laravel Reverb / Pusher)
+        // 4. Broadcast Real-Time WebSocket Events (Laravel Reverb / Pusher)
         try {
             $sessionIdForBroadcast = $session ? (string)$session->id : (string)$callSessionId;
             event(new CallMessageSent($sessionIdForBroadcast, $payload));
+            event(new \App\Events\InCallMessageSent($sessionIdForBroadcast, $payload));
         } catch (\Throwable $e) {}
 
         return response()->json([

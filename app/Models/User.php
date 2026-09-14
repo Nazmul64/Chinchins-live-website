@@ -180,11 +180,12 @@ class User extends Authenticatable
             return false;
         }
 
-        if ($this->online_status === 'offline') {
+        if ($this->online_status === 'offline' || $this->current_status === 'offline') {
             return false;
         }
 
-        if (in_array($this->online_status, ['online', 'busy', 'in_call'])) {
+        if (in_array($this->online_status, ['online', 'available', 'busy', 'in_call', 'in_live', 'busy_call']) ||
+            in_array($this->current_status, ['online', 'available', 'busy', 'in_call', 'in_live', 'busy_call'])) {
             return true;
         }
 
@@ -196,8 +197,26 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user is actively available to receive a video or audio call.
+     * True ONLY IF online AND status is available AND not currently in call or live broadcast.
+     */
+    public function getIsAvailableAttribute(): bool
+    {
+        if (!$this->is_online || $this->is_locked || !$this->is_active) {
+            return false;
+        }
+
+        $currentStatus = $this->current_status ?? $this->online_status ?? 'available';
+        if (in_array($currentStatus, ['in_call', 'in_live', 'busy_call', 'busy', 'offline'])) {
+            return false;
+        }
+
+        return !$this->isBusy();
+    }
+
+    /**
      * Accessor for human-readable status text.
-     * Returns: 'Online' | 'Inactive' | 'In Call' | 'Busy' | 'Locked'
+     * Returns: 'Available' | 'In Call' | 'In Live' | 'Busy' | 'Offline' | 'Locked'
      */
     public function getStatusTextAttribute(): string
     {
@@ -209,19 +228,25 @@ class User extends Authenticatable
             return 'Inactive';
         }
 
-        if ($this->online_status === 'in_call') {
+        $st = $this->current_status ?? $this->online_status;
+
+        if ($st === 'in_live') {
+            return 'In Live';
+        }
+
+        if ($st === 'in_call' || $st === 'busy_call') {
             return 'In Call';
         }
 
-        if ($this->online_status === 'busy') {
+        if ($st === 'busy') {
             return 'Busy';
         }
 
         if ($this->is_online) {
-            return 'Online';
+            return 'Available';
         }
 
-        return 'Inactive';
+        return 'Offline';
     }
 
     /**
