@@ -11,12 +11,14 @@ class Gift extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'coins',
         'coin_price',
         'category',
         'image',
         'icon_url',
         'animation_url',
+        'animation_asset_url',
         'file_url',
         'animation_type',
         'format',
@@ -46,6 +48,8 @@ class Gift extends Model
         'formatted_coins',
         'display_coins',
         'animation_full_url',
+        'animation_asset_url',
+        'slug',
     ];
 
     /**
@@ -123,6 +127,22 @@ class Gift extends Model
     public function getCoinPriceAttribute(): int
     {
         return (int) ($this->attributes['coin_price'] ?? $this->attributes['coins'] ?? 100);
+    }
+
+    /**
+     * Getter for slug.
+     */
+    public function getSlugAttribute(): string
+    {
+        return $this->attributes['slug'] ?? \Illuminate\Support\Str::slug($this->name ?? 'gift');
+    }
+
+    /**
+     * Getter for animation_asset_url.
+     */
+    public function getAnimationAssetUrlAttribute(): string
+    {
+        return $this->getFileUrlAttribute() ?? $this->getSvgUrlAttribute();
     }
 
     /**

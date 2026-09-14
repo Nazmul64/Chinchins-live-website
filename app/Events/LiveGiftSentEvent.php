@@ -26,7 +26,11 @@ class LiveGiftSentEvent implements ShouldBroadcastNow
      */
     public function broadcastOn()
     {
-        return new Channel('live-stream.' . $this->streamId);
+        return [
+            new Channel('live-stream.' . $this->streamId),
+            new \Illuminate\Broadcasting\PresenceChannel('live-room.' . $this->streamId),
+            new Channel('live-room.' . $this->streamId),
+        ];
     }
 
     /**

@@ -1214,4 +1214,14 @@ class User extends Authenticatable
         $id = $userId instanceof User ? $userId->id : (int) $userId;
         return $this->followingRecords()->where('user_id', $id)->exists();
     }
+
+    /**
+     * Conversations this user participates in.
+     */
+    public function conversations()
+    {
+        return $this->belongsToMany(Conversation::class, 'conversation_participants', 'user_id', 'conversation_id')
+            ->withPivot('joined_at')
+            ->withTimestamps();
+    }
 }

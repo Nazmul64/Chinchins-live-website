@@ -880,6 +880,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
+// ==========================================
+// 🏢 Enterprise Messaging & Dynamic User Discovery APIs
+// ==========================================
+Route::prefix('v1')->group(function () {
+    // 1. Dynamic User Discovery (Filtered by Admin show_offline_users Setting)
+    Route::get('/users/discovery', [\App\Http\Controllers\Api\UserDiscoveryController::class, 'index']);
+    Route::get('/users/active', [\App\Http\Controllers\Api\UserDiscoveryController::class, 'index']);
+
+    // 2. Core Unified Messaging (Used for direct chat and in-call chat)
+    Route::post('/conversations/direct', [\App\Http\Controllers\Api\MessagingApiController::class, 'getOrCreateDirect']);
+    Route::post('/messages/send', [\App\Http\Controllers\Api\MessagingApiController::class, 'sendMessage']);
+    Route::get('/conversations/{id}/messages', [\App\Http\Controllers\Api\MessagingApiController::class, 'getMessages']);
+});
+
+// Non-versioned fallback aliases
+Route::get('/users/discovery', [\App\Http\Controllers\Api\UserDiscoveryController::class, 'index']);
+Route::post('/conversations/direct', [\App\Http\Controllers\Api\MessagingApiController::class, 'getOrCreateDirect']);
+Route::post('/messages/send', [\App\Http\Controllers\Api\MessagingApiController::class, 'sendMessage']);
+Route::get('/conversations/{id}/messages', [\App\Http\Controllers\Api\MessagingApiController::class, 'getMessages']);
+
+
 
 
 

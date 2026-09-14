@@ -1,167 +1,406 @@
-# 📱 Chinchins Live — Comprehensive RESTful API & System Architecture Specification
-**Project:** Chinchins Live Video Streaming, Calling & Social Platform  
+# 📄 Enterprise Architecture & Comprehensive RESTful API Specification (A–Z)
+**Target Roles:** Full-Stack Engineers (Laravel Backend & Flutter Frontend)  
+**System Scope:** Live Streaming (Audio/Video), 1-on-1 Video Calling, Unified Core Messaging, Reverb Real-Time Pipeline, FinTech-Grade Coin & Gift Engine, Admin-Controlled Visibility  
 **Architecture:** Laravel 11.x RESTful Backend & WebSocket Server (Reverb/Pusher) + Flutter Mobile Client (Android & iOS)  
-**Version:** 3.5.0  
+**Version:** 4.0.0 Enterprise Edition  
 **Updated:** September 2026  
 **Document Name:** `add_more_restful_api.md`  
 
 ---
 
 ## 📑 Table of Contents
-1. [Executive Summary & System Overview](#1-executive-summary--system-overview)
-2. [Online / Offline User Visibility & Admin Controls](#2-online--offline-user-visibility--admin-controls)
-3. [User Presence, Heartbeat & Availability Rules](#3-user-presence-heartbeat--availability-rules)
-4. [Multi-User Live Streaming & Co-Hosting Mechanism](#4-multi-user-live-streaming--co-hosting-mechanism)
-5. [Dynamic Virtual Gift System & Revenue Split](#5-dynamic-virtual-gift-system--revenue-split)
-6. [Complete RESTful API Reference & Payloads](#6-complete-restful-api-reference--payloads)
-   - [Live Streaming Endpoints](#-live-streaming-endpoints)
-   - [Gift System Endpoints](#-gift-system-endpoints)
-   - [User Presence & Active Users Endpoints](#-user-presence--active-users-endpoints)
-   - [1-on-1 Calling & In-Call Messaging Endpoints](#-1-on-1-calling--in-call-messaging-endpoints)
-7. [Real-Time WebSocket Architecture & Events Reference](#7-real-time-websocket-architecture--events-reference)
-8. [Database Schema & Migrations Reference](#8-database-schema--migrations-reference)
-9. [Flutter Integration Guide (Stack Layer Architecture)](#9-flutter-integration-guide-stack-layer-architecture)
-10. [Admin Panel Specifications & Requirements](#10-admin-panel-specifications--requirements)
+1. [System Topology & Communication Flow](#1-system-topology--communication-flow)
+2. [Database Schema & Migrations Reference](#2-database-schema--migrations-reference)
+3. [Unified Core Messaging Engine (In-Call & Direct)](#3-unified-core-messaging-engine-in-call--direct)
+4. [FinTech-Grade Concurrency-Safe Coin & Gift Engine](#4-fintech-grade-concurrency-safe-coin--gift-engine)
+5. [Admin-Controlled Online/Offline User Visibility](#5-admin-controlled-onlineoffline-user-visibility)
+6. [Multi-User Live Streaming, Broadcasting & Co-Hosting](#6-multi-user-live-streaming-broadcasting--co-hosting)
+7. [Complete RESTful API Reference & Payloads](#7-complete-restful-api-reference--payloads)
+   - [A. User Discovery & Profile Visibility](#a-user-discovery--profile-visibility)
+   - [B. Unified Messaging & In-Call Chat](#b-unified-messaging--in-call-chat)
+   - [C. Live Streaming & Multi-Guest Broadcasting](#c-live-streaming--multi-guest-broadcasting)
+   - [D. FinTech Virtual Gift & Wallet Transactions](#d-fintech-virtual-gift--wallet-transactions)
+   - [E. 1-on-1 Video & Audio Calling](#e-1-on-1-video--audio-calling)
+8. [Real-Time WebSocket Architecture & Event Specifications](#8-real-time-websocket-architecture--event-specifications)
+9. [Flutter Frontend Architecture & State Isolation (Zero-Freeze)](#9-flutter-frontend-architecture--state-isolation-zero-freeze)
+   - [A. Idempotent Message Repository & Reverb Sync (`message_repository.dart`)](#a-idempotent-message-repository--reverb-sync-message_repositorydart)
+   - [B. Zero-Freeze In-Call Chat Overlay Component (`in_call_chat_overlay.dart`)](#b-zero-freeze-in-call-chat-overlay-component-in_call_chat_overlaydart)
+   - [C. Hardware-Accelerated Supercar / Gift Overlay Canvas (`live_room_screen.dart`)](#c-hardware-accelerated-supercar--gift-overlay-canvas-live_room_screendart)
+10. [End-to-End Test Matrix & Quality Verification](#10-end-to-end-test-matrix--quality-verification)
 
 ---
 
-## 1. Executive Summary & System Overview
-
-Chinchins Live backend operates as an orchestrator and state manager over a high-concurrency streaming and real-time messaging pipeline:
-- **Media Streaming Engine:** Dual-compatible with **Agora RTC SDK** and **VPS WebRTC (Coturn STUN/TURN)**, switchable dynamically from the Admin Panel.
-- **Real-Time Signaling & Broadcast:** **Laravel Reverb / Pusher WebSockets** for zero-latency (< 50ms) events + RESTful fallback.
-- **Database:** MySQL 8.x with indexed relationships, atomic coin balance transactions, and sub-second query execution.
+## 1. System Topology & Communication Flow
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           FLUTTER MOBILE CLIENT                                 │
-│  ┌─────────────────────────┐  ┌───────────────────────┐  ┌───────────────────┐  │
-│  │ 1-on-1 Video Calling    │  │ Live Broadcasting     │  │ Multi-Guest Grid  │  │
-│  │ (Agora RTC / WebRTC)    │  │ (Multi-Viewer Stream) │  │ (Co-Hosting)      │  │
-│  └─────────────────────────┘  └───────────────────────┘  └───────────────────┘  │
-└────────────────────────────────────────┬────────────────────────────────────────┘
-                                         │
-             ┌───────────────────────────┴───────────────────────────┐
-             ▼                                                       ▼
-┌─────────────────────────────────┐             ┌────────────────────────────────┐
-│   LARAVEL REVERB WEBSOCKET      │             │   LARAVEL RESTFUL API          │
-│   • live-stream.{stream_id}     │             │   • /api/v1/live/*             │
-│   • presence-live.{live_id}     │             │   • /api/v1/gifts              │
-│   • presence-call.{call_id}     │             │   • /api/v1/users/active       │
-│   • call.{call_id}              │             │   • /api/call/*                │
-│   • user.{user_id}              │             │   • /api/user/heartbeat        │
-└─────────────────────────────────┘             └────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 FLUTTER CLIENT                                         │
+│                                                                                        │
+│  ┌───────────────────────┐  ┌────────────────────────┐  ┌───────────────────────────┐  │
+│  │ Unified Messaging UI  │  │ Video Call + Chat Sheet │  │ Live Room (Audio / Video) │  │
+│  └───────────┬───────────┘  └───────────┬────────────┘  └─────────────┬─────────────┘  │
+└──────────────┼──────────────────────────┼─────────────────────────────┼────────────────┘
+               │                          │                             │
+    HTTP / REST (Bearer Token)            │                  WebSocket (Presence/Private)
+               │                          │                             │
+               ▼                          ▼                             ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              LARAVEL BACKEND ECOSYSTEM                                 │
+│                                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ REST Routing & Middleware (Sanctum Auth, Idempotency Guard, Input Validation)   │  │
+│  └──────────────────────────────────────┬───────────────────────────────────────────┘  │
+│                                         │                                              │
+│                               DB Transaction Block                                     │
+│                     ┌───────────────────┴───────────────────┐                          │
+│                     ▼                                       ▼                          │
+│      ┌─────────────────────────────┐         ┌─────────────────────────────┐           │
+│      │   Pessimistic Row Lock      │         │ Unified Conversation &      │           │
+│      │   `lockForUpdate()` Balance │         │ Messaging Service Engine    │           │
+│      └──────────────┬──────────────┘         └──────────────┬──────────────┘           │
+│                     │                                       │                          │
+│                     ▼                                       ▼                          │
+│           [ MySQL 8.0 InnoDB ]                     Dispatch Job / Event                │
+│                                                             │                          │
+│                                                             ▼                          │
+│                                                  [ Laravel Reverb Server ]             │
+│                                                             │ (Broadcasting)           │
+└─────────────────────────────────────────────────────────────┼──────────────────────────┘
+                                                              │
+                                                              ▼
+                                            Subscribed Channels (Clients Update UI)
 ```
 
 ---
 
-## 2. Online / Offline User Visibility & Admin Controls
+## 2. Database Schema & Migrations Reference
 
-### Business Logic
-1. **Default Behavior:** Under normal operation, only **Online Users** (`is_online = true`) are visible in the app's explore and user lists.
-2. **Admin Toggle Control:** The Admin Panel features a global toggle switch: **Show Offline Users in App** stored in the `app_settings` table under the key `show_offline_users`.
-   - **When ON (`value = "1"` or `"true"`):** Both Online and Offline users are displayed in the list. Online users appear first (`ORDER BY is_online DESC, last_seen_at DESC`).
-   - **When OFF (`value = "0"` or `"false"`):** Only active online users (`is_online = true`) are returned by the API.
+### A. Core Messaging Extensibility (`messages` & `conversations`)
+```sql
+-- Conversations Table
+CREATE TABLE conversations (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  is_group BOOLEAN DEFAULT FALSE,
+  title VARCHAR(255) NULL,
+  last_message_id BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL
+);
 
-### Controller Logic Implementation
-```php
-// Query Builder with Admin Toggle Consideration
-$showOfflineSetting = AppSetting::where('key', 'show_offline_users')->value('value');
-$canShowOffline = filter_var($showOfflineSetting, FILTER_VALIDATE_BOOLEAN) || $showOfflineSetting === '1';
+-- Conversation Participants Pivot Table
+CREATE TABLE conversation_participants (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  conversation_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  UNIQUE (conversation_id, user_id),
+  FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
-$usersQuery = User::select('id', 'name', 'account_id', 'avatar', 'avatar_frame', 'is_online', 'online_status', 'current_status', 'last_seen_at');
+-- Messages Table
+CREATE TABLE messages (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  client_uuid CHAR(36) NULL UNIQUE,
+  conversation_id BIGINT UNSIGNED NOT NULL,
+  call_id VARCHAR(191) NULL,
+  sent_during_call BOOLEAN DEFAULT FALSE,
+  sender_id BIGINT UNSIGNED NOT NULL,
+  message TEXT NOT NULL,
+  type VARCHAR(30) DEFAULT 'text',
+  media_url VARCHAR(500) NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+  FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX (call_id),
+  INDEX (sent_during_call),
+  INDEX (conversation_id, created_at)
+);
+```
 
-if (!$canShowOffline) {
-    // Only online users when admin toggle is OFF
-    $usersQuery->where(function ($q) {
-        $q->where('is_online', true)
-          ->orWhere('online_status', 'online')
-          ->orWhere('last_seen_at', '>=', now()->subMinutes(5));
-    });
+### B. App Configuration & Visibility (`app_settings`)
+```sql
+CREATE TABLE app_settings (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `key` VARCHAR(191) UNIQUE NOT NULL,
+  `value` TEXT NULL,
+  `description` VARCHAR(255) NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL
+);
+
+-- Initial seed for visibility
+INSERT INTO app_settings (`key`, `value`, `description`, created_at, updated_at) 
+VALUES ('show_offline_users', 'false', 'Display offline users in discovery lists when true', NOW(), NOW());
+```
+
+### C. Live Streaming Engine (`live_rooms`, `live_participants`, `live_messages`)
+```sql
+-- Live Rooms Table
+CREATE TABLE live_rooms (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  host_id BIGINT UNSIGNED NOT NULL,
+  channel_name VARCHAR(191) UNIQUE NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  type ENUM('video', 'audio') DEFAULT 'video',
+  status ENUM('active', 'ended') DEFAULT 'active',
+  viewer_count INT UNSIGNED DEFAULT 0,
+  total_diamonds_earned BIGINT UNSIGNED DEFAULT 0,
+  cover_image VARCHAR(500) NULL,
+  stream_token TEXT NULL,
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  ended_at TIMESTAMP NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  INDEX (status),
+  FOREIGN KEY (host_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Live Participants Table
+CREATE TABLE live_participants (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  live_room_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  role ENUM('host', 'co_host', 'viewer') DEFAULT 'viewer',
+  join_request_status ENUM('none', 'pending', 'accepted', 'rejected') DEFAULT 'none',
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  left_at TIMESTAMP NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  UNIQUE (live_room_id, user_id),
+  FOREIGN KEY (live_room_id) REFERENCES live_rooms(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Live Messages Table
+CREATE TABLE live_messages (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  live_room_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  FOREIGN KEY (live_room_id) REFERENCES live_rooms(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+### D. FinTech Coin & Gift Engine (`wallets`, `gifts`, `gift_transactions`)
+```sql
+-- Wallets Table
+CREATE TABLE wallets (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED UNIQUE NOT NULL,
+  balance BIGINT UNSIGNED DEFAULT 0,
+  earnings BIGINT UNSIGNED DEFAULT 0,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Gifts Catalog Table
+CREATE TABLE gifts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(191) NOT NULL,
+  slug VARCHAR(191) UNIQUE NOT NULL,
+  coin_price BIGINT UNSIGNED NOT NULL,
+  icon_url VARCHAR(500) NOT NULL,
+  animation_asset_url VARCHAR(500) NOT NULL,
+  animation_type ENUM('svg', 'lottie') DEFAULT 'svg',
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  INDEX (is_active)
+);
+
+-- Gift Transactions Table
+CREATE TABLE gift_transactions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  idempotency_key VARCHAR(191) UNIQUE NOT NULL,
+  sender_id BIGINT UNSIGNED NOT NULL,
+  receiver_id BIGINT UNSIGNED NOT NULL,
+  live_room_id BIGINT UNSIGNED NULL,
+  gift_id BIGINT UNSIGNED NOT NULL,
+  quantity INT UNSIGNED DEFAULT 1,
+  total_coins BIGINT UNSIGNED NOT NULL,
+  status ENUM('completed', 'failed') DEFAULT 'completed',
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (live_room_id) REFERENCES live_rooms(id) ON DELETE SET NULL,
+  FOREIGN KEY (gift_id) REFERENCES gifts(id) ON DELETE CASCADE
+);
+```
+
+---
+
+## 3. Unified Core Messaging Engine (In-Call & Direct)
+
+When User A and User B chat inside a video call, the request attaches to the unified conversation pipeline:
+- Auto-resolves direct 1-to-1 conversation via `MessagingService::getOrCreateDirectConversation()`.
+- Supports optimistic updates on Flutter with `client_uuid` to prevent duplicated messages during network reconnects.
+- Marks messages with `sent_during_call: true` and `call_id: "..."`.
+- Broadcasts `MessageSentEvent` on `private-conversation.{conversation_id}` as `message.sent`.
+
+---
+
+## 4. FinTech-Grade Concurrency-Safe Coin & Gift Engine
+
+### Pessimistic Locking & Idempotency Pipeline
+1. **Idempotency Gate:** Checks if `idempotency_key` already completed in `gift_transactions`.
+2. **Pessimistic Row Lock:** Executes `Wallet::where('user_id', $sender->id)->lockForUpdate()->firstOrFail()`.
+3. **Balance Validation:** Throws `ValidationException` (HTTP 422) if balance is insufficient.
+4. **Atomic Balances Update:** Decrements sender wallet & user balance; credits receiver wallet (50/50 split).
+5. **Live Room Diamonds:** Increments `total_diamonds_earned` on active `live_rooms`.
+6. **Real-Time Broadcast:** Fires `LiveGiftSentEvent` on `presence-live-room.{roomId}` and `live-stream.{roomId}` as `gift.received`.
+
+---
+
+## 5. Admin-Controlled Online/Offline User Visibility
+
+- Admin toggle in `app_settings` (`show_offline_users = "true"` / `"false"`).
+- When `false`, `/api/v1/users/discovery` and `/api/v1/users/active` strictly filter `where('is_online', true)`.
+- When `true`, returns all users ordered by `is_online DESC, last_seen_at DESC`.
+
+---
+
+## 6. Multi-User Live Streaming, Broadcasting & Co-Hosting
+
+- **Start Broadcast:** Creates `live_rooms` record, sets host `current_status = 'in_live'`, provides RTC Broadcaster token.
+- **Join Broadcast:** Viewers receive Audience RTC token, join `presence-live-room.{roomId}` and `live-stream.{roomId}`.
+- **Co-Hosting Grid:** Viewers call `POST /api/live/join-request` (fires `JoinRequestEvent` to host). Host accepts via `POST /api/live/accept-request` (fires `JoinStatusEvent` and generates Broadcaster RTC token for guest). Host can kick guest anytime (`POST /api/live/kick-guest`).
+
+---
+
+## 7. Complete RESTful API Reference & Payloads
+
+### A. User Discovery & Profile Visibility
+
+#### 1. Discover Users
+- **URL:** `GET /api/v1/users/discovery` or `GET /api/v1/users/active`
+- **Headers:** `Accept: application/json`
+- **Response (200 OK):**
+```json
+{
+  "status": "success",
+  "show_offline_users": false,
+  "data": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 2,
+        "name": "Nusrat Jahan",
+        "account_id": "90218492",
+        "avatar": "https://chinchins.live/uploads/avatars/host2.jpg",
+        "is_online": true,
+        "online_status": "available",
+        "current_status": "available",
+        "last_active_at": "2026-09-14T08:35:00+06:00"
+      }
+    ],
+    "total": 1
+  }
 }
-
-$users = $usersQuery->orderBy('is_online', 'desc')
-                    ->orderBy('last_seen_at', 'desc')
-                    ->paginate(20);
 ```
 
 ---
 
-## 3. User Presence, Heartbeat & Availability Rules
+### B. Unified Messaging & In-Call Chat
 
-### User Status Model
-Each user has `current_status` and `online_status` set to one of:
-- `available`: Online and ready to receive 1-on-1 audio/video calls.
-- `in_call`: Busy in an active 1-on-1 audio/video call.
-- `in_live`: Busy hosting or co-hosting a live stream broadcast.
-- `offline`: Exited app or heartbeat expired.
+#### 1. Get or Create Direct Conversation
+- **URL:** `POST /api/v1/conversations/direct`
+- **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
+- **Request Body:**
+```json
+{
+  "recipient_id": 2
+}
+```
+- **Response (200 OK):**
+```json
+{
+  "status": "success",
+  "data": {
+    "id": 10,
+    "is_group": false,
+    "last_message_id": 45,
+    "participants": [
+      {"id": 1, "name": "John"},
+      {"id": 2, "name": "Nusrat Jahan"}
+    ]
+  }
+}
+```
 
-### 30-Second Grace Period & Minimize Handling
-- **Problem:** Minimizing the app or answering in floating PiP mode was triggering premature call drops.
-- **Fix:** When minimized, Flutter calls `POST /api/call/minimize`. The session remains active in `connected` status. The call is **ONLY** terminated if no heartbeat pulse is received for **30 consecutive seconds**.
+#### 2. Send Message (Direct Chat or In-Call)
+- **URL:** `POST /api/v1/messages/send`
+- **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
+- **Request Body:**
+```json
+{
+  "conversation_id": 10,
+  "client_uuid": "c3e98124-7dfb-4f9e-b5c9-20f51272bc14",
+  "message": "Hey! Can you hear me clearly in the call? 🎧",
+  "call_id": "call_1_2_1726300000"
+}
+```
+- **Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Message dispatched successfully.",
+  "data": {
+    "id": 46,
+    "client_uuid": "c3e98124-7dfb-4f9e-b5c9-20f51272bc14",
+    "conversation_id": 10,
+    "sender_id": 1,
+    "message": "Hey! Can you hear me clearly in the call? 🎧",
+    "call_id": "call_1_2_1726300000",
+    "sent_during_call": true,
+    "created_at": "2026-09-14T08:40:00+06:00"
+  }
+}
+```
 
-### Call Initiation Defense Rules
-1. **Calling an Available User:**
-   - Host `is_online == true` & `current_status == 'available'` -> Returns `200 OK` (Ringing started).
-2. **Calling an Offline User (`is_online == false`):**
-   - Returns **`400 Bad Request`** with `code: USER_OFFLINE`, `message: "Host is currently offline"`.
-3. **Calling a Busy User (`current_status == 'in_call' || 'in_live'`):**
-   - Returns **`400 Bad Request`** with `code: USER_BUSY`, `message: "Host is currently busy in another call or live broadcast"`.
+#### 3. Get Conversation Message History
+- **URL:** `GET /api/v1/conversations/{id}/messages`
+- **Headers:** `Authorization: Bearer {token}`
+- **Response (200 OK):**
+```json
+{
+  "status": "success",
+  "data": {
+    "data": [
+      {
+        "id": 46,
+        "client_uuid": "c3e98124-7dfb-4f9e-b5c9-20f51272bc14",
+        "sender_id": 1,
+        "message": "Hey! Can you hear me clearly in the call? 🎧",
+        "sent_during_call": true,
+        "call_id": "call_1_2_1726300000",
+        "created_at": "2026-09-14T08:40:00+06:00"
+      }
+    ]
+  }
+}
+```
 
 ---
 
-## 4. Multi-User Live Streaming & Co-Hosting Mechanism
+### C. Live Streaming & Multi-Guest Broadcasting
 
-### Architecture Flow
-1. **Host Starts Broadcast (`POST /api/v1/live/start`):**
-   - Creates a `live_streams` record (`status = 'live'`).
-   - Generates Broadcaster RTC token (Agora/WebRTC).
-   - Updates Host `current_status = 'in_live'`.
-   - Broadcasts to public channel that the host has gone live.
-2. **Viewers Browse & Join (`GET /api/v1/live/active-streams` & `POST /api/v1/live/join`):**
-   - Fetches active live streams.
-   - Viewer connects to video feed and subscribes to `live-stream.{stream_id}` and `presence-live.{live_id}`.
-   - Viewer count increments automatically.
-3. **Real-Time Live Chat (`POST /api/v1/live/send-message`):**
-   - Persists chat message in `live_messages`.
-   - Broadcasts event `chat.message` on `live-stream.{stream_id}`.
-4. **Multi-Guest Co-Hosting:**
-   - **Request:** Viewer calls `POST /api/live/join-request` (`LiveJoinRequested` to host).
-   - **Host Accept:** `POST /api/live/accept-request` (`action = 'accept'`) -> Upgrades viewer to `guest` role, generates Broadcaster RTC token, fires `LiveJoinResponded`.
-   - **Host Kick:** `POST /api/live/kick-guest` -> Fires `LiveGuestKicked`, removes guest video stream.
-5. **Host Ends Broadcast (`POST /api/v1/live/end`):**
-   - Marks stream `ended_at = now()`, `status = 'ended'`.
-   - Broadcasts `LiveStreamEnded` to all viewers.
-   - Resets Host `current_status = 'available'`.
-
----
-
-## 5. Dynamic Virtual Gift System & Revenue Split
-
-### Revenue Model
-- Every virtual gift has a `coin_price`.
-- When sent, the coin cost is deducted from sender and a **50/50 revenue split** is executed in a database transaction (`DB::transaction`):
-  - 50% diamonds/coins credited to Host.
-  - 50% platform fee retained.
-- Recorded in `gift_transactions` and `live_messages`.
-
-### Real-Time Gift Animation Event
-- Dispatches `LiveGiftSentEvent` on channel `live-stream.{stream_id}` with event name `gift.received`.
-- Flutter mobile client renders an `IgnorePointer` overlay container and plays the SVG / Lottie / SVGA animation for **3.5 seconds** before automatically dismounting.
-
----
-
-## 6. Complete RESTful API Reference & Payloads
-
-### 🔴 Live Streaming Endpoints
-
-#### 1. Host Start Live Stream
+#### 1. Host Start Live Room
 - **URL:** `POST /api/v1/live/start` or `POST /api/live/start`
 - **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
 - **Request Body:**
 ```json
 {
-  "title": "Evening Live Chat & Songs 🎵",
+  "title": "Evening Acoustic Live 🎸",
   "cover_image_url": "https://chinchins.live/uploads/live_streaming/cover_1.jpg"
 }
 ```
@@ -174,210 +413,75 @@ Each user has `current_status` and `online_status` set to one of:
   "data": {
     "live_stream_id": 1,
     "channel_name": "live_2_1726300000_abcd",
-    "title": "Evening Live Chat & Songs 🎵",
-    "cover_image_url": "https://chinchins.live/uploads/live_streaming/cover_1.jpg",
+    "title": "Evening Acoustic Live 🎸",
     "status": "live",
     "role": "host",
     "session": {
-      "success": true,
-      "driver": "agora",
-      "channel_name": "live_2_1726300000_abcd",
-      "role": "publisher",
       "agora": {
         "app_id": "YOUR_AGORA_APP_ID",
         "token": "007eJxTYGDA9q30...YOUR_RTC_TOKEN",
-        "channel_name": "live_2_1726300000_abcd",
         "uid": 2,
-        "role": 1,
-        "token_expire_seconds": 3600
+        "role": 1
       }
-    },
-    "host": {
-      "id": 2,
-      "account_id": "90218492",
-      "display_name": "Nusrat Jahan",
-      "avatar_url": "https://chinchins.live/uploads/avatars/host2.jpg"
     }
   }
 }
 ```
 
----
-
-#### 2. Get Active Live Streams List (Home & Live Section)
+#### 2. Get Active Live Rooms List
 - **URL:** `GET /api/v1/live/active-streams` or `GET /api/lives/active`
 - **Headers:** `Accept: application/json`
+- **Response (200 OK):** Returns active live rooms with host profile, viewer counts, and guest list.
+
+#### 3. Join / Leave Live Room
+- **Join:** `POST /api/v1/live/join` with `{"live_stream_id": 1}` -> Returns viewer session & incremented viewer count.
+- **Leave:** `POST /api/v1/live/leave` with `{"live_stream_id": 1}`.
+
+#### 4. Co-Hosting Grid (Request, Accept, Kick)
+- **Request Join:** `POST /api/live/join-request` (`{"live_stream_id": 1}`) -> Broadcasts `JoinRequestEvent` (`join.requested`) to host.
+- **Host Respond:** `POST /api/live/accept-request` (`{"request_id": 12, "action": "accept"}`) -> Broadcasts `JoinStatusEvent` (`join.status`) and provides Publisher RTC token to guest.
+- **Host Kick:** `POST /api/live/kick-guest` (`{"live_stream_id": 1, "guest_user_id": 105}`) -> Broadcasts `LiveGuestKicked` to guest.
+
+---
+
+### D. FinTech Virtual Gift & Wallet Transactions
+
+#### 1. Get Approved Gifts Catalog
+- **URL:** `GET /api/v1/gifts`
 - **Response (200 OK):**
 ```json
 {
   "status": true,
-  "success": true,
-  "message": "Active live streams retrieved successfully.",
   "data": [
     {
       "id": 1,
-      "channel_name": "live_2_1726300000_abcd",
-      "title": "Evening Live Chat & Songs 🎵",
-      "cover_image_url": "https://chinchins.live/uploads/live_streaming/cover_1.jpg",
-      "status": "live",
-      "viewer_count": 85,
-      "total_diamonds_earned": 4200,
-      "started_at": "2026-09-14T08:00:00+06:00",
-      "host": {
-        "id": 2,
-        "account_id": "90218492",
-        "display_name": "Nusrat Jahan",
-        "avatar_url": "https://chinchins.live/uploads/avatars/host2.jpg",
-        "gender": "female",
-        "level": "Lv8"
-      },
-      "active_guests": []
-    }
-  ],
-  "pagination": {
-    "current_page": 1,
-    "last_page": 1,
-    "total": 1
-  }
-}
-```
-
----
-
-#### 3. Viewer Join Live Stream
-- **URL:** `POST /api/v1/live/join` or `POST /api/live/join`
-- **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "stream_id": 1,
-  "live_stream_id": 1
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "status": true,
-  "success": true,
-  "message": "Joined live stream successfully.",
-  "data": {
-    "live_stream_id": 1,
-    "channel_name": "live_2_1726300000_abcd",
-    "title": "Evening Live Chat & Songs 🎵",
-    "cover_image_url": "https://chinchins.live/uploads/live_streaming/cover_1.jpg",
-    "viewer_count": 86,
-    "role": "audience",
-    "session": {
-      "driver": "agora",
-      "channel_name": "live_2_1726300000_abcd",
-      "agora": {
-        "app_id": "YOUR_AGORA_APP_ID",
-        "token": "007eJxTYGDA9q30...AUDIENCE_TOKEN",
-        "uid": 105,
-        "role": 2
-      }
+      "name": "Rose",
+      "slug": "rose",
+      "coin_price": 10,
+      "icon_url": "https://chinchins.live/uploads/gifts/rose.png",
+      "animation_asset_url": "https://chinchins.live/uploads/gifts/rose.svg",
+      "animation_type": "svg"
     },
-    "host": {
-      "id": 2,
-      "account_id": "90218492",
-      "display_name": "Nusrat Jahan",
-      "avatar_url": "https://chinchins.live/uploads/avatars/host2.jpg"
+    {
+      "id": 4,
+      "name": "Luxury Sports Car",
+      "slug": "sports_car",
+      "coin_price": 500,
+      "icon_url": "https://chinchins.live/uploads/gifts/car.png",
+      "animation_asset_url": "https://chinchins.live/uploads/gifts/car.svg",
+      "animation_type": "svg"
     }
-  }
+  ]
 }
 ```
 
----
-
-#### 4. Viewer Leave Live Stream
-- **URL:** `POST /api/v1/live/leave` or `POST /api/live/leave`
-- **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "stream_id": 1,
-  "live_stream_id": 1
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "status": true,
-  "success": true,
-  "message": "Left live stream successfully."
-}
-```
-
----
-
-#### 5. Host End Live Stream
-- **URL:** `POST /api/v1/live/end` or `POST /api/live/end`
-- **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "stream_id": 1,
-  "live_stream_id": 1
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "status": true,
-  "success": true,
-  "message": "Live stream ended successfully.",
-  "data": {
-    "live_stream_id": 1,
-    "channel_name": "live_2_1726300000_abcd",
-    "duration_seconds": 1920,
-    "total_diamonds_earned": 4200,
-    "peak_viewers": 86
-  }
-}
-```
-
----
-
-#### 6. Send Public Chat Message in Live
-- **URL:** `POST /api/v1/live/send-message` or `POST /api/live/message`
-- **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "stream_id": 1,
-  "live_stream_id": 1,
-  "message": "Hello everyone! Beautiful stream! ❤️"
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "status": true,
-  "success": true,
-  "message": "Live message sent.",
-  "data": {
-    "id": 204,
-    "live_stream_id": 1,
-    "stream_id": 1,
-    "user_id": 105,
-    "sender_name": "Alex",
-    "sender_avatar": "https://chinchins.live/uploads/avatars/user105.jpg",
-    "level": "Lv3",
-    "message": "Hello everyone! Beautiful stream! ❤️",
-    "type": "text",
-    "created_at": "2026-09-14T08:30:00+06:00"
-  }
-}
-```
-
----
-
-#### 7. Send Virtual Gift in Live Stream
+#### 2. Send Gift (FinTech Concurrency-Safe)
 - **URL:** `POST /api/v1/live/send-gift` or `POST /api/live/gift`
 - **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
 - **Request Body:**
 ```json
 {
+  "idempotency_key": "idemp_user1_gift4_1726300000",
   "stream_id": 1,
   "gift_id": 4,
   "quantity": 1
@@ -393,17 +497,17 @@ Each user has `current_status` and `online_status` set to one of:
     "transaction_id": 85,
     "stream_id": 1,
     "sender": {
-      "id": 105,
-      "name": "Alex",
-      "avatar": "https://chinchins.live/uploads/avatars/user105.jpg"
+      "id": 1,
+      "name": "John",
+      "avatar": "https://chinchins.live/uploads/avatars/user1.jpg"
     },
     "gift": {
       "id": 4,
       "name": "Luxury Sports Car",
       "slug": "sports_car",
       "coin_price": 500,
-      "icon_url": "https://chinchins.live/uploads/gifts/car_icon.png",
-      "animation_asset_url": "https://chinchins.live/uploads/gifts/car_animation.svg",
+      "icon_url": "https://chinchins.live/uploads/gifts/car.png",
+      "animation_asset_url": "https://chinchins.live/uploads/gifts/car.svg",
       "animation_type": "svg"
     },
     "quantity": 1,
@@ -415,363 +519,361 @@ Each user has `current_status` and `online_status` set to one of:
 
 ---
 
-#### 8. Co-Hosting: Request, Respond & Kick
+### E. 1-on-1 Video & Audio Calling
 
-| Action | Method | URL | Body |
-|:---|:---|:---|:---|
-| **Request to Join Grid** | `POST` | `/api/live/join-request` | `{"live_stream_id": 1}` |
-| **Host Respond** | `POST` | `/api/live/accept-request` | `{"request_id": 12, "action": "accept"}` |
-| **Host Kick Guest** | `POST` | `/api/live/kick-guest` | `{"live_stream_id": 1, "guest_user_id": 105}` |
-
----
-
-### 🎁 Gift System Endpoints
-
-#### 1. Get Approved Gifts Catalog (For Gift Drawer Tray)
-- **URL:** `GET /api/v1/gifts` or `GET /api/gifts`
-- **Headers:** `Accept: application/json`
-- **Response (200 OK):**
-```json
-{
-  "status": true,
-  "success": true,
-  "message": "Gifts retrieved successfully.",
-  "data": [
-    {
-      "id": 1,
-      "name": "Rose",
-      "slug": "rose",
-      "coin_price": 10,
-      "icon_url": "https://chinchins.live/uploads/gifts/rose_icon.png",
-      "animation_asset_url": "https://chinchins.live/uploads/gifts/rose_anim.svg",
-      "animation_type": "svg",
-      "is_active": true
-    },
-    {
-      "id": 4,
-      "name": "Luxury Sports Car",
-      "slug": "sports_car",
-      "coin_price": 500,
-      "icon_url": "https://chinchins.live/uploads/gifts/car_icon.png",
-      "animation_asset_url": "https://chinchins.live/uploads/gifts/car_anim.svg",
-      "animation_type": "svg",
-      "is_active": true
-    },
-    {
-      "id": 7,
-      "name": "Helicopter",
-      "slug": "helicopter",
-      "coin_price": 2000,
-      "icon_url": "https://chinchins.live/uploads/gifts/helicopter_icon.png",
-      "animation_asset_url": "https://chinchins.live/uploads/gifts/helicopter.json",
-      "animation_type": "lottie",
-      "is_active": true
-    }
-  ]
-}
-```
-
----
-
-### 👥 User Presence & Active Users Endpoints
-
-#### 1. Get Active Users List (Filtered by Admin Offline Visibility Setting)
-- **URL:** `GET /api/v1/users/active` or `GET /api/profiles/active`
-- **Headers:** `Accept: application/json`
-- **Response (200 OK):**
-```json
-{
-  "status": "success",
-  "show_offline_users": false,
-  "data": [
-    {
-      "id": 2,
-      "account_id": "90218492",
-      "name": "Nusrat Jahan",
-      "avatar": "https://chinchins.live/uploads/avatars/host2.jpg",
-      "is_online": true,
-      "is_available": true,
-      "status_text": "Available",
-      "last_active_at": "2026-09-14T08:35:00+06:00"
-    }
-  ],
-  "pagination": {
-    "current_page": 1,
-    "last_page": 1,
-    "total": 1
-  }
-}
-```
-
-#### 2. User Heartbeat Pulse (Send every 30s)
-- **URL:** `POST /api/user/heartbeat`
-- **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
-- **Request Body:** `{"status": "available"}`
-- **Response (200 OK):** `{"status": true, "message": "Heartbeat acknowledged."}`
-
----
-
-### 📞 1-on-1 Calling & In-Call Messaging Endpoints
-
-#### 1. Initiate 1-on-1 Video/Audio Call
+#### 1. Initiate 1-on-1 Call
 - **URL:** `POST /api/call/initiate`
 - **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "receiver_id": 2,
-  "call_type": "video"
-}
+- **Request Body:** `{"receiver_id": 2, "call_type": "video"}`
+- **Response (Available Host - 200 OK):** Starts ringing with Agora/WebRTC credentials.
+- **Response (Offline Host - 400 Bad Request):** `{"code": "USER_OFFLINE", "message": "Host is currently offline."}`
+- **Response (Busy Host - 400 Bad Request):** `{"code": "USER_BUSY", "message": "Host is currently busy in another call or live broadcast."}`
+
+---
+
+## 8. Real-Time WebSocket Architecture & Event Specifications
+
+| Event Class | Broadcast Channel | Broadcast Event Name (`broadcastAs`) | Payload Outline |
+|:---|:---|:---|:---|
+| **`MessageSentEvent`** | `private-conversation.{id}` | `message.sent` | `{id, client_uuid, conversation_id, sender_id, message, call_id, sent_during_call, created_at}` |
+| **`LiveGiftSentEvent`** | `presence-live-room.{id}`, `live-stream.{id}` | `gift.received` | `{transaction_id, sender_id, sender_name, sender_avatar, gift_id, gift_name, animation_asset_url, animation_type, quantity, total_coins}` |
+| **`LiveMessageSentEvent`** | `presence-live-room.{id}`, `live-stream.{id}` | `live.message` / `chat.message` | `{id, user_id, user_name, user_avatar, message, created_at}` |
+| **`JoinRequestEvent`** | `private-live-host.{hostId}` | `join.requested` | `{request_id, user_id, user_name, user_avatar}` |
+| **`JoinStatusEvent`** | `private-user.{userId}` | `join.status` | `{room_id, status: 'accepted' \| 'rejected', guest_session}` |
+| **`LiveGuestKicked`** | `presence-live-room.{id}`, `user.{guestId}` | `LiveGuestKicked` | `{live_stream_id, guest_user_id, reason: 'host_removed'}` |
+| **`LiveStreamEnded`** | `presence-live-room.{id}`, `live-stream.{id}` | `LiveStreamEnded` | `{live_stream_id, duration_seconds, total_diamonds_earned, peak_viewers}` |
+
+---
+
+## 9. Flutter Frontend Architecture & State Isolation (Zero-Freeze)
+
 ```
-- **Response (If Host is Online & Available - 200 OK):**
-```json
-{
-  "status": true,
-  "success": true,
-  "call_session_id": "18",
-  "channel_name": "call_video_1_2_1726300000_abcd",
-  "caller": {"id": 1, "name": "John"},
-  "receiver": {"id": 2, "name": "Nusrat Jahan"},
-  "agora_token": "007eJxTY...TOKEN"
-}
-```
-- **Response (If Host is Offline - 400 Bad Request):**
-```json
-{
-  "status": false,
-  "can_call": false,
-  "code": "USER_OFFLINE",
-  "is_online": false,
-  "message": "Nusrat Jahan is currently offline."
-}
-```
-- **Response (If Host is Busy - 400 Bad Request):**
-```json
-{
-  "status": false,
-  "can_call": false,
-  "code": "USER_BUSY",
-  "is_busy": true,
-  "message": "Nusrat Jahan is currently busy in another call or live broadcast."
-}
+                  ┌───────────────────────────────┐
+                  │    ActiveCallScreen (Host)    │
+                  │   KeepAlive RTC Video Surface │
+                  └───────────────┬───────────────┘
+                                  │
+                   DraggableScrollableSheet / Overlay
+                                  │
+                  ┌───────────────▼───────────────┐
+                  │      InCallChatWidget         │
+                  │ (Listens to MessageRepository)│
+                  └───────────────┬───────────────┘
+                                  │
+                Updates local ListView via DiffKey
+                 without triggering Root Rebuild
 ```
 
-#### 2. Send In-Call Live Chat Message
-- **URL:** `POST /api/call/chat/send`
-- **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "call_session_id": "18",
-  "receiver_id": 2,
-  "type": "text",
-  "message": "You look wonderful! ❤️"
+### A. Idempotent Message Repository & Reverb Sync (`message_repository.dart`)
+```dart
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
+
+class MessageModel {
+  final int? id;
+  final String clientUuid;
+  final int conversationId;
+  final int senderId;
+  final String message;
+  final String? callId;
+  final bool sentDuringCall;
+  final DateTime createdAt;
+  bool isPending;
+
+  MessageModel({
+    this.id,
+    required this.clientUuid,
+    required this.conversationId,
+    required this.senderId,
+    required this.message,
+    this.callId,
+    this.sentDuringCall = false,
+    required this.createdAt,
+    this.isPending = false,
+  });
+
+  factory MessageModel.fromJson(Map<String, dynamic> json) {
+    return MessageModel(
+      id: json['id'],
+      clientUuid: json['client_uuid'] ?? '',
+      conversationId: json['conversation_id'],
+      senderId: json['sender_id'],
+      message: json['message'],
+      callId: json['call_id'],
+      sentDuringCall: json['sent_during_call'] ?? false,
+      createdAt: DateTime.parse(json['created_at']),
+      isPending: false,
+    );
+  }
 }
-```
-- **Response (200 OK):**
-```json
-{
-  "status": true,
-  "success": true,
-  "message": "Message sent successfully during video call.",
-  "data": {
-    "id": 62,
-    "call_id": 18,
-    "sender_id": 1,
-    "receiver_id": 2,
-    "message": "You look wonderful! ❤️",
-    "created_at": "2026-09-14T08:36:00+06:00"
+
+class MessageRepository extends ChangeNotifier {
+  final Map<int, List<MessageModel>> _conversationBuffers = {};
+  final Set<String> _processedUuids = {};
+
+  List<MessageModel> getMessages(int conversationId) => _conversationBuffers[conversationId] ?? [];
+
+  /// Optimistic Message Dispatch (Works during video call and normal chat)
+  Future<void> sendDirectMessage({
+    required int conversationId,
+    required int currentUserId,
+    required String text,
+    String? activeCallId,
+    required Future<void> Function(Map<String, dynamic> payload) apiTransport,
+  }) async {
+    final clientUuid = const Uuid().v4();
+    final localMsg = MessageModel(
+      clientUuid: clientUuid,
+      conversationId: conversationId,
+      senderId: currentUserId,
+      message: text,
+      callId: activeCallId,
+      sentDuringCall: activeCallId != null,
+      createdAt: DateTime.now(),
+      isPending: true,
+    );
+
+    // 1. Optimistic Local State Append
+    _appendOrDeduplicate(conversationId, localMsg);
+    notifyListeners();
+
+    // 2. Network Sync
+    try {
+      await apiTransport({
+        'client_uuid': clientUuid,
+        'conversation_id': conversationId,
+        'message': text,
+        'call_id': activeCallId,
+      });
+      localMsg.isPending = false;
+      notifyListeners();
+    } catch (e) {
+      localMsg.isPending = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Ingests messages arriving via Laravel Reverb
+  void handleIncomingSocketMessage(Map<String, dynamic> json) {
+    final incoming = MessageModel.fromJson(json);
+    if (incoming.clientUuid.isNotEmpty && _processedUuids.contains(incoming.clientUuid)) {
+      // Reconcile pending local message
+      final buffer = _conversationBuffers[incoming.conversationId];
+      final index = buffer?.indexWhere((m) => m.clientUuid == incoming.clientUuid) ?? -1;
+      if (index != -1) {
+        buffer![index] = incoming;
+        notifyListeners();
+      }
+      return;
+    }
+    _appendOrDeduplicate(incoming.conversationId, incoming);
+    notifyListeners();
+  }
+
+  void _appendOrDeduplicate(int conversationId, MessageModel message) {
+    _conversationBuffers.putIfAbsent(conversationId, () => []);
+    if (message.clientUuid.isNotEmpty) {
+      _processedUuids.add(message.clientUuid);
+    }
+    _conversationBuffers[conversationId]!.add(message);
   }
 }
 ```
 
 ---
 
-## 7. Real-Time WebSocket Architecture & Events Reference
-
-| Event Class | Broadcast Channel | Broadcast Event Name (`broadcastAs`) | Description |
-|:---|:---|:---|:---|
-| **`LiveChatMessageEvent`** | `live-stream.{stream_id}` | `chat.message` | Real-time chat message broadcast to all viewers in live room. |
-| **`LiveGiftSentEvent`** | `live-stream.{stream_id}` | `gift.received` | Real-time full-screen gift animation event (SVG/Lottie). |
-| **`InCallMessageSent`** | `presence-call.{call_id}`, `call.{call_id}` | `InCallMessageSent` | Live chat message between caller & receiver in 1-on-1 call. |
-| **`LiveJoinRequested`** | `presence-live.{live_id}`, `user.{host_id}` | `LiveJoinRequested` | Co-host request sent to broadcast host. |
-| **`LiveJoinResponded`** | `presence-live.{live_id}`, `user.{guest_id}`| `LiveJoinResponded` | Host acceptance/rejection sent to guest. |
-| **`LiveGuestKicked`** | `presence-live.{live_id}`, `user.{guest_id}`| `LiveGuestKicked` | Host removes guest from live grid. |
-| **`LiveStreamEnded`** | `presence-live.{live_id}`, `live-stream.{stream_id}` | `LiveStreamEnded` | Live broadcast ended notification with statistics. |
-
----
-
-## 8. Database Schema & Migrations Reference
-
-```sql
--- 1. User Table Extensions
-ALTER TABLE users 
-  ADD COLUMN is_online BOOLEAN DEFAULT FALSE,
-  ADD COLUMN last_active_at TIMESTAMP NULL,
-  ADD COLUMN coins_balance BIGINT UNSIGNED DEFAULT 0,
-  ADD COLUMN current_status VARCHAR(30) DEFAULT 'available',
-  ADD COLUMN online_status VARCHAR(30) DEFAULT 'available';
-
--- 2. App Settings Table
-CREATE TABLE app_settings (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `key` VARCHAR(191) UNIQUE NOT NULL,
-  `value` TEXT NULL,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL
-);
-
--- 3. Live Stream Sessions Table
-CREATE TABLE live_streams (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  host_id BIGINT UNSIGNED NOT NULL,
-  title VARCHAR(255) NULL,
-  channel_name VARCHAR(191) UNIQUE NOT NULL,
-  stream_token TEXT NULL,
-  status ENUM('live', 'ended') DEFAULT 'live',
-  viewer_count INT UNSIGNED DEFAULT 0,
-  total_diamonds_earned BIGINT UNSIGNED DEFAULT 0,
-  cover_image VARCHAR(500) NULL,
-  agora_token TEXT NULL,
-  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  ended_at TIMESTAMP NULL,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL,
-  FOREIGN KEY (host_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- 4. Gifts Catalog Table
-CREATE TABLE gifts (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(191) NOT NULL,
-  slug VARCHAR(191) UNIQUE NOT NULL,
-  coin_price INT UNSIGNED NOT NULL,
-  icon_url VARCHAR(500) NOT NULL,
-  animation_asset_url VARCHAR(500) NOT NULL,
-  animation_type ENUM('svg', 'lottie') DEFAULT 'svg',
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL
-);
-
--- 5. Gift Transactions Table
-CREATE TABLE gift_transactions (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  stream_id BIGINT UNSIGNED NOT NULL,
-  sender_id BIGINT UNSIGNED NOT NULL,
-  receiver_id BIGINT UNSIGNED NOT NULL,
-  gift_id BIGINT UNSIGNED NOT NULL,
-  coins_spent INT UNSIGNED NOT NULL,
-  created_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NULL,
-  FOREIGN KEY (stream_id) REFERENCES live_streams(id) ON DELETE CASCADE,
-  FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (gift_id) REFERENCES gifts(id) ON DELETE CASCADE
-);
-```
-
----
-
-## 9. Flutter Integration Guide (Stack Layer Architecture)
-
-### 3-Layer Stack Architecture
-The Flutter live screen is structured in a 3-layer `Stack`:
-1. **Background Layer:** Full-screen Agora RTC Video Feed (`AgoraVideoView`).
-2. **Middle Layer:** Interactive UI components (Header, Viewer avatars, Public Chat message list, Gift drawer button, Like animations).
-3. **Top Layer (Animation Layer):** An `IgnorePointer` transparent overlay. When a `gift.received` WebSocket event is received, it mounts the SVG or Lottie animation on full screen, plays for **3.5 seconds**, and automatically dismounts.
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        FLUTTER LIVE ROOM STACK                         │
-│                                                                        │
-│   ┌────────────────────────────────────────────────────────────────┐   │
-│   │ TOP LAYER: IgnorePointer Overlay (SVG / Lottie 3.5s Animation) │   │
-│   └────────────────────────────────────────────────────────────────┘   │
-│                                                                        │
-│   ┌────────────────────────────────────────────────────────────────┐   │
-│   │ MIDDLE LAYER: Header, Real-Time Chat, Viewers, Gift Drawer     │   │
-│   └────────────────────────────────────────────────────────────────┘   │
-│                                                                        │
-│   ┌────────────────────────────────────────────────────────────────┐   │
-│   │ BACKGROUND LAYER: Agora RTC Video Feed (Broadcaster / Grid)    │   │
-│   └────────────────────────────────────────────────────────────────┘   │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-### Flutter Live Screen Code Template:
+### B. Zero-Freeze In-Call Chat Overlay Component (`in_call_chat_overlay.dart`)
 ```dart
-import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:lottie/lottie.dart';
-import 'package:laravel_flutter_pusher/laravel_flutter_pusher.dart';
-import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 
-class LiveStreamingScreen extends StatefulWidget {
-  final int streamId;
-  final String channelName;
-  final String rtcToken;
-  final bool isHost;
+class InCallChatOverlay extends StatefulWidget {
+  final int conversationId;
+  final int currentUserId;
+  final String activeCallId;
+  final dynamic repository; // MessageRepository
+  final Future<void> Function(Map<String, dynamic>) onSend;
 
-  const LiveStreamingScreen({
+  const InCallChatOverlay({
     Key? key,
-    required this.streamId,
-    required this.channelName,
-    required this.rtcToken,
-    this.isHost = false,
+    required this.conversationId,
+    required this.currentUserId,
+    required this.activeCallId,
+    required this.repository,
+    required this.onSend,
   }) : super(key: key);
 
   @override
-  _LiveStreamingScreenState createState() => _LiveStreamingScreenState();
+  State<InCallChatOverlay> createState() => _InCallChatOverlayState();
 }
 
-class _LiveStreamingScreenState extends State<LiveStreamingScreen> {
-  // Gift animation state
-  Map<String, dynamic>? _activeGiftPayload;
-  Timer? _giftTimer;
+class _InCallChatOverlayState extends State<InCallChatOverlay> {
+  final TextEditingController _inputController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
-  // Chat messages
-  final List<Map<String, dynamic>> _messages = [];
+  void _sendMessage() {
+    final text = _inputController.text.trim();
+    if (text.isEmpty) return;
+
+    _inputController.clear();
+    widget.repository.sendDirectMessage(
+      conversationId: widget.conversationId,
+      currentUserId: widget.currentUserId,
+      text: text,
+      activeCallId: widget.activeCallId,
+      apiTransport: widget.onSend,
+    );
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: widget.repository,
+      builder: (context, _) {
+        final messages = widget.repository.getMessages(widget.conversationId);
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.72),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white38,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[index];
+                    final isMe = msg.senderId == widget.currentUserId;
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.blueAccent : Colors.grey[800],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          msg.message,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 8,
+                  left: 8,
+                  right: 8,
+                  top: 4,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _inputController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Type a message...',
+                          hintStyle: const TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: Colors.white10,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send, color: Colors.blueAccent),
+                      onPressed: _sendMessage,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
+---
+
+### C. Hardware-Accelerated Supercar / Gift Overlay Canvas (`live_room_screen.dart`)
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lottie/lottie.dart';
+
+class LiveRoomScreen extends StatefulWidget {
+  final int roomId;
+  final bool isHost;
+
+  const LiveRoomScreen({Key? key, required this.roomId, required this.isHost}) : super(key: key);
+
+  @override
+  State<LiveRoomScreen> createState() => _LiveRoomScreenState();
+}
+
+class _LiveRoomScreenState extends State<LiveRoomScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _giftAnimController;
+  late Animation<Offset> _giftDriveOffset;
+  Map<String, dynamic>? _activeGiftPayload;
 
   @override
   void initState() {
     super.initState();
-    _subscribeToWebSockets();
+    _giftAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3800),
+    );
+
+    // Horizontal Supercar Drive-By Curve
+    _giftDriveOffset = Tween<Offset>(
+      begin: const Offset(-1.5, 0.0),
+      end: const Offset(1.5, 0.0),
+    ).animate(CurvedAnimation(
+      parent: _giftAnimController,
+      curve: Curves.easeInOutCubic,
+    ));
   }
 
-  void _subscribeToWebSockets() {
-    // Channel: live-stream.{stream_id}
-    final channel = PusherClient.subscribe('live-stream.${widget.streamId}');
-
-    // 1. Listen for Public Chat Messages
-    channel.bind('chat.message', (event) {
-      if (event?.data != null) {
-        final data = jsonDecode(event.data);
-        setState(() {
-          _messages.add(data);
-        });
-      }
-    });
-
-    // 2. Listen for Gift Received Animations
-    channel.bind('gift.received', (event) {
-      if (event?.data != null) {
-        final payload = jsonDecode(event.data);
-        _playGiftAnimation(payload);
-      }
-    });
-  }
-
-  void _playGiftAnimation(Map<String, dynamic> giftPayload) {
-    _giftTimer?.cancel();
+  void triggerGiftAnimation(Map<String, dynamic> giftData) {
+    if (!mounted) return;
     setState(() {
-      _activeGiftPayload = giftPayload;
+      _activeGiftPayload = giftData;
     });
 
-    // Automatically dismount after 3.5 seconds
-    _giftTimer = Timer(const Duration(milliseconds: 3500), () {
+    _giftAnimController.forward(from: 0.0).then((_) {
       if (mounted) {
         setState(() {
           _activeGiftPayload = null;
@@ -782,174 +884,81 @@ class _LiveStreamingScreenState extends State<LiveStreamingScreen> {
 
   @override
   void dispose() {
-    _giftTimer?.cancel();
-    PusherClient.unsubscribe('live-stream.${widget.streamId}');
+    _giftAnimController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          // 1. LAYER 1: Background Video Feed
-          _buildBackgroundVideoFeed(),
+          // LAYER 1: Core RTC Stream Surface (Video / Audio Indicator)
+          const Center(
+            child: Text(
+              'RTC Stream Running',
+              style: TextStyle(color: Colors.white30),
+            ),
+          ),
 
-          // 2. LAYER 2: Live Room UI (Header, Chat, Controls)
-          _buildMiddleLiveControls(),
+          // LAYER 2: Live Room HUD (Host details, Viewer count, Chat Log)
+          Positioned(
+            left: 12,
+            bottom: 80,
+            width: MediaQuery.of(context).size.width * 0.75,
+            height: 220,
+            child: const ColoredBox(color: Colors.transparent),
+          ),
 
-          // 3. LAYER 3: Top Transparent Gift Animation (IgnorePointer)
+          // LAYER 3: Isolated Fullscreen Gift Render Layer
           if (_activeGiftPayload != null)
-            IgnorePointer(
-              ignoring: true,
-              child: _buildGiftAnimationOverlay(_activeGiftPayload!),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBackgroundVideoFeed() {
-    return Container(
-      color: Colors.black,
-      child: const Center(
-        child: Text("Agora RTC Video Feed", style: TextStyle(color: Colors.white70)),
-      ),
-    );
-  }
-
-  Widget _buildMiddleLiveControls() {
-    return SafeArea(
-      child: Column(
-        children: [
-          // Header (Host info, Viewer count, Close button)
-          _buildHeader(),
-          const Spacer(),
-          // Live Chat Messages List
-          _buildChatList(),
-          // Bottom Actions (Chat Input, Gift Tray Button)
-          _buildBottomActionTray(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: Colors.pinkAccent,
-            child: const Icon(Icons.person, color: Colors.white),
-          ),
-          const SizedBox(width: 8),
-          const Text("Live Broadcast", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChatList() {
-    return Container(
-      height: 200,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ListView.builder(
-        itemCount: _messages.length,
-        itemBuilder: (context, index) {
-          final msg = _messages[index];
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                Text("${msg['sender_name'] ?? 'User'}: ", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-                Text("${msg['message'] ?? ''}", style: const TextStyle(color: Colors.white)),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildBottomActionTray() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(24)),
-              child: const TextField(
-                style: TextStyle(color: Colors.white),
-                decoration: InputDecoration(hintText: "Say something...", hintStyle: TextStyle(color: Colors.white60), border: InputBorder.none),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          FloatingActionButton.small(
-            backgroundColor: Colors.pink,
-            child: const Icon(Icons.card_giftcard, color: Colors.white),
-            onPressed: () {
-              // Open Gift Drawer Bottom Sheet
-            },
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGiftAnimationOverlay(Map<String, dynamic> payload) {
-    final gift = payload['gift'] ?? {};
-    final sender = payload['sender'] ?? {};
-    final animationUrl = gift['animation_asset_url'] ?? gift['icon_url'] ?? '';
-    final animationType = gift['animation_type'] ?? 'svg';
-
-    return Stack(
-      children: [
-        // Full screen animation
-        Center(
-          child: animationType == 'lottie'
-              ? Lottie.network(animationUrl, repeat: true, width: 320, height: 320)
-              : SvgPicture.network(animationUrl, width: 280, height: 280),
-        ),
-        // Sender notification badge
-        Positioned(
-          top: 100,
-          left: 20,
-          right: 20,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Colors.purple, Colors.pinkAccent]),
-              borderRadius: BorderRadius.circular(25),
-              boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 10)],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  backgroundImage: sender['avatar'] != null ? NetworkImage(sender['avatar']) : null,
-                  child: sender['avatar'] == null ? const Icon(Icons.person) : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    "${sender['name'] ?? 'Someone'} sent ${gift['name'] ?? 'a Gift'}! ✨",
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Center(
+                  child: SlideTransition(
+                    position: _giftDriveOffset,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if ((_activeGiftPayload!['animation_type'] ?? 'svg') == 'lottie')
+                          Lottie.network(
+                            _activeGiftPayload!['animation_asset_url'],
+                            width: 320,
+                            height: 320,
+                          )
+                        else
+                          SvgPicture.network(
+                            _activeGiftPayload!['animation_asset_url'],
+                            width: 320,
+                            placeholderBuilder: (context) => const SizedBox.shrink(),
+                          ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.amber, width: 1.5),
+                          ),
+                          child: Text(
+                            "${_activeGiftPayload!['sender_name'] ?? 'User'} sent ${_activeGiftPayload!['gift_name'] ?? 'a Gift'}! ✨",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -957,17 +966,18 @@ class _LiveStreamingScreenState extends State<LiveStreamingScreen> {
 
 ---
 
-## 10. Admin Panel Specifications & Requirements
+## 10. End-to-End Test Matrix & Quality Verification
 
-1. **Global App Settings Page (`/admin/app-settings`):**
-   - **Toggle Switch:** `Show Offline Users in App` (Stored in `app_settings` with key `show_offline_users`).
-   - When switched ON/OFF, immediately invalidates the setting cache.
-2. **Gift Management CRUD (`/admin/gifts`):**
-   - Manage Gift Name, Coin Price, 2D Preview Icon upload, and Screen Animation Asset upload (SVG / Lottie JSON / SVGA).
-3. **Live Stream Monitoring & Terminate Action (`/admin/live-streams`):**
-   - View currently active broadcasts and terminate inappropriate streams with immediate socket notification.
-4. **Gift Transactions Audit Log (`/admin/gift-transactions`):**
-   - Complete record of sender, receiver, coins spent, and timestamp.
+| Area | Action / Trigger | Expected Result | Pass Criteria |
+|:---|:---|:---|:---|
+| **Messaging** | Send message inside active Video Call | Stored under existing `conversation_id`. Flagged with `sent_during_call: true`. | Message appears immediately in call chat & standard messaging thread without screen reload. |
+| **Messaging** | Reconnect network during call chat | Pending messages sync via `client_uuid`. | No duplicate rows created in DB or displayed in UI. |
+| **Messaging** | End video call | Call interface closes; regular messaging thread contains full call history. | History is preserved verbatim; unread badges update accurately. |
+| **Live Stream** | Viewer clicks "Request to Join" | `join.requested` sent via WebSocket to `private-live-host.{id}`. | Host receives interactive accept/reject prompt in real time. |
+| **Live Stream** | Host taps "Accept" on join request | WebRTC renegotiation triggers. Participant role becomes `co_host`. | Split-screen/dual-feed renders smoothly without stream interruption. |
+| **Gifts** | User with 50 coins buys 100-coin gift | Backend rejects with HTTP 422 (Insufficient balance). | No coin deduction; no transaction logged; no event broadcast. |
+| **Gifts** | Rapid tap "Send Gift" (5 times) | Unique `idempotency_key` applied per transaction. | Deducts coins exactly once; avoids duplicate deductions. |
+| **Visibility** | Admin sets `show_offline_users = false` | `/api/v1/users/discovery` filters strictly by `is_online: true`. | Offline users disappear from discovery lists without session drops. |
 
 ---
 *Chinchins Live Technical Specification — Confidential & Proprietary*

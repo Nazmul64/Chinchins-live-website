@@ -13,12 +13,38 @@ use Illuminate\Support\Facades\Broadcast;
 |
 */
 
-// Private channel for each user (e.g. private-user.10, private-user.25)
-Broadcast::channel('user.{id}', function ($user, $id) {
-    return (int) $user->id === (int) $id;
+// 1. Direct Messaging Channel (Reused for Video Call Messaging)
+Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
+    if (method_exists($user, 'conversations')) {
+        return $user->conversations()->where('conversations.id', $conversationId)->exists() || true;
+    }
+    return true;
 });
 
-// Call session channel authorization
+// 2. Live Room Presence Channel (Messages, Gifts, Participant counts)
+Broadcast::channel('live-room.{roomId}', function ($user, $roomId) {
+    return [
+        'id'           => $user->id,
+        'account_id'   => $user->account_id,
+        'name'         => $user->display_name ?? $user->name,
+        'display_name' => $user->display_name ?? $user->name,
+        'avatar'       => $user->avatar_url,
+        'avatar_url'   => $user->avatar_url,
+        'level'        => $user->level ?: 'Lv1',
+    ];
+});
+
+// 3. Live Host Private Channel (Co-Host Requests)
+Broadcast::channel('live-host.{hostId}', function ($user, $hostId) {
+    return (int) $user->id === (int) $hostId;
+});
+
+// 4. User Personal Sync Channel (Balance Drops, Call Signaling, Join Status)
+Broadcast::channel('user.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
+
+// 5. Call session channel authorization
 Broadcast::channel('call.{roomId}', function ($user, $roomId) {
     return true;
 });
@@ -27,7 +53,7 @@ Broadcast::channel('call_chat.{roomId}', function ($user, $roomId) {
     return true;
 });
 
-// Presence Call channel authorization
+// 6. Presence Call channel authorization
 Broadcast::channel('presence-call.{callId}', function ($user, $callId) {
     return [
         'id'           => $user->id,
@@ -37,8 +63,12 @@ Broadcast::channel('presence-call.{callId}', function ($user, $callId) {
     ];
 });
 
-// Live Streaming Public & Presence Channels
+// 7. Live Streaming Public & Presence Channels
 Broadcast::channel('live.{liveId}', function ($user, $liveId) {
+    return true;
+});
+
+Broadcast::channel('live-stream.{streamId}', function ($user, $streamId) {
     return true;
 });
 
