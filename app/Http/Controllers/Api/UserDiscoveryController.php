@@ -16,7 +16,7 @@ class UserDiscoveryController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $showOfflineSetting = AppSetting::where('key', 'show_offline_users')->value('value');
+        $showOfflineSetting = AppSetting::get('show_offline_users', '0');
         $allowOffline = filter_var($showOfflineSetting, FILTER_VALIDATE_BOOLEAN) || $showOfflineSetting === '1' || $showOfflineSetting === 'true';
 
         $query = User::select([

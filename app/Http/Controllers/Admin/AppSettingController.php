@@ -91,6 +91,10 @@ class AppSettingController extends Controller
             if ($request->has('fcm_sender_id')) {
                 AppSetting::set('fcm_sender_id', $request->input('fcm_sender_id'), 'push', 'Firebase Sender ID');
             }
+            if ($request->has('show_offline_users')) {
+                $offlineVal = $request->input('show_offline_users') == '1' ? '1' : '0';
+                AppSetting::set('show_offline_users', $offlineVal, 'visibility', 'Show offline users in discovery list');
+            }
 
             $uploadDir = public_path('uploads/app');
             if (!File::exists($uploadDir)) {

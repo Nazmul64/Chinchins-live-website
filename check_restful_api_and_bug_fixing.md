@@ -1,6 +1,6 @@
 # 📄 RESTful API Specification, System Architecture & Critical Bug Fixes Documentation
 **Target Roles:** Full-Stack Engineers (Laravel Backend & Flutter Frontend)  
-**System Scope:** Live Streaming (Audio/Video), 1-on-1 Video Calling, Unified Core Messaging, Reverb Real-Time Pipeline, FinTech-Grade Coin & Gift Engine, Admin-Controlled Feature Flags & PIP Optimization  
+**System Scope:** Live Streaming (Audio/Video), 1-on-1 Video Calling, Unified Core Messaging, Reverb Real-Time Pipeline, FinTech-Grade Coin & Gift Engine, Admin-Controlled Remote Flags (FLAG_SECURE, Debug HUD, Offline Visibility, PIP Restore)  
 **Architecture:** Laravel 11.x RESTful Backend & WebSocket Server (Reverb/Pusher) + Flutter Mobile Client (Android & iOS)  
 **Version:** 5.0.0 Enterprise Edition  
 **Updated:** September 14, 2026  
@@ -13,16 +13,15 @@
 2. [Critical Bug Fixes & Architectural Resolutions](#2-critical-bug-fixes--architectural-resolutions)
    - [Bug 1: Live Stream & In-Call Free Chat Policy (0 Coin Cost)](#bug-1-live-stream--in-call-free-chat-policy-0-coin-cost)
    - [Bug 2: Video Call PIP (Minimize) Tap to Restore without Call Drop](#bug-2-video-call-pip-minimize-tap-to-restore-without-call-drop)
-   - [Bug 3: Dynamic Screenshot Protection & Debug Mode FLAG_SECURE](#bug-3-dynamic-screenshot-protection--debug-mode-flag_secure)
-   - [Bug 4: Home Screen Floating VIP Widget Background Transparency](#bug-4-home-screen-floating-vip-widget-background-transparency)
-   - [Bug 5: Strict 30 Strong-Motion Animated SVG Gifts Synchronization](#bug-5-strict-30-strong-motion-animated-svg-gifts-synchronization)
-   - [Bug 6: Diamond Burst Motion Coin Packages Synchronization](#bug-6-diamond-burst-motion-coin-packages-synchronization)
-   - [Bug 7: Agora/WebRTC Token Expiry & Background Auto-Drop Prevention](#bug-7-agorawebrtc-token-expiry--background-auto-drop-prevention)
+   - [Bug 3: Dynamic Screenshot Protection (FLAG_SECURE) & Debug HUD Switch](#bug-3-dynamic-screenshot-protection-flag_secure--debug-hud-switch)
+   - [Bug 4: Offline Users Visibility Toggle (`show_offline_users`)](#bug-4-offline-users-visibility-toggle-show_offline_users)
+   - [Bug 5: Home Screen Floating VIP Widget Background Transparency](#bug-5-home-screen-floating-vip-widget-background-transparency)
+   - [Bug 6: Strict 30 Strong-Motion Animated SVG Gifts Synchronization](#bug-6-strict-30-strong-motion-animated-svg-gifts-synchronization)
+   - [Bug 7: Diamond Burst Motion Coin Packages Synchronization](#bug-7-diamond-burst-motion-coin-packages-synchronization)
+   - [Bug 8: Agora/WebRTC Token Expiry & Background Auto-Drop Prevention](#bug-8-agorawebrtc-token-expiry--background-auto-drop-prevention)
 3. [Database Schema & Migrations Reference](#3-database-schema--migrations-reference)
-4. [Unified Core Messaging Engine & Live Streaming Pipeline](#4-unified-core-messaging-engine--live-streaming-pipeline)
-5. [FinTech-Grade Concurrency-Safe Coin & Gift Engine](#5-fintech-grade-concurrency-safe-coin--gift-engine)
-6. [Complete RESTful API Reference & Payloads](#6-complete-restful-api-reference--payloads)
-   - [A. App Configuration, Remote Feature Flags & Dynamic Settings](#a-app-configuration-remote-feature-flags--dynamic-settings)
+4. [Complete RESTful API Reference & Payloads](#4-complete-restful-api-reference--payloads)
+   - [A. App Configuration & Remote Feature Flags](#a-app-configuration--remote-feature-flags)
    - [B. User Discovery & Visibility Engine](#b-user-discovery--visibility-engine)
    - [C. Unified Messaging & Free In-Room Chat](#c-unified-messaging--free-in-room-chat)
    - [D. Multi-Guest Live Streaming & Broadcasting](#d-multi-guest-live-streaming--broadcasting)
@@ -30,10 +29,9 @@
    - [F. Coin Packages & Recharge Store](#f-coin-packages--recharge-store)
    - [G. Premium VIP Privilege Cards & Floating Banner](#g-premium-vip-privilege-cards--floating-banner)
    - [H. 1-on-1 Video & Audio Calling](#h-1-on-1-video--audio-calling)
-7. [WebSocket Channels & Real-Time Event Payloads](#7-websocket-channels--real-time-event-payloads)
-8. [Flutter Frontend Implementation & State Isolation](#8-flutter-frontend-implementation--state-isolation)
-9. [Admin Panel Dashboard & Management Architecture](#9-admin-panel-dashboard--management-architecture)
-10. [Deployment & VPS Synchronization Guide](#10-deployment--vps-synchronization-guide)
+5. [Real-Time WebSocket Pipeline & Reverb Events](#5-real-time-websocket-pipeline--reverb-events)
+6. [Flutter Mobile Implementation & State Handlers](#6-flutter-mobile-implementation--state-handlers)
+7. [Deployment & VPS Synchronization Guide](#7-deployment--vps-synchronization-guide)
 
 ---
 
@@ -83,9 +81,9 @@
 ## 2. Critical Bug Fixes & Architectural Resolutions
 
 ### Bug 1: Live Stream & In-Call Free Chat Policy (0 Coin Cost)
-- **Root Problem:** Previously, chatting during a live broadcast or active video call was deducting coins or consuming private DM free message quota after 5 messages.
+- **Problem:** Chatting during a live broadcast or active video call was previously deducting coins or exhausting free message quota after 5 messages.
 - **Resolution:**
-  - `MessageApiController.php` & `LiveStreamApiController.php` now detect when `is_in_call: true`, `is_live: true`, `context: 'in_call'`, or `live_stream_id` is supplied.
+  - `MessageApiController.php` & `LiveStreamApiController.php` detect when `is_in_call: true`, `is_live: true`, `context: 'in_call'`, or `live_stream_id` is supplied.
   - In-room / In-call messaging is set to **100% Free ($0 coins)** with **zero quota deduction**.
   - Direct 1-on-1 private DM messaging retains the 5 free messages limit before coin deduction.
 
@@ -109,7 +107,7 @@ $coinCost = $isInCallOrLive ? 0 : (int) AppSetting::get('message_coin_cost', 5);
 ---
 
 ### Bug 2: Video Call PIP (Minimize) Tap to Restore without Call Drop
-- **Root Problem:** When users tapped on the minimized floating Picture-in-Picture (PIP) video call box to enlarge it, Flutter was accidentally executing `onClose()` or popping the navigator which sent a `call_end` event and hung up the call.
+- **Problem:** When users tapped on the minimized floating Picture-in-Picture (PIP) video call box to enlarge it, Flutter was executing `onClose()` or popping the navigator which sent a `call_end` event and hung up the call.
 - **Resolution:**
   - The minimized PIP widget tap handler must strictly restore full-screen mode by changing the state provider flag `isMinimized = false` and navigating back to `ActiveVideoCallScreen` without tearing down Agora/WebRTC engine.
 
@@ -133,8 +131,8 @@ GestureDetector(
 
 ---
 
-### Bug 3: Dynamic Screenshot Protection & Debug Mode FLAG_SECURE
-- **Root Problem:** When toggling off "Screenshot Protection (FLAG_SECURE)" or "In-App Debug HUD" from `/admin/settings/debug`, mobile devices continued to block screenshots because Android cached `FLAG_SECURE` in window manager on startup.
+### Bug 3: Dynamic Screenshot Protection (FLAG_SECURE) & Debug HUD Switch
+- **Problem:** When toggling off "Screenshot Protection (FLAG_SECURE)" or "In-App Debug HUD" from `/admin/settings/debug`, mobile devices continued to block screenshots because Android cached `FLAG_SECURE` in window manager on startup.
 - **Resolution:**
   - Flutter dynamically fetches `/api/app/remote-config` on launch and updates Android native window flags immediately:
 
@@ -146,6 +144,7 @@ MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "chinchins/security").
         if (enabled) {
             window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         } else {
+            // Clears hardware screenshot blocking when admin turns it OFF
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
         result.success(true)
@@ -153,33 +152,51 @@ MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "chinchins/security").
 }
 ```
 
+```dart
+// Flutter Dart Handler
+final remoteConfig = await ApiService.getRemoteConfig();
+if (remoteConfig.screenshotProtectionEnabled) {
+  await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
+} else {
+  await FlutterWindowManager.clearFlags(FlutterWindowManager.FLAG_SECURE);
+}
+```
+
 ---
 
-### Bug 4: Home Screen Floating VIP Widget Background Transparency
-- **Root Problem:** In the mobile app explore/home feed, the floating VIP widget ("Extra Gems") was wrapped in a solid navy square container with an X button, obscuring the transparent vector artwork.
+### Bug 4: Offline Users Visibility Toggle (`show_offline_users`)
+- **Problem:** Admin toggling "Show Offline Users in App Discovery List" was not saving or updating mobile discovery list.
+- **Resolution:**
+  - Added save handler in `AppSettingController@update` for `show_offline_users`.
+  - Updated `UserDiscoveryController@index` and `ProfileController@getActiveUsers` to filter `is_online = true` when `show_offline_users` is `0` (OFF), and show all users when `1` (ON).
+
+---
+
+### Bug 5: Home Screen Floating VIP Widget Background Transparency
+- **Problem:** In the mobile app explore/home feed, the floating VIP widget ("Extra Gems") was wrapped in a solid navy square container with an X button, obscuring the transparent vector artwork.
 - **Resolution:**
   - Removed container background box styling in Flutter explore header, allowing `vip_privilege_full_motion.svg` to float transparently over host avatar cards.
 
 ---
 
-### Bug 5: Strict 30 Strong-Motion Animated SVG Gifts Synchronization
-- **Root Problem:** Previous database seeders accumulated 160+ old gifts, causing the count to show 190.
+### Bug 6: Strict 30 Strong-Motion Animated SVG Gifts Synchronization
+- **Problem:** Previous database seeders accumulated 160+ old gifts, causing the count to show 190.
 - **Resolution:**
-  - Replaced and truncated legacy gifts.
+  - Truncated legacy gifts table.
   - Exactly 30 Strong-Motion Animated SVGs (from `01_rose.svg` to `30_royal_palace.svg`) are stored in `public/uploads/gifts/` and mapped with IDs `1..30`.
   - Locked `Gift::seedDefaultGifts()` and `GiftSeeder` so legacy gifts can never be re-seeded.
 
 ---
 
-### Bug 6: Diamond Burst Motion Coin Packages Synchronization
-- **Root Problem:** Coin package icons were static and mismatched.
+### Bug 7: Diamond Burst Motion Coin Packages Synchronization
+- **Problem:** Coin package icons were static and mismatched.
 - **Resolution:**
   - Mapped all 6 Store Packages to high-motion SVG & PNG diamond burst artworks in `public/uploads/coin_packages/` (`burst`, `diamond_orb`, `diamond_crown`, `crystal_crown`, `magic_bag`, `royal_chest`).
 
 ---
 
-### Bug 7: Agora/WebRTC Token Expiry & Background Auto-Drop Prevention
-- **Root Problem:** Mobile backgrounding sent false `call_end` disconnects.
+### Bug 8: Agora/WebRTC Token Expiry & Background Auto-Drop Prevention
+- **Problem:** Mobile backgrounding sent false `call_end` disconnects.
 - **Resolution:**
   - Tokens generated with 24-hour TTL (`agora_token_ttl = 86400`).
   - Mobile client sends periodic heartbeat `/api/v1/calls/heartbeat` every 30 seconds to maintain presence.
@@ -304,7 +321,36 @@ CREATE TABLE live_messages (
 
 ---
 
-### B. Free Live Stream Chat Message
+### B. User Discovery & Visibility Engine
+- **Endpoint:** `GET /api/v1/users/discovery` (or `GET /api/v1/users/active`)
+- **Authentication:** Public / Bearer Token
+
+#### Success Response (200 OK):
+```json
+{
+  "status": "success",
+  "show_offline_users": false,
+  "data": {
+    "current_page": 1,
+    "data": [
+      {
+        "id": 105,
+        "name": "Maya",
+        "account_id": "84920183",
+        "avatar": "https://chinchins.live/uploads/avatars/maya.jpg",
+        "is_online": true,
+        "online_status": "online",
+        "current_status": "available",
+        "video_call_rate": 22
+      }
+    ]
+  }
+}
+```
+
+---
+
+### C. Free Live Stream Chat Message
 - **Endpoint:** `POST /api/live/message` (or `POST /api/live/messages/send`)
 - **Authentication:** `Bearer {token}`
 
@@ -339,7 +385,7 @@ CREATE TABLE live_messages (
 
 ---
 
-### C. 30 Strong-Motion Gifts Catalog
+### D. 30 Strong-Motion Gifts Catalog
 - **Endpoint:** `GET /api/v1/gifts`
 - **Authentication:** `Bearer {token}`
 
@@ -391,7 +437,7 @@ CREATE TABLE live_messages (
 
 ---
 
-### D. Coin Recharge Packages Store
+### E. Coin Recharge Packages Store
 - **Endpoint:** `GET /api/v1/coin-packages`
 - **Authentication:** `Bearer {token}`
 
