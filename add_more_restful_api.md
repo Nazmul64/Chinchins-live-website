@@ -447,7 +447,7 @@ When User A and User B chat inside a video call, the request attaches to the uni
 
 ### D. FinTech Virtual Gift & Wallet Transactions
 
-#### 1. Get Approved Gifts Catalog
+#### 1. Get Approved Gifts Catalog (30 Strong-Motion Animated Gifts Included)
 - **URL:** `GET /api/v1/gifts`
 - **Response (200 OK):**
 ```json
@@ -456,20 +456,38 @@ When User A and User B chat inside a video call, the request attaches to the uni
   "data": [
     {
       "id": 1,
-      "name": "Rose",
+      "name": "Red Rose",
       "slug": "rose",
       "coin_price": 10,
-      "icon_url": "https://chinchins.live/uploads/gifts/rose.png",
-      "animation_asset_url": "https://chinchins.live/uploads/gifts/rose.svg",
+      "icon_url": "https://chinchins.live/uploads/gifts/01_rose.svg",
+      "animation_asset_url": "https://chinchins.live/uploads/gifts/01_rose.svg",
       "animation_type": "svg"
     },
     {
-      "id": 4,
-      "name": "Luxury Sports Car",
-      "slug": "sports_car",
-      "coin_price": 500,
-      "icon_url": "https://chinchins.live/uploads/gifts/car.png",
-      "animation_asset_url": "https://chinchins.live/uploads/gifts/car.svg",
+      "id": 2,
+      "name": "Diamond Heart",
+      "slug": "diamond_heart",
+      "coin_price": 520,
+      "icon_url": "https://chinchins.live/uploads/gifts/02_diamond_heart.svg",
+      "animation_asset_url": "https://chinchins.live/uploads/gifts/02_diamond_heart.svg",
+      "animation_type": "svg"
+    },
+    {
+      "id": 9,
+      "name": "Super Sports Car",
+      "slug": "super_sports_car",
+      "coin_price": 5000,
+      "icon_url": "https://chinchins.live/uploads/gifts/09_sports_car.svg",
+      "animation_asset_url": "https://chinchins.live/uploads/gifts/09_sports_car.svg",
+      "animation_type": "svg"
+    },
+    {
+      "id": 30,
+      "name": "Imperial Royal Palace",
+      "slug": "imperial_royal_palace",
+      "coin_price": 50000,
+      "icon_url": "https://chinchins.live/uploads/gifts/30_royal_palace.svg",
+      "animation_asset_url": "https://chinchins.live/uploads/gifts/30_royal_palace.svg",
       "animation_type": "svg"
     }
   ]
