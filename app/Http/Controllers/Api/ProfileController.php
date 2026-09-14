@@ -76,8 +76,18 @@ class ProfileController extends Controller
             });
         }
 
-        // Order by latest active users
-        $query->orderByDesc('is_active')->latest();
+        // Check Admin Setting for Offline User Visibility
+        $showOfflineSetting = \App\Models\AppSetting::get('show_offline_users', '0');
+        $canShowOffline = filter_var($showOfflineSetting, FILTER_VALIDATE_BOOLEAN);
+
+        if (!$canShowOffline && !$request->has('include_offline') && !$request->has('search')) {
+            $query->where('is_online', true);
+        }
+
+        // Order: Online users first, then by last active timestamp
+        $query->orderByDesc('is_online')
+              ->orderByDesc('last_seen_at')
+              ->latest();
 
         $perPage = (int) $request->input('per_page', 30);
         $users = $query->paginate($perPage);
@@ -107,15 +117,19 @@ class ProfileController extends Controller
                 'country_flag'    => $u->country_flag ?: '🇧🇩',
                 'city'            => $u->city ?: 'Dhaka',
                 'is_active'       => (bool) $u->is_active,
-                'is_online'       => true,
-                'online_status'   => 'online',
-                'status_text'     => 'Online',
+                'is_online'       => (bool) $u->is_online,
+                'is_available'    => (bool) $u->is_available,
+                'online_status'   => $u->current_status ?? $u->online_status ?? ($u->is_online ? 'online' : 'offline'),
+                'current_status'  => $u->current_status ?? $u->online_status ?? ($u->is_online ? 'available' : 'offline'),
+                'status_text'     => $u->status_text,
+                'last_active_at'  => $u->last_seen_at ? $u->last_seen_at->toIso8601String() : null,
                 'is_busy'         => (bool) $u->is_busy,
                 'is_free_caller'  => (bool) $u->is_free_caller,
                 'is_verified'     => (bool) $u->is_verified,
                 'video_call_rate' => $videoRate,
                 'rate_per_minute' => $videoRate,
                 'coins'              => (int) $u->coins,
+                'coins_balance'      => (int) $u->coins,
                 'introduction'       => $u->introduction ?: 'Welcome to my live room! Feel free to video call me.',
                 'interest_tags'      => $u->interest_tags,
                 'speaking_languages' => $u->speaking_languages,

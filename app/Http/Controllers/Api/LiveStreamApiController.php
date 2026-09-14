@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\LiveChatMessageEvent;
 use App\Events\LiveGiftSent;
+use App\Events\LiveGiftSentEvent;
 use App\Events\LiveGuestKicked;
 use App\Events\LiveJoinRequested;
 use App\Events\LiveJoinResponded;
@@ -10,6 +12,7 @@ use App\Events\LiveMessageSent;
 use App\Events\LiveStreamEnded;
 use App\Http\Controllers\Controller;
 use App\Models\Gift;
+use App\Models\GiftTransaction;
 use App\Models\LiveJoinRequest;
 use App\Models\LiveMessage;
 use App\Models\LiveParticipant;
@@ -462,9 +465,10 @@ class LiveStreamApiController extends Controller
             'created_at'     => $msgRecord->created_at->toIso8601String(),
         ];
 
-        // Broadcast to WebSocket presence-live.{id}
+        // Broadcast to WebSocket presence-live.{id} and live-stream.{id} as chat.message
         try {
             event(new LiveMessageSent($stream->id, $payload));
+            event(new LiveChatMessageEvent($payload));
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -486,7 +490,7 @@ class LiveStreamApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
-        $streamId = $request->input('live_stream_id') ?? $request->input('id');
+        $streamId = $request->input('live_stream_id') ?? $request->input('stream_id') ?? $request->input('id');
         $giftId = $request->input('gift_id');
         $quantity = max(1, (int) $request->input('quantity', 1));
 
@@ -500,7 +504,8 @@ class LiveStreamApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Gift item not found.'], 404);
         }
 
-        $totalCost = ((int) $gift->coins) * $quantity;
+        $price = (int) ($gift->coins ?? $gift->coin_price ?? 0);
+        $totalCost = $price * $quantity;
 
         if ($sender->coins < $totalCost) {
             return response()->json([
@@ -533,33 +538,59 @@ class LiveStreamApiController extends Controller
                 'metadata'       => [
                     'gift_name'     => $gift->name,
                     'gift_icon'     => $gift->icon_url,
-                    'gift_svga'     => $gift->animation_url,
+                    'gift_svga'     => $gift->animation_url ?? $gift->animation_asset_url,
                     'quantity'      => $quantity,
                     'sender_name'   => $sender->display_name,
                     'sender_avatar' => $sender->avatar_url,
                 ],
             ]);
 
+            $transaction = GiftTransaction::create([
+                'stream_id'   => $stream->id,
+                'sender_id'   => $sender->id,
+                'receiver_id' => $stream->host_id,
+                'gift_id'     => $gift->id,
+                'coins_spent' => $totalCost,
+            ]);
+
             DB::commit();
 
             $giftPayload = [
-                'id'             => $liveMsg->id,
-                'live_stream_id' => $stream->id,
-                'sender_id'      => $sender->id,
-                'sender_name'    => $sender->display_name,
-                'sender_avatar'  => $sender->avatar_url,
-                'gift_id'        => $gift->id,
-                'gift_name'      => $gift->name,
-                'gift_icon'      => $gift->icon_url,
-                'animation_url'  => $gift->animation_url,
-                'quantity'       => $quantity,
-                'total_coins'    => $totalCost,
-                'created_at'     => $liveMsg->created_at->toIso8601String(),
+                'transaction_id'      => $transaction->id,
+                'stream_id'           => $stream->id,
+                'sender'              => [
+                    'id'     => $sender->id,
+                    'name'   => $sender->display_name,
+                    'avatar' => $sender->avatar_url,
+                ],
+                'gift'                => [
+                    'id'                  => $gift->id,
+                    'name'                => $gift->name,
+                    'slug'                => Str::slug($gift->name),
+                    'coin_price'          => $price,
+                    'icon_url'            => $gift->icon_url,
+                    'animation_asset_url' => $gift->animation_url ?? $gift->animation_asset_url,
+                    'animation_type'      => $gift->animation_type ?? 'svg',
+                ],
+                'quantity'            => $quantity,
+                'total_coins'         => $totalCost,
+                'timestamp'           => now()->timestamp,
+                // Additional properties for backward compatibility
+                'id'                  => $liveMsg->id,
+                'sender_id'           => $sender->id,
+                'sender_name'         => $sender->display_name,
+                'sender_avatar'       => $sender->avatar_url,
+                'gift_id'             => $gift->id,
+                'gift_name'           => $gift->name,
+                'gift_icon'           => $gift->icon_url,
+                'animation_url'       => $gift->animation_url ?? $gift->animation_asset_url,
+                'created_at'          => $liveMsg->created_at->toIso8601String(),
             ];
 
-            // Broadcast to live presence channel
+            // Broadcast to live presence channel and live-stream.{id} as gift.received
             try {
                 event(new LiveGiftSent($stream->id, $giftPayload));
+                event(new LiveGiftSentEvent($stream->id, $giftPayload));
             } catch (\Throwable $e) {}
 
             return response()->json([
