@@ -106,7 +106,7 @@
                 <div class="row g-3 align-items-center">
                     <div class="col-12 col-md-3 text-center">
                         <div class="p-3 rounded-4 position-relative d-inline-block shadow-sm" style="background: linear-gradient(135deg, #1e1b4b, #312e81); border: 2px solid #f59e0b; width: 140px;">
-                            <img src="{{ $floatingBannerConfig['image_url'] ?? asset('assets/images/vip/floating_extra_gems.png') }}" alt="Floating Widget" class="img-fluid rounded-3 mb-2" style="max-height: 80px; object-fit: contain;">
+                            <img src="{{ $floatingBannerConfig['image_url'] ?? asset('assets/images/vip/vip_privilege_full_motion.svg') }}" alt="Floating Widget" class="img-fluid rounded-3 mb-2" style="max-height: 80px; object-fit: contain;">
                             <div class="badge bg-warning text-dark fw-bold rounded-pill px-2 py-1" style="font-size: 10px;">
                                 {{ $floatingBannerConfig['title'] ?? 'Extra Gems' }}
                             </div>

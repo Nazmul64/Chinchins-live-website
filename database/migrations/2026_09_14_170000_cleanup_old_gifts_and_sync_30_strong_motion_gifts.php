@@ -697,6 +697,14 @@ return new class extends Migration
         foreach ($coinPackages as $pkg) {
             CoinPackage::create($pkg);
         }
+
+        // 3. Update Home Screen Floating VIP Widget image to new full-motion SVG
+        \App\Models\AppSetting::set(
+            'floating_vip_banner_image',
+            'assets/images/vip/vip_privilege_full_motion.svg',
+            'vip',
+            'Home Screen Floating VIP Widget motion SVG'
+        );
     }
 
     /**

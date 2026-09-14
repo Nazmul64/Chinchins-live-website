@@ -33,7 +33,7 @@ class AppSetting extends Model
             'floating_vip_banner_enabled' => '1',
             'floating_vip_banner_title'   => 'Extra Gems',
             'floating_vip_banner_tag'     => 'Monthly Card',
-            'floating_vip_banner_image'   => 'assets/images/vip/floating_extra_gems.png',
+            'floating_vip_banner_image'   => 'assets/images/vip/vip_privilege_full_motion.svg',
             'floating_vip_banner_action'  => 'OPEN_PREMIUM_VIP',
             'company_name'                => 'Chinchins Live Network Inc.',
             'official_website'            => 'https://chinchins.live',
@@ -130,7 +130,7 @@ class AppSetting extends Model
             $logoUrl = $appLogo;
         }
 
-        $floatingBannerImage = $all['floating_vip_banner_image'] ?? 'assets/images/vip/floating_extra_gems.png';
+        $floatingBannerImage = $all['floating_vip_banner_image'] ?? 'assets/images/vip/vip_privilege_full_motion.svg';
         $floatingBannerImageUrl = url(ltrim($floatingBannerImage, '/'));
         if (str_starts_with($floatingBannerImage, 'http://') || str_starts_with($floatingBannerImage, 'https://')) {
             $floatingBannerImageUrl = $floatingBannerImage;

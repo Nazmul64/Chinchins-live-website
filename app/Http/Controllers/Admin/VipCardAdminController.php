@@ -32,7 +32,7 @@ class VipCardAdminController extends Controller
             'is_enabled'    => true,
             'title'         => 'Extra Gems',
             'tag'           => 'Monthly Card',
-            'image_url'     => asset('assets/images/vip/floating_extra_gems.png'),
+            'image_url'     => asset('assets/images/vip/vip_privilege_full_motion.svg'),
             'action_type'   => 'OPEN_PREMIUM_VIP',
             'target_screen' => '/premium-vip',
         ];

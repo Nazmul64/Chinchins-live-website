@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#020516"/><stop offset=".5" stop-color="#071c45"/><stop offset="1" stop-color="#120713"/>
+  </linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#fff2a1"/><stop offset=".25" stop-color="#ffd22e"/>
+    <stop offset=".55" stop-color="#ff9b00"/><stop offset="1" stop-color="#fff06a"/>
+  </linearGradient>
+  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#dffcff"/><stop offset=".45" stop-color="#36bfff"/><stop offset="1" stop-color="#1761ff"/>
+  </linearGradient>
+  <filter id="glowGold" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glowBlue" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+    <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity=".7"/>
+  </filter>
+  <radialGradient id="burst"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".35" stop-color="#ffd43b" stop-opacity=".4"/><stop offset="1" stop-color="#ffd43b" stop-opacity="0"/></radialGradient>
+  <clipPath id="cardClip"><rect x="145" y="245" width="790" height="425" rx="42"/></clipPath>
+  <style>
+    .float{animation:float 2.8s ease-in-out infinite}
+    .float2{animation:float2 3.4s ease-in-out infinite}
+    .spin{transform-box:fill-box;transform-origin:center;animation:spin 4s linear infinite}
+    .pulse{animation:pulse 1.5s ease-in-out infinite}
+    .flash{animation:flash 1.7s ease-in-out infinite}
+    .orbit{transform-box:fill-box;transform-origin:540px 540px;animation:orbit 8s linear infinite}
+    .orbit2{transform-box:fill-box;transform-origin:540px 540px;animation:orbit 11s linear infinite reverse}
+    .explode{animation:explode 2.6s cubic-bezier(.2,.8,.2,1) infinite}
+    .title{animation:titleIn 2.8s cubic-bezier(.2,.8,.2,1) infinite}
+    .subtitle{animation:subtitle 2.8s ease-in-out infinite}
+    .banner{animation:banner 2.8s cubic-bezier(.2,.8,.2,1) infinite}
+    @keyframes float{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-18px) rotate(2deg)}}
+    @keyframes float2{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(10px,-14px) rotate(5deg)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}
+    @keyframes flash{0%,100%{opacity:.15}50%{opacity:.9}}
+    @keyframes orbit{to{transform:rotate(360deg)}}
+    @keyframes explode{0%{opacity:0;transform:scale(.1) translate(0,0)}20%{opacity:1}65%{opacity:.85}100%{opacity:0;transform:scale(1) translate(0,-100px)}}
+    @keyframes titleIn{0%,12%{opacity:0;transform:translateY(35px) scale(.85)}30%,78%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-18px) scale(1.04)}}
+    @keyframes subtitle{0%,15%{opacity:0;letter-spacing:2px}35%,75%{opacity:1;letter-spacing:5px}100%{opacity:0}}
+    @keyframes banner{0%,15%{opacity:0;transform:translateY(55px) scale(.75)}35%,78%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-20px) scale(1.05)}}
+  </style>
+</defs>
+
+<!-- background -->
+<rect width="1080" height="1080" fill="url(#bg)"/>
+<circle cx="540" cy="520" r="430" fill="url(#burst)" opacity=".28" class="pulse"/>
+<g class="flash" stroke="#fff" stroke-linecap="round" opacity=".6">
+  <path d="M540 70V190M230 160L315 245M850 150L765 240M100 540H230M980 540H850M250 890L330 810M830 890L750 810"/>
+</g>
+
+<!-- orbit rings -->
+<g fill="none" stroke="#36bfff" opacity=".3">
+ <ellipse cx="540" cy="540" rx="500" ry="290" stroke-width="3" stroke-dasharray="8 18" class="orbit"/>
+ <ellipse cx="540" cy="540" rx="440" ry="350" stroke="#ffd23b" stroke-width="2" stroke-dasharray="4 22" class="orbit2"/>
+</g>
+
+<!-- floating coins / gems -->
+<g class="orbit" filter="url(#glowGold)">
+ <g transform="translate(105 390)" class="spin"><circle r="38" fill="url(#gold)" stroke="#fff3a1" stroke-width="5"/><text y="15" text-anchor="middle" font-size="38" font-weight="900" fill="#9a4b00">$</text></g>
+ <g transform="translate(930 370)" class="spin"><circle r="42" fill="url(#gold)" stroke="#fff3a1" stroke-width="5"/><text y="15" text-anchor="middle" font-size="40" font-weight="900" fill="#9a4b00">$</text></g>
+ <g transform="translate(150 735)" class="spin"><circle r="34" fill="url(#gold)"/><text y="12" text-anchor="middle" font-size="32" font-weight="900" fill="#9a4b00">$</text></g>
+</g>
+<g class="orbit2" filter="url(#glowBlue)">
+ <g transform="translate(155 170)" class="float"><path d="M0-48L48-5 0 55-48-5Z" fill="url(#blue)" stroke="#dffcff" stroke-width="4"/><path d="M0-48V55M-48-5H48" stroke="#fff" opacity=".7"/></g>
+ <g transform="translate(930 210)" class="float2"><path d="M0-52L52-7 0 58-52-7Z" fill="url(#blue)" stroke="#dffcff" stroke-width="4"/><path d="M0-52V58M-52-7H52" stroke="#fff" opacity=".7"/></g>
+ <g transform="translate(110 850)" class="float2"><path d="M0-44L45-4 0 50-45-4Z" fill="url(#blue)" stroke="#dffcff" stroke-width="4"/></g>
+ <g transform="translate(950 810)" class="float"><path d="M0-50L50-5 0 56-50-5Z" fill="url(#blue)" stroke="#dffcff" stroke-width="4"/></g>
+</g>
+
+<!-- explosion particles -->
+<g class="explode" fill="#ffd23b" filter="url(#glowGold)">
+ <circle cx="540" cy="470" r="7"/><circle cx="480" cy="430" r="5"/><circle cx="610" cy="430" r="6"/>
+ <circle cx="420" cy="520" r="4"/><circle cx="660" cy="510" r="5"/><circle cx="380" cy="600" r="5"/>
+ <circle cx="700" cy="590" r="4"/><circle cx="450" cy="650" r="6"/><circle cx="630" cy="650" r="5"/>
+</g>
+
+<!-- main VIP card -->
+<g filter="url(#shadow)" class="float">
+ <rect x="145" y="245" width="790" height="425" rx="42" fill="#6e3308" stroke="#ffd23b" stroke-width="12"/>
+ <rect x="160" y="260" width="760" height="395" rx="32" fill="#1d1007" stroke="#fff0a0" stroke-width="4"/>
+ <rect x="178" y="278" width="724" height="359" rx="24" fill="url(#gold)" opacity=".96"/>
+ <rect x="190" y="290" width="700" height="335" rx="20" fill="#6f2e05" opacity=".82"/>
+ <path d="M205 305H875M205 610H875" stroke="#ffec8a" stroke-width="3" opacity=".8"/>
+ <path d="M205 320L245 285M835 285L875 320M205 595L245 630M835 630L875 595" stroke="#39c8ff" stroke-width="8"/>
+</g>
+
+<!-- crown: independent motion -->
+<g class="float2" filter="url(#glowGold)">
+ <path d="M470 245L495 170 540 220 585 165 610 245 580 275H500Z" fill="url(#gold)" stroke="#fff1a1" stroke-width="7"/>
+ <circle cx="495" cy="171" r="9" fill="#39c8ff"/><circle cx="585" cy="166" r="9" fill="#39c8ff"/>
+ <path d="M485 250H595" stroke="#fff" stroke-width="5"/>
+</g>
+
+<!-- crown badge -->
+<g class="pulse" filter="url(#glowBlue)">
+ <circle cx="285" cy="445" r="62" fill="#061e4a" stroke="#ffd23b" stroke-width="8"/>
+ <path d="M250 425L265 390 285 415 305 390 320 425V455H250Z" fill="url(#gold)" stroke="#fff3a1" stroke-width="4"/>
+ <circle cx="265" cy="390" r="6" fill="#39c8ff"/><circle cx="305" cy="390" r="6" fill="#39c8ff"/>
+</g>
+
+<!-- title -->
+<g class="title" filter="url(#glowGold)">
+ <text x="565" y="395" text-anchor="middle" font-family="Arial, sans-serif" font-size="75" font-weight="1000"
+ fill="#fff6bd" stroke="#8e3e00" stroke-width="8" paint-order="stroke">VIP PRIVILEGE</text>
+</g>
+
+<g class="subtitle">
+ <text x="565" y="475" text-anchor="middle" font-family="Arial, sans-serif" font-size="38" font-weight="900"
+ fill="#fff" stroke="#7a3000" stroke-width="4" paint-order="stroke">MONTHLY CARD</text>
+</g>
+
+<!-- details with pulse -->
+<g class="pulse">
+ <text x="360" y="545" text-anchor="middle" font-family="Arial" font-size="28" font-weight="900" fill="#fff7c4">VALID: 30 DAYS</text>
+ <text x="360" y="585" text-anchor="middle" font-family="Arial" font-size="27" font-weight="900" fill="#fff7c4">LEVEL: MONTHLY</text>
+</g>
+<g class="float">
+ <rect x="705" y="505" width="120" height="105" rx="14" fill="#fff" stroke="#ffd23b" stroke-width="6"/>
+ <text x="765" y="535" text-anchor="middle" font-family="Arial" font-size="22" font-weight="900" fill="#e69a00">MONTHLY</text>
+ <text x="765" y="585" text-anchor="middle" font-family="Arial" font-size="55" font-weight="1000" fill="#3d1a00">30</text>
+</g>
+
+<!-- card sparkles -->
+<g class="flash" fill="#fff">
+ <path d="M220 350l7 18 18 7-18 7-7 18-7-18-18-7 18-7z"/>
+ <path d="M860 360l6 15 15 6-15 6-6 15-6-15-15-6 15-6z"/>
+ <path d="M650 590l6 15 15 6-15 6-6 15-6-15-15-6 15-6z"/>
+</g>
+
+<!-- EXTRA GEMS banner -->
+<g class="banner" filter="url(#shadow)">
+ <path d="M180 760L235 725H845L900 760 875 835 820 865H260L205 835Z" fill="#071a3d" stroke="#ffd23b" stroke-width="10"/>
+ <path d="M215 775L260 745H820L865 775 845 820 805 842H275L235 820Z" fill="#0b65a9" stroke="#52d9ff" stroke-width="4"/>
+ <text x="540" y="815" text-anchor="middle" font-family="Arial, sans-serif" font-size="72" font-weight="1000"
+ fill="#fff" stroke="#1a2440" stroke-width="9" paint-order="stroke">EXTRA GEMS</text>
+</g>
+
+<!-- banner diamond -->
+<g class="spin" filter="url(#glowBlue)">
+ <path d="M540 705L585 740 540 800 495 740Z" fill="url(#blue)" stroke="#fff" stroke-width="5"/>
+</g>
+
+<!-- repeated directional spark trails -->
+<g fill="#fff" filter="url(#glowGold)">
+ <circle cx="70" cy="250" r="5"><animate attributeName="cx" values="70;250;70" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur="2.2s" repeatCount="indefinite"/></circle>
+ <circle cx="1010" cy="600" r="5"><animate attributeName="cx" values="1010;830;1010" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur="2.4s" repeatCount="indefinite"/></circle>
+ <circle cx="310" cy="1000" r="5"><animate attributeName="cy" values="1000;850;1000" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/></circle>
+</g>
+</svg>
