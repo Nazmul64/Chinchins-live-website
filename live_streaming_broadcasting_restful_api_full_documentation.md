@@ -1,8 +1,8 @@
-# 🔴 Live Streaming, Multi-Host Broadcasting & Real-Time Interaction API Documentation
-**System:** Chinchins Live Streaming & Multi-Host Video Engine  
+# 🔴 Live Streaming, Multi-Host Broadcasting & Real-Time Direct Messaging Full Documentation
+**System:** Chinchins Live Streaming, Multi-Host Video Engine & Direct Real-Time Chat  
 **Backend:** Laravel 11.x RESTful Backend + Laravel Reverb WebSocket Server + Coturn STUN/TURN  
 **Client:** Flutter (Android & iOS) with WebRTC (`flutter_webrtc`), Laravel Echo / Reverb & SVGA Animation Engine  
-**Version:** 8.0.0 Production Edition  
+**Version:** 9.0.0 Production Edition  
 **Document Name:** `live_streaming_broadcasting_restful_api_full_documentation.md`
 
 ---
@@ -20,7 +20,11 @@
    - [৩.২ Laravel Reverb / Echo চ্যানেল লিসেনিং](#৩২-laravel-reverb--echo-চ্যানেল-লিসেনিং)
    - [৩.৩ ফুল-স্ক্রিন গিফট অ্যানিমেশন প্লেয়ার (SVGA/Lottie)](#৩৩-ফুল-স্ক্রিন-গিফট-অ্যানিমেশন-প্লেয়ার)
    - [৩.৪ ৪-৫ জন মাল্টি-হোস্ট স্প্লিট স্ক্রিন গ্রিড ও WebRTC হ্যান্ডলিং](#৩৪-৪-৫-জন-মাল্টি-হোস্ট-স্প্লিট-স্ক্রিন-গ্রিড-ও-webrtc-হ্যান্ডলিং)
-4. [৪. সম্পূর্ণ REST API রেফারেন্স তালিকা (RESTful API Endpoint Summary)](#৪-সম্পূর্ণ-rest-api-রেফারেন্স-তালিকা)
+4. [৪. রিয়েল-টাইম ১-অন-১ ডিরেক্ট চ্যাট ও ইমেজ আপলোড (Real-Time 1-on-1 Direct Chat & Media)](#৪-রিয়েল-টাইম-১-অন-১-ডিরেক্ট-চ্যাট-ও-ইমেজ-আপলোড)
+   - [৪.১ ডিরেক্ট চ্যাট আর্কিটেকচার ও কোনো হার্ডকোড ছাড়া রিয়েল চ্যাট](#৪১-ডিরেক্ট-চ্যাট-আর্কিটেকচার-ও-কোনো-হার্ডকোড-ছাড়া-রিয়েল-চ্যাট)
+   - [৪.২ ইনবক্স লিস্ট, মেসেজ হিস্ট্রি ও ইমেজ আপলোড APIs](#৪২-ইনবক্স-লিস্ট-মেসেজ-হিস্ট্রি-ও-ইমেজ-আপলোড-apis)
+   - [৪.৩ ফ্লাটারে রিয়েল-টাইম ডিরেক্ট চ্যাট লিসেনিং](#৪৩-ফ্লাটারে-রিয়েল-টাইম-ডিরেক্ট-চ্যাট-লিসেনিং)
+5. [৫. সম্পূর্ণ REST API রেফারেন্স তালিকা (RESTful API Endpoint Summary)](#৫-সম্পূর্ণ-rest-api-রেফারেন্স-তালিকা)
 
 ---
 
@@ -31,19 +35,21 @@
 │                                 FLUTTER MOBILE CLIENT                                  │
 │                                                                                        │
 │  ┌───────────────────────────┐  ┌───────────────────────────┐  ┌────────────────────┐  │
-│  │ Live Room (Viewer Mode)   │  │ 4-5 Multi-Host Video Grid │  │ Fullscreen SVGA    │  │
+│  │ 1-on-1 Direct Chat & Img  │  │ Live Room (Viewer Mode)   │  │ 4-5 Multi-Host Grid│  │
 │  └─────────────┬─────────────┘  └─────────────┬─────────────┘  └──────────┬─────────┘  │
 └────────────────┼──────────────────────────────┼───────────────────────────┼────────────┘
                  │                              │                           │
-      HTTP / REST (Bearer Token)                │                WebSocket (Presence/Public)
+      HTTP / REST (Bearer Token)                │                WebSocket (Reverb Client)
                  │                              │                           │
                  ▼                              ▼                           ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                         LARAVEL 11 & REVERB WEBSOCKET SERVER                           │
 │                                                                                        │
 │  - WebSocket Port: 8080 (WS) / 443 (WSS)                                               │
-│  - Broadcast Channel: `live-room.{roomId}` & `live-stream.{streamId}`                 │
+│  - Live Broadcast Channel: `live-room.{roomId}` & `live-stream.{streamId}`             │
+│  - Direct 1-on-1 User Channel: `user-chat.{receiver_id}`                               │
 │  - Instant Execution: ShouldBroadcastNow (No Queue Lag)                                │
+│  - Image Upload Directory: public/uploads/live_chat/ (Full Public URL)                 │
 │  - 50/50 Gift Coins Revenue Split -> Diamonds System                                  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
                                  │
@@ -583,10 +589,153 @@ Widget buildMultiHostGrid(List<CoHostVideoTrack> coHosts) {
 
 ---
 
-## ৪. সম্পূর্ণ REST API রেফারেন্স তালিকা
+## ৪. রিয়েল-টাইম ১-অন-১ ডিরেক্ট চ্যাট ও ইমেজ আপলোড
+
+### ৪.১ ডিরেক্ট চ্যাট আর্কিটেকচার ও কোনো হার্ডকোড ছাড়া রিয়েল চ্যাট
+- **রিয়েল-টাইম আদান-প্রদান:** ছেলে-মেয়ে বা সব ইউজার একে অপরের সাথে লাইভ চ্যাট করতে পারবে। কোনো হার্ডকোডেড রিপ্লাই নেই।
+- **ইন্সট্যান্ট ব্রডকাস্টিং:** `DirectMessageSent` ইভেন্ট `ShouldBroadcastNow` ইন্টারফেস ব্যবহার করে মেসেজ ও ফটো সাথে সাথে অন্য প্রান্তে পুশ করে।
+- **ইমেজ পাথ:** ছবি `public/uploads/live_chat/` ফোল্ডারে সেভ হয় এবং রেসপন্সে ছবির ফুল পাবলিক URL রিটার্ন করে।
+
+### ৪.২ ইনবক্স লিস্ট, মেসেজ হিস্ট্রি ও ইমেজ আপলোড APIs
+
+#### ১. ইনবক্স তালিকা (Get Conversations / Inbox List):
+- **Endpoint:** `GET /api/chat/conversations`
+- **Headers:** `Authorization: Bearer {token}`, `Accept: application/json`
+- **Response (200 OK):**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "conversation_id": 1,
+      "user": {
+        "id": 15,
+        "account_id": "84729104",
+        "name": "Nusrat Jahan",
+        "display_name": "Nusrat Jahan",
+        "avatar": "https://domain.com/uploads/avatars/15.jpg",
+        "avatar_url": "https://domain.com/uploads/avatars/15.jpg",
+        "gender": "female",
+        "level": "Lv3",
+        "is_online": true
+      },
+      "last_message": "Hey, how are you?",
+      "last_message_at": "2026-09-15T22:40:00.000000Z"
+    }
+  ]
+}
+```
+
+#### ২. চ্যাট হিস্ট্রি (Get Messages History):
+- **Endpoint:** `GET /api/chat/messages/{conversationId}`
+- **Headers:** `Authorization: Bearer {token}`, `Accept: application/json`
+- **Response (200 OK):**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id": 1,
+      "conversation_id": 1,
+      "sender_id": 4,
+      "receiver_id": 15,
+      "message": "Hello!",
+      "attachment_path": null,
+      "type": "text",
+      "is_read": true,
+      "sender": {
+        "id": 4,
+        "name": "Rahim Khan",
+        "display_name": "Rahim Khan",
+        "avatar_url": "https://domain.com/uploads/avatars/4.jpg"
+      },
+      "created_at": "2026-09-15T22:38:00.000000Z"
+    },
+    {
+      "id": 2,
+      "conversation_id": 1,
+      "sender_id": 15,
+      "receiver_id": 4,
+      "message": "📷 Photo",
+      "attachment_path": "https://domain.com/uploads/live_chat/1726435000_66e74b.jpg",
+      "type": "image",
+      "is_read": true,
+      "sender": {
+        "id": 15,
+        "name": "Nusrat Jahan",
+        "display_name": "Nusrat Jahan",
+        "avatar_url": "https://domain.com/uploads/avatars/15.jpg"
+      },
+      "created_at": "2026-09-15T22:39:00.000000Z"
+    }
+  ]
+}
+```
+
+#### ৩. মেসেজ পাঠানো ও ইমেজ আপলোড (Send Direct Message / Image):
+- **Endpoint:** `POST /api/chat/send-message` (Aliases: `/api/chat/send`)
+- **Headers:** `Authorization: Bearer {token}`, `Accept: application/json`, `Content-Type: multipart/form-data`
+- **Form Data (multipart):**
+  - `receiver_id`: `15` (integer, required)
+  - `message`: `"Check this out!"` (string, optional if image sent)
+  - `image`: `[File Attachment]` (file, mimes: jpeg, png, jpg, webp, max 10MB, optional)
+- **Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Message sent successfully",
+  "data": {
+    "id": 3,
+    "conversation_id": 1,
+    "sender_id": 4,
+    "receiver_id": 15,
+    "message": "Check this out!",
+    "attachment_path": "https://domain.com/uploads/live_chat/1726435100_66e74c.jpg",
+    "type": "image",
+    "is_read": false,
+    "sender": {
+      "id": 4,
+      "name": "Rahim Khan",
+      "display_name": "Rahim Khan",
+      "avatar_url": "https://domain.com/uploads/avatars/4.jpg"
+    },
+    "created_at": "2026-09-15T22:40:00.000000Z"
+  }
+}
+```
+
+### ৪.৩ ফ্লাটারে রিয়েল-টাইম ডিরেক্ট চ্যাট লিসেনিং
+
+```dart
+// লগইন করা ইউজারের ID দিয়ে লিসেন করুন
+Echo.instance
+    .channel('user-chat.$currentUserId')
+    .listen('.message.received', (data) {
+        // নতুন মেসেজ সরাসরি চ্যাট স্ক্রিনের লিস্টে যোগ হবে
+        var newMessage = data;
+        
+        setState(() {
+            messagesList.add(newMessage);
+        });
+        
+        // অটো-স্ক্রোল
+        scrollController.animateTo(
+            scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+        );
+    });
+```
+
+---
+
+## ৫. সম্পূর্ণ REST API রেফারেন্স তালিকা
 
 | HTTP Method | API Route | বিবরণ | প্যারামিটারস (Payload) |
 | :--- | :--- | :--- | :--- |
+| **GET** | `/api/chat/conversations` | ইউজারের ইনবক্স তালিকা ও সর্বশেষ মেসেজ | `None` (Header: Bearer Token) |
+| **GET** | `/api/chat/messages/{id}` | নির্দিষ্ট কনভারসেশনের চ্যাট হিস্ট্রি | `conversation_id` |
+| **POST** | `/api/chat/send-message` | ডিরেক্ট টেক্সট মেসেজ ও ইমেজ পাঠানো (ShouldBroadcastNow) | `receiver_id`, `message`, `image` (multipart) |
 | **POST** | `/api/live/send-message` | লাইভ চ্যাট মেসেজ বা গিফট পাঠানো (ShouldBroadcastNow) | `room_id`, `message`, `type`, `gift_id` |
 | **POST** | `/api/live/cohost-action` | কো-হোস্ট ইনভাইট, একসেপ্ট, রিজেক্ট বা রিমুভ | `room_id`, `target_user_id`, `action` (`invite`/`accept`/`reject`/`remove`) |
 | **POST** | `/api/live/signal` | WebRTC সিগনালিং আদান-প্রদান (P2P Mesh) | `room_id`, `to_user_id`, `type` (`offer`/`answer`/`candidate`), `data` |
@@ -600,3 +749,4 @@ Widget buildMultiHostGrid(List<CoHostVideoTrack> coHosts) {
 
 ---
 *ডকুমেন্টেশন আপডেট সমাপ্ত। লারাভেল ব্যাকএন্ড ও ফ্লাটার ক্লায়েন্ট সম্পূর্ণ সিঙ্কড।*
+

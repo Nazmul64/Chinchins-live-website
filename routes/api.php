@@ -613,12 +613,16 @@ Route::prefix('messages')->group(function () {
 });
 
 Route::prefix('chat')->group(function () {
-    Route::get('/conversations', [\App\Http\Controllers\Api\MessageApiController::class, 'getConversations']);
+    Route::get('/conversations', [\App\Http\Controllers\Api\ChatController::class, 'getConversations']);
+    Route::get('/messages/{conversationId}', [\App\Http\Controllers\Api\ChatController::class, 'getMessages']);
+    Route::post('/send-message', [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+    Route::post('/send', [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+    
+    // Additional Chat & Profile features
     Route::match(['get', 'post'], '/check-permission', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
     Route::match(['get', 'post'], '/can-message', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
     Route::match(['get', 'post'], '/can-chat', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
-    Route::get('/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
-    Route::post('/send', [\App\Http\Controllers\Api\MessageApiController::class, 'sendMessage']);
+    Route::get('/user/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
     Route::post('/send-hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
     Route::post('/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
     Route::post('/upload', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);

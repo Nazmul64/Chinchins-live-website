@@ -12,18 +12,40 @@ class Conversation extends Model
     protected $table = 'conversations';
 
     protected $fillable = [
+        'user_one',
+        'user_two',
+        'last_message',
+        'last_message_at',
         'is_group',
         'title',
         'last_message_id',
     ];
 
     protected $casts = [
+        'user_one'        => 'integer',
+        'user_two'        => 'integer',
+        'last_message_at' => 'datetime',
         'is_group'        => 'boolean',
         'last_message_id' => 'integer',
     ];
 
+    public function userOne()
+    {
+        return $this->belongsTo(User::class, 'user_one');
+    }
+
+    public function userTwo()
+    {
+        return $this->belongsTo(User::class, 'user_two');
+    }
+
+    public function directMessages()
+    {
+        return $this->hasMany(DirectMessage::class, 'conversation_id');
+    }
+
     /**
-     * Participants in the conversation.
+     * Legacy Participants in the conversation.
      */
     public function participants()
     {
@@ -33,7 +55,7 @@ class Conversation extends Model
     }
 
     /**
-     * Messages in this conversation.
+     * Legacy Messages in this conversation.
      */
     public function messages()
     {

@@ -44,6 +44,11 @@ Broadcast::channel('user.{userId}', function ($user, $userId) {
     return (int) $user->id === (int) $userId;
 });
 
+// 4.1 Real-Time Direct 1-on-1 User Chat Channel
+Broadcast::channel('user-chat.{userId}', function ($user, $userId) {
+    return true;
+});
+
 // 5. Call session channel authorization
 Broadcast::channel('call.{roomId}', function ($user, $roomId) {
     return true;
