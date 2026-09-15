@@ -433,9 +433,14 @@ Route::prefix('v1/stream')->group(function () {
     Route::post('/comment', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/send-message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
+    Route::post('/cohost-action', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'handleCoHost']);
+    Route::post('/handle-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'handleCoHost']);
     Route::post('/invite-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'inviteCoHost']);
     Route::post('/accept-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'acceptCoHost']);
-    Route::post('/signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendStreamSignal']);
+    Route::post('/signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendSignal']);
+    Route::post('/send-signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendSignal']);
+    Route::post('/mute-toggle', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
+    Route::post('/toggle-mute', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
     Route::post('/send-gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
     Route::post('/gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
     Route::post('/join-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestJoin']);
@@ -455,9 +460,14 @@ Route::prefix('v1/live')->group(function () {
     Route::post('/comment', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/send-gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
     Route::post('/gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
+    Route::post('/cohost-action', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'handleCoHost']);
+    Route::post('/handle-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'handleCoHost']);
     Route::post('/invite-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'inviteCoHost']);
     Route::post('/accept-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'acceptCoHost']);
-    Route::post('/signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendStreamSignal']);
+    Route::post('/signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendSignal']);
+    Route::post('/send-signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendSignal']);
+    Route::post('/mute-toggle', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
+    Route::post('/toggle-mute', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
     Route::post('/join-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestJoin']);
     Route::post('/accept-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'respondJoinRequest']);
     Route::post('/kick-guest', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
@@ -468,6 +478,8 @@ Route::get('/v1/users/active', [\App\Http\Controllers\Api\ProfileController::cla
 
 Route::prefix('live')->group(function () {
     Route::get('/active-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
@@ -477,10 +489,19 @@ Route::prefix('live')->group(function () {
     Route::post('/message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/send-message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/messages/send', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
+    Route::post('/comment', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
     Route::post('/send-gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
 
-    // Co-Hosting / Guest Join Grid
+    // Co-Hosting / Multi-Host Video Grid (Max 4-5 Persons)
+    Route::post('/cohost-action', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'handleCoHost']);
+    Route::post('/handle-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'handleCoHost']);
+    Route::post('/invite-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'inviteCoHost']);
+    Route::post('/accept-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'acceptCoHost']);
+    Route::post('/signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendSignal']);
+    Route::post('/send-signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendSignal']);
+    Route::post('/mute-toggle', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
+    Route::post('/toggle-mute', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
     Route::post('/join-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestJoin']);
     Route::post('/request-join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestJoin']);
     Route::post('/accept-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'respondJoinRequest']);

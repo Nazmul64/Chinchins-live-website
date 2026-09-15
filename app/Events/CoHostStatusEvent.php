@@ -5,7 +5,6 @@ namespace App\Events;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -14,41 +13,68 @@ class CoHostStatusEvent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $streamId;
-    public $statusData;
+    public $roomId;
+    public $action; // 'invite', 'invited', 'accept', 'accepted', 'reject', 'rejected', 'remove', 'removed'
+    public $targetUser;
 
-    public function __construct($streamId, array $statusData)
+    /**
+     * Create a new event instance.
+     * Supports ($roomId, $action, $targetUser) or ($roomId, array $statusData).
+     */
+    public function __construct($roomId, $action, $targetUser = null)
     {
-        $this->streamId = (string) $streamId;
-        $this->statusData = $statusData;
+        $this->roomId = (string) $roomId;
+        if (is_array($action) && $targetUser === null) {
+            $this->action = $action['action'] ?? 'invited';
+            $this->targetUser = $action['target_user'] ?? $action['user'] ?? $action;
+        } else {
+            $this->action = $action;
+            $this->targetUser = $targetUser;
+        }
     }
 
     public function broadcastOn(): array
     {
         return [
-            new PresenceChannel('live-stream.' . $this->streamId),
-            new PresenceChannel('live-room.' . $this->streamId),
-            new Channel('live-stream.' . $this->streamId),
-            new Channel('live.' . $this->streamId),
+            new Channel('live-room.' . $this->roomId),
+            new PresenceChannel('live-room.' . $this->roomId),
+            new Channel('live-stream.' . $this->roomId),
+            new PresenceChannel('live-stream.' . $this->roomId),
+            new Channel('live.' . $this->roomId),
         ];
     }
 
     public function broadcastAs(): string
     {
-        return 'CoHostStatusEvent';
+        return 'cohost.status.changed';
     }
 
     public function broadcastWith(): array
     {
+        $userObj = is_object($this->targetUser) ? $this->targetUser : (is_array($this->targetUser) ? (object)$this->targetUser : null);
+        $userId = $userObj->id ?? ($userObj->user_id ?? null);
+        $userName = $userObj->display_name ?? ($userObj->name ?? ($userObj->user_name ?? 'User'));
+        $userAvatar = $userObj->avatar_url ?? ($userObj->avatar ?? ($userObj->user_avatar ?? null));
+
         return [
-            'stream_id'     => $this->streamId,
-            'action'        => $this->statusData['action'] ?? 'invited',
-            'user_id'       => $this->statusData['user_id'] ?? null,
-            'user_name'     => $this->statusData['user_name'] ?? null,
-            'user_avatar'   => $this->statusData['user_avatar'] ?? null,
-            'co_hosts_count' => $this->statusData['co_hosts_count'] ?? 1,
-            'max_limit'     => $this->statusData['max_limit'] ?? 5,
-            'timestamp'     => $this->statusData['timestamp'] ?? now()->toIso8601String(),
+            'room_id'        => (string) $this->roomId,
+            'stream_id'      => (string) $this->roomId,
+            'action'         => $this->action,
+            'target_user_id' => $userId,
+            'target_user'    => [
+                'id'           => $userId,
+                'user_id'      => $userId,
+                'name'         => $userName,
+                'display_name' => $userName,
+                'avatar_url'   => $userAvatar,
+                'avatar'       => $userAvatar,
+            ],
+            'user'           => [
+                'id'           => $userId,
+                'display_name' => $userName,
+                'avatar_url'   => $userAvatar,
+            ],
+            'timestamp'      => now()->toIso8601String(),
         ];
     }
 }

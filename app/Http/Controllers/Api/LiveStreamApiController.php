@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\AudioMuteEvent;
+use App\Events\CoHostStatusEvent;
 use App\Events\LiveChatMessageEvent;
 use App\Events\LiveGiftSent;
 use App\Events\LiveGiftSentEvent;
@@ -10,6 +12,8 @@ use App\Events\LiveJoinRequested;
 use App\Events\LiveJoinResponded;
 use App\Events\LiveMessageSent;
 use App\Events\LiveStreamEnded;
+use App\Events\StreamSignalingEvent;
+use App\Events\WebRTCSignalEvent;
 use App\Http\Controllers\Controller;
 use App\Models\Gift;
 use App\Models\GiftTransaction;
@@ -87,8 +91,7 @@ class LiveStreamApiController extends Controller
 
     /**
      * 1. Get Currently Active Live Streams List.
-     * Only returns broadcasters with status = 'live'. Returns [] if none.
-     * GET /api/lives/active (or GET /api/live/active, GET /api/live/list)
+     * GET /api/lives/active, GET /api/live/active, GET /api/live/list, GET /api/live/active-streams
      */
     public function getActiveLives(Request $request): JsonResponse
     {
@@ -148,8 +151,7 @@ class LiveStreamApiController extends Controller
 
     /**
      * 2. Host Start Live Broadcasting.
-     * Generates unique channel_name and Agora/WebRTC token with broadcaster role.
-     * POST /api/live/start
+     * POST /api/live/start, POST /api/v1/live/start, POST /api/v1/stream/start
      */
     public function startLive(Request $request): JsonResponse
     {
@@ -230,6 +232,7 @@ class LiveStreamApiController extends Controller
             'success' => true,
             'message' => 'Live stream broadcast started successfully!',
             'data'    => [
+                'room_id'         => (string) $liveStream->id,
                 'live_stream_id'  => $liveStream->id,
                 'channel_name'    => $channelName,
                 'title'           => $title,
@@ -249,12 +252,12 @@ class LiveStreamApiController extends Controller
 
     /**
      * 3. Host End Live Stream.
-     * POST /api/live/end
+     * POST /api/live/end, POST /api/v1/live/end, POST /api/v1/stream/end
      */
     public function endLive(Request $request): JsonResponse
     {
         $user = $this->resolveUser($request);
-        $streamId = $request->input('live_stream_id') ?? $request->input('id') ?? $request->input('channel_name');
+        $streamId = $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id') ?? $request->input('channel_name');
 
         $stream = LiveStream::where('id', $streamId)
             ->orWhere('channel_name', $streamId)
@@ -292,9 +295,10 @@ class LiveStreamApiController extends Controller
         }
 
         $summary = [
+            'room_id'               => (string) $stream->id,
             'live_stream_id'        => $stream->id,
             'channel_name'          => $stream->channel_name,
-            'duration_seconds'      => $stream->ended_at->diffInSeconds($stream->started_at),
+            'duration_seconds'      => $stream->ended_at ? $stream->ended_at->diffInSeconds($stream->started_at) : 0,
             'total_diamonds_earned' => (int) $stream->total_diamonds_earned,
             'peak_viewers'          => (int) $stream->viewer_count,
         ];
@@ -314,12 +318,12 @@ class LiveStreamApiController extends Controller
 
     /**
      * 4. Audience / Viewer Join Live Stream.
-     * POST /api/live/join or POST /api/live/{id}/join
+     * POST /api/live/join, POST /api/live/{id}/join, POST /api/v1/live/join, POST /api/v1/stream/join
      */
     public function joinLive(Request $request, $id = null): JsonResponse
     {
         $viewer = $this->resolveUser($request);
-        $streamId = $id ?? $request->input('live_stream_id') ?? $request->input('id') ?? $request->input('channel_name');
+        $streamId = $id ?? $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id') ?? $request->input('channel_name');
 
         $stream = LiveStream::with('host')
             ->where('id', $streamId)
@@ -357,6 +361,7 @@ class LiveStreamApiController extends Controller
             'success' => true,
             'message' => 'Joined live stream successfully.',
             'data'    => [
+                'room_id'         => (string) $stream->id,
                 'live_stream_id'  => $stream->id,
                 'channel_name'    => $stream->channel_name,
                 'title'           => $stream->title,
@@ -377,12 +382,12 @@ class LiveStreamApiController extends Controller
 
     /**
      * 5. Leave Live Stream.
-     * POST /api/live/leave or POST /api/live/{id}/leave
+     * POST /api/live/leave, POST /api/live/{id}/leave, POST /api/v1/live/leave, POST /api/v1/stream/leave
      */
     public function leaveLive(Request $request, $id = null): JsonResponse
     {
         $user = $this->resolveUser($request);
-        $streamId = $id ?? $request->input('live_stream_id') ?? $request->input('id');
+        $streamId = $id ?? $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id');
 
         $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
 
@@ -404,84 +409,227 @@ class LiveStreamApiController extends Controller
     }
 
     /**
-     * 6. Send Public Chat Message in Live Stream.
-     * Broadcasts instantaneously to presence-live.{live_id}.
-     * POST /api/live/message or POST /api/live/messages/send
+     * 6. Send Public Chat Message or Gift in Live Stream.
+     * Instant broadcast using ShouldBroadcastNow.
+     * POST /api/live/send-message, POST /api/live/message, POST /api/live/comment, POST /api/v1/stream/comment
      */
     public function sendMessage(Request $request): JsonResponse
     {
         $user = $this->resolveUser($request);
-        if (!$user) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Unauthenticated user.',
-            ], 401);
-        }
 
-        $streamId = $request->input('live_stream_id') ?? $request->input('id');
-        $message = trim($request->input('message') ?? $request->input('text') ?? '');
+        $request->validate([
+            'room_id'        => 'sometimes|required',
+            'message'        => 'required_without:gift_id',
+            'type'           => 'sometimes|required|in:text,gift',
+            'gift_id'        => 'nullable|integer',
+        ]);
+
+        $streamId = $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('stream_id') ?? $request->input('id');
+        $messageText = trim($request->input('message') ?? $request->input('text') ?? '');
         $type = $request->input('type', 'text');
-
-        if (empty($message)) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Message content is required.',
-            ], 422);
-        }
+        $giftId = $request->input('gift_id');
 
         $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
-        if (!$stream || $stream->status !== 'live') {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Live stream is not active.',
-            ], 404);
+        $roomId = $stream ? (string)$stream->id : (string)($streamId ?: '1');
+
+        $gift = null;
+        if ($giftId) {
+            $gift = Gift::find($giftId);
+            $type = 'gift';
         }
 
-        $senderName = $user->display_name ?? $user->name ?? 'User';
-        $senderAvatar = $user->avatar_url;
+        $senderId = $user ? $user->id : (int)($request->input('user_id') ?? 0);
+        $senderName = $user ? ($user->display_name ?? $user->name ?? 'User') : 'User';
+        $senderAvatar = $user ? $user->avatar_url : null;
 
         $msgRecord = LiveMessage::create([
-            'live_stream_id' => $stream->id,
-            'user_id'        => $user->id,
-            'message'        => $message,
+            'live_stream_id' => (int) $roomId,
+            'user_id'        => $senderId,
+            'message'        => $messageText ?: ($gift ? "Sent {$gift->name}" : ''),
             'type'           => $type,
+            'gift_id'        => $giftId,
             'metadata'       => [
                 'sender_name'   => $senderName,
                 'sender_avatar' => $senderAvatar,
-                'level'         => $user->level ?: 'Lv1',
-                'frame_url'     => $user->avatar_frame_url,
+                'level'         => $user?->level ?: 'Lv1',
+                'gift_data'     => $gift,
             ],
         ]);
 
-        $payload = [
+        $messagePayload = [
             'id'             => $msgRecord->id,
-            'live_stream_id' => $stream->id,
-            'user_id'        => $user->id,
-            'sender_name'    => $senderName,
-            'sender_avatar'  => $senderAvatar,
-            'level'          => $user->level ?: 'Lv1',
-            'message'        => $message,
+            'room_id'        => (string) $roomId,
+            'stream_id'      => (string) $roomId,
+            'live_stream_id' => (int) $roomId,
+            'user_id'        => $senderId,
+            'user_name'      => $senderName,
+            'user_avatar'    => $senderAvatar,
+            'user'           => [
+                'id'           => $senderId,
+                'display_name' => $senderName,
+                'avatar_url'   => $senderAvatar,
+                'level'        => $user?->level ?: 'Lv1',
+            ],
+            'message'        => $msgRecord->message,
             'type'           => $type,
+            'gift_id'        => $giftId,
+            'gift_data'      => $gift,
+            'gift'           => $gift,
+            'level'          => $user?->level ?: 'Lv1',
             'created_at'     => $msgRecord->created_at->toIso8601String(),
+            'timestamp'      => $msgRecord->created_at->toIso8601String(),
         ];
 
-        // Broadcast to WebSocket presence-live.{id} and live-stream.{id} as chat.message
         try {
-            event(new LiveMessageSent($stream->id, $payload));
-            event(new LiveChatMessageEvent($payload));
+            // toOthers() sends to all connected listeners in the channel
+            broadcast(new LiveChatMessageEvent($roomId, $messagePayload))->toOthers();
+            event(new LiveMessageSent($roomId, $messagePayload));
         } catch (\Throwable $e) {}
 
         return response()->json([
-            'status'  => true,
+            'status'  => 'success',
             'success' => true,
-            'message' => 'Live message sent.',
+            'message' => 'Live message sent successfully.',
+            'data'    => $messagePayload,
+        ], 200);
+    }
+
+    /**
+     * 7. Co-Host Action Controller (Invite, Accept, Reject, Remove).
+     * POST /api/live/cohost-action, POST /api/live/handle-cohost, POST /api/v1/stream/cohost-action
+     */
+    public function handleCoHost(Request $request): JsonResponse
+    {
+        $request->validate([
+            'room_id'        => 'sometimes|required',
+            'target_user_id' => 'required',
+            'action'         => 'required|in:invite,invited,accept,accepted,reject,rejected,remove,removed',
+        ]);
+
+        $roomId = $request->input('room_id') ?? $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $action = strtolower($request->input('action'));
+        $targetUserId = $request->input('target_user_id') ?? $request->input('user_id');
+
+        $user = User::findOrFail($targetUserId);
+        $stream = LiveStream::where('id', $roomId)->orWhere('channel_name', $roomId)->first();
+        $streamId = $stream ? (string)$stream->id : (string)$roomId;
+
+        // Manage room members in database
+        if ($action === 'accept' || $action === 'accepted') {
+            if ($stream) {
+                LiveParticipant::updateOrCreate(
+                    ['live_stream_id' => $stream->id, 'user_id' => $user->id],
+                    ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
+                );
+            }
+        } elseif ($action === 'remove' || $action === 'removed' || $action === 'reject' || $action === 'rejected') {
+            if ($stream) {
+                LiveParticipant::where('live_stream_id', $stream->id)
+                    ->where('user_id', $user->id)
+                    ->update(['left_at' => now()]);
+            }
+        }
+
+        try {
+            broadcast(new CoHostStatusEvent($streamId, $action, $user))->toOthers();
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => "Co-host {$action} successful",
+            'data'    => [
+                'room_id'     => (string) $streamId,
+                'action'      => $action,
+                'target_user' => [
+                    'id'           => $user->id,
+                    'display_name' => $user->display_name ?? $user->name,
+                    'avatar_url'   => $user->avatar_url,
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
+     * 8. WebRTC Signaling API (Offer, Answer, Candidate).
+     * POST /api/live/signal, POST /api/v1/stream/signal, POST /api/v1/live/signal
+     */
+    public function sendSignal(Request $request): JsonResponse
+    {
+        $sender = $this->resolveUser($request);
+        $roomId = $request->input('room_id') ?? $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $toUserId = $request->input('to_user_id') ?? $request->input('target_user_id');
+        $fromUserId = $sender ? $sender->id : ($request->input('from_user_id') ?? $request->input('sender_id'));
+        $type = $request->input('type', 'offer'); // 'offer', 'answer', 'candidate'
+        $data = $request->input('data') ?? $request->input('sdp_or_candidate') ?? $request->input('payload');
+
+        $signalData = [
+            'room_id'          => (string) $roomId,
+            'stream_id'        => (string) $roomId,
+            'from_user_id'     => (int) $fromUserId,
+            'sender_id'        => (int) $fromUserId,
+            'to_user_id'       => (int) $toUserId,
+            'target_user_id'   => (int) $toUserId,
+            'type'             => $type,
+            'data'             => $data,
+            'payload'          => $data,
+            'sdp_or_candidate' => $data,
+            'timestamp'        => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new WebRTCSignalEvent($roomId, $signalData))->toOthers();
+            event(new StreamSignalingEvent((string) $roomId, $signalData));
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'  => 'sent',
+            'message' => "WebRTC signal '{$type}' broadcast successfully.",
+            'data'    => $signalData,
+        ], 200);
+    }
+
+    /**
+     * 9. Audio Mute / Unmute Control API.
+     * POST /api/live/mute-toggle, POST /api/live/toggle-mute, POST /api/v1/live/mute-toggle
+     */
+    public function toggleMute(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'room_id'        => 'sometimes|required',
+            'target_user_id' => 'sometimes|required',
+            'is_muted'       => 'required|boolean',
+            'muted_by_host'  => 'nullable|boolean'
+        ]);
+
+        $roomId = $request->input('room_id') ?? $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $targetUserId = $request->input('target_user_id') ?? $request->input('user_id');
+        $isMuted = (bool) $request->input('is_muted');
+        $mutedByHost = (bool) $request->input('muted_by_host', false);
+
+        $payload = [
+            'room_id'        => (string) $roomId,
+            'stream_id'      => (string) $roomId,
+            'target_user_id' => (int) $targetUserId,
+            'user_id'        => (int) $targetUserId,
+            'is_muted'       => $isMuted,
+            'muted_by_host'  => $mutedByHost,
+            'timestamp'      => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new AudioMuteEvent($roomId, $payload))->toOthers();
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Audio mute state updated successfully.',
             'data'    => $payload,
         ], 200);
     }
 
     /**
-     * 7. Send Virtual Gift in Live Stream with 50/50 Revenue Split.
-     * POST /api/live/gift or POST /api/live/send-gift
+     * 10. Send Virtual Gift in Live Stream with 50/50 Revenue Split.
+     * POST /api/live/gift, POST /api/live/send-gift, POST /api/v1/stream/send-gift
      */
     public function sendGift(Request $request): JsonResponse
     {
@@ -490,7 +638,7 @@ class LiveStreamApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
-        $streamId = $request->input('live_stream_id') ?? $request->input('stream_id') ?? $request->input('id');
+        $streamId = $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('stream_id') ?? $request->input('id');
         $giftId = $request->input('gift_id');
         $quantity = max(1, (int) $request->input('quantity', 1));
 
@@ -557,6 +705,7 @@ class LiveStreamApiController extends Controller
 
             $giftPayload = [
                 'transaction_id'      => $transaction->id,
+                'room_id'             => (string) $stream->id,
                 'stream_id'           => $stream->id,
                 'sender'              => [
                     'id'     => $sender->id,
@@ -570,12 +719,12 @@ class LiveStreamApiController extends Controller
                     'coin_price'          => $price,
                     'icon_url'            => $gift->icon_url,
                     'animation_asset_url' => $gift->animation_url ?? $gift->animation_asset_url,
-                    'animation_type'      => $gift->animation_type ?? 'svg',
+                    'animation_type'      => $gift->animation_type ?? 'svga',
                 ],
                 'quantity'            => $quantity,
                 'total_coins'         => $totalCost,
                 'timestamp'           => now()->timestamp,
-                // Additional properties for backward compatibility
+                // Backward compatibility properties
                 'id'                  => $liveMsg->id,
                 'sender_id'           => $sender->id,
                 'sender_name'         => $sender->display_name,
@@ -587,10 +736,27 @@ class LiveStreamApiController extends Controller
                 'created_at'          => $liveMsg->created_at->toIso8601String(),
             ];
 
-            // Broadcast to live presence channel and live-stream.{id} as gift.received
+            // Broadcast to live presence channel, live-stream.{id}, and live-room.{id}
             try {
                 event(new LiveGiftSent($stream->id, $giftPayload));
                 event(new LiveGiftSentEvent($stream->id, $giftPayload));
+                broadcast(new LiveChatMessageEvent($stream->id, [
+                    'id'        => $liveMsg->id,
+                    'room_id'   => (string) $stream->id,
+                    'user_id'   => $sender->id,
+                    'user'      => [
+                        'id'           => $sender->id,
+                        'display_name' => $sender->display_name,
+                        'avatar_url'   => $sender->avatar_url,
+                        'level'        => $sender->level ?: 'Lv1',
+                    ],
+                    'message'   => "Sent {$quantity}x {$gift->name}",
+                    'type'      => 'gift',
+                    'gift_id'   => $gift->id,
+                    'gift_data' => $giftPayload['gift'],
+                    'gift'      => $giftPayload['gift'],
+                    'timestamp' => now()->toIso8601String(),
+                ]))->toOthers();
             } catch (\Throwable $e) {}
 
             return response()->json([
@@ -607,9 +773,25 @@ class LiveStreamApiController extends Controller
     }
 
     /**
-     * 8. Viewer Request to Co-Host / Join Video Grid.
-     * POST /api/live/join-request or POST /api/live/request-join
+     * 11. Legacy Helper Methods for Co-Host and Join Requests.
      */
+    public function inviteCoHost(Request $request): JsonResponse
+    {
+        $request->merge(['action' => 'invite']);
+        return $this->handleCoHost($request);
+    }
+
+    public function acceptCoHost(Request $request): JsonResponse
+    {
+        $request->merge(['action' => 'accept']);
+        return $this->handleCoHost($request);
+    }
+
+    public function sendStreamSignal(Request $request): JsonResponse
+    {
+        return $this->sendSignal($request);
+    }
+
     public function requestJoin(Request $request): JsonResponse
     {
         $user = $this->resolveUser($request);
@@ -617,7 +799,7 @@ class LiveStreamApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
-        $streamId = $request->input('live_stream_id') ?? $request->input('id');
+        $streamId = $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id');
         $stream = LiveStream::with('host')->where('id', $streamId)->orWhere('channel_name', $streamId)->first();
 
         if (!$stream || $stream->status !== 'live') {
@@ -631,6 +813,7 @@ class LiveStreamApiController extends Controller
 
         $requestPayload = [
             'request_id'     => $joinReq->id,
+            'room_id'        => (string) $stream->id,
             'live_stream_id' => $stream->id,
             'user'           => [
                 'id'           => $user->id,
@@ -644,7 +827,6 @@ class LiveStreamApiController extends Controller
             'created_at'     => now()->toIso8601String(),
         ];
 
-        // Broadcast to Host
         try {
             event(new LiveJoinRequested($stream->id, $stream->host_id, $requestPayload));
         } catch (\Throwable $e) {}
@@ -657,15 +839,11 @@ class LiveStreamApiController extends Controller
         ], 200);
     }
 
-    /**
-     * 9. Host Accept or Reject Co-Host Request.
-     * POST /api/live/accept-request or POST /api/live/respond-request
-     */
     public function respondJoinRequest(Request $request): JsonResponse
     {
         $host = $this->resolveUser($request);
         $requestId = $request->input('request_id');
-        $action = strtolower($request->input('action', 'accept')); // 'accept', 'reject'
+        $action = strtolower($request->input('action', 'accept'));
 
         $joinReq = LiveJoinRequest::with(['liveStream', 'user'])->find($requestId);
         if (!$joinReq) {
@@ -682,14 +860,11 @@ class LiveStreamApiController extends Controller
 
         if ($action === 'accept') {
             $joinReq->update(['status' => 'accepted']);
-
-            // Upgrade role to guest in participants table
             LiveParticipant::updateOrCreate(
                 ['live_stream_id' => $stream->id, 'user_id' => $guestUser->id],
                 ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
             );
 
-            // Generate Broadcaster Token for Guest
             $guestSession = $this->callingManager->initializeSession(
                 $guestUser,
                 $stream->channel_name,
@@ -704,6 +879,7 @@ class LiveStreamApiController extends Controller
 
         $responsePayload = [
             'request_id'     => $joinReq->id,
+            'room_id'        => (string) $stream->id,
             'live_stream_id' => $stream->id,
             'guest_user_id'  => $guestUser->id,
             'status'         => $joinReq->status,
@@ -711,9 +887,9 @@ class LiveStreamApiController extends Controller
             'guest_session'  => $guestToken,
         ];
 
-        // Broadcast to guest and presence channel
         try {
             event(new LiveJoinResponded($stream->id, $guestUser->id, $responsePayload));
+            broadcast(new CoHostStatusEvent($stream->id, $action, $guestUser))->toOthers();
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -724,15 +900,11 @@ class LiveStreamApiController extends Controller
         ], 200);
     }
 
-    /**
-     * 10. Host Kick / Remove Guest from Co-Hosting.
-     * POST /api/live/kick-guest or POST /api/live/kick
-     */
     public function kickGuest(Request $request): JsonResponse
     {
         $host = $this->resolveUser($request);
-        $streamId = $request->input('live_stream_id') ?? $request->input('id');
-        $guestUserId = $request->input('guest_user_id') ?? $request->input('user_id');
+        $streamId = $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $guestUserId = $request->input('guest_user_id') ?? $request->input('target_user_id') ?? $request->input('user_id');
 
         $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
         if (!$stream) {
@@ -743,21 +915,24 @@ class LiveStreamApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthorized.'], 403);
         }
 
-        // Downgrade participant to left / viewer
         LiveParticipant::where('live_stream_id', $stream->id)
             ->where('user_id', $guestUserId)
             ->where('role', 'guest')
             ->update(['left_at' => now()]);
 
         $kickPayload = [
+            'room_id'        => (string) $stream->id,
             'live_stream_id' => $stream->id,
             'guest_user_id'  => (int) $guestUserId,
             'reason'         => 'host_removed',
         ];
 
-        // Broadcast kick event
         try {
+            $user = User::find($guestUserId);
             event(new LiveGuestKicked($stream->id, $guestUserId, $kickPayload));
+            if ($user) {
+                broadcast(new CoHostStatusEvent($stream->id, 'removed', $user))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -765,156 +940,6 @@ class LiveStreamApiController extends Controller
             'success' => true,
             'message' => 'Guest kicked from live co-hosting.',
             'data'    => $kickPayload,
-        ], 200);
-    }
-
-    /**
-     * 11. Host Invite Viewer to Co-Host (Max 4-5 persons check).
-     * POST /api/v1/stream/invite-cohost or POST /api/live/invite-cohost
-     */
-    public function inviteCoHost(Request $request): JsonResponse
-    {
-        $host = $this->resolveUser($request);
-        $streamId = $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
-        $targetUserId = $request->input('user_id') ?? $request->input('target_user_id');
-
-        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
-        if (!$stream || $stream->status !== 'live') {
-            return response()->json(['status' => false, 'message' => 'Active live stream not found.'], 404);
-        }
-
-        $activeCoHosts = LiveParticipant::where('live_stream_id', $stream->id)
-            ->where('role', 'guest')
-            ->whereNull('left_at')
-            ->count();
-
-        if ($activeCoHosts >= 5) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Maximum multi-host limit reached (Max 5 persons in split grid).',
-                'active_count' => $activeCoHosts,
-                'max_limit' => 5,
-            ], 400);
-        }
-
-        $targetUser = User::find($targetUserId);
-        if (!$targetUser) {
-            return response()->json(['status' => false, 'message' => 'Target user not found.'], 404);
-        }
-
-        $invitePayload = [
-            'action'         => 'invited',
-            'stream_id'      => (string) $stream->id,
-            'user_id'        => (int) $targetUser->id,
-            'user_name'      => $targetUser->display_name ?? $targetUser->name,
-            'user_avatar'    => $targetUser->avatar_url,
-            'co_hosts_count' => $activeCoHosts + 1,
-            'max_limit'      => 5,
-            'timestamp'      => now()->toIso8601String(),
-        ];
-
-        try {
-            event(new \App\Events\CoHostStatusEvent((string) $stream->id, $invitePayload));
-        } catch (\Throwable $e) {}
-
-        return response()->json([
-            'status'  => true,
-            'success' => true,
-            'message' => 'Co-host invitation sent successfully.',
-            'data'    => $invitePayload,
-        ], 200);
-    }
-
-    /**
-     * 12. Viewer Accept Co-Host Invitation.
-     * POST /api/v1/stream/accept-cohost or POST /api/live/accept-cohost
-     */
-    public function acceptCoHost(Request $request): JsonResponse
-    {
-        $user = $this->resolveUser($request);
-        if (!$user) {
-            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
-        }
-
-        $streamId = $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
-        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
-        if (!$stream || $stream->status !== 'live') {
-            return response()->json(['status' => false, 'message' => 'Active live stream not found.'], 404);
-        }
-
-        $activeCoHosts = LiveParticipant::where('live_stream_id', $stream->id)
-            ->where('role', 'guest')
-            ->whereNull('left_at')
-            ->count();
-
-        if ($activeCoHosts >= 5) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Cannot accept: Maximum multi-host limit reached (Max 5 persons).',
-                'active_count' => $activeCoHosts,
-                'max_limit' => 5,
-            ], 400);
-        }
-
-        LiveParticipant::updateOrCreate(
-            ['live_stream_id' => $stream->id, 'user_id' => $user->id],
-            ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
-        );
-
-        $acceptPayload = [
-            'action'         => 'accepted',
-            'stream_id'      => (string) $stream->id,
-            'user_id'        => (int) $user->id,
-            'user_name'      => $user->display_name ?? $user->name,
-            'user_avatar'    => $user->avatar_url,
-            'co_hosts_count' => $activeCoHosts + 1,
-            'max_limit'      => 5,
-            'timestamp'      => now()->toIso8601String(),
-        ];
-
-        try {
-            event(new \App\Events\CoHostStatusEvent((string) $stream->id, $acceptPayload));
-        } catch (\Throwable $e) {}
-
-        return response()->json([
-            'status'  => true,
-            'success' => true,
-            'message' => 'Co-host accepted. Device camera/mic activated in multi-video grid.',
-            'data'    => $acceptPayload,
-        ], 200);
-    }
-
-    /**
-     * 13. Send WebRTC Stream Signaling for Multi-Host P2P Mesh.
-     * POST /api/v1/stream/signal or POST /api/live/signal
-     */
-    public function sendStreamSignal(Request $request): JsonResponse
-    {
-        $sender = $this->resolveUser($request);
-        $streamId = $request->input('stream_id') ?? $request->input('live_stream_id') ?? $request->input('id');
-        $targetUserId = $request->input('target_user_id') ?? $request->input('to_user_id');
-        $type = $request->input('type', 'offer'); // 'offer', 'answer', 'candidate'
-        $payload = $request->input('sdp_or_candidate') ?? $request->input('payload');
-
-        $signalData = [
-            'stream_id'        => (string) $streamId,
-            'sender_id'        => $sender ? $sender->id : (int) $request->input('sender_id'),
-            'target_user_id'   => (int) $targetUserId,
-            'type'             => $type,
-            'sdp_or_candidate' => $payload,
-            'payload'          => $payload,
-            'timestamp'        => now()->toIso8601String(),
-        ];
-
-        try {
-            event(new \App\Events\StreamSignalingEvent((string) $streamId, $signalData));
-        } catch (\Throwable $e) {}
-
-        return response()->json([
-            'status'  => true,
-            'success' => true,
-            'message' => "Stream signal '{$type}' broadcast successfully.",
-            'data'    => $signalData,
         ], 200);
     }
 }
