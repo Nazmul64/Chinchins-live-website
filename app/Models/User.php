@@ -58,6 +58,8 @@ class User extends Authenticatable
         'tags',
         'video_call_rate',
         'coins',
+        'wallet_balance',
+        'received_coins',
         'free_calls_used',
         'free_messages_used',
         'free_messages_limit',

@@ -371,14 +371,19 @@ Route::prefix('call')->group(function () {
     // In-Call Recharge Modal & Quick Chat Messages
     Route::match(['get', 'post'], '/recharge-sheet', [CallController::class, 'getRechargeSheet']);
     Route::match(['get', 'post'], '/deposit-sheet', [CallController::class, 'getRechargeSheet']);
-    Route::match(['get', 'post'], '/quick-messages', [CallController::class, 'getQuickMessages']);
+    Route::get('/quick-messages', [\App\Http\Controllers\Api\InCallApiController::class, 'getQuickMessages']);
     Route::post('/send-quick-message', [CallController::class, 'sendQuickMessage']);
     Route::post('/quick-message', [CallController::class, 'sendQuickMessage']);
 
+    // In-Call Message & Gift APIs (Laravel Reverb Real-Time Broadcasts)
+    Route::post('/message/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
+    Route::post('/gift/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
+    Route::post('/gift', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
+
     // Live In-Call Text Chat, Live Image Upload (uploads/live_chat & uploads/live_streaming) & Real-Time Sync
-    Route::post('/chat/send', [CallController::class, 'sendCallMessage']);
-    Route::post('/send-message', [CallController::class, 'sendCallMessage']);
-    Route::post('/message', [CallController::class, 'sendCallMessage']);
+    Route::post('/chat/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
+    Route::post('/send-message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
+    Route::post('/message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::get('/{callId}/messages', [CallController::class, 'getCallMessages']);
     Route::get('/chat/messages', [CallController::class, 'getCallMessages']);
     Route::post('/chat/upload-image', [CallController::class, 'uploadLiveImage']);
@@ -413,15 +418,21 @@ Route::get('/live/active-streams', [\App\Http\Controllers\Api\LiveStreamApiContr
 Route::get('/live/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 
 Route::prefix('v1/call')->group(function () {
+    Route::post('/message/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
+    Route::post('/gift/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
+    Route::get('/quick-messages', [\App\Http\Controllers\Api\InCallApiController::class, 'getQuickMessages']);
     Route::post('/initiate', [CallController::class, 'initiate']);
     Route::post('/signal', [CallController::class, 'sendSignal']);
-    Route::post('/send-message', [CallController::class, 'sendCallMessage']);
-    Route::post('/message', [CallController::class, 'sendCallMessage']);
+    Route::post('/send-message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
+    Route::post('/message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::get('/messages', [CallController::class, 'getCallMessages']);
     Route::post('/end', [CallController::class, 'end']);
     Route::get('/config', [CallController::class, 'getConfig']);
     Route::get('/ice-servers', [CallController::class, 'getIceServers']);
 });
+
+Route::get('/v1/user/received-gifts', [\App\Http\Controllers\Api\InCallApiController::class, 'getReceivedGifts']);
+Route::get('/user/received-gifts', [\App\Http\Controllers\Api\InCallApiController::class, 'getReceivedGifts']);
 
 Route::prefix('v1/stream')->group(function () {
     Route::get('/active-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);

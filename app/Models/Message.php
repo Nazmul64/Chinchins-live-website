@@ -15,8 +15,10 @@ class Message extends Model
         'client_uuid',
         'conversation_id',
         'call_id',
+        'call_session_id',
         'sent_during_call',
         'sender_id',
+        'receiver_id',
         'message',
         'type',
         'media_url',
@@ -26,6 +28,7 @@ class Message extends Model
     protected $casts = [
         'conversation_id'  => 'integer',
         'sender_id'        => 'integer',
+        'receiver_id'      => 'integer',
         'sent_during_call' => 'boolean',
         'is_read'          => 'boolean',
         'created_at'       => 'datetime',
@@ -40,5 +43,10 @@ class Message extends Model
     public function sender()
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    public function receiver()
+    {
+        return $this->belongsTo(User::class, 'receiver_id');
     }
 }

@@ -11,23 +11,50 @@ class UserGift extends Model
 
     protected $fillable = [
         'user_id',
+        'receiver_id',
         'sender_id',
         'gift_id',
         'quantity',
         'coins_per_unit',
         'total_coins',
+        'coin_amount',
         'call_session_id',
         'context',
     ];
 
     protected $casts = [
         'user_id'        => 'integer',
+        'receiver_id'    => 'integer',
         'sender_id'      => 'integer',
         'gift_id'        => 'integer',
         'quantity'       => 'integer',
         'coins_per_unit' => 'integer',
         'total_coins'    => 'integer',
+        'coin_amount'    => 'integer',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($model) {
+            if (empty($model->user_id) && !empty($model->receiver_id)) {
+                $model->user_id = $model->receiver_id;
+            }
+            if (empty($model->receiver_id) && !empty($model->user_id)) {
+                $model->receiver_id = $model->user_id;
+            }
+            if (empty($model->total_coins) && !empty($model->coin_amount)) {
+                $model->total_coins = $model->coin_amount;
+            }
+            if (empty($model->coin_amount) && !empty($model->total_coins)) {
+                $model->coin_amount = (int) $model->total_coins;
+            }
+            if (empty($model->quantity)) {
+                $model->quantity = 1;
+            }
+        });
+    }
 
     protected $appends = [
         'formatted_coins_per_unit',

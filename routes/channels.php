@@ -49,12 +49,16 @@ Broadcast::channel('user-chat.{userId}', function ($user, $userId) {
     return true;
 });
 
+Broadcast::channel('chat.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
+
 // 5. Call session channel authorization
-Broadcast::channel('call.{roomId}', function ($user, $roomId) {
+Broadcast::channel('call.{sessionId}', function ($user, $sessionId) {
     return true;
 });
 
-Broadcast::channel('call_chat.{roomId}', function ($user, $roomId) {
+Broadcast::channel('call_chat.{sessionId}', function ($user, $sessionId) {
     return true;
 });
 
