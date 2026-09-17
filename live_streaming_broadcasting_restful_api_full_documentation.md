@@ -747,5 +747,5 @@ Echo.instance
 | **POST** | `/api/live/leave` | দর্শক রুম ত্যাগ করা ও কাউন্ট কমানো | `room_id` |
 | **GET** | `/api/live/active` | রানিং সব লাইভ ব্রডকাস্টের তালিকা | `page`, `per_page` |
 
-
+  
 
