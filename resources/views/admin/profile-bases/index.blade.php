@@ -223,6 +223,11 @@
                                             
                                             <!-- Preset Dropdown with Instant Live Preview -->
                                             <select name="levels[{{ $base->id }}][preset_frame]" class="form-select form-select-sm" style="font-size: 10px; width: 145px; border-radius: 6px; padding: 2px 6px;" onchange="previewPresetChange(this, 'rowPreview_{{ $base->id }}', {{ $base->level }})">
+                                                @if(!array_key_exists($base->base_frame_image, $availablePresetFrames))
+                                                    <option value="{{ $base->base_frame_image }}" selected>
+                                                        ★ Current Custom Frame
+                                                    </option>
+                                                @endif
                                                 @foreach($availablePresetFrames as $path => $label)
                                                     <option value="{{ $path }}" {{ $base->base_frame_image == $path ? 'selected' : '' }}>
                                                         {{ $label }}
@@ -417,109 +422,188 @@
 </div>
 
 <!-- ========================================== -->
+<!-- ========================================== -->
 <!-- ✏️ Edit Level Base & Upload Frame Modal -->
 <!-- ========================================== -->
 <div class="modal fade" id="editBaseModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg rounded-4">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="modal-header border-0 pb-0 pt-4 px-4">
                 <div class="d-flex align-items-center gap-2">
-                    <div class="d-flex align-items-center justify-content-center rounded-3" style="width: 40px; height: 40px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-size: 18px;">
+                    <div class="d-flex align-items-center justify-content-center rounded-3" style="width: 42px; height: 42px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-size: 18px;">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </div>
                     <div>
-                        <h5 class="modal-title fw-bold mb-0" id="editModalTitle">Edit Level Base</h5>
-                        <p class="text-muted mb-0" style="font-size: 12px;">Upload custom avatar frame image to <code class="text-primary">public/uploads/bases/</code>.</p>
+                        <h5 class="modal-title fw-bold mb-0" id="editModalTitle">Edit Level Base & Frame</h5>
+                        <p class="text-muted mb-0" style="font-size: 12px;">Real-time live preview of frame, badge, and level configuration.</p>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+
             <form id="editBaseForm" action="" method="POST" enctype="multipart/form-data">
                 @csrf
-                @method('PUT')
                 <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Level Number</label>
-                            <input type="text" id="editLevelNum" class="form-control bg-light" readonly style="border-radius: 8px; font-weight: 700;">
-                        </div>
-                        <div class="col-12 col-md-8">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Level Title / Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" id="editName" class="form-control" required style="border-radius: 8px;">
-                        </div>
+                    <div class="row g-4">
+                        <!-- Left Column: Live Interactive Avatar & Frame Preview -->
+                        <div class="col-12 col-lg-5">
+                            <div class="card border-0 rounded-4 p-4 text-center h-100 position-relative shadow-sm" style="background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); min-height: 380px;">
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <span class="badge rounded-pill px-3 py-1 text-white" style="background: rgba(255,255,255,0.12); font-size: 11px; letter-spacing: 0.5px;">
+                                        <i class="fa-solid fa-circle text-success me-1 fa-beat-fade" style="font-size: 8px;"></i> LIVE PREVIEW
+                                    </span>
+                                    <small class="text-white-50" style="font-size: 11px;">Updates in real-time</small>
+                                </div>
 
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Required Earning Coins <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light" style="color: #f59e0b;"><i class="fa-solid fa-coins"></i></span>
-                                <input type="number" name="required_coins" id="editRequiredCoins" class="form-control" min="0" required style="border-radius: 0 8px 8px 0;">
+                                <!-- Live Avatar & Frame Container -->
+                                <div class="my-auto py-3">
+                                    <div class="position-relative d-inline-block mx-auto" style="width: 150px; height: 150px;">
+                                        <!-- Avatar Profile Photo -->
+                                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80" 
+                                             alt="Avatar" 
+                                             id="modalPreviewAvatarImg"
+                                             class="rounded-circle shadow" 
+                                             style="width: 104px; height: 104px; object-fit: cover; position: absolute; top: 23px; left: 23px; z-index: 1;">
+                                        
+                                        <!-- Overlaid Custom / Selected Base Frame -->
+                                        <img src="" 
+                                             alt="Base Frame" 
+                                             id="modalPreviewFrameImg" 
+                                             class="position-absolute" 
+                                             style="width: 150px; height: 150px; top: 0; left: 0; pointer-events: none; z-index: 2; object-fit: contain; transition: all 0.25s ease;">
+                                        
+                                        <!-- Level Badge Tag at Bottom -->
+                                        <span class="position-absolute badge rounded-pill shadow" 
+                                              id="modalPreviewBadge" 
+                                              style="bottom: 2px; left: 50%; transform: translateX(-50%); z-index: 3; font-size: 11px; padding: 4px 12px; background: #f59e0b; color: #ffffff; border: 2px solid #ffffff; white-space: nowrap;">
+                                            <i class="fa-solid fa-star me-1" id="modalPreviewBadgeIcon"></i> <span id="modalPreviewBadgeText">Lv.1</span>
+                                        </span>
+                                    </div>
+
+                                    <!-- Level Title & Required Coins -->
+                                    <h5 class="fw-bold text-white mt-3 mb-1" id="modalPreviewTitle">Level 1</h5>
+                                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                                        <span class="badge bg-warning text-dark fw-bold rounded-pill" id="modalPreviewCoins" style="font-size: 11px;">
+                                            <i class="fa-solid fa-coins me-1"></i> 1,000 Coins Required
+                                        </span>
+                                    </div>
+                                    <p class="text-white-50 mb-3 px-2" style="font-size: 12px;" id="modalPreviewPrivilege">
+                                        Standard Avatar Base Frame
+                                    </p>
+
+                                    <!-- Avatar Switcher to Test Frame On Different Models -->
+                                    <div class="d-flex align-items-center justify-content-center gap-2 pt-2 border-top border-secondary border-opacity-25">
+                                        <small class="text-white-50" style="font-size: 10px;">Test Avatar:</small>
+                                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&auto=format&fit=crop&q=80" class="rounded-circle border border-2 border-white" style="width: 26px; height: 26px; object-fit: cover; cursor: pointer;" onclick="changeModalPreviewAvatar(this.src)" title="Model 1">
+                                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&auto=format&fit=crop&q=80" class="rounded-circle border border-2 border-white" style="width: 26px; height: 26px; object-fit: cover; cursor: pointer;" onclick="changeModalPreviewAvatar(this.src)" title="Model 2">
+                                        <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=60&auto=format&fit=crop&q=80" class="rounded-circle border border-2 border-white" style="width: 26px; height: 26px; object-fit: cover; cursor: pointer;" onclick="changeModalPreviewAvatar(this.src)" title="Model 3">
+                                        <img src="{{ asset('assets/images/users/avatar-1.jpg') }}" class="rounded-circle border border-2 border-white" style="width: 26px; height: 26px; object-fit: cover; cursor: pointer;" onclick="changeModalPreviewAvatar(this.src)" title="Default Avatar">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Choose Preset Frame</label>
-                            <select name="preset_frame" id="editPresetFrame" class="form-select" style="border-radius: 8px;" onchange="previewEditModalPreset(this)">
-                                <option value="">-- Keep Current / Uploaded --</option>
-                                @foreach($availablePresetFrames as $path => $label)
-                                    <option value="{{ $path }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Replace / Upload Custom Frame (SVG / PNG / WebP)</label>
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 65px; height: 65px; background: #0f172a; border: 1px solid #334155; flex-shrink: 0;">
-                                    <img src="" alt="Current Frame" id="editCurrentFrameImg" style="width: 55px; height: 55px; object-fit: contain;">
+                        <!-- Right Column: Edit Controls & File Upload -->
+                        <div class="col-12 col-lg-7">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Level Number</label>
+                                    <input type="text" id="editLevelNum" class="form-control bg-light" readonly style="border-radius: 8px; font-weight: 700;">
                                 </div>
-                                <div class="flex-grow-1">
-                                    <input type="file" name="frame_image" id="editFrameFileInput" class="form-control" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" style="border-radius: 8px;" onchange="previewEditModalFile(this)">
-                                    <small class="text-muted" style="font-size: 11px;">Uploads directly to <code>public/uploads/bases/</code>.</small>
+                                <div class="col-12 col-md-8">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Level Title / Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="name" id="editName" class="form-control" required style="border-radius: 8px;" oninput="updateModalPreviewName(this.value)">
                                 </div>
-                            </div>
-                        </div>
 
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Badge Icon</label>
-                            <select name="badge_icon" id="editBadgeIcon" class="form-select" style="border-radius: 8px;">
-                                <option value="star">⭐ Star</option>
-                                <option value="crown">👑 Crown</option>
-                                <option value="gem">💎 Gem</option>
-                                <option value="fire">🔥 Fire</option>
-                                <option value="bolt">⚡ Bolt</option>
-                                <option value="shield">🛡️ Shield</option>
-                                <option value="user">👤 User</option>
-                            </select>
-                        </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Required Earning Coins <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light" style="color: #f59e0b;"><i class="fa-solid fa-coins"></i></span>
+                                        <input type="number" name="required_coins" id="editRequiredCoins" class="form-control" min="0" required style="border-radius: 0 8px 8px 0;" oninput="updateModalPreviewCoins(this.value)">
+                                    </div>
+                                </div>
 
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Badge Color (Hex)</label>
-                            <input type="color" name="badge_color" id="editBadgeColor" class="form-control form-control-color w-100" style="height: 38px; padding: 2px; border-radius: 8px;">
-                        </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Choose Preset Base Frame</label>
+                                    <select name="preset_frame" id="editPresetFrame" class="form-select" style="border-radius: 8px;" onchange="previewEditModalPreset(this)">
+                                        <option value="">-- Keep Current / Uploaded --</option>
+                                        @foreach($availablePresetFrames as $path => $label)
+                                            <option value="{{ $path }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted" style="font-size: 11px;">Select to instantly preview on avatar.</small>
+                                </div>
 
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Glow Color</label>
-                            <input type="text" name="glow_color" id="editGlowColor" class="form-control" style="border-radius: 8px;">
-                        </div>
+                                <!-- File Upload with instant live preview -->
+                                <div class="col-12">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">OR Replace / Upload Custom Frame (PNG / SVG / WebP)</label>
+                                    <div class="d-flex align-items-center gap-3 p-3 rounded-3" style="background: #f8fafc; border: 1px dashed #cbd5e1;">
+                                        <div class="rounded-3 p-1 d-flex align-items-center justify-content-center shadow-sm" style="width: 60px; height: 60px; background: #0f172a; border: 1px solid #334155; flex-shrink: 0;">
+                                            <img src="" alt="Thumbnail" id="editCurrentFrameImg" style="width: 52px; height: 52px; object-fit: contain;">
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <input type="file" name="frame_image" id="editFrameFileInput" class="form-control" accept=".png,.svg,.webp,.jpg,.jpeg,.gif" style="border-radius: 8px;" onchange="previewEditModalFile(this)">
+                                            <small class="text-muted d-block mt-1" style="font-size: 11px;">
+                                                <i class="fa-solid fa-cloud-arrow-up text-primary me-1"></i> Uploads directly to <code class="text-primary">public/uploads/bases/</code> with instant preview on avatar.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <div class="col-12">
-                            <label class="form-label fw-bold" style="font-size: 13px;">Privilege Description</label>
-                            <input type="text" name="privilege_text" id="editPrivilegeText" class="form-control" style="border-radius: 8px;">
-                        </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Badge Icon</label>
+                                    <select name="badge_icon" id="editBadgeIcon" class="form-select" style="border-radius: 8px;" onchange="updateModalPreviewIcon(this.value)">
+                                        <option value="star">⭐ Star</option>
+                                        <option value="crown">👑 Crown</option>
+                                        <option value="gem">💎 Gem</option>
+                                        <option value="fire">🔥 Fire</option>
+                                        <option value="bolt">⚡ Bolt</option>
+                                        <option value="shield">🛡️ Shield</option>
+                                        <option value="trophy">🏆 Trophy</option>
+                                        <option value="dollar-sign">💲 Dollar</option>
+                                        <option value="user">👤 User</option>
+                                    </select>
+                                </div>
 
-                        <div class="col-12">
-                            <div class="form-check form-switch mt-2">
-                                <input class="form-check-input" type="checkbox" name="is_active" value="1" id="editIsActive" style="cursor: pointer;">
-                                <label class="form-check-label fw-bold" for="editIsActive" style="font-size: 13px;">Active in App</label>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Badge Color (Hex)</label>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input type="color" name="badge_color" id="editBadgeColor" class="form-control form-control-color" style="width: 44px; height: 38px; padding: 2px; border-radius: 8px;" oninput="updateModalPreviewColor(this.value)">
+                                        <input type="text" id="editBadgeColorText" class="form-control" style="border-radius: 8px; font-family: monospace; font-size: 12px;" oninput="document.getElementById('editBadgeColor').value=this.value; updateModalPreviewColor(this.value);">
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Glow Color / Aura</label>
+                                    <input type="text" name="glow_color" id="editGlowColor" class="form-control" placeholder="rgba(245, 158, 11, 0.45)" style="border-radius: 8px;" oninput="updateModalPreviewGlow(this.value)">
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label fw-bold" style="font-size: 13px;">Privilege / Unlock Perks Description</label>
+                                    <input type="text" name="privilege_text" id="editPrivilegeText" class="form-control" placeholder="e.g. Unlocks Royal Crown Frame & VIP Entrance" style="border-radius: 8px;" oninput="updateModalPreviewPrivilege(this.value)">
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="form-check form-switch mt-1">
+                                        <input class="form-check-input" type="checkbox" name="is_active" value="1" id="editIsActive" style="cursor: pointer;">
+                                        <label class="form-check-label fw-bold" for="editIsActive" style="font-size: 13px;">Active in App (Unlocked for eligible users)</label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0 pb-4 px-4">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 600;">Cancel</button>
-                    <button type="submit" class="btn-ch-primary">
-                        <i class="fa-solid fa-floppy-disk me-1"></i> Update Level Base
-                    </button>
+
+                <div class="modal-footer border-0 pt-0 pb-4 px-4 bg-light d-flex justify-content-between align-items-center">
+                    <span class="text-muted" style="font-size: 12px;">
+                        <i class="fa-solid fa-circle-info text-primary me-1"></i> Saving will update the level base and apply the frame in the app.
+                    </span>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 600;">Cancel</button>
+                        <button type="submit" class="btn-ch-primary px-4">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Update Level Base
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -695,13 +779,66 @@
         new bootstrap.Modal(document.getElementById('createBaseModal')).show();
     }
 
+    // Switch avatar model in modal preview
+    function changeModalPreviewAvatar(src) {
+        const img = document.getElementById('modalPreviewAvatarImg');
+        if (img) img.src = src;
+    }
+
+    // Real-time text & badge listeners for modal preview
+    function updateModalPreviewName(val) {
+        const el = document.getElementById('modalPreviewTitle');
+        if (el) el.textContent = val || 'Level Base';
+    }
+
+    function updateModalPreviewCoins(val) {
+        const el = document.getElementById('modalPreviewCoins');
+        const count = parseInt(val || 0);
+        if (el) el.innerHTML = `<i class="fa-solid fa-coins me-1"></i> ${count.toLocaleString()} Coins Required`;
+    }
+
+    function updateModalPreviewColor(hex) {
+        const badge = document.getElementById('modalPreviewBadge');
+        if (badge) badge.style.backgroundColor = hex;
+        const colorInput = document.getElementById('editBadgeColor');
+        const colorText = document.getElementById('editBadgeColorText');
+        if (colorInput && colorInput.value !== hex) colorInput.value = hex;
+        if (colorText && colorText.value !== hex) colorText.value = hex;
+    }
+
+    function updateModalPreviewIcon(icon) {
+        const iconEl = document.getElementById('modalPreviewBadgeIcon');
+        if (iconEl) iconEl.className = `fa-solid fa-${icon} me-1`;
+    }
+
+    function updateModalPreviewGlow(glow) {
+        const frameImg = document.getElementById('modalPreviewFrameImg');
+        if (frameImg && glow) {
+            frameImg.style.filter = `drop-shadow(0 0 10px ${glow})`;
+        }
+    }
+
+    function updateModalPreviewPrivilege(text) {
+        const el = document.getElementById('modalPreviewPrivilege');
+        if (el) el.textContent = text || 'Standard Avatar Base Frame';
+    }
+
     // Live preview when a new file is chosen in the Edit modal
     function previewEditModalFile(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                const img = document.getElementById('editCurrentFrameImg');
-                if (img) img.src = e.target.result;
+                const dataUrl = e.target.result;
+                // Update small thumbnail in form
+                const thumb = document.getElementById('editCurrentFrameImg');
+                if (thumb) thumb.src = dataUrl;
+                // Update large avatar overlaid frame in modal live preview card
+                const previewFrame = document.getElementById('modalPreviewFrameImg');
+                if (previewFrame) previewFrame.src = dataUrl;
+
+                // Reset preset frame dropdown so uploaded file has clean precedence
+                const presetSelect = document.getElementById('editPresetFrame');
+                if (presetSelect) presetSelect.value = '';
             };
             reader.readAsDataURL(input.files[0]);
         }
@@ -712,8 +849,16 @@
         const val = select.value;
         if (val) {
             const url = val.startsWith('http') ? val : ('/' + val.replace(/^\/+/, ''));
-            const img = document.getElementById('editCurrentFrameImg');
-            if (img) img.src = url;
+            // Update small thumbnail
+            const thumb = document.getElementById('editCurrentFrameImg');
+            if (thumb) thumb.src = url;
+            // Update large avatar overlaid frame
+            const previewFrame = document.getElementById('modalPreviewFrameImg');
+            if (previewFrame) previewFrame.src = url;
+
+            // Clear file input so chosen preset takes effect
+            const fileInput = document.getElementById('editFrameFileInput');
+            if (fileInput) fileInput.value = '';
         }
     }
 
@@ -721,19 +866,37 @@
         const form = document.getElementById('editBaseForm');
         form.action = `/admin/profile-bases/${base.id}`;
 
-        document.getElementById('editModalTitle').textContent = `Edit Level ${base.level} Base Frame`;
+        document.getElementById('editModalTitle').textContent = `Edit Level ${base.level} Base & Frame`;
         document.getElementById('editLevelNum').value = `Level ${base.level}`;
         document.getElementById('editName').value = base.name || '';
         document.getElementById('editRequiredCoins').value = base.required_coins || 0;
         document.getElementById('editBadgeIcon').value = base.badge_icon || 'star';
         document.getElementById('editBadgeColor').value = base.badge_color || '#f59e0b';
+        document.getElementById('editBadgeColorText').value = base.badge_color || '#f59e0b';
         document.getElementById('editGlowColor').value = base.glow_color || 'rgba(245, 158, 11, 0.45)';
         document.getElementById('editPrivilegeText').value = base.privilege_text || '';
         document.getElementById('editIsActive').checked = !!base.is_active;
 
-        // Show current frame in modal box
+        // Resolve frame URL
         const currentUrl = base.base_frame_image_url || (base.base_frame_image ? ('/' + base.base_frame_image.replace(/^\/+/, '')) : '');
-        document.getElementById('editCurrentFrameImg').src = currentUrl;
+        
+        // Update both thumbnail and modal live avatar preview
+        const thumb = document.getElementById('editCurrentFrameImg');
+        if (thumb) thumb.src = currentUrl;
+
+        const previewFrame = document.getElementById('modalPreviewFrameImg');
+        if (previewFrame) {
+            previewFrame.src = currentUrl;
+            previewFrame.style.filter = `drop-shadow(0 0 10px ${base.glow_color || 'rgba(245, 158, 11, 0.45)'})`;
+        }
+
+        // Update modal preview texts & badges
+        updateModalPreviewName(base.name || `Level ${base.level}`);
+        updateModalPreviewCoins(base.required_coins || 0);
+        updateModalPreviewColor(base.badge_color || '#f59e0b');
+        updateModalPreviewIcon(base.badge_icon || 'star');
+        updateModalPreviewPrivilege(base.privilege_text || 'Standard Avatar Base Frame');
+        document.getElementById('modalPreviewBadgeText').textContent = `Lv.${base.level}`;
 
         // Pre-select preset dropdown if matches
         const presetSelect = document.getElementById('editPresetFrame');

@@ -225,7 +225,7 @@ class ProfileBaseAdminController extends Controller
         $request->validate([
             'name'             => 'required|string|max:190',
             'required_coins'   => 'required|integer|min:0',
-            'frame_image'      => 'nullable|file|mimes:svg,png,webp,jpg,jpeg,gif|max:51200',
+            'frame_image'      => 'nullable|file|max:51200',
             'preset_frame'     => 'nullable|string',
             'badge_icon'       => 'nullable|string|max:50',
             'badge_color'      => 'nullable|string|max:50',
@@ -242,15 +242,15 @@ class ProfileBaseAdminController extends Controller
         $base->privilege_text = $request->privilege_text;
         $base->is_active = $request->has('is_active') ? (bool) $request->is_active : false;
 
-        // Update preset frame if chosen
-        if (!empty($request->preset_frame)) {
-            $base->base_frame_image = $request->preset_frame;
-        }
-
-        // Handle uploaded file to uploads/bases
+        // 1. If custom file is uploaded, file upload ALWAYS takes top priority!
         if ($request->hasFile('frame_image')) {
             $file = $request->file('frame_image');
-            $filename = 'base_level_' . $base->level . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'png');
+            $allowed = ['png', 'svg', 'webp', 'jpg', 'jpeg', 'gif'];
+            if (!in_array($ext, $allowed)) {
+                $ext = 'png';
+            }
+            $filename = 'base_level_' . $base->level . '_' . time() . '.' . $ext;
             $destinationPath = public_path($this->uploadFolder);
             
             if (!File::isDirectory($destinationPath)) {
@@ -258,10 +258,16 @@ class ProfileBaseAdminController extends Controller
             }
 
             $file->move($destinationPath, $filename);
+            @chmod($destinationPath . DIRECTORY_SEPARATOR . $filename, 0666);
             $base->base_frame_image = $this->uploadFolder . '/' . $filename;
+        } 
+        // 2. Otherwise, if a preset frame was selected
+        elseif ($request->filled('preset_frame')) {
+            $base->base_frame_image = $request->preset_frame;
         }
 
         $base->save();
+        ProfileBase::clearBasesCache();
 
         return redirect()->route('admin.profile-bases.index')
             ->with('success', "Level {$base->level} ({$base->name}) updated successfully!");
