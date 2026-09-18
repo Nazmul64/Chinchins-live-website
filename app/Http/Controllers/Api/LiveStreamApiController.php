@@ -101,10 +101,10 @@ class LiveStreamApiController extends Controller
         $perPage = min((int) $request->input('per_page', 30), 100);
 
         $query = LiveStream::with([
-                'host:id,account_id,name,display_name,avatar,gender,country,city,level,bio',
-                'guests.user:id,account_id,name,display_name,avatar'
+                'host',
+                'guests.user'
             ])
-            ->where('status', 'live');
+            ->whereIn('status', ['live', 'active']);
 
         // Optional search filter
         if ($request->filled('search')) {
@@ -114,7 +114,7 @@ class LiveStreamApiController extends Controller
                   ->orWhere('channel_name', 'LIKE', "%{$s}%")
                   ->orWhereHas('host', function ($hq) use ($s) {
                       $hq->where('name', 'LIKE', "%{$s}%")
-                         ->orWhere('display_name', 'LIKE', "%{$s}%")
+                         ->orWhere('nickname', 'LIKE', "%{$s}%")
                          ->orWhere('account_id', 'LIKE', "%{$s}%");
                   });
             });

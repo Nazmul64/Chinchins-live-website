@@ -424,6 +424,25 @@ Route::get('/live/active-streams', [\App\Http\Controllers\Api\LiveStreamApiContr
 Route::get('/live/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/live/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/live-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live-streams/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/stream/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/stream/active-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/stream/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/stream/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live-stream/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live-stream/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+
+Route::match(['get', 'post'], '/stream/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
+Route::match(['get', 'post'], '/live-stream/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
+Route::match(['get', 'post'], '/live/create', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
+Route::match(['get', 'post'], '/live/broadcast', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
+Route::match(['get', 'post'], '/stream/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
+Route::match(['get', 'post'], '/live-stream/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
+Route::match(['get', 'post'], '/stream/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
+Route::match(['get', 'post'], '/live-stream/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
+Route::match(['get', 'post'], '/stream/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+Route::match(['get', 'post'], '/live-stream/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+
 Route::post('/live/like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
 Route::post('/live/send-like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
 Route::post('/live/react', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
