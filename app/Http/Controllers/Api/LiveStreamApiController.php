@@ -120,10 +120,14 @@ class LiveStreamApiController extends Controller
             });
         }
 
-        $streams = $query->orderByDesc('viewer_count')
-            ->orderByDesc('likes_count')
-            ->orderByDesc('id')
-            ->paginate($perPage, ['*'], 'page', $page);
+        $sort = $request->input('sort', 'latest');
+        if ($sort === 'viewers' || $sort === 'popular') {
+            $query->orderByDesc('viewer_count')->orderByDesc('likes_count')->orderByDesc('id');
+        } else {
+            $query->orderByDesc('started_at')->orderByDesc('id')->orderByDesc('viewer_count');
+        }
+
+        $streams = $query->paginate($perPage, ['*'], 'page', $page);
 
         $formatted = collect($streams->items())->map(function ($s) {
             $host = $s->host;

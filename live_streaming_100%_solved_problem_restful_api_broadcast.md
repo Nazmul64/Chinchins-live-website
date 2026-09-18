@@ -1,7 +1,7 @@
 # 🔴 Live Streaming 100% Solved Problem RESTful API & Broadcasting Engine Documentation
-**System:** Chinchins Live Streaming Broadcast, Multi-Host Video Engine, Real-Time Viewer Tracking, Heart Like Reaction Sync, 1-on-1 WebRTC/Agora Video Calls, Luxury Gift Animations & Wallet Engine  
-**Backend:** Laravel 12.x RESTful Backend + Laravel Reverb WebSocket Server + Agora RTC / WebRTC Coturn  
-**Client:** Flutter (Android & iOS) with `agora_rtc_engine`, `laravel_echo` / `dart_pusher_channels`, `flutter_svg`, `flutter_svga` & Real-Time Presence Engine  
+**System:** Chinchins Live Streaming Broadcast, Multi-Host Video Engine, Real-Time Viewer Tracking, Heart Like Reaction Sync, WebRTC / Agora Dual Protocol Video Calling, Luxury Gift Animations & Wallet Engine  
+**Backend:** Laravel 12.x RESTful Backend + Laravel Reverb WebSocket Server + WebRTC Coturn STUN/TURN + NGINX + Agora RTC  
+**Client:** Flutter (Android & iOS) with `flutter_webrtc`, `agora_rtc_engine`, `laravel_echo` / `dart_pusher_channels`, `flutter_svg`, `flutter_svga` & Real-Time Presence Engine  
 **Version:** 12.0.0 Production Release  
 **Document File:** `live_streaming_100%_solved_problem_restful_api_broadcast.md`  
 
@@ -11,10 +11,10 @@
 1. [১. ১০০% সমাধানকৃত সমস্যা ও টেকনিক্যাল ফিক্স (100% Solved Problems & Fixes)](#১-১০০-সমাধানকৃত-সমস্যা-ও-টেকনিক্যাল-ফিক্স)
    - [১.১ রিয়েল-টাইম লাভ রিয়েক্ট ও ফ্লোটিং হার্ট অ্যানিমেশন (Real-Time Heart Like Reactions & Counters)](#১১-রিয়েল-টাইম-লাভ-রিয়েক্ট-ও-ফ্লোটিং-হার্ট-অ্যানিমেশন)
    - [১.২ লাইভ স্ট্রিমিং ভিউয়ার কাউন্টার ও প্রেজেন্স সিঙ্ক (Real-Time Live Viewer Count & Presence Sync)](#১২-লাইভ-স্ট্রিমিং-ভিউয়ার-কাউন্টার-ও-প্রেজেন্স-সিঙ্ক)
-   - [১.৩ লাইভ ট্যাবে লাইভ স্ট্রিমার না দেখানোর সমস্যার স্থায়ী সমাধান (Active Lives Feed Discovery)](#১৩-লাইভ-ট্যাবে-লাইভ-স্ট্রিমার-না-দেখানোর-সমস্যার-স্থায়ী-সমাধান)
-   - [১.৪ অডিও/ভিডিও ফুল-স্ক্রিন ব্রডকাস্টিং ও অডিয়েন্স প্লেব্যাক (Agora Video & Audio Full-Screen Playback)](#১৪-অডিওভিডিও-ফুল-স্ক্রিন-ব্রডকাস্টিং-ও-অডিয়েন্স-প্লেব্যাক)
-   - [১.৫ ডুয়াল-স্ক্রিন লাক্সারি গিফট ফুল-স্ক্রিন অ্যানিমেশন (Dual-Screen Luxury Gift Animation & Revenue)](#১৫-ডুয়াল-স্ক্রিন-লাক্সারি-গিফট-ফুল-স্ক্রিন-অ্যানিমেশন)
-   - [১.৬ ৪-৫ জন মাল্টি-গেস্ট কো-হোস্টিং ভিডিও গ্রিড (4-5 Co-Hosts Multi-Guest Video Grid)](#১৬-৪-৫-জন-মাল্টি-গেস্ট-কো-হোস্টিং-ভিডিও-গ্রিড)
+   - [১.৩ লাইভ ট্যাবে লাইভ স্ট্রিমার না দেখানোর সমস্যার স্থায়ী সমাধান ও লেটেস্ট সর্টিং (Active Lives Feed Discovery & Latest-First Ordering)](#১৩-লাইভ-ট্যাবে-লাইভ-স্ট্রিমার-না-দেখানোর-সমস্যার-স্থায়ী-সমাধান-ও-লেটেস্ট-সর্টিং)
+   - [১.৪ অডিও/ভিডিও ফুল-স্ক্রিন ব্রডকাস্টিং ও অডিয়েন্স সাউন্ড প্লেব্যাক (WebRTC & Agora Audio/Video Full-Screen Playback)](#১৪-অডিওভিডিও-ফুল-স্ক্রিন-ব্রডকাস্টিং-ও-অডিয়েন্স-সাউন্ড-প্লেব্যাক)
+   - [১.৫ ডুয়াল-স্ক্রিন লাক্সারি গিফট ফুল-স্ক্রিন অ্যানিমেশন ও "Me" প্রোফাইল স্টোরেজ (Dual-Screen Luxury Gift Animation & Profile Storage)](#১৫-ডুয়াল-স্ক্রিন-লাক্সারি-গিফট-ফুল-স্ক্রিন-অ্যানিমেশন-ও-me-প্রোফাইল-স্টোরেজ)
+   - [১.৬ ৪-৫ জন মাল্টি-গেস্ট কো-হোস্টিং ও অডিও মিউট/আনমিউট কন্ট্রোল (4-5 Co-Hosts & Mic Mute/Unmute Control)](#১৬-৪-৫-জন-মাল্টি-গেস্ট-কো-হোস্টিং-ও-অডিও-মিউটআনমিউট-কন্ট্রোল)
    - [১.৭ ১টি মেসেজ বার বার আসার ডুপ্লিকেশন সমাধান (Message Deduplication Algorithm)](#১৭-১টি-মেসেজ-বার-বার-আসার-ডুপ্লিকেশন-সমাধান)
 2. [২. সিস্টেম আর্কিটেকচার ও রিয়েল-টাইম চ্যানেল ম্যাপিং](#২-সিস্টেম-আর্কিটেকচার-ও-রিয়েল-টাইম-চ্যানেল-ম্যাপিং)
 3. [৩. ডেটাবেজ স্কিমা ও মাইগ্রেশনস](#৩-ডেটাবেজ-স্কিমা-ও-মাইগ্রেশনস)
@@ -62,11 +62,12 @@
 ---
 
 ### ১.২ লাইভ স্ট্রিমিং ভিউয়ার কাউন্টার ও প্রেজেন্স সিঙ্ক
-* **সমস্যা:** লাইভ রুমে নতুন অডিয়েন্স জয়েন বা লিভ করলে হোস্টের স্ক্রিনের উপরে ভিউয়ার ব্যাজ (যেমন ১৪০ বা ১০৬০) রিয়েল-টাইমে আপডেট হচ্ছিল না।
+* **সমস্যা:** লাইভ রুমে নতুন অডিয়েন্স জয়েন বা লিভ করলে হোস্টের স্ক্রিনের উপরে ভিউয়ার ব্যাজ (যেমন ১৪০ বা ১০৬০) রিয়েল-টাইমে আপডেট হচ্ছিল না এবং ভিউয়ার লিস্ট দেখা যেত না।
 * **স্থায়ী সমাধান:**
   1. `POST /api/live/join` এ দর্শক যুক্ত হওয়ার সাথে সাথে `viewer_count` ডাটাবেজে ইনক্রিমেন্ট হয় এবং `LiveViewerCountUpdated` ইভেন্ট ব্রডকাস্ট হয়।
-  2. একই সাথে লাইভ চ্যাট বক্সে `"Nazmul joined the live stream"` অটোমেটিক সিস্টেম নোটিফিকেশন যুক্ত হয়।
-  3. `POST /api/live/leave` কল হলে `viewer_count` স্বয়ংক্রিয়ভাবে ডিক্রিমেন্ট হয় ও সকল কানেক্টেড ডিভাইসে আপডেট পৌঁছে যায়।
+  2. সক্রিয় দর্শকদের প্রোফাইল ও বিস্তারিত দেখতে `GET /api/live/viewers` এবং `GET /api/live/{id}/viewers` চালু করা হয়েছে।
+  3. একই সাথে লাইভ চ্যাট বক্সে `"Nazmul joined the live stream"` অটোমেটিক সিস্টেম নোটিফিকেশন যুক্ত হয়।
+  4. `POST /api/live/leave` কল হলে `viewer_count` স্বয়ংক্রিয়ভাবে ডিক্রিমেন্ট হয় ও সকল কানেক্টেড ডিভাইসে আপডেট পৌঁছে যায়।
 
 ```json
 // LiveViewerCountUpdated Event Payload
@@ -86,18 +87,21 @@
 
 ---
 
-### ১.৩ লাইভ ট্যাবে লাইভ স্ট্রিমার না দেখানোর সমস্যার স্থায়ী সমাধান
+### ১.৩ লাইভ ট্যাবে লাইভ স্ট্রিমার না দেখানোর সমস্যার স্থায়ী সমাধান ও লেটেস্ট সর্টিং
 * **সমস্যা:** হোস্ট লাইভে ব্রডকাস্টিং শুরু করার পরও অন্য মোবাইলের অ্যাপসে `LIVE` ট্যাবে গেলে `"No Live Streamers Right Now / Nobody is broadcasting live at the moment"` দেখাত।
-* **মূল কারণ:** রাউটিং ফাইলে `/api/live/streamers` এবং `/api/live/hosts` প্রোফাইল কন্ট্রোলারে পাঠানো হচ্ছিল এবং একটিভ লাইভ ফিড রাউটগুলো অমিল ছিল।
 * **স্থায়ী সমাধান:**
   1. `routes/api.php`-এ `/api/live/streamers`, `/api/live/hosts`, `/api/live`, `/api/lives`, `/api/live/active`, `/api/lives/active`, `/api/live/list`, `/api/live/feed`, `/api/v1/live/active`, `/api/v1/stream/active` সহ সকল লাইভ ফিড রাউটকে স্ট্যান্ডার্ডাইজ করে `LiveStreamApiController@getActiveLives`-এ লিঙ্ক করা হয়েছে।
-  2. কন্ট্রোলারে মাল্টি-ফরম্যাট রেসপন্স (`data`, `streamers`, `lives`, `streams`, `list`) নিশ্চিত করা হয়েছে যাতে যেকোনো মডেল অবজেক্ট সরাসরি ডেটা পায়।
-  3. হোস্ট `POST /api/live/start` করার সাথে সাথে স্ট্রিম রেকর্ড তৈরি হয়ে `status = 'live'` হিসেবে ফিডে ইনস্ট্যান্টলি শো করে।
+  2. **লেটেস্ট ব্রডকাস্ট ফার্স্ট সর্টিং:** যে হোস্ট সর্বশেষ লাইভে এসেছেন, তার ব্রডকাস্ট সবার আগে (`orderByDesc('started_at')->orderByDesc('id')`) শো করবে।
+  3. কন্ট্রোলারে মাল্টি-ফরম্যাট রেসপন্স (`data`, `streamers`, `lives`, `streams`, `list`) নিশ্চিত করা হয়েছে যাতে যেকোনো মডেল অবজেক্ট সরাসরি ডেটা পায়।
+  4. হোস্ট `POST /api/live/start` করার সাথে সাথে স্ট্রিম রেকর্ড তৈরি হয়ে `status = 'live'` হিসেবে ফিডে ইনস্ট্যান্টলি শো করে।
 
 ---
 
-### ১.৪ অডিও/ভিডিও ফুল-স্ক্রিন ব্রডকাস্টিং ও অডিয়েন্স প্লেব্যাক
-* **সমস্যা:** লাইভ রুমে ঢোকার পর সাউন্ড না আসা বা অডিয়েন্স মোডে ফুল-স্ক্রিন স্ট্রিম প্লে না হওয়া।
+### ১.৪ অডিও/ভিডিও ফুল-স্ক্রিন ব্রডকাস্টিং ও অডিয়েন্স সাউন্ড প্লেব্যাক
+* **WebRTC & Agora ডুয়াল ইঞ্জিন সাপোর্ট:**
+  1. **WebRTC Direct Stream:** NGINX + Laravel Reverb WebSocket সিগন্যালিং (`POST /api/live/signal`) এবং Coturn STUN/TURN সার্ভারের মাধ্যমে ডিরেক্ট পিয়ার-টু-পিয়ার এবং এসএফইউ ভিডিও/অডিও ব্রডকাস্টিং।
+  2. **Agora RTC Fallback:** ব্রডকাস্টারদের জন্য `ChannelProfileType.channelProfileLiveBroadcasting` এবং অডিয়েন্সদের জন্য `ClientRoleType.clientRoleAudience`।
+  3. অডিয়েন্স লাইভ রুমে ঢোকার সাথে সাথে `enableAudio()` ও `setDefaultAudioRouteToSpeakerphone(true)` এর মাধ্যমে হোস্টের স্পষ্ট সাউন্ড ও ভিডিও ফুল-স্ক্রিনে প্লে হয়।
 * **সমাধান:**
   1. ব্রডকাস্টার (Host)-এর জন্য `ChannelProfileType.channelProfileLiveBroadcasting` এবং `ClientRoleType.clientRoleBroadcaster` কনফিগার করা হয়েছে।
   2. অডিয়েন্সের জন্য `ClientRoleType.clientRoleAudience` এবং `enableAudio()` + `setDefaultAudioRouteToSpeakerphone(true)` নিশ্চিত করা হয়েছে।
