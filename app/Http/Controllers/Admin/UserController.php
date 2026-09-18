@@ -14,7 +14,17 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::with(['kycVerification', 'wallet']);
+        $adminRoleIds = DB::table('roles')->whereIn('slug', ['super-admin', 'admin', 'manager'])->pluck('id');
+        $adminUserIds = DB::table('role_user')->whereIn('role_id', $adminRoleIds)->pluck('user_id');
+
+        $query = User::with(['kycVerification', 'wallet'])
+            ->whereNotIn('id', $adminUserIds)
+            ->where(function ($q) use ($adminRoleIds) {
+                $q->whereNull('role_id')
+                  ->orWhereNotIn('role_id', $adminRoleIds);
+            })
+            ->where('email', 'not like', '%admin%')
+            ->where('account_id', '!=', '1000000001');
 
         // Search by Name, Phone, Account ID, Country, City, or Email
         if ($search = $request->input('search')) {
@@ -57,12 +67,20 @@ class UserController extends Controller
 
         $users = $query->paginate(15)->withQueryString();
 
+        $baseStatsQuery = User::whereNotIn('id', $adminUserIds)
+            ->where(function ($q) use ($adminRoleIds) {
+                $q->whereNull('role_id')
+                  ->orWhereNotIn('role_id', $adminRoleIds);
+            })
+            ->where('email', 'not like', '%admin%')
+            ->where('account_id', '!=', '1000000001');
+
         $stats = [
-            'total_users' => User::count(),
-            'active_users' => User::where('is_active', true)->count(),
-            'total_coins' => User::sum('coins'),
-            'verified_users' => User::where('is_verified', true)->count(),
-            'total_free_callers' => User::where('is_free_caller', true)->count(),
+            'total_users' => (clone $baseStatsQuery)->count(),
+            'active_users' => (clone $baseStatsQuery)->where('is_active', true)->count(),
+            'total_coins' => (clone $baseStatsQuery)->sum('coins'),
+            'verified_users' => (clone $baseStatsQuery)->where('is_verified', true)->count(),
+            'total_free_callers' => (clone $baseStatsQuery)->where('is_free_caller', true)->count(),
         ];
 
         return view('admin.users.index', compact('users', 'stats'));
