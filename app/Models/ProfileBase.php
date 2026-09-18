@@ -99,7 +99,9 @@ class ProfileBase extends Model
             static::CACHE_KEY_ACTIVE,
             3600,
             function () {
-                static::seedDefaultBases();
+                if (static::count() === 0) {
+                    static::seedDefaultBases();
+                }
                 return static::where('is_active', true)
                     ->orderBy('level', 'asc')
                     ->get();
@@ -112,8 +114,11 @@ class ProfileBase extends Model
     /**
      * Seed default 11 Levels (0 to 10) if table is empty.
      */
-    public static function seedDefaultBases(): void
+    public static function seedDefaultBases(bool $force = false): void
     {
+        if (!$force && static::count() > 0) {
+            return;
+        }
         $defaultBases = [
             [
                 'level'            => 0,

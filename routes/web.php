@@ -169,7 +169,7 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::post('/profile-bases/batch-update', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'batchUpdate'])->name('profile-bases.batch-update')->middleware('permission:level_badges.batch_update');
     Route::post('/profile-bases/{id}/upload-frame', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'uploadFrame'])->name('profile-bases.upload-frame')->middleware('permission:level_badges.edit');
     Route::post('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'store'])->name('profile-bases.store')->middleware('permission:level_badges.create');
-    Route::put('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'update'])->name('profile-bases.update')->middleware('permission:level_badges.edit');
+    Route::match(['PUT', 'POST'], '/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'update'])->name('profile-bases.update')->middleware('permission:level_badges.edit');
     Route::delete('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'destroy'])->name('profile-bases.destroy')->middleware('permission:level_badges.delete');
     Route::post('/profile-bases/{id}/toggle-status', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'toggleStatus'])->name('profile-bases.toggle-status')->middleware('permission:level_badges.edit');
 

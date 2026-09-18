@@ -458,7 +458,7 @@
 
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-bold" style="font-size: 13px;">Choose Preset Frame</label>
-                            <select name="preset_frame" id="editPresetFrame" class="form-select" style="border-radius: 8px;">
+                            <select name="preset_frame" id="editPresetFrame" class="form-select" style="border-radius: 8px;" onchange="previewEditModalPreset(this)">
                                 <option value="">-- Keep Current / Uploaded --</option>
                                 @foreach($availablePresetFrames as $path => $label)
                                     <option value="{{ $path }}">{{ $label }}</option>
@@ -469,11 +469,11 @@
                         <div class="col-12">
                             <label class="form-label fw-bold" style="font-size: 13px;">Replace / Upload Custom Frame (SVG / PNG / WebP)</label>
                             <div class="d-flex align-items-center gap-3">
-                                <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; background: #0f172a; flex-shrink: 0;">
-                                    <img src="" alt="Current Frame" id="editCurrentFrameImg" style="width: 50px; height: 50px; object-fit: contain;">
+                                <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 65px; height: 65px; background: #0f172a; border: 1px solid #334155; flex-shrink: 0;">
+                                    <img src="" alt="Current Frame" id="editCurrentFrameImg" style="width: 55px; height: 55px; object-fit: contain;">
                                 </div>
                                 <div class="flex-grow-1">
-                                    <input type="file" name="frame_image" class="form-control" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" style="border-radius: 8px;">
+                                    <input type="file" name="frame_image" id="editFrameFileInput" class="form-control" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" style="border-radius: 8px;" onchange="previewEditModalFile(this)">
                                     <small class="text-muted" style="font-size: 11px;">Uploads directly to <code>public/uploads/bases/</code>.</small>
                                 </div>
                             </div>
@@ -695,6 +695,28 @@
         new bootstrap.Modal(document.getElementById('createBaseModal')).show();
     }
 
+    // Live preview when a new file is chosen in the Edit modal
+    function previewEditModalFile(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('editCurrentFrameImg');
+                if (img) img.src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // Live preview when a preset is selected in the Edit modal
+    function previewEditModalPreset(select) {
+        const val = select.value;
+        if (val) {
+            const url = val.startsWith('http') ? val : ('/' + val.replace(/^\/+/, ''));
+            const img = document.getElementById('editCurrentFrameImg');
+            if (img) img.src = url;
+        }
+    }
+
     function openEditBaseModal(base) {
         const form = document.getElementById('editBaseForm');
         form.action = `/admin/profile-bases/${base.id}`;
@@ -708,7 +730,20 @@
         document.getElementById('editGlowColor').value = base.glow_color || 'rgba(245, 158, 11, 0.45)';
         document.getElementById('editPrivilegeText').value = base.privilege_text || '';
         document.getElementById('editIsActive').checked = !!base.is_active;
-        document.getElementById('editCurrentFrameImg').src = base.base_frame_image_url || '';
+
+        // Show current frame in modal box
+        const currentUrl = base.base_frame_image_url || (base.base_frame_image ? ('/' + base.base_frame_image.replace(/^\/+/, '')) : '');
+        document.getElementById('editCurrentFrameImg').src = currentUrl;
+
+        // Pre-select preset dropdown if matches
+        const presetSelect = document.getElementById('editPresetFrame');
+        if (presetSelect) {
+            presetSelect.value = base.base_frame_image || '';
+        }
+
+        // Reset file input
+        const fileInput = document.getElementById('editFrameFileInput');
+        if (fileInput) fileInput.value = '';
 
         new bootstrap.Modal(document.getElementById('editBaseModal')).show();
     }

@@ -22,7 +22,9 @@ class ProfileBaseAdminController extends Controller
     public function index()
     {
         // Seed default bases if not present
-        ProfileBase::seedDefaultBases();
+        if (ProfileBase::count() === 0) {
+            ProfileBase::seedDefaultBases();
+        }
 
         $bases = ProfileBase::orderBy('level', 'asc')->get();
         $totalBases = $bases->count();
