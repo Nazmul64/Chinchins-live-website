@@ -333,38 +333,59 @@ class User extends Authenticatable
 
     /**
      * Accessor for is_busy boolean.
-     * Checks database flag, online_status, or active call sessions in real-time.
+     * Returns true ONLY if user is currently broadcasting a live stream or in an active call.
      */
     public function getIsBusyAttribute(): bool
     {
-        if (!empty($this->attributes['is_busy'])) {
-            return true;
-        }
-
-        if (in_array($this->online_status, ['busy', 'in_call'])) {
-            return true;
-        }
-
-        return false;
+        return $this->isBusy();
     }
 
     /**
-     * Real-time check if user is currently busy in an active video or audio call session.
+     * Real-time check if user is currently busy in an active video/audio call session or live broadcast.
+     * Automatically clears stale/hanging is_busy flags so user is never locked out from calls.
      */
     public function isBusy(): bool
     {
-        if ($this->is_busy || in_array($this->online_status, ['busy', 'in_call'])) {
-            return true;
+        // 1. Check if user is currently broadcasting an active live stream as host
+        if (class_exists(\App\Models\LiveStream::class)) {
+            $isLiveHost = \App\Models\LiveStream::where('host_id', $this->id)
+                ->where('status', 'live')
+                ->where('created_at', '>=', now()->subHours(12))
+                ->exists();
+
+            if ($isLiveHost) {
+                return true;
+            }
         }
 
+        // 2. Check if user is in an active/connected call session that was touched in the last 3 minutes
         if (class_exists(\App\Models\CallSession::class)) {
-            return \App\Models\CallSession::where(function ($q) {
+            $hasActiveCall = \App\Models\CallSession::where(function ($q) {
                 $q->where('caller_id', $this->id)
                   ->orWhere('receiver_id', $this->id);
             })
-            ->whereIn('status', ['connected', 'active'])
-            ->where('created_at', '>=', now()->subHours(2))
+            ->whereIn('status', ['connected', 'active', 'ringing'])
+            ->where('updated_at', '>=', now()->subMinutes(3))
             ->exists();
+
+            if ($hasActiveCall) {
+                return true;
+            }
+        }
+
+        // 3. Self-heal stale flags if DB has is_busy=1 or status='busy' but no active call/stream exists
+        if (!empty($this->attributes['is_busy']) || in_array($this->online_status, ['busy', 'in_call'])) {
+            $this->attributes['is_busy'] = 0;
+            if (in_array($this->online_status, ['busy', 'in_call'])) {
+                $this->attributes['online_status'] = 'online';
+            }
+            try {
+                \App\Models\User::where('id', $this->id)->update([
+                    'is_busy'        => false,
+                    'online_status'  => 'online',
+                    'current_status' => 'available',
+                ]);
+            } catch (\Throwable $e) {}
         }
 
         return false;

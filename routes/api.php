@@ -378,11 +378,15 @@ Route::prefix('call')->group(function () {
     // In-Call Message & Gift APIs (Laravel Reverb Real-Time Broadcasts)
     Route::post('/message/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::post('/gift/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
+    Route::post('/send-gift', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
+    Route::post('/send_gift', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
     Route::post('/gift', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
 
     // Live In-Call Text Chat, Live Image Upload (uploads/live_chat & uploads/live_streaming) & Real-Time Sync
     Route::post('/chat/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::post('/send-message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
+    Route::post('/send_message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
+    Route::post('/send-chat', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::post('/message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::get('/{callId}/messages', [CallController::class, 'getCallMessages']);
     Route::get('/chat/messages', [CallController::class, 'getCallMessages']);
@@ -427,6 +431,8 @@ Route::post('/live/react', [\App\Http\Controllers\Api\LiveStreamApiController::c
 Route::prefix('v1/call')->group(function () {
     Route::post('/message/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::post('/gift/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
+    Route::post('/send-gift', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
+    Route::post('/gift', [\App\Http\Controllers\Api\InCallApiController::class, 'sendGift']);
     Route::get('/quick-messages', [\App\Http\Controllers\Api\InCallApiController::class, 'getQuickMessages']);
     Route::post('/initiate', [CallController::class, 'initiate']);
     Route::post('/signal', [CallController::class, 'sendSignal']);

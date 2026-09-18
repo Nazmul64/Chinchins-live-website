@@ -28,31 +28,44 @@ class MessageSentEvent implements ShouldBroadcastNow
     {
         $channels = [];
 
-        // 1. Call Session Channel
+        // 1. Call Session Channels (both public and private for client compatibility)
         if (!empty($this->message->call_session_id)) {
+            $channels[] = new Channel('call.' . $this->message->call_session_id);
             $channels[] = new PrivateChannel('call.' . $this->message->call_session_id);
+            $channels[] = new Channel('call_chat.' . $this->message->call_session_id);
             $channels[] = new PrivateChannel('call_chat.' . $this->message->call_session_id);
+            $channels[] = new Channel('presence-call.' . $this->message->call_session_id);
         }
 
         if (!empty($this->message->call_id) && $this->message->call_id !== $this->message->call_session_id) {
+            $channels[] = new Channel('call.' . $this->message->call_id);
             $channels[] = new PrivateChannel('call.' . $this->message->call_id);
+            $channels[] = new Channel('presence-call.' . $this->message->call_id);
         }
 
-        // 2. Receiver Personal Chat Channel
+        // 2. Receiver Personal Chat Channels
         if (!empty($this->message->receiver_id)) {
+            $channels[] = new Channel('chat.' . $this->message->receiver_id);
             $channels[] = new PrivateChannel('chat.' . $this->message->receiver_id);
-            $channels[] = new PrivateChannel('user-chat.' . $this->message->receiver_id);
+            $channels[] = new Channel('user-chat.' . $this->message->receiver_id);
+            $channels[] = new Channel('user.' . $this->message->receiver_id);
             $channels[] = new PrivateChannel('user.' . $this->message->receiver_id);
         }
 
-        // 3. Conversation Channel
+        // 3. Sender Personal Channels (so sender device can also sync)
+        if (!empty($this->message->sender_id)) {
+            $channels[] = new Channel('chat.' . $this->message->sender_id);
+            $channels[] = new Channel('user.' . $this->message->sender_id);
+        }
+
+        // 4. Conversation Channel
         if (!empty($this->message->conversation_id)) {
-            $channels[] = new PrivateChannel('conversation.' . $this->message->conversation_id);
             $channels[] = new Channel('conversation.' . $this->message->conversation_id);
+            $channels[] = new PrivateChannel('conversation.' . $this->message->conversation_id);
         }
 
         if (empty($channels)) {
-            $channels[] = new PrivateChannel('chat.' . ($this->message->receiver_id ?? $this->message->sender_id));
+            $channels[] = new Channel('chat.' . ($this->message->receiver_id ?? $this->message->sender_id));
         }
 
         return $channels;

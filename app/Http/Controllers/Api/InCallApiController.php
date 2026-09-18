@@ -145,10 +145,42 @@ class InCallApiController extends Controller
             ]);
         } catch (\Throwable $e) {}
 
-        // 3. Broadcast real-time Reverb event
+        $msgData = [
+            'id'              => $message->id,
+            'call_id'         => $callSessionId,
+            'call_session_id' => $callSessionId,
+            'sender_id'       => $sender->id,
+            'sender_name'     => $sender->display_name ?? $sender->name ?? 'User',
+            'sender_avatar'   => $sender->avatar_url,
+            'receiver_id'     => $receiverId,
+            'message'         => $messageText,
+            'type'            => $type,
+            'timestamp'       => now()->toIso8601String(),
+            'created_at'      => now()->toIso8601String(),
+            'sender'          => [
+                'id'           => $sender->id,
+                'account_id'   => $sender->account_id,
+                'display_name' => $sender->display_name ?? $sender->name ?? 'User',
+                'avatar_url'   => $sender->avatar_url,
+            ],
+        ];
+
+        // 3. Broadcast real-time Reverb events to BOTH parties (no suppression)
         try {
-            $event = new MessageSentEvent($message);
-            broadcast($event)->toOthers();
+            event(new MessageSentEvent($message));
+            event(new \App\Events\CallMessageSent($callSessionId, $msgData));
+            event(new \App\Events\CallMessageEvent($callSessionId, $msgData));
+
+            // Also save CallSignal for devices polling signaling table
+            \App\Models\CallSignal::create([
+                'call_session_id' => is_numeric($callSessionId) ? (int)$callSessionId : null,
+                'channel_name'    => $callSessionId,
+                'sender_id'       => $sender->id,
+                'receiver_id'     => $receiverId,
+                'type'            => 'message',
+                'payload'         => $msgData,
+                'is_read'         => false,
+            ]);
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -321,11 +353,22 @@ class InCallApiController extends Controller
                 'timestamp' => now()->toIso8601String(),
             ];
 
-            // Reverb broadcast to call session channels and user channels
+            // Reverb broadcast to call session channels and user channels (NO suppression so both parties receive it!)
             try {
-                broadcast(new \App\Events\GiftSentEvent($payload))->toOthers();
-                broadcast(new \App\Events\GiftSent((string)$request->call_session_id, $payload))->toOthers();
-                broadcast(new \App\Events\LiveGiftSentEvent((string)$request->call_session_id, $payload))->toOthers();
+                event(new \App\Events\GiftSentEvent($payload));
+                event(new \App\Events\GiftSent((string)$request->call_session_id, $payload));
+                event(new \App\Events\LiveGiftSentEvent((string)$request->call_session_id, $payload));
+
+                // Also save CallSignal for devices polling signaling table
+                \App\Models\CallSignal::create([
+                    'call_session_id' => is_numeric($request->call_session_id) ? (int)$request->call_session_id : null,
+                    'channel_name'    => (string)$request->call_session_id,
+                    'sender_id'       => $sender->id,
+                    'receiver_id'     => $receiver->id,
+                    'type'            => 'gift',
+                    'payload'         => $payload,
+                    'is_read'         => false,
+                ]);
             } catch (\Throwable $e) {}
         });
 

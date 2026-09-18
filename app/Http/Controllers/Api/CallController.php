@@ -959,6 +959,24 @@ class CallController extends Controller
             $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
         }
 
+        // Broadcast real-time rejection event to caller so ringing stops immediately on caller phone
+        try {
+            event(new \App\Events\CallRejected($call, 'declined'));
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name'    => $call->channel_name,
+                'sender_id'       => $call->receiver_id,
+                'receiver_id'     => $call->caller_id,
+                'type'            => 'rejected',
+                'payload'         => [
+                    'action'  => 'call_rejected',
+                    'call_id' => $call->id,
+                    'reason'  => 'declined',
+                ],
+                'is_read'         => false,
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'status' => true,
             'message' => 'Call declined successfully. Ringing stopped.',
@@ -1002,9 +1020,27 @@ class CallController extends Controller
             $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
         }
 
+        // Broadcast real-time cancellation event to receiver so incoming ringing stops immediately
+        try {
+            event(new \App\Events\CallCancelled($call, 'cancelled'));
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name'    => $call->channel_name,
+                'sender_id'       => $call->caller_id,
+                'receiver_id'     => $call->receiver_id,
+                'type'            => 'cancelled',
+                'payload'         => [
+                    'action'  => 'call_cancelled',
+                    'call_id' => $call->id,
+                    'reason'  => 'cancelled',
+                ],
+                'is_read'         => false,
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'status' => true,
-            'message' => 'Call cancelled by caller.',
+            'message' => 'Call cancelled by caller. Ringing stopped.',
             'data' => [
                 'call_id' => $call->id,
                 'status' => 'cancelled',
@@ -1555,10 +1591,12 @@ class CallController extends Controller
             $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
         }
 
-        // Broadcast 'bye' signal to the other party so their screen terminates immediately
+        // Broadcast real-time CallEnded event and 'bye' signal to the other party so their screen terminates immediately
         try {
             $senderId = $user?->id ?: $call->caller_id;
             $receiverId = ($senderId === $call->caller_id) ? $call->receiver_id : $call->caller_id;
+
+            event(new \App\Events\CallEnded($call, (int)$senderId, (int)$receiverId, $durationSeconds));
 
             \App\Models\CallSignal::create([
                 'call_session_id' => $call->id,

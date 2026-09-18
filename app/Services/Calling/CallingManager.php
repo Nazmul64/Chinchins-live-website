@@ -63,7 +63,12 @@ class CallingManager
         array $options = [],
         ?string $overrideDriver = null
     ): array {
-        $driver = $this->getDriver($overrideDriver);
+        // Enforce Agora engine for live broadcast / streaming sessions
+        if ($callType === 'live' || ($options['stream_type'] ?? '') === 'live' || ($options['is_live'] ?? false)) {
+            $driver = $this->getDriver('agora');
+        } else {
+            $driver = $this->getDriver($overrideDriver);
+        }
         return $driver->initializeSession($user, $channelName, $callType, $role, $options);
     }
 

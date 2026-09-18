@@ -77,6 +77,14 @@ class StreamingSetting extends Model
     }
 
     /**
+     * Always return a valid Agora App ID with env/services fallback.
+     */
+    public function getAgoraAppIdAttribute($value): string
+    {
+        return !empty($value) ? $value : (string) env('AGORA_APP_ID', config('services.agora.app_id', 'c13c72df342d4a1386da678ba4c95f13'));
+    }
+
+    /**
      * Check if manual Temp Token is configured in Admin Panel.
      */
     public function hasTempToken(): bool

@@ -24,10 +24,26 @@ class LiveGiftSent implements ShouldBroadcastNow
 
     public function broadcastOn()
     {
-        return [
+        $channels = [
             new PresenceChannel('presence-live.' . $this->liveStreamId),
+            new PresenceChannel('presence-stream.' . $this->liveStreamId),
+            new PresenceChannel('presence-room.' . $this->liveStreamId),
             new Channel('live.' . $this->liveStreamId),
+            new Channel('stream.' . $this->liveStreamId),
+            new Channel('live-stream.' . $this->liveStreamId),
+            new Channel('live-room.' . $this->liveStreamId),
         ];
+
+        // Also broadcast directly to host and sender user channels
+        if (!empty($this->giftData['sender']['id'] ?? $this->giftData['sender_id'] ?? null)) {
+            $senderId = $this->giftData['sender']['id'] ?? $this->giftData['sender_id'];
+            $channels[] = new Channel('user.' . $senderId);
+        }
+        if (!empty($this->giftData['receiver_id'] ?? null)) {
+            $channels[] = new Channel('user.' . $this->giftData['receiver_id']);
+        }
+
+        return $channels;
     }
 
     public function broadcastAs()

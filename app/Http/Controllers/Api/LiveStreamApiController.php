@@ -241,16 +241,25 @@ class LiveStreamApiController extends Controller
             'ended_at' => now(),
         ]);
 
-        // Generate RTC token for Broadcaster / Host
+        // Generate RTC token for Broadcaster / Host (Agora driver enforced for live)
         $sessionTokenData = $this->callingManager->initializeSession(
             $host,
             $channelName,
             'live',
             'publisher',
-            ['uid' => $host->id]
+            ['uid' => $host->id, 'is_live' => true]
         );
 
-        $agoraToken = $sessionTokenData['agora']['token'] ?? $sessionTokenData['data']['token'] ?? null;
+        $agoraToken = $sessionTokenData['agora_token'] 
+                   ?? $sessionTokenData['rtc_token'] 
+                   ?? $sessionTokenData['token'] 
+                   ?? $sessionTokenData['agora']['token'] 
+                   ?? $sessionTokenData['data']['token'] 
+                   ?? null;
+
+        $appId = $sessionTokenData['agora_app_id'] 
+              ?? $sessionTokenData['app_id'] 
+              ?? config('services.agora.app_id', env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13'));
 
         $liveStream = LiveStream::create([
             'host_id'               => $host->id,
@@ -282,14 +291,6 @@ class LiveStreamApiController extends Controller
             'last_seen_at'   => now(),
         ]);
 
-        $activeEngine = config('services.streaming.engine', 'agora');
-        try {
-            $streamingSetting = StreamingSetting::first();
-            if ($streamingSetting && $streamingSetting->primary_driver) {
-                $activeEngine = $streamingSetting->primary_driver;
-            }
-        } catch (\Throwable $e) {}
-
         $streamPayload = [
             'room_id'            => (string) $liveStream->id,
             'live_stream_id'     => $liveStream->id,
@@ -303,15 +304,24 @@ class LiveStreamApiController extends Controller
             'viewer_count'       => 1,
             'likes_count'        => 0,
             'host_id'            => $host->id,
-            'active_engine'      => $activeEngine,
+            'active_engine'      => 'agora',
+            'app_id'             => $appId,
+            'agora_app_id'       => $appId,
+            'uid'                => $host->id,
+            'agora_uid'          => $host->id,
+            'token'              => $agoraToken,
             'agora_token'        => $agoraToken,
             'rtc_token'          => $agoraToken,
             'reverb_channel'     => 'presence-stream.' . $liveStream->id,
             'engine_credentials' => [
-                'app_id'       => config('services.agora.app_id', env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13')),
+                'app_id'       => $appId,
+                'agora_app_id' => $appId,
                 'token'        => $agoraToken,
+                'agora_token'  => $agoraToken,
+                'rtc_token'    => $agoraToken,
                 'channel_name' => $channelName,
                 'uid'          => $host->id,
+                'agora_uid'    => $host->id,
             ],
             'session'            => $sessionTokenData,
             'host'               => [
@@ -466,23 +476,27 @@ class LiveStreamApiController extends Controller
             } catch (\Throwable $e) {}
         }
 
-        // Generate audience token
+        $viewerUid = (int) ($viewer?->id ?? rand(100000, 999999));
+
+        // Generate audience token (Agora driver enforced for live)
         $sessionTokenData = $this->callingManager->initializeSession(
             $viewer,
             $stream->channel_name,
             'live',
             'subscriber',
-            ['uid' => $viewer?->id ?? rand(100000, 999999)]
+            ['uid' => $viewerUid, 'is_live' => true]
         );
 
-        $agoraAudienceToken = $sessionTokenData['agora']['token'] ?? $sessionTokenData['data']['token'] ?? null;
-        $activeEngine = config('services.streaming.engine', 'agora');
-        try {
-            $streamingSetting = StreamingSetting::first();
-            if ($streamingSetting && $streamingSetting->primary_driver) {
-                $activeEngine = $streamingSetting->primary_driver;
-            }
-        } catch (\Throwable $e) {}
+        $agoraAudienceToken = $sessionTokenData['agora_token'] 
+                            ?? $sessionTokenData['rtc_token'] 
+                            ?? $sessionTokenData['token'] 
+                            ?? $sessionTokenData['agora']['token'] 
+                            ?? $sessionTokenData['data']['token'] 
+                            ?? null;
+
+        $appId = $sessionTokenData['agora_app_id'] 
+              ?? $sessionTokenData['app_id'] 
+              ?? config('services.agora.app_id', env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13'));
 
         return response()->json([
             'status'  => true,
@@ -498,7 +512,12 @@ class LiveStreamApiController extends Controller
                 'viewer_count'       => (int) $stream->viewer_count,
                 'likes_count'        => (int) ($stream->likes_count ?? 0),
                 'role'               => 'audience',
-                'active_engine'      => $activeEngine,
+                'active_engine'      => 'agora',
+                'app_id'             => $appId,
+                'agora_app_id'       => $appId,
+                'uid'                => $viewerUid,
+                'agora_uid'          => $viewerUid,
+                'token'              => $agoraAudienceToken,
                 'agora_token'        => $agoraAudienceToken,
                 'rtc_token'          => $agoraAudienceToken,
                 'reverb_channel'     => 'presence-stream.' . $stream->id,
@@ -506,10 +525,14 @@ class LiveStreamApiController extends Controller
                 'is_following'       => false,
                 'session'            => $sessionTokenData,
                 'engine_credentials' => [
-                    'app_id'       => config('services.agora.app_id', env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13')),
+                    'app_id'       => $appId,
+                    'agora_app_id' => $appId,
                     'token'        => $agoraAudienceToken,
+                    'agora_token'  => $agoraAudienceToken,
+                    'rtc_token'    => $agoraAudienceToken,
                     'channel_name' => $stream->channel_name,
-                    'uid'          => $viewer?->id ?? rand(100000, 999999),
+                    'uid'          => $viewerUid,
+                    'agora_uid'    => $viewerUid,
                 ],
                 'host'               => [
                     'id'           => $stream->host?->id,
@@ -701,8 +724,8 @@ class LiveStreamApiController extends Controller
         ];
 
         try {
-            // toOthers() sends to all connected listeners in the channel
-            broadcast(new LiveChatMessageEvent($roomId, $messagePayload))->toOthers();
+            // Broadcast without suppression to ensure both sender and receiver devices receive chat updates
+            event(new LiveChatMessageEvent($roomId, $messagePayload));
             event(new LiveMessageSent($roomId, $messagePayload));
         } catch (\Throwable $e) {}
 
@@ -960,7 +983,7 @@ class LiveStreamApiController extends Controller
             try {
                 event(new LiveGiftSent($stream->id, $giftPayload));
                 event(new LiveGiftSentEvent($stream->id, $giftPayload));
-                broadcast(new LiveChatMessageEvent($stream->id, [
+                event(new LiveChatMessageEvent($stream->id, [
                     'id'        => $liveMsg->id,
                     'room_id'   => (string) $stream->id,
                     'user_id'   => $sender->id,
@@ -976,7 +999,7 @@ class LiveStreamApiController extends Controller
                     'gift_data' => $giftPayload['gift'],
                     'gift'      => $giftPayload['gift'],
                     'timestamp' => now()->toIso8601String(),
-                ]))->toOthers();
+                ]));
             } catch (\Throwable $e) {}
 
             return response()->json([
