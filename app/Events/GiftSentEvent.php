@@ -45,6 +45,8 @@ class GiftSentEvent implements ShouldBroadcastNow
             $channels[] = new Channel('live-stream.' . $roomId);
             $channels[] = new Channel('presence-live-stream.' . $roomId);
             $channels[] = new Channel('presence-live.' . $roomId);
+            $channels[] = new Channel('presence-stream.' . $roomId);
+            $channels[] = new Channel('presence-room.' . $roomId);
             $channels[] = new Channel('live.' . $roomId);
         }
 
