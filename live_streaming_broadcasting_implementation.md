@@ -379,16 +379,26 @@ location /app {
 
 ---
 
-### ৪.৭ হাইব্রিড ইঞ্জিন সুইচিং কন্ট্রোল (Agora vs VPS WebRTC)
+### ৪.৮ ভয়েস পার্টি রুম ও ৮/১৬ সিট মাল্টি-গেস্ট গ্রিড (StreamKar & Bigo Voice Party Rooms)
 
-* **Endpoint:** `POST /api/v1/admin/live/switch-engine`
-* **Headers:** `Authorization: Bearer {admin_token}`, `Content-Type: application/json`
+* **ভয়েস পার্টি রুম আর্কিটেকচার:**
+  * ৮, ৯, ১২ এবং ১৬ সিটের সার্কুলার অডিও গ্রিড।
+  * সিটে থাকা প্রতিটি ইউজারের চারদিকে গোল্ডেন উইংস, লাক্সারি বেস ফ্রেম ও স্পিকিং সাউন্ড ওয়েভ লাইভ অ্যানিমেশন।
+  * সিটে থাকা অবস্থায় রিয়েল-টাইম মিউট/আনমিউট ও ডায়মন্ড কাউন্টার।
+  * রুমে থাকা যে কাউকে ডিরেক্ট গিফট সেন্ড এবং ফুল-স্ক্রিন লাক্সারি অ্যানিমেশন প্লে।
+
+#### ১. পার্টি রুম লিস্ট ও অ্যাক্টিভ রুমস
+* **Endpoint:** `GET /api/v1/party-rooms` (অথবা `/api/party/list`)
+* **Headers:** `Authorization: Bearer {token}`
+
+#### ২. পার্টি রুমে সিট গ্রহণ (Take Seat / Mic Up)
+* **Endpoint:** `POST /api/v1/party-rooms/{id}/take-seat`
+* **Headers:** `Authorization: Bearer {token}`, `Content-Type: application/json`
 
 **Request Body:**
 ```json
 {
-  "stream_id": 45,
-  "target_engine": "agora"
+  "seat_index": 3
 }
 ```
 
@@ -396,11 +406,63 @@ location /app {
 ```json
 {
   "status": true,
-  "message": "Engine switch broadcast dispatched",
+  "message": "Seat taken successfully",
   "data": {
-    "stream_id": 45,
-    "target_engine": "agora"
+    "room_id": 105,
+    "seat_index": 3,
+    "user": {
+      "id": 88,
+      "name": "Hayat Star",
+      "avatar_url": "https://chinchins.live/uploads/avatars/user_88.jpg",
+      "profile_base_frame": "https://chinchins.live/uploads/bases/profile_base_royal_gold.svg",
+      "level": "Lv4",
+      "is_muted": false
+    },
+    "role": "speaker",
+    "rtc_token": "006c13c72df342d4a1386da678ba4c95f13IAD..."
   }
+}
+```
+
+#### ৩. পার্টি রুমে মাইক মিউট / আনমিউট
+* **Endpoint:** `POST /api/v1/party-rooms/{id}/toggle-mic`
+* **Headers:** `Authorization: Bearer {token}`
+
+---
+
+### ৪.৯ ভিআইপি প্রিভিলেজ অ্যাভাটার বেস ও উইংস ফ্রেম আর্কিটেকচার (TOP 1 Winged Crown, SVIP 9)
+
+* **ফিচারস:**
+  * **TOP 1 Golden Winged Crown Base:** গোল্ডেন উইংস ও ক্রাউন ফ্রেম প্রোফাইল ও সিট অ্যাভাটারের চারদিকে অটোম্যাটিক রেন্ডার হয়।
+  * **SVIP 9 Badges & Wings:** ভিআইপি সাবস্ক্রাইবারদের জন্য এক্সক্লুসিভ গোল্ডেন লায়ন, ফায়ার টাইগার এবং সুপারকার এক্সক্লুসিভ বেস।
+  * **অটো প্রোফাইল বাইন্ডিং:** ইউজার যে বেস সিলেক্ট করবে, লাইভ স্ট্রিম, ভয়েস পার্টি রুম, এবং চ্যাট বক্সে তার প্রোফাইল ছবির ওপর সেই ফ্রেমটি স্বয়ংক্রিয়ভাবে ভেসে উঠবে।
+
+#### ১. ইউজার প্রোফাইল বেস ফ্রেম লিস্ট
+* **Endpoint:** `GET /api/v1/profile-bases` (অথবা `/api/v1/user/bag`)
+* **Headers:** `Authorization: Bearer {token}`
+
+**Success Response (200 OK):**
+```json
+{
+  "status": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "TOP 1 Golden Winged Crown",
+      "level": 9,
+      "base_frame_image": "https://chinchins.live/uploads/bases/profile_base_royal_gold.svg",
+      "glow_color": "rgba(245, 158, 11, 0.6)",
+      "privilege_text": "TOP 1 Emperor Winged Base Frame"
+    },
+    {
+      "id": 2,
+      "name": "Celestial Diamond Wings",
+      "level": 8,
+      "base_frame_image": "https://chinchins.live/uploads/bases/profile_base_diamond_wings.svg",
+      "glow_color": "rgba(6, 182, 212, 0.6)",
+      "privilege_text": "Celestial Dragon Wings Frame"
+    }
+  ]
 }
 ```
 
