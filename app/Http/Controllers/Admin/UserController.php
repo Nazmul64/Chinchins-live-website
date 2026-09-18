@@ -14,15 +14,8 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $adminRoleIds = DB::table('roles')->whereIn('slug', ['super-admin', 'admin', 'manager'])->pluck('id');
-        $adminUserIds = DB::table('role_user')->whereIn('role_id', $adminRoleIds)->pluck('user_id');
-
         $query = User::with(['kycVerification', 'wallet'])
-            ->whereNotIn('id', $adminUserIds)
-            ->where(function ($q) use ($adminRoleIds) {
-                $q->whereNull('role_id')
-                  ->orWhereNotIn('role_id', $adminRoleIds);
-            })
+            ->whereNull('role_id')
             ->where('email', 'not like', '%admin%')
             ->where('account_id', '!=', '1000000001');
 
@@ -67,11 +60,7 @@ class UserController extends Controller
 
         $users = $query->paginate(15)->withQueryString();
 
-        $baseStatsQuery = User::whereNotIn('id', $adminUserIds)
-            ->where(function ($q) use ($adminRoleIds) {
-                $q->whereNull('role_id')
-                  ->orWhereNotIn('role_id', $adminRoleIds);
-            })
+        $baseStatsQuery = User::whereNull('role_id')
             ->where('email', 'not like', '%admin%')
             ->where('account_id', '!=', '1000000001');
 
