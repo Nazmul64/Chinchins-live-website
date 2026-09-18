@@ -83,6 +83,40 @@ class InCallApiController extends Controller
      */
     public function sendMessage(Request $request): JsonResponse
     {
+        $sender = $this->resolveUser($request) ?? auth()->user();
+
+        // 1. Resilient parameter alias resolution
+        $callSessionId = $request->input('call_session_id') 
+                      ?? $request->input('call_id') 
+                      ?? $request->input('channel_name') 
+                      ?? $request->input('room_id') 
+                      ?? $request->input('id');
+
+        $receiverId = $request->input('receiver_id') 
+                   ?? $request->input('target_user_id') 
+                   ?? $request->input('to_user_id') 
+                   ?? $request->input('peer_id') 
+                   ?? $request->input('user_id');
+
+        $messageText = trim($request->input('message') ?? $request->input('text') ?? $request->input('content') ?? '');
+
+        // Auto-resolve receiver from active CallSession if not directly provided
+        if (empty($receiverId) && !empty($callSessionId)) {
+            $session = \App\Models\CallSession::where('call_session_id', $callSessionId)
+                ->orWhere('id', $callSessionId)
+                ->orWhere('channel_name', $callSessionId)
+                ->first();
+            if ($session && $sender) {
+                $receiverId = ($sender->id == $session->caller_id) ? $session->receiver_id : $session->caller_id;
+            }
+        }
+
+        $request->merge([
+            'call_session_id' => $callSessionId ?: 'call_session',
+            'receiver_id'     => $receiverId,
+            'message'         => $messageText,
+        ]);
+
         $validator = Validator::make($request->all(), [
             'receiver_id'     => 'required|exists:users,id',
             'call_session_id' => 'required|string',
@@ -98,7 +132,6 @@ class InCallApiController extends Controller
             ], 422);
         }
 
-        $sender = $this->resolveUser($request) ?? auth()->user();
         if (!$sender) {
             return response()->json([
                 'status'  => false,
@@ -196,6 +229,40 @@ class InCallApiController extends Controller
      */
     public function sendGift(Request $request): JsonResponse
     {
+        $sender = $this->resolveUser($request) ?? auth()->user();
+
+        // 1. Resilient parameter alias resolution
+        $callSessionId = $request->input('call_session_id') 
+                      ?? $request->input('call_id') 
+                      ?? $request->input('channel_name') 
+                      ?? $request->input('room_id') 
+                      ?? $request->input('id');
+
+        $receiverId = $request->input('receiver_id') 
+                   ?? $request->input('target_user_id') 
+                   ?? $request->input('to_user_id') 
+                   ?? $request->input('peer_id')
+                   ?? $request->input('user_id');
+
+        $giftId = $request->input('gift_id') ?? $request->input('id');
+
+        // Auto-resolve receiver from active CallSession if not directly provided
+        if (empty($receiverId) && !empty($callSessionId)) {
+            $session = \App\Models\CallSession::where('call_session_id', $callSessionId)
+                ->orWhere('id', $callSessionId)
+                ->orWhere('channel_name', $callSessionId)
+                ->first();
+            if ($session && $sender) {
+                $receiverId = ($sender->id == $session->caller_id) ? $session->receiver_id : $session->caller_id;
+            }
+        }
+
+        $request->merge([
+            'call_session_id' => $callSessionId ?: 'call_session',
+            'receiver_id'     => $receiverId,
+            'gift_id'         => $giftId,
+        ]);
+
         $validator = Validator::make($request->all(), [
             'receiver_id'     => 'required|integer|exists:users,id',
             'gift_id'         => 'required|integer|exists:gifts,id',
@@ -210,7 +277,6 @@ class InCallApiController extends Controller
             ], 422);
         }
 
-        $sender = $this->resolveUser($request) ?? auth()->user();
         if (!$sender) {
             return response()->json([
                 'status'  => false,

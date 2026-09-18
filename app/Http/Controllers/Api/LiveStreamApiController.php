@@ -342,9 +342,39 @@ class LiveStreamApiController extends Controller
             ],
         ];
 
-        // Broadcast to global lobby so all phones update their Live tab in real time without refreshing
+        // 1. Broadcast to global lobby so all phones update their Live tab in real time without refreshing
         try {
             event(new \App\Events\StreamStatusChangedEvent($liveStream->id, 'live', $streamPayload));
+        } catch (\Throwable $e) {}
+
+        // 2. Notify Admin Panel: Create ActivityLog audit record & Admin notifications
+        try {
+            \App\Models\ActivityLog::record(
+                'live_streaming',
+                'live_started',
+                "{$host->display_name} (#{$host->account_id}) started a live broadcast: '{$title}'",
+                ['stream_id' => $liveStream->id, 'channel_name' => $channelName, 'host_id' => $host->id, 'engine' => $activeDriver],
+                null,
+                $host
+            );
+
+            $adminUsers = User::where('is_admin', true)->orWhereIn('role', ['admin', 'super_admin'])->get();
+            foreach ($adminUsers as $adm) {
+                \App\Models\Notification::createNotification(
+                    $adm->id,
+                    $host->id,
+                    'live_stream_started',
+                    '🔴 New Live Stream Started',
+                    "{$host->display_name} (#{$host->account_id}) has started live broadcasting: '{$title}'",
+                    [
+                        'stream_id'     => $liveStream->id,
+                        'channel_name'  => $channelName,
+                        'host_id'       => $host->id,
+                        'host_name'     => $host->display_name,
+                        'active_engine' => $activeDriver,
+                    ]
+                );
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([

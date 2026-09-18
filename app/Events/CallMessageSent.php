@@ -37,6 +37,11 @@ class CallMessageSent implements ShouldBroadcastNow
             $channels[] = new Channel('chat.' . $this->messageData['receiver_id']);
         }
 
+        if (!empty($this->messageData['sender_id'])) {
+            $channels[] = new Channel('user.' . $this->messageData['sender_id']);
+            $channels[] = new Channel('chat.' . $this->messageData['sender_id']);
+        }
+
         return $channels;
     }
 

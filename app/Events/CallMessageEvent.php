@@ -48,6 +48,13 @@ class CallMessageEvent implements ShouldBroadcastNow
             $channels[] = new PrivateChannel('user.' . $this->messageData['receiver_id']);
             $channels[] = new Channel('user.' . $this->messageData['receiver_id']);
             $channels[] = new PrivateChannel('chat.' . $this->messageData['receiver_id']);
+            $channels[] = new Channel('chat.' . $this->messageData['receiver_id']);
+        }
+
+        if (!empty($this->messageData['sender_id'])) {
+            $channels[] = new PrivateChannel('user.' . $this->messageData['sender_id']);
+            $channels[] = new Channel('user.' . $this->messageData['sender_id']);
+            $channels[] = new Channel('chat.' . $this->messageData['sender_id']);
         }
 
         return $channels;
