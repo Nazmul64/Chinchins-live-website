@@ -87,13 +87,46 @@
 
 ---
 
-### ১.৩ লাইভ ট্যাবে লাইভ স্ট্রিমার না দেখানোর সমস্যার স্থায়ী সমাধান ও লেটেস্ট সর্টিং
-* **সমস্যা:** হোস্ট লাইভে ব্রডকাস্টিং শুরু করার পরও অন্য মোবাইলের অ্যাপসে `LIVE` ট্যাবে গেলে `"No Live Streamers Right Now / Nobody is broadcasting live at the moment"` দেখাত।
-* **স্থায়ী সমাধান:**
-  1. `routes/api.php`-এ `/api/live/streamers`, `/api/live/hosts`, `/api/live`, `/api/lives`, `/api/live/active`, `/api/lives/active`, `/api/live/list`, `/api/live/feed`, `/api/v1/live/active`, `/api/v1/stream/active` সহ সকল লাইভ ফিড রাউটকে স্ট্যান্ডার্ডাইজ করে `LiveStreamApiController@getActiveLives`-এ লিঙ্ক করা হয়েছে।
-  2. **লেটেস্ট ব্রডকাস্ট ফার্স্ট সর্টিং:** যে হোস্ট সর্বশেষ লাইভে এসেছেন, তার ব্রডকাস্ট সবার আগে (`orderByDesc('started_at')->orderByDesc('id')`) শো করবে।
-  3. কন্ট্রোলারে মাল্টি-ফরম্যাট রেসপন্স (`data`, `streamers`, `lives`, `streams`, `list`) নিশ্চিত করা হয়েছে যাতে যেকোনো মডেল অবজেক্ট সরাসরি ডেটা পায়।
-  4. হোস্ট `POST /api/live/start` করার সাথে সাথে স্ট্রিম রেকর্ড তৈরি হয়ে `status = 'live'` হিসেবে ফিডে ইনস্ট্যান্টলি শো করে।
+### ১.৩ লাইভ ট্যাবে লাইভ স্ট্রিমার না দেখানোর সমস্যার স্থায়ী সমাধান ও লেটেস্ট সর্টিং (Go Live ➡️ Live Tab Instant Discovery)
+* **সমস্যা:** হোস্ট `Go Live` বাটনে ক্লিক করে ব্রডকাস্টিং শুরু করার পরও অন্য মোবাইলের অ্যাপসে `Match` বাটনের পাশে থাকা `LIVE` ট্যাবে গেলে `"No Live Streamers Right Now / Nobody is broadcasting live at the moment"` দেখাত।
+* **স্থায়ী সমাধান ও ওয়ার্কফ্লো:**
+  1. **Go Live Initiated:** হোস্ট যখন `Go Live` বাটনে ক্লিক করে, অ্যাপ থেকে `POST /api/live/start` কল হয়। ব্যাকএন্ডে সাথে সাথে `live_streams` টেবিলে নতুন রেকর্ড তৈরি হয় যার `status = 'live'` এবং `started_at = now()` সেট হয়।
+  2. **Instant Live Tab Discovery:** অন্য যে কোনো ইউজার যখন তাদের ফোনে `LIVE` ট্যাবে ক্লিক করবে, তখন অ্যাপ থেকে `GET /api/live/streamers` (বা `/api/live/hosts`, `/api/live`, `/api/live/active`) কল হবে।
+  3. **লেটেস্ট ব্রডকাস্ট ফার্স্ট সর্টিং:** ব্যাকএন্ড কুয়েরি `orderByDesc('started_at')->orderByDesc('id')` করায় সর্বশেষ যে হোস্ট লাইভে এসেছেন তার লাইভ কার্ডটি সবার প্রথমে (ইনডেক্স ০) রিটার্ন করবে।
+  4. **মাল্টি-ফরম্যাট রেসপন্স:** সব ধরণের মোবাইল ক্লায়েন্টের জন্য `data`, `streamers`, `lives`, `streams`, `list` এরে দিয়ে ডেটা পাঠানো হয়, যাতে স্ক্রিনে কোনো ব্ল্যাংক স্টেট বা এরর মেসেজ না আসে।
+  5. **ক্লিক করে লাইভ রুমে প্রবেশ:** ভিউয়ার যখন লাইভ কার্ডে ট্যাপ করবে, তখন `POST /api/live/join` এর মাধ্যমে রুমে যুক্ত হয়ে অডিও ও ভিডিও ফুল-স্ক্রিনে সরাসরি দেখতে ও শুনতে পারবে।
+
+```json
+// GET /api/live/streamers অথবা GET /api/live/active রেসপন্স
+{
+  "status": true,
+  "success": true,
+  "count": 1,
+  "streamers": [
+    {
+      "id": 12,
+      "room_id": "12",
+      "channel_name": "live_host_45_1789701",
+      "title": "Welcome to my Live Stream!",
+      "status": "live",
+      "viewer_count": 0,
+      "likes_count": 0,
+      "host": {
+        "id": 45,
+        "account_id": "87654321",
+        "name": "Nazmul Hossain",
+        "display_name": "Nazmul Hossain",
+        "avatar_url": "https://chinchins.live/uploads/avatars/user_45.jpg",
+        "level": "Lv5",
+        "gender": "male",
+        "country": "BD"
+      }
+    }
+  ],
+  "data": [ /* একই স্ট্রিমার লিস্ট */ ],
+  "lives": [ /* একই স্ট্রিমার লিস্ট */ ]
+}
+```
 
 ---
 
@@ -209,6 +242,7 @@ Schema::create('live_participants', function (Blueprint $table) {
 | **Live Leave** | `POST` | `/api/live/leave` | লাইভ রুম ত্যাগ ও ভিউয়ার কাউন্টার ডিক্রিমেন্ট |
 | **Live Like / React** | `POST` | `/api/live/like` | রিয়েল-টাইম লাভ রিয়েক্ট সেন্ড ও লাইভ কাউন্ট সিঙ্ক |
 | **Live Chat** | `POST` | `/api/live/send-message` | লাইভ স্ট্রিমে পাবলিক চ্যাট কমেন্ট ব্রডকাস্ট |
+| **Live Messages** | `GET` | `/api/live/messages` | লাইভ রুমের আসল চ্যাট ও ইভেন্ট হিস্ট্রি (ডামি টেক্সট রোধ) |
 | **Live Gift** | `POST` | `/api/live/send-gift` | ফুল-স্ক্রিন লাক্সারি গিফট ও ৫০% ডায়মন্ড ক্রেডিট |
 | **Join Request** | `POST` | `/api/live/join-request` | ভিউয়ার কর্তৃক কো-হোস্ট হতে আবেদন |
 | **Respond Request** | `POST` | `/api/live/accept-request` | হোস্ট কর্তৃক কো-হোস্ট আবেদন একসেপ্ট / রিজেক্ট |
