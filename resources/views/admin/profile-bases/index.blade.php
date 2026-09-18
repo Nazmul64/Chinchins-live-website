@@ -207,11 +207,11 @@
                                 <!-- Frame Base Thumbnail & Direct Upload -->
                                 <td>
                                     <div class="d-flex align-items-center gap-3">
-                                        <div class="position-relative d-flex align-items-center justify-content-center rounded-circle" onclick="selectLevelPreview({{ $base->level }})" style="width: 58px; height: 58px; background: radial-gradient(circle, #334155 0%, #0f172a 100%); flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: pointer; transition: transform 0.2s ease;" title="Click to preview this frame in top Live Preview card" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                        <div class="position-relative d-flex align-items-center justify-content-center" onclick="selectLevelPreview({{ $base->level }})" style="width: 60px; height: 60px; flex-shrink: 0; cursor: pointer; transition: transform 0.2s ease;" title="Click to preview this frame in top Live Preview card" onmouseover="this.style.transform='scale(1.12)'" onmouseout="this.style.transform='scale(1)'">
                                             <!-- Sample Avatar inside frame -->
-                                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; z-index: 1;">
                                             <!-- Overlay Profile Base Frame -->
-                                            <img src="{{ $base->base_frame_image_url }}" alt="Base Frame" id="rowPreview_{{ $base->id }}" style="position: absolute; top: -4px; left: -4px; width: 66px; height: 66px; object-fit: contain; pointer-events: none;">
+                                            <img src="{{ $base->base_frame_image_url }}" alt="Base Frame" id="rowPreview_{{ $base->id }}" style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; object-fit: contain; z-index: 2; pointer-events: none;">
                                         </div>
                                         <div class="d-flex flex-column gap-1">
                                             <!-- Direct Instant AJAX File Upload for this row -->
@@ -221,8 +221,8 @@
                                                 <input type="file" name="frame_files[{{ $base->id }}]" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" class="d-none" onchange="ajaxUploadRowFrame(this, {{ $base->id }}, 'rowPreview_{{ $base->id }}', {{ $base->level }})">
                                             </label>
                                             
-                                            <!-- Preset Dropdown -->
-                                            <select name="levels[{{ $base->id }}][preset_frame]" class="form-select form-select-sm" style="font-size: 10px; width: 145px; border-radius: 6px; padding: 2px 6px;">
+                                            <!-- Preset Dropdown with Instant Live Preview -->
+                                            <select name="levels[{{ $base->id }}][preset_frame]" class="form-select form-select-sm" style="font-size: 10px; width: 145px; border-radius: 6px; padding: 2px 6px;" onchange="previewPresetChange(this, 'rowPreview_{{ $base->id }}', {{ $base->level }})">
                                                 @foreach($availablePresetFrames as $path => $label)
                                                     <option value="{{ $path }}" {{ $base->base_frame_image == $path ? 'selected' : '' }}>
                                                         {{ $label }}
@@ -609,6 +609,29 @@
                 if (text) text.textContent = 'Upload Image';
             }, 3000);
         });
+    }
+
+    // Instant live preview when a preset frame is selected in dropdown
+    function previewPresetChange(selectElement, targetImgId, level) {
+        const val = selectElement.value;
+        if (!val) return;
+        
+        // Resolve full URL
+        const url = val.startsWith('http') ? val : ('/' + val.replace(/^\/+/, ''));
+        const img = document.getElementById(targetImgId);
+        if (img) img.src = url;
+
+        // Also update top Interactive Live Preview card if this level is selected
+        const topSelect = document.getElementById('previewLevelSelector');
+        if (topSelect) {
+            const opt = topSelect.querySelector(`option[value="${level}"]`);
+            if (opt) {
+                opt.setAttribute('data-frame', url);
+                if (topSelect.value == level) {
+                    updateLivePreview(level);
+                }
+            }
+        }
     }
 
     // Live Preview for file inputs in table rows
