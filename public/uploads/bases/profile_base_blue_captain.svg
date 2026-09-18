@@ -1,17 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
   <defs>
-    <linearGradient id="captainBlue" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#7DD3FC"/>
-      <stop offset="50%" stop-color="#0284C7"/>
-      <stop offset="100%" stop-color="#0C4A6E"/>
-    </linearGradient>
     <linearGradient id="captainGold" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFBEB"/>
-      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="25%" stop-color="#FEF08A"/>
+      <stop offset="60%" stop-color="#EAB308"/>
       <stop offset="100%" stop-color="#78350F"/>
     </linearGradient>
+    <linearGradient id="captainCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BAE6FD"/>
+      <stop offset="50%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#0369A1"/>
+    </linearGradient>
     <filter id="captainGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feGaussianBlur stdDeviation="6" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -19,36 +20,49 @@
     </filter>
   </defs>
 
-  <!-- Ship's Steering Wheel Spokes around circle -->
-  <g filter="url(#captainGlow)">
-    <!-- 8 Steering Pegs -->
-    <rect x="242" y="30" width="16" height="35" rx="5" fill="url(#captainGold)"/>
-    <rect x="242" y="435" width="16" height="35" rx="5" fill="url(#captainGold)"/>
-    <rect x="30" y="242" width="35" height="16" rx="5" fill="url(#captainGold)"/>
-    <rect x="435" y="242" width="35" height="16" rx="5" fill="url(#captainGold)"/>
-    <!-- Diagonals -->
-    <rect x="242" y="30" width="16" height="35" rx="5" fill="url(#captainGold)" transform="rotate(45 250 250)"/>
-    <rect x="242" y="435" width="16" height="35" rx="5" fill="url(#captainGold)" transform="rotate(45 250 250)"/>
-    <rect x="30" y="242" width="35" height="16" rx="5" fill="url(#captainGold)" transform="rotate(45 250 250)"/>
-    <rect x="435" y="242" width="35" height="16" rx="5" fill="url(#captainGold)" transform="rotate(45 250 250)"/>
+  <style>
+    @keyframes crownGleam5 { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+    .royal-crown-5 { transform-origin: 250px 75px; animation: crownGleam5 2.8s infinite ease-in-out; }
+  </style>
+
+  <!-- Left Golden Wings -->
+  <g transform="translate(100, 250)" filter="url(#captainGlow)">
+    <path d="M 0 -20 C -35 -40 -55 -20 -45 10 C -35 0 -15 0 0 -20 Z" fill="url(#captainGold)" stroke="#78350F" stroke-width="1.5"/>
+    <path d="M 0 5 C -40 -15 -60 15 -50 38 C -40 28 -15 20 0 5 Z" fill="url(#captainCyan)" stroke="#78350F" stroke-width="1.5"/>
+    <path d="M 0 30 C -30 25 -45 50 -40 68 C -30 55 -10 40 0 30 Z" fill="url(#captainGold)"/>
   </g>
 
-  <!-- Main Ring Wheel -->
-  <circle cx="250" cy="250" r="175" fill="none" stroke="url(#captainBlue)" stroke-width="15" filter="url(#captainGlow)"/>
-  <circle cx="250" cy="250" r="165" fill="none" stroke="url(#captainGold)" stroke-width="3"/>
-  <circle cx="250" cy="250" r="185" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.8"/>
-
-  <!-- Top Golden Compass Crest -->
-  <g transform="translate(250, 75)" filter="url(#captainGlow)">
-    <circle cx="0" cy="0" r="18" fill="url(#captainGold)" stroke="#FFF" stroke-width="2"/>
-    <polygon points="0,-12 4,-3 12,0 4,3 0,12 -4,3 -12,0 -4,-3" fill="#DC2626"/>
+  <!-- Right Golden Wings -->
+  <g transform="translate(400, 250)" filter="url(#captainGlow)">
+    <path d="M 0 -20 C 35 -40 55 -20 45 10 C 35 0 15 0 0 -20 Z" fill="url(#captainGold)" stroke="#78350F" stroke-width="1.5"/>
+    <path d="M 0 5 C 40 -15 60 15 50 38 C 40 28 15 20 0 5 Z" fill="url(#captainCyan)" stroke="#78350F" stroke-width="1.5"/>
+    <path d="M 0 30 C 30 25 45 50 40 68 C 30 55 10 40 0 30 Z" fill="url(#captainGold)"/>
   </g>
 
-  <!-- Bottom Right: Marine Anchor -->
-  <g transform="translate(390, 390)" filter="url(#captainGlow)">
-    <circle cx="0" cy="-25" r="8" fill="none" stroke="url(#captainGold)" stroke-width="3"/>
-    <rect x="-3" y="-18" width="6" height="35" fill="url(#captainGold)"/>
-    <rect x="-18" y="-12" width="36" height="5" fill="url(#captainGold)"/>
-    <path d="M -25 8 Q 0 25 25 8" fill="none" stroke="url(#captainGold)" stroke-width="4"/>
+  <!-- Circular Avatar Golden Rim (Hollow for Avatar) -->
+  <circle cx="250" cy="250" r="172" fill="none" stroke="url(#captainGold)" stroke-width="15" filter="url(#captainGlow)"/>
+  <circle cx="250" cy="250" r="162" fill="none" stroke="url(#captainCyan)" stroke-width="3"/>
+  <circle cx="250" cy="250" r="182" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.9"/>
+
+  <!-- Top Royal Naval Crown with Cyan Gems -->
+  <g class="royal-crown-5" filter="url(#captainGlow)">
+    <path d="M 180 105 L 165 45 L 205 70 L 250 15 L 295 70 L 335 45 L 320 105 Z" fill="url(#captainGold)" stroke="#FFFFFF" stroke-width="2"/>
+    <ellipse cx="250" cy="105" rx="72" ry="17" fill="url(#captainCyan)" stroke="url(#captainGold)" stroke-width="3"/>
+    <!-- Jewels -->
+    <circle cx="250" cy="18" r="8" fill="#FFFFFF" stroke="url(#captainCyan)" stroke-width="2"/>
+    <circle cx="165" cy="45" r="6" fill="url(#captainCyan)" stroke="#FFF" stroke-width="1.5"/>
+    <circle cx="335" cy="45" r="6" fill="url(#captainCyan)" stroke="#FFF" stroke-width="1.5"/>
+    <circle cx="205" cy="70" r="5" fill="#FFF"/>
+    <circle cx="295" cy="70" r="5" fill="#FFF"/>
+  </g>
+
+  <!-- Bottom Sailor Wheel & Anchor Plaque -->
+  <g transform="translate(250, 420)" filter="url(#captainGlow)">
+    <!-- Cyan Plaque -->
+    <ellipse cx="0" cy="0" rx="35" ry="16" fill="url(#captainCyan)" stroke="url(#captainGold)" stroke-width="3"/>
+    <!-- Golden Anchor -->
+    <circle cx="0" cy="-6" r="4" fill="none" stroke="url(#captainGold)" stroke-width="2"/>
+    <line x1="0" y1="-2" x2="0" y2="10" stroke="url(#captainGold)" stroke-width="2.5"/>
+    <path d="M -10 4 Q 0 14 10 4" fill="none" stroke="url(#captainGold)" stroke-width="2.5"/>
   </g>
 </svg>

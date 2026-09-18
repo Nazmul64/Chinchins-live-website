@@ -1,13 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
   <defs>
-    <linearGradient id="speedCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="cyberGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="25%" stop-color="#FEF08A"/>
+      <stop offset="60%" stop-color="#EAB308"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+    <linearGradient id="cyberCyan" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#E0F2FE"/>
       <stop offset="40%" stop-color="#38BDF8"/>
       <stop offset="80%" stop-color="#0284C7"/>
-      <stop offset="100%" stop-color="#0C4A6E"/>
+      <stop offset="100%" stop-color="#0F172A"/>
     </linearGradient>
-    <filter id="speedGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="5" result="blur"/>
+    <filter id="cyberGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -15,30 +21,50 @@
     </filter>
   </defs>
 
-  <!-- High-Tech Cyber Speedometer Ring -->
-  <circle cx="250" cy="250" r="175" fill="none" stroke="url(#speedCyan)" stroke-width="15" filter="url(#speedGlow)"/>
-  <circle cx="250" cy="250" r="162" fill="none" stroke="#FFFFFF" stroke-width="2.5" opacity="0.9"/>
-  <circle cx="250" cy="250" r="188" fill="none" stroke="#0284C7" stroke-width="3"/>
+  <style>
+    @keyframes crownGleam8 { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+    .royal-crown-8 { transform-origin: 250px 75px; animation: crownGleam8 2.8s infinite ease-in-out; }
+  </style>
 
-  <!-- Speedometer Ticks -->
-  <g stroke="#38BDF8" stroke-width="3" stroke-linecap="round" opacity="0.8">
-    <line x1="250" y1="65" x2="250" y2="78"/>
-    <line x1="120" y1="120" x2="128" y2="128"/>
-    <line x1="380" y1="120" x2="372" y2="128"/>
-    <line x1="65" y1="250" x2="78" y2="250"/>
-    <line x1="435" y1="250" x2="422" y2="250"/>
+  <!-- Left Golden Cyber Wings -->
+  <g transform="translate(100, 250)" filter="url(#cyberGlow)">
+    <path d="M 0 -20 C -35 -40 -55 -20 -45 10 C -35 0 -15 0 0 -20 Z" fill="url(#cyberGold)" stroke="#78350F" stroke-width="1.5"/>
+    <path d="M 0 5 C -40 -15 -60 15 -50 38 C -40 28 -15 20 0 5 Z" fill="url(#cyberCyan)" stroke="#78350F" stroke-width="1.5"/>
+    <path d="M 0 30 C -30 25 -45 50 -40 68 C -30 55 -10 40 0 30 Z" fill="url(#cyberGold)"/>
   </g>
 
-  <!-- Top Cyber Headlamp Crest -->
-  <g transform="translate(250, 70)" filter="url(#speedGlow)">
-    <polygon points="-30,-8 30,-8 20,12 -20,12" fill="url(#speedCyan)" stroke="#FFF" stroke-width="1.5"/>
-    <circle cx="0" cy="2" r="5" fill="#FFF"/>
+  <!-- Right Golden Cyber Wings -->
+  <g transform="translate(400, 250)" filter="url(#cyberGlow)">
+    <path d="M 0 -20 C 35 -40 55 -20 45 10 C 35 0 15 0 0 -20 Z" fill="url(#cyberGold)" stroke="#78350F" stroke-width="1.5"/>
+    <path d="M 0 5 C 40 -15 60 15 50 38 C 40 28 15 20 0 5 Z" fill="url(#cyberCyan)" stroke="#78350F" stroke-width="1.5"/>
+    <path d="M 0 30 C 30 25 45 50 40 68 C 30 55 10 40 0 30 Z" fill="url(#cyberGold)"/>
   </g>
 
-  <!-- Bottom Speed Tachometer Gauge -->
-  <g transform="translate(250, 420)" filter="url(#speedGlow)">
-    <circle cx="0" cy="0" r="25" fill="#0F172A" stroke="url(#speedCyan)" stroke-width="3"/>
-    <line x1="0" y1="0" x2="12" y2="-12" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round"/>
-    <circle cx="0" cy="0" r="4" fill="#FFF"/>
+  <!-- Circular Avatar Golden Rim (Hollow for Avatar) -->
+  <circle cx="250" cy="250" r="172" fill="none" stroke="url(#cyberGold)" stroke-width="15" filter="url(#cyberGlow)"/>
+  <circle cx="250" cy="250" r="162" fill="none" stroke="url(#cyberCyan)" stroke-width="3"/>
+  <circle cx="250" cy="250" r="182" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.9"/>
+
+  <!-- Top Cyber Shield Royal Crown with Diamonds -->
+  <g class="royal-crown-8" filter="url(#cyberGlow)">
+    <path d="M 180 105 L 165 45 L 205 70 L 250 15 L 295 70 L 335 45 L 320 105 Z" fill="url(#cyberGold)" stroke="#FFFFFF" stroke-width="2"/>
+    <ellipse cx="250" cy="105" rx="72" ry="17" fill="url(#cyberCyan)" stroke="url(#cyberGold)" stroke-width="3"/>
+    <!-- Jewels -->
+    <polygon points="250,5 262,20 250,35 238,20" fill="#FFFFFF" stroke="url(#cyberCyan)" stroke-width="1.5"/>
+    <circle cx="165" cy="45" r="6" fill="url(#cyberCyan)" stroke="#FFF" stroke-width="1.5"/>
+    <circle cx="335" cy="45" r="6" fill="url(#cyberCyan)" stroke="#FFF" stroke-width="1.5"/>
+    <circle cx="205" cy="70" r="5" fill="#FFF"/>
+    <circle cx="295" cy="70" r="5" fill="#FFF"/>
+  </g>
+
+  <!-- Bottom Speedometer Gauge with Red Needle -->
+  <g transform="translate(250, 420)" filter="url(#cyberGlow)">
+    <!-- Speedometer Dial -->
+    <circle cx="0" cy="0" r="25" fill="#0F172A" stroke="url(#cyberCyan)" stroke-width="3"/>
+    <!-- RPM / Speed Arc -->
+    <path d="M -16 6 A 18 18 0 1 1 16 6" fill="none" stroke="#38BDF8" stroke-width="3" stroke-dasharray="2 3"/>
+    <!-- Red Needle -->
+    <line x1="0" y1="0" x2="10" y2="-12" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="0" cy="0" r="4" fill="#FFFFFF"/>
   </g>
 </svg>
