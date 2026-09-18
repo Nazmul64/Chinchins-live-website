@@ -120,8 +120,8 @@ Route::get('/users', [ProfileController::class, 'index']);
 Route::get('/streamers', [ProfileController::class, 'index']);
 Route::get('/streamers/list', [ProfileController::class, 'index']);
 Route::get('/streamer/list', [ProfileController::class, 'index']);
-Route::get('/live/streamers', [ProfileController::class, 'index']);
-Route::get('/live/hosts', [ProfileController::class, 'index']);
+Route::get('/live/streamers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/home/streamers', [ProfileController::class, 'index']);
 Route::get('/home/hot', [ProfileController::class, 'index']);
 Route::get('/hot', [ProfileController::class, 'index']);
@@ -129,8 +129,8 @@ Route::get('/hot/streamers', [ProfileController::class, 'index']);
 Route::get('/hosts', [ProfileController::class, 'index']);
 Route::get('/hosts/online', [ProfileController::class, 'index']);
 Route::get('/stream/users', [ProfileController::class, 'index']);
-Route::get('/stream/hosts', [ProfileController::class, 'index']);
-Route::get('/stream/streamers', [ProfileController::class, 'index']);
+Route::get('/stream/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/stream/streamers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 
 // Worldwide Countries List (For Registration, Filter & Country Select)
 Route::get('/countries', [ProfileController::class, 'getCountries']);
@@ -412,10 +412,17 @@ Route::prefix('call')->group(function () {
 // ==========================================
 // 🔴 Multi-User Live Streaming, Broadcasting & Co-Hosting APIs (v1 & Standard)
 // ==========================================
+Route::get('/lives', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/lives/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/live/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/live/active-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/live/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::get('/live-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+Route::post('/live/like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
+Route::post('/live/send-like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
+Route::post('/live/react', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
 
 Route::prefix('v1/call')->group(function () {
     Route::post('/message/send', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
@@ -435,12 +442,18 @@ Route::get('/v1/user/received-gifts', [\App\Http\Controllers\Api\InCallApiContro
 Route::get('/user/received-gifts', [\App\Http\Controllers\Api\InCallApiController::class, 'getReceivedGifts']);
 
 Route::prefix('v1/stream')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/active-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
     Route::post('/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+    Route::post('/like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
+    Route::post('/send-like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
+    Route::post('/react', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
     Route::post('/comment', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/send-message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
@@ -460,12 +473,20 @@ Route::prefix('v1/stream')->group(function () {
 });
 
 Route::prefix('v1/live')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/active-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/streamers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
     Route::post('/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+    Route::post('/like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
+    Route::post('/send-like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
+    Route::post('/react', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
     Route::post('/send-message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/comment', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
@@ -488,15 +509,22 @@ Route::get('/v1/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'ge
 Route::get('/v1/users/active', [\App\Http\Controllers\Api\ProfileController::class, 'index']);
 
 Route::prefix('live')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/active-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/streamers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
     Route::post('/{id}/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
     Route::post('/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
     Route::post('/{id}/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+    Route::post('/like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
+    Route::post('/send-like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
+    Route::post('/react', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
     Route::post('/message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/send-message', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
     Route::post('/messages/send', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendMessage']);
@@ -724,8 +752,9 @@ Route::get('/users/{id}/top-fans', [\App\Http\Controllers\Api\GiftApiController:
 Route::post('/profile/{id}/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
 Route::post('/user/{id}/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
 Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
-Route::post('/live/send-gift', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
-Route::post('/live-stream/gift', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+Route::post('/gifts/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+Route::post('/live/send-gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
+Route::post('/live-stream/gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
 // ==========================================
 // 👥 Follow & Unfollow User APIs
 // ==========================================

@@ -10,8 +10,10 @@ use App\Events\LiveGiftSentEvent;
 use App\Events\LiveGuestKicked;
 use App\Events\LiveJoinRequested;
 use App\Events\LiveJoinResponded;
+use App\Events\LiveLikeSent;
 use App\Events\LiveMessageSent;
 use App\Events\LiveStreamEnded;
+use App\Events\LiveViewerCountUpdated;
 use App\Events\StreamSignalingEvent;
 use App\Events\WebRTCSignalEvent;
 use App\Http\Controllers\Controller;
@@ -91,40 +93,83 @@ class LiveStreamApiController extends Controller
 
     /**
      * 1. Get Currently Active Live Streams List.
-     * GET /api/lives/active, GET /api/live/active, GET /api/live/list, GET /api/live/active-streams
+     * GET /api/lives/active, GET /api/live/active, GET /api/live/list, GET /api/live/active-streams, GET /api/live/streamers
      */
     public function getActiveLives(Request $request): JsonResponse
     {
         $page = (int) $request->input('page', 1);
-        $perPage = min((int) $request->input('per_page', 20), 50);
+        $perPage = min((int) $request->input('per_page', 30), 100);
 
-        $streams = LiveStream::with([
-                'host:id,account_id,name,display_name,avatar,gender,country,city,level',
+        $query = LiveStream::with([
+                'host:id,account_id,name,display_name,avatar,gender,country,city,level,bio',
                 'guests.user:id,account_id,name,display_name,avatar'
             ])
-            ->where('status', 'live')
-            ->orderByDesc('viewer_count')
+            ->where('status', 'live');
+
+        // Optional search filter
+        if ($request->filled('search')) {
+            $s = trim($request->search);
+            $query->where(function ($q) use ($s) {
+                $q->where('title', 'LIKE', "%{$s}%")
+                  ->orWhere('channel_name', 'LIKE', "%{$s}%")
+                  ->orWhereHas('host', function ($hq) use ($s) {
+                      $hq->where('name', 'LIKE', "%{$s}%")
+                         ->orWhere('display_name', 'LIKE', "%{$s}%")
+                         ->orWhere('account_id', 'LIKE', "%{$s}%");
+                  });
+            });
+        }
+
+        $streams = $query->orderByDesc('viewer_count')
+            ->orderByDesc('likes_count')
             ->orderByDesc('id')
             ->paginate($perPage, ['*'], 'page', $page);
 
         $formatted = collect($streams->items())->map(function ($s) {
             $host = $s->host;
+            $coverUrl = $s->cover_image_url ?: ($host?->avatar_url ?? url('assets/images/default_avatar.png'));
+            
             return [
                 'id'                    => $s->id,
+                'room_id'               => (string) $s->id,
+                'live_stream_id'        => $s->id,
+                'stream_id'             => (string) $s->id,
                 'channel_name'          => $s->channel_name,
                 'title'                 => $s->title ?: (($host?->display_name ?? 'Host') . "'s Live Broadcast"),
-                'cover_image_url'       => $s->cover_image_url,
+                'cover_image'           => $coverUrl,
+                'cover_image_url'       => $coverUrl,
                 'status'                => $s->status,
                 'viewer_count'          => (int) $s->viewer_count,
+                'viewers'               => (int) $s->viewer_count,
+                'likes_count'           => (int) ($s->likes_count ?? 0),
+                'likes'                 => (int) ($s->likes_count ?? 0),
                 'total_diamonds_earned' => (int) $s->total_diamonds_earned,
+                'diamonds'              => (int) $s->total_diamonds_earned,
+                'agora_token'           => $s->agora_token,
                 'started_at'            => $s->started_at ? $s->started_at->toIso8601String() : null,
                 'host'                  => $host ? [
                     'id'           => $host->id,
                     'account_id'   => $host->account_id,
                     'display_name' => $host->display_name ?? $host->name ?? 'Host',
+                    'name'         => $host->display_name ?? $host->name ?? 'Host',
+                    'avatar'       => $host->avatar_url,
                     'avatar_url'   => $host->avatar_url,
                     'gender'       => $host->gender ?: 'female',
                     'country'      => $host->country ?: 'Bangladesh',
+                    'city'         => $host->city ?: '',
+                    'level'        => $host->level ?: 'Lv1',
+                    'bio'          => $host->bio ?: '',
+                ] : null,
+                'user'                  => $host ? [
+                    'id'           => $host->id,
+                    'account_id'   => $host->account_id,
+                    'display_name' => $host->display_name ?? $host->name ?? 'Host',
+                    'name'         => $host->display_name ?? $host->name ?? 'Host',
+                    'avatar'       => $host->avatar_url,
+                    'avatar_url'   => $host->avatar_url,
+                    'gender'       => $host->gender ?: 'female',
+                    'country'      => $host->country ?: 'Bangladesh',
+                    'city'         => $host->city ?: '',
                     'level'        => $host->level ?: 'Lv1',
                 ] : null,
                 'active_guests'         => $s->guests->map(fn($g) => [
@@ -133,6 +178,7 @@ class LiveStreamApiController extends Controller
                     'display_name' => $g->user?->display_name ?? 'Guest',
                     'avatar_url'   => $g->user?->avatar_url,
                 ])->values(),
+                'guests_count'          => $s->guests->count(),
             ];
         });
 
@@ -141,6 +187,10 @@ class LiveStreamApiController extends Controller
             'success'    => true,
             'message'    => 'Active live streams retrieved successfully.',
             'data'       => $formatted,
+            'streamers'  => $formatted,
+            'lives'      => $formatted,
+            'streams'    => $formatted,
+            'list'       => $formatted,
             'pagination' => [
                 'current_page' => $streams->currentPage(),
                 'last_page'    => $streams->lastPage(),
@@ -205,6 +255,7 @@ class LiveStreamApiController extends Controller
             'cover_image'           => $coverImageUrl,
             'status'                => 'live',
             'viewer_count'          => 1,
+            'likes_count'           => 0,
             'total_diamonds_earned' => 0,
             'agora_token'           => $agoraToken,
             'started_at'            => now(),
@@ -234,16 +285,20 @@ class LiveStreamApiController extends Controller
             'data'    => [
                 'room_id'         => (string) $liveStream->id,
                 'live_stream_id'  => $liveStream->id,
+                'stream_id'       => (string) $liveStream->id,
                 'channel_name'    => $channelName,
                 'title'           => $title,
                 'cover_image_url' => $liveStream->cover_image_url,
                 'status'          => 'live',
                 'role'            => 'host',
+                'viewer_count'    => 1,
+                'likes_count'     => 0,
                 'session'         => $sessionTokenData,
                 'host'            => [
                     'id'           => $host->id,
                     'account_id'   => $host->account_id,
                     'display_name' => $host->display_name,
+                    'name'         => $host->display_name,
                     'avatar_url'   => $host->avatar_url,
                 ],
             ],
@@ -345,6 +400,34 @@ class LiveStreamApiController extends Controller
 
             // Increment viewer count
             $stream->increment('viewer_count');
+            $stream->refresh();
+
+            // Broadcast real-time viewer count update and join notification
+            try {
+                $viewerPayload = [
+                    'id'           => $viewer->id,
+                    'account_id'   => $viewer->account_id,
+                    'display_name' => $viewer->display_name ?? $viewer->name ?? 'Viewer',
+                    'avatar_url'   => $viewer->avatar_url,
+                    'level'        => $viewer->level ?: 'Lv1',
+                ];
+
+                event(new LiveViewerCountUpdated($stream->id, [
+                    'viewer_count' => (int) $stream->viewer_count,
+                    'action'       => 'joined',
+                    'user'         => $viewerPayload,
+                ]));
+
+                broadcast(new LiveChatMessageEvent($stream->id, [
+                    'id'        => (int) (now()->timestamp . rand(100, 999)),
+                    'room_id'   => (string) $stream->id,
+                    'user_id'   => $viewer->id,
+                    'user'      => $viewerPayload,
+                    'message'   => "joined the live stream",
+                    'type'      => 'join',
+                    'timestamp' => now()->toIso8601String(),
+                ]))->toOthers();
+            } catch (\Throwable $e) {}
         }
 
         // Generate audience token
@@ -363,16 +446,19 @@ class LiveStreamApiController extends Controller
             'data'    => [
                 'room_id'         => (string) $stream->id,
                 'live_stream_id'  => $stream->id,
+                'stream_id'       => (string) $stream->id,
                 'channel_name'    => $stream->channel_name,
                 'title'           => $stream->title,
                 'cover_image_url' => $stream->cover_image_url,
                 'viewer_count'    => (int) $stream->viewer_count,
+                'likes_count'     => (int) ($stream->likes_count ?? 0),
                 'role'            => 'audience',
                 'session'         => $sessionTokenData,
                 'host'            => [
                     'id'           => $stream->host?->id,
                     'account_id'   => $stream->host?->account_id,
                     'display_name' => $stream->host?->display_name,
+                    'name'         => $stream->host?->display_name,
                     'avatar_url'   => $stream->host?->avatar_url,
                     'gender'       => $stream->host?->gender ?: 'female',
                 ],
@@ -398,13 +484,88 @@ class LiveStreamApiController extends Controller
 
             if ($stream->viewer_count > 1) {
                 $stream->decrement('viewer_count');
+                $stream->refresh();
             }
+
+            try {
+                event(new LiveViewerCountUpdated($stream->id, [
+                    'viewer_count' => (int) $stream->viewer_count,
+                    'action'       => 'left',
+                    'user'         => [
+                        'id'           => $user->id,
+                        'display_name' => $user->display_name ?? $user->name ?? 'Viewer',
+                        'avatar_url'   => $user->avatar_url,
+                    ],
+                ]));
+            } catch (\Throwable $e) {}
         }
 
         return response()->json([
             'status'  => true,
             'success' => true,
             'message' => 'Left live stream successfully.',
+        ], 200);
+    }
+
+    /**
+     * 5.1 Real-Time Like / Heart React in Live Stream.
+     * POST /api/live/like, POST /api/live/send-like, POST /api/live/react, POST /api/v1/live/like, POST /api/v1/stream/like
+     */
+    public function sendLike(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        $streamId = $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('stream_id') ?? $request->input('id');
+        $count = max(1, min(50, (int) $request->input('count', 1)));
+
+        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+        if (!$stream) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Live stream not found.',
+            ], 404);
+        }
+
+        $stream->increment('likes_count', $count);
+        $stream->refresh();
+
+        $senderPayload = $user ? [
+            'id'           => $user->id,
+            'account_id'   => $user->account_id,
+            'display_name' => $user->display_name ?? $user->name ?? 'Viewer',
+            'avatar_url'   => $user->avatar_url,
+            'level'        => $user->level ?: 'Lv1',
+        ] : [
+            'id'           => (int) ($request->input('user_id') ?? 0),
+            'display_name' => 'Viewer',
+            'avatar_url'   => null,
+            'level'        => 'Lv1',
+        ];
+
+        $likeData = [
+            'room_id'       => (string) $stream->id,
+            'stream_id'     => (string) $stream->id,
+            'likes_count'   => (int) $stream->likes_count,
+            'total_likes'   => (int) $stream->likes_count,
+            'count'         => $count,
+            'sender_id'     => $senderPayload['id'],
+            'sender_name'   => $senderPayload['display_name'],
+            'sender_avatar' => $senderPayload['avatar_url'],
+            'user'          => $senderPayload,
+            'timestamp'     => now()->toIso8601String(),
+        ];
+
+        // Broadcast real-time like event across all connected participants
+        try {
+            event(new LiveLikeSent($stream->id, $likeData));
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'      => true,
+            'success'     => true,
+            'message'     => 'Like sent successfully.',
+            'likes_count' => (int) $stream->likes_count,
+            'total_likes' => (int) $stream->likes_count,
+            'data'        => $likeData,
         ], 200);
     }
 

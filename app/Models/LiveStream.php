@@ -20,6 +20,7 @@ class LiveStream extends Model
         'cover_image',
         'status',
         'viewer_count',
+        'likes_count',
         'total_diamonds_earned',
         'agora_token',
         'started_at',
@@ -28,6 +29,7 @@ class LiveStream extends Model
 
     protected $casts = [
         'viewer_count'          => 'integer',
+        'likes_count'           => 'integer',
         'total_diamonds_earned' => 'integer',
         'started_at'            => 'datetime',
         'ended_at'              => 'datetime',
