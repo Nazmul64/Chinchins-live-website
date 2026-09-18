@@ -214,10 +214,11 @@
                                             <img src="{{ $base->base_frame_image_url }}" alt="Base Frame" id="rowPreview_{{ $base->id }}" style="position: absolute; top: -4px; left: -4px; width: 66px; height: 66px; object-fit: contain; pointer-events: none;">
                                         </div>
                                         <div class="d-flex flex-column gap-1">
-                                            <!-- Direct File Upload for this row -->
-                                            <label class="btn btn-sm btn-light border d-flex align-items-center gap-1 mb-0 py-1 px-2" style="font-size: 11px; cursor: pointer; border-radius: 6px;">
-                                                <i class="fa-solid fa-upload text-primary"></i> <span>Upload Image</span>
-                                                <input type="file" name="frame_files[{{ $base->id }}]" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" class="d-none" onchange="previewRowFile(this, 'rowPreview_{{ $base->id }}')">
+                                            <!-- Direct Instant AJAX File Upload for this row -->
+                                            <label class="btn btn-sm btn-light border d-flex align-items-center gap-1 mb-0 py-1 px-2" id="uploadLabel_{{ $base->id }}" style="font-size: 11px; cursor: pointer; border-radius: 6px;">
+                                                <i class="fa-solid fa-upload text-primary" id="uploadIcon_{{ $base->id }}"></i> 
+                                                <span id="uploadText_{{ $base->id }}">Upload Image</span>
+                                                <input type="file" name="frame_files[{{ $base->id }}]" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" class="d-none" onchange="ajaxUploadRowFrame(this, {{ $base->id }}, 'rowPreview_{{ $base->id }}', {{ $base->level }})">
                                             </label>
                                             
                                             <!-- Preset Dropdown -->
@@ -537,6 +538,79 @@
 
 @push('scripts')
 <script>
+    // Instant AJAX single-file upload for table rows (avoids 413 huge batch payload)
+    function ajaxUploadRowFrame(input, baseId, targetImgId, level) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+
+        // Preview locally first
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById(targetImgId);
+            if (img) img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        // UI Feedback
+        const icon = document.getElementById('uploadIcon_' + baseId);
+        const text = document.getElementById('uploadText_' + baseId);
+        if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-primary';
+        if (text) text.textContent = 'Uploading...';
+
+        const formData = new FormData();
+        formData.append('frame_image', file);
+        formData.append('_token', '{{ csrf_token() }}');
+
+        fetch(`/admin/profile-bases/${baseId}/upload-frame`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => {
+            if (!res.ok) {
+                if (res.status === 413) {
+                    throw new Error('Image size is too large for the Nginx web server buffer! Please check Nginx client_max_body_size.');
+                }
+                return res.json().then(data => { throw new Error(data.message || 'Upload failed'); });
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.success) {
+                if (icon) icon.className = 'fa-solid fa-check text-success';
+                if (text) text.textContent = 'Saved!';
+                setTimeout(() => {
+                    if (icon) icon.className = 'fa-solid fa-upload text-primary';
+                    if (text) text.textContent = 'Upload Image';
+                }, 2500);
+
+                // Update select dropdown data attribute and live preview
+                const select = document.getElementById('previewLevelSelector');
+                if (select) {
+                    const opt = select.querySelector(`option[value="${level}"]`);
+                    if (opt) {
+                        opt.setAttribute('data-frame', data.image_url);
+                        if (select.value == level) {
+                            updateLivePreview(level);
+                        }
+                    }
+                }
+            }
+        })
+        .catch(err => {
+            alert('Upload notice: ' + err.message);
+            if (icon) icon.className = 'fa-solid fa-triangle-exclamation text-danger';
+            if (text) text.textContent = 'Error';
+            setTimeout(() => {
+                if (icon) icon.className = 'fa-solid fa-upload text-primary';
+                if (text) text.textContent = 'Upload Image';
+            }, 3000);
+        });
+    }
+
     // Live Preview for file inputs in table rows
     function previewRowFile(input, targetImgId) {
         if (input.files && input.files[0]) {

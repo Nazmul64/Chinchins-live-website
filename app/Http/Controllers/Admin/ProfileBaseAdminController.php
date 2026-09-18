@@ -151,7 +151,7 @@ class ProfileBaseAdminController extends Controller
             'level'            => 'required|integer|min:0|unique:profile_bases,level',
             'name'             => 'required|string|max:190',
             'required_coins'   => 'required|integer|min:0',
-            'frame_image'      => 'nullable|file|mimes:svg,png,webp,jpg,jpeg,gif|max:5120',
+            'frame_image'      => 'nullable|file|mimes:svg,png,webp,jpg,jpeg,gif|max:51200',
             'preset_frame'     => 'nullable|string',
             'badge_icon'       => 'nullable|string|max:50',
             'badge_color'      => 'nullable|string|max:50',
@@ -203,7 +203,7 @@ class ProfileBaseAdminController extends Controller
         $request->validate([
             'name'             => 'required|string|max:190',
             'required_coins'   => 'required|integer|min:0',
-            'frame_image'      => 'nullable|file|mimes:svg,png,webp,jpg,jpeg,gif|max:5120',
+            'frame_image'      => 'nullable|file|mimes:svg,png,webp,jpg,jpeg,gif|max:51200',
             'preset_frame'     => 'nullable|string',
             'badge_icon'       => 'nullable|string|max:50',
             'badge_color'      => 'nullable|string|max:50',
@@ -261,6 +261,37 @@ class ProfileBaseAdminController extends Controller
 
         return redirect()->route('admin.profile-bases.index')
             ->with('success', "Level {$levelNum} base frame has been deleted.");
+    }
+
+    /**
+     * Instant AJAX single-file upload for a Level Base frame (avoids 413 huge batch payload).
+     */
+    public function uploadFrame(Request $request, $id)
+    {
+        $base = ProfileBase::findOrFail($id);
+
+        $request->validate([
+            'frame_image' => 'required|file|mimes:svg,png,webp,jpg,jpeg,gif|max:51200', // up to 50MB
+        ]);
+
+        $destinationPath = public_path($this->uploadFolder);
+        if (!File::isDirectory($destinationPath)) {
+            File::makeDirectory($destinationPath, 0777, true, true);
+        }
+
+        $file = $request->file('frame_image');
+        $filename = 'base_level_' . $base->level . '_' . time() . '_' . Str::random(4) . '.' . $file->getClientOriginalExtension();
+        $file->move($destinationPath, $filename);
+
+        $base->base_frame_image = $this->uploadFolder . '/' . $filename;
+        $base->save();
+
+        return response()->json([
+            'success'   => true,
+            'message'   => "Level {$base->level} frame image uploaded and saved successfully!",
+            'image_url' => $base->base_frame_image_url,
+            'path'      => $base->base_frame_image,
+        ]);
     }
 
     /**
