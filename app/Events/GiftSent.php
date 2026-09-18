@@ -35,11 +35,24 @@ class GiftSent implements ShouldBroadcastNow
     {
         $channels = [
             new Channel('call.' . $this->channelId),
+            new PrivateChannel('call.' . $this->channelId),
+            new Channel('presence-call.' . $this->channelId),
+            new Channel('call_chat.' . $this->channelId),
+            new Channel('live-room.' . $this->channelId),
+            new PrivateChannel('live-room.' . $this->channelId),
+            new Channel('live-stream.' . $this->channelId),
+            new Channel('presence-live-stream.' . $this->channelId),
+            new Channel('presence-live.' . $this->channelId),
             new Channel('live.' . $this->channelId),
         ];
 
-        if (!empty($this->payload['receiver_id'])) {
-            $channels[] = new Channel('user.' . $this->payload['receiver_id']);
+        $recvId = $this->payload['receiver_id'] ?? ($this->payload['receiver']['id'] ?? null);
+        if ($recvId) {
+            $channels[] = new Channel('chat.' . $recvId);
+            $channels[] = new PrivateChannel('chat.' . $recvId);
+            $channels[] = new Channel('user-chat.' . $recvId);
+            $channels[] = new Channel('user.' . $recvId);
+            $channels[] = new PrivateChannel('user.' . $recvId);
         }
 
         return $channels;

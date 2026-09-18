@@ -269,31 +269,63 @@ class InCallApiController extends Controller
                          ?: $gift->image;
 
             $payload = [
-                'call_session_id' => $request->call_session_id,
+                'call_session_id'     => (string) $request->call_session_id,
+                'room_id'             => (string) $request->call_session_id,
+                'stream_id'           => (string) $request->call_session_id,
+                'sender_id'           => $sender->id,
+                'receiver_id'         => $receiver->id,
+                'id'                  => $gift->id,
+                'gift_id'             => $gift->id,
+                'gift_name'           => $gift->name,
+                'name'                => $gift->name,
+                'image_url'           => $gift->image_url ?: $gift->image,
+                'icon_url'            => $gift->image_url ?: $gift->image,
+                'animation_url'       => $animationUrl,
+                'animation_full_url'  => $animationUrl,
+                'animation_asset_url' => $animationUrl,
+                'file_url'            => $animationUrl,
+                'animation_type'      => $gift->animation_type ?: 'svga',
+                'format'              => $gift->animation_type ?: 'svga',
+                'display_type'        => 'fullscreen',
+                'quantity'            => 1,
+                'coins'               => $giftCost,
+                'total_coins'         => $giftCost,
                 'sender' => [
-                    'id'     => $sender->id,
-                    'name'   => $sender->display_name ?? $sender->name ?? $sender->nickname ?? 'User',
-                    'avatar' => $sender->avatar_url,
+                    'id'           => $sender->id,
+                    'name'         => $sender->display_name ?? $sender->name ?? $sender->nickname ?? 'User',
+                    'display_name' => $sender->display_name ?? $sender->name ?? $sender->nickname ?? 'User',
+                    'avatar'       => $sender->avatar_url,
+                    'avatar_url'   => $sender->avatar_url,
                 ],
                 'receiver' => [
-                    'id'     => $receiver->id,
-                    'name'   => $receiver->display_name ?? $receiver->name ?? $receiver->nickname ?? 'User',
-                    'avatar' => $receiver->avatar_url,
+                    'id'           => $receiver->id,
+                    'name'         => $receiver->display_name ?? $receiver->name ?? $receiver->nickname ?? 'User',
+                    'display_name' => $receiver->display_name ?? $receiver->name ?? $receiver->nickname ?? 'User',
+                    'avatar'       => $receiver->avatar_url,
+                    'avatar_url'   => $receiver->avatar_url,
                 ],
                 'gift' => [
-                    'id'            => $gift->id,
-                    'name'          => $gift->name,
-                    'coins'         => $giftCost,
-                    'image_url'     => $gift->image_url ?: $gift->image,
-                    'animation_url' => $animationUrl,
-                    'animation_type'=> $gift->animation_type ?: 'svg',
+                    'id'                  => $gift->id,
+                    'name'                => $gift->name,
+                    'gift_name'           => $gift->name,
+                    'coins'               => $giftCost,
+                    'image_url'           => $gift->image_url ?: $gift->image,
+                    'icon_url'            => $gift->image_url ?: $gift->image,
+                    'animation_url'       => $animationUrl,
+                    'animation_full_url'  => $animationUrl,
+                    'animation_asset_url' => $animationUrl,
+                    'file_url'            => $animationUrl,
+                    'animation_type'      => $gift->animation_type ?: 'svga',
+                    'display_type'        => 'fullscreen',
                 ],
                 'timestamp' => now()->toIso8601String(),
             ];
 
-            // Reverb broadcast to call session channel
+            // Reverb broadcast to call session channels and user channels
             try {
-                broadcast(new GiftSentEvent($payload))->toOthers();
+                broadcast(new \App\Events\GiftSentEvent($payload))->toOthers();
+                broadcast(new \App\Events\GiftSent((string)$request->call_session_id, $payload))->toOthers();
+                broadcast(new \App\Events\LiveGiftSentEvent((string)$request->call_session_id, $payload))->toOthers();
             } catch (\Throwable $e) {}
         });
 
@@ -301,9 +333,11 @@ class InCallApiController extends Controller
 
         return response()->json([
             'status'          => true,
+            'success'         => true,
             'message'         => 'Gift sent successfully',
             'current_balance' => (int) ($freshSender->wallet_balance ?? $freshSender->coins ?? 0),
             'gift_data'       => $payload,
+            'data'            => $payload,
         ], 200);
     }
 

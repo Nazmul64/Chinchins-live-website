@@ -1151,4 +1151,54 @@ class LiveStreamApiController extends Controller
             'viewers'      => $viewers,
         ], 200);
     }
+
+    /**
+     * 13. Get Real Live Chat Messages from Database (No mock data).
+     * GET /api/live/messages, GET /api/live/{id}/messages, GET /api/v1/live/messages
+     */
+    public function getLiveMessages(Request $request, $id = null): JsonResponse
+    {
+        $streamId = $id ?? $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+
+        if (!$stream) {
+            return response()->json(['status' => false, 'message' => 'Live stream not found.'], 404);
+        }
+
+        $messages = LiveMessage::with(['user:id,account_id,name,display_name,avatar,level', 'gift'])
+            ->where('live_stream_id', $stream->id)
+            ->orderBy('id', 'asc')
+            ->take(100)
+            ->get()
+            ->map(function ($m) {
+                $u = $m->user;
+                return [
+                    'id'          => $m->id,
+                    'room_id'     => (string) $m->live_stream_id,
+                    'user_id'     => $m->user_id,
+                    'user_name'   => $u?->display_name ?? $u?->name ?? 'User',
+                    'user_avatar' => $u?->avatar_url,
+                    'user'        => [
+                        'id'           => $m->user_id,
+                        'account_id'   => $u?->account_id,
+                        'display_name' => $u?->display_name ?? $u?->name ?? 'User',
+                        'avatar_url'   => $u?->avatar_url,
+                        'level'        => $u?->level ?: 'Lv1',
+                    ],
+                    'message'     => $m->message,
+                    'type'        => $m->type,
+                    'gift_id'     => $m->gift_id,
+                    'gift'        => $m->gift,
+                    'level'       => $u?->level ?: 'Lv1',
+                    'created_at'  => $m->created_at->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'status'   => true,
+            'success'  => true,
+            'messages' => $messages,
+            'data'     => $messages,
+        ], 200);
+    }
 }

@@ -451,6 +451,9 @@ Route::prefix('v1/stream')->group(function () {
     Route::get('/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
     Route::get('/{id}/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
+    Route::get('/messages', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
+    Route::get('/{id}/messages', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
+    Route::get('/comments', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
@@ -486,6 +489,9 @@ Route::prefix('v1/live')->group(function () {
     Route::get('/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
     Route::get('/{id}/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
+    Route::get('/messages', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
+    Route::get('/{id}/messages', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
+    Route::get('/comments', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
@@ -524,6 +530,9 @@ Route::prefix('live')->group(function () {
     Route::get('/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
     Route::get('/{id}/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
+    Route::get('/messages', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
+    Route::get('/{id}/messages', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
+    Route::get('/comments', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getLiveMessages']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
