@@ -587,10 +587,15 @@ void listenToLiveRoom(String roomId) {
 
 ## ৭. ভয়েস পার্টি রুম (Voice Party Room), স্পিকিং ওয়েভ ও লাক্সারি অ্যাভাটার ফ্রেম
 
-### ৭.১ লেভেল বেস ও ফ্রেম ডিরেক্টরি (Level Badges & Profile Frames)
+### ৭.১ লেভেল বেস ও ফ্রেম ডিরেক্টরি (Level Badges & Profile Frames - Levels 0 to 15)
 
 | Level | ফ্রেমের নাম | ফাইল পাথ (SVG) | গ্লো ও থিম | বিশেষ প্রিভিলেজ |
 | :--- | :--- | :--- | :--- | :--- |
+| **Lv. 15** | **Supreme Sovereign God-Tier** | `uploads/bases/profile_base_supreme_sovereign.svg` | 24K Gold Sunburst, Diamond Aura | গড-টিয়ার সুপ্রিম অরা, স্পার্কলিং ডায়মন্ডস ও অল-সার্ভার ব্যানার |
+| **Lv. 14** | **Cyber Mecha Overlord** | `uploads/bases/profile_base_cyber_overlord.svg` | Neon Cyan & Laser Pink | সাইবার মেকা লেজার হ্যালো ও রোবটিক উইংস |
+| **Lv. 13** | **Ocean Leviathan Poseidon** | `uploads/bases/profile_base_ocean_poseidon.svg` | Deep Ocean & Gold Trident | পসেইডন গোল্ড ট্রাইডেন্ট ও ব্লু ওয়াটার ওয়েভ ফ্রেম |
+| **Lv. 12** | **Fire Phoenix Immortal** | `uploads/bases/profile_base_phoenix_immortal.svg` | Blazing Solar Phoenix | ফিনিক্স ইমমর্টাল উইংস ও সানফ্লেয়ার অ্যাভাটার ফ্রেম |
+| **Lv. 11** | **Galaxy Galactic Emperor** | `uploads/bases/profile_base_galactic_emperor.svg` | Cosmic Purple & Gold Portal | কসমিক গ্যালাকটিক পার্পল উইংস ও স্টার পোর্টাল ফ্রেম |
 | **Lv. 10** | **KING Golden Royal Winged Crown** | `uploads/bases/profile_base_king_royal.svg` | 24K Gold, Ruby Red | সুপ্রিম কিং ২4K গোল্ড উইংস বেস ও গ্লোবাল শাউট |
 | **Lv. 9** | **QUEEN Imperial Diamond Wings** | `uploads/bases/profile_base_queen_imperial.svg` | Pink Diamond, Purple Aura | ইম্পেরিয়াল কুইন ডায়মন্ড ক্রাউন ও এঞ্জেল উইংস বেস |
 | **Lv. 8** | **Diamond Wings Sovereign** | `uploads/bases/profile_base_diamond_wings.svg` | Celestial Cyan (#38bdf8) | সেলেস্টিয়াল ডায়মন্ড উইংস ভিআইপি অরা ফ্রেম |
@@ -602,6 +607,8 @@ void listenToLiveRoom(String roomId) {
 | **Lv. 2** | **Dollar Ring Rich Gold** | `uploads/bases/profile_base_dollar_ring.svg` | Emerald (#10b981) & Gold | ডলার রিং গোল্ড লরেল ও কয়েন গ্লো |
 | **Lv. 1** | **Bronze Star** | `uploads/bases/profile_base_bronze_star.svg` | Bronze Star (#f97316) | ব্রোঞ্জ স্টার অ্যাভাটার ফ্রেম |
 | **Lv. 0** | **Novice Cadet** | `uploads/bases/profile_base_novice_cadet.svg` | Slate Glow | স্ট্যান্ডার্ড প্রোফাইল ফ্রেম |
+| **Special** | **Luxury Rose Garden Queen** | `uploads/bases/profile_base_rose_garden.svg` | Rose Pink & Gold Filigree | লাক্সারি পিংক রোজ ক্রাউন ও গোল্ডেন হার্ট লকেট |
+| **Special** | **Crescent Moon Star Wings** | `uploads/bases/profile_base_crescent_moon.svg` | Purple Moon & Gold Star | ক্রিসেন্ট মুন স্টার উইংস ফ্রেম |
 
 ---
 
