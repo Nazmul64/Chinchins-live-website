@@ -282,30 +282,59 @@ class LiveStreamApiController extends Controller
             'last_seen_at'   => now(),
         ]);
 
+        $activeEngine = config('services.streaming.engine', 'agora');
+        try {
+            $streamingSetting = StreamingSetting::first();
+            if ($streamingSetting && $streamingSetting->primary_driver) {
+                $activeEngine = $streamingSetting->primary_driver;
+            }
+        } catch (\Throwable $e) {}
+
+        $streamPayload = [
+            'room_id'            => (string) $liveStream->id,
+            'live_stream_id'     => $liveStream->id,
+            'stream_id'          => $liveStream->id,
+            'channel_name'       => $channelName,
+            'title'              => $title,
+            'cover_image_url'    => $liveStream->cover_image_url,
+            'cover_image'        => $liveStream->cover_image_url,
+            'status'             => 'active',
+            'role'               => 'host',
+            'viewer_count'       => 1,
+            'likes_count'        => 0,
+            'host_id'            => $host->id,
+            'active_engine'      => $activeEngine,
+            'agora_token'        => $agoraToken,
+            'rtc_token'          => $agoraToken,
+            'reverb_channel'     => 'presence-stream.' . $liveStream->id,
+            'engine_credentials' => [
+                'app_id'       => config('services.agora.app_id', env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13')),
+                'token'        => $agoraToken,
+                'channel_name' => $channelName,
+                'uid'          => $host->id,
+            ],
+            'session'            => $sessionTokenData,
+            'host'               => [
+                'id'           => $host->id,
+                'account_id'   => $host->account_id,
+                'display_name' => $host->display_name,
+                'name'         => $host->display_name,
+                'avatar'       => $host->avatar_url,
+                'avatar_url'   => $host->avatar_url,
+                'level'        => $host->level ?: 'Lv1',
+            ],
+        ];
+
+        // Broadcast to global lobby so all phones update their Live tab in real time without refreshing
+        try {
+            event(new \App\Events\StreamStatusChangedEvent($liveStream->id, 'live', $streamPayload));
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'status'  => true,
             'success' => true,
             'message' => 'Live stream broadcast started successfully!',
-            'data'    => [
-                'room_id'         => (string) $liveStream->id,
-                'live_stream_id'  => $liveStream->id,
-                'stream_id'       => (string) $liveStream->id,
-                'channel_name'    => $channelName,
-                'title'           => $title,
-                'cover_image_url' => $liveStream->cover_image_url,
-                'status'          => 'live',
-                'role'            => 'host',
-                'viewer_count'    => 1,
-                'likes_count'     => 0,
-                'session'         => $sessionTokenData,
-                'host'            => [
-                    'id'           => $host->id,
-                    'account_id'   => $host->account_id,
-                    'display_name' => $host->display_name,
-                    'name'         => $host->display_name,
-                    'avatar_url'   => $host->avatar_url,
-                ],
-            ],
+            'data'    => $streamPayload,
         ], 200);
     }
 
@@ -356,15 +385,18 @@ class LiveStreamApiController extends Controller
         $summary = [
             'room_id'               => (string) $stream->id,
             'live_stream_id'        => $stream->id,
+            'stream_id'             => $stream->id,
             'channel_name'          => $stream->channel_name,
+            'status'                => 'ended',
             'duration_seconds'      => $stream->ended_at ? $stream->ended_at->diffInSeconds($stream->started_at) : 0,
             'total_diamonds_earned' => (int) $stream->total_diamonds_earned,
             'peak_viewers'          => (int) $stream->viewer_count,
         ];
 
-        // Broadcast event to all connected viewers and guests
+        // Broadcast event to all connected viewers and guests & global lobby
         try {
             event(new LiveStreamEnded($stream->id, $summary));
+            event(new \App\Events\StreamStatusChangedEvent($stream->id, 'ended', $summary));
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -443,27 +475,50 @@ class LiveStreamApiController extends Controller
             ['uid' => $viewer?->id ?? rand(100000, 999999)]
         );
 
+        $agoraAudienceToken = $sessionTokenData['agora']['token'] ?? $sessionTokenData['data']['token'] ?? null;
+        $activeEngine = config('services.streaming.engine', 'agora');
+        try {
+            $streamingSetting = StreamingSetting::first();
+            if ($streamingSetting && $streamingSetting->primary_driver) {
+                $activeEngine = $streamingSetting->primary_driver;
+            }
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'status'  => true,
             'success' => true,
             'message' => 'Joined live stream successfully.',
             'data'    => [
-                'room_id'         => (string) $stream->id,
-                'live_stream_id'  => $stream->id,
-                'stream_id'       => (string) $stream->id,
-                'channel_name'    => $stream->channel_name,
-                'title'           => $stream->title,
-                'cover_image_url' => $stream->cover_image_url,
-                'viewer_count'    => (int) $stream->viewer_count,
-                'likes_count'     => (int) ($stream->likes_count ?? 0),
-                'role'            => 'audience',
-                'session'         => $sessionTokenData,
-                'host'            => [
+                'room_id'            => (string) $stream->id,
+                'live_stream_id'     => $stream->id,
+                'stream_id'          => $stream->id,
+                'channel_name'       => $stream->channel_name,
+                'title'              => $stream->title,
+                'cover_image_url'    => $stream->cover_image_url,
+                'viewer_count'       => (int) $stream->viewer_count,
+                'likes_count'        => (int) ($stream->likes_count ?? 0),
+                'role'               => 'audience',
+                'active_engine'      => $activeEngine,
+                'agora_token'        => $agoraAudienceToken,
+                'rtc_token'          => $agoraAudienceToken,
+                'reverb_channel'     => 'presence-stream.' . $stream->id,
+                'seat_layout'        => 'single',
+                'is_following'       => false,
+                'session'            => $sessionTokenData,
+                'engine_credentials' => [
+                    'app_id'       => config('services.agora.app_id', env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13')),
+                    'token'        => $agoraAudienceToken,
+                    'channel_name' => $stream->channel_name,
+                    'uid'          => $viewer?->id ?? rand(100000, 999999),
+                ],
+                'host'               => [
                     'id'           => $stream->host?->id,
                     'account_id'   => $stream->host?->account_id,
-                    'display_name' => $stream->host?->display_name,
-                    'name'         => $stream->host?->display_name,
+                    'display_name' => $stream->host?->display_name ?? 'Host',
+                    'name'         => $stream->host?->display_name ?? 'Host',
                     'avatar_url'   => $stream->host?->avatar_url,
+                    'avatar'       => $stream->host?->avatar_url,
+                    'level'        => $stream->host?->level ?: 'Lv1',
                     'gender'       => $stream->host?->gender ?: 'female',
                 ],
             ],
@@ -1199,6 +1254,81 @@ class LiveStreamApiController extends Controller
             'success'  => true,
             'messages' => $messages,
             'data'     => $messages,
+        ], 200);
+    }
+
+    /**
+     * 14. Get Host Received Gifts Summary for Room.
+     * GET /api/v1/streams/{stream_id}/gift-summary, GET /api/v1/live/{id}/gift-summary
+     */
+    public function getGiftSummary(Request $request, $id = null): JsonResponse
+    {
+        $streamId = $id ?? $request->input('stream_id') ?? $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+
+        if (!$stream) {
+            return response()->json(['status' => false, 'message' => 'Live stream not found.'], 404);
+        }
+
+        $giftsSummary = GiftTransaction::with('gift')
+            ->where('live_stream_id', $stream->id)
+            ->select('gift_id', DB::raw('count(*) as count'), DB::raw('sum(coin_amount) as total_coins'))
+            ->groupBy('gift_id')
+            ->get()
+            ->map(function ($gt) {
+                return [
+                    'gift_id'     => $gt->gift_id,
+                    'name'        => $gt->gift?->name ?? 'Gift',
+                    'count'       => (int) $gt->count,
+                    'icon'        => $gt->gift?->icon_url ?? $gt->gift?->animation_url,
+                    'total_coins' => (int) $gt->total_coins,
+                ];
+            });
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'data'    => [
+                'total_coins_earned'    => (int) $stream->total_diamonds_earned,
+                'total_diamonds_earned' => (int) $stream->total_diamonds_earned,
+                'gifts'                 => $giftsSummary,
+            ],
+        ], 200);
+    }
+
+    /**
+     * 15. Guest Mic / Seat Request (TikTok & Bigo 4/9 Seat Grid).
+     * POST /api/v1/live/{stream_id}/seat-request, POST /api/v1/streams/{stream_id}/seat-request
+     */
+    public function requestSeat(Request $request, $id = null): JsonResponse
+    {
+        return $this->requestJoin($request, $id);
+    }
+
+    /**
+     * 16. Switch Streaming Engine (Agora vs Self-Hosted WebRTC).
+     * POST /api/v1/admin/live/switch-engine
+     */
+    public function switchEngine(Request $request): JsonResponse
+    {
+        $targetEngine = $request->input('target_engine', 'agora');
+        $streamId = $request->input('stream_id') ?? $request->input('room_id');
+
+        try {
+            $setting = StreamingSetting::first();
+            if ($setting) {
+                $setting->update(['primary_driver' => $targetEngine]);
+            }
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => 'Engine switch broadcast dispatched',
+            'data'    => [
+                'stream_id'      => $streamId,
+                'target_engine'  => $targetEngine,
+            ]
         ], 200);
     }
 }

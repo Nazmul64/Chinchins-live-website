@@ -44,6 +44,10 @@ class LiveChatMessageEvent implements ShouldBroadcastNow
             new Channel('live-stream.' . $this->roomId),
             new PresenceChannel('live-stream.' . $this->roomId),
             new Channel('live.' . $this->roomId),
+            new Channel('presence-live.' . $this->roomId),
+            new Channel('presence-stream.' . $this->roomId),
+            new Channel('presence-live-stream.' . $this->roomId),
+            new Channel('presence-room.' . $this->roomId),
         ];
     }
 

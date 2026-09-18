@@ -35,9 +35,10 @@ class LiveViewerCountUpdated implements ShouldBroadcastNow
             new PresenceChannel('live-room.' . $this->roomId),
             new Channel('live-stream.' . $this->roomId),
             new PresenceChannel('live-stream.' . $this->roomId),
-            new Channel('live.' . $this->roomId),
             new PresenceChannel('presence-live.' . $this->roomId),
             new PresenceChannel('presence-live-stream.' . $this->roomId),
+            new Channel('presence-stream.' . $this->roomId),
+            new Channel('presence-room.' . $this->roomId),
         ];
     }
 
