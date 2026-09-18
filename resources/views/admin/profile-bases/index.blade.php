@@ -206,9 +206,12 @@
 
                                 <!-- Frame Base Thumbnail & Direct Upload -->
                                 <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="position-relative d-flex align-items-center justify-content-center rounded-3 p-1" style="width: 52px; height: 52px; background: #0f172a; flex-shrink: 0;">
-                                            <img src="{{ $base->base_frame_image_url }}" alt="Base Frame" id="rowPreview_{{ $base->id }}" style="width: 46px; height: 46px; object-fit: contain;">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="position-relative d-flex align-items-center justify-content-center rounded-circle" style="width: 58px; height: 58px; background: radial-gradient(circle, #334155 0%, #0f172a 100%); flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
+                                            <!-- Sample Avatar inside frame -->
+                                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                                            <!-- Overlay Profile Base Frame -->
+                                            <img src="{{ $base->base_frame_image_url }}" alt="Base Frame" id="rowPreview_{{ $base->id }}" style="position: absolute; top: -4px; left: -4px; width: 66px; height: 66px; object-fit: contain; pointer-events: none;">
                                         </div>
                                         <div class="d-flex flex-column gap-1">
                                             <!-- Direct File Upload for this row -->
@@ -218,7 +221,7 @@
                                             </label>
                                             
                                             <!-- Preset Dropdown -->
-                                            <select name="levels[{{ $base->id }}][preset_frame]" class="form-select form-select-sm" style="font-size: 10px; width: 140px; border-radius: 6px; padding: 2px 6px;">
+                                            <select name="levels[{{ $base->id }}][preset_frame]" class="form-select form-select-sm" style="font-size: 10px; width: 145px; border-radius: 6px; padding: 2px 6px;">
                                                 @foreach($availablePresetFrames as $path => $label)
                                                     <option value="{{ $path }}" {{ $base->base_frame_image == $path ? 'selected' : '' }}>
                                                         {{ $label }}

@@ -38,13 +38,29 @@ class ProfileBaseAdminController extends Controller
             'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         ];
 
-        // Available pre-made SVGs in uploads/bases
+        // Available pre-made SVGs and PNGs in uploads/bases
         $availablePresetFrames = [
-            'uploads/bases/profile_base_royal_gold.svg'    => 'Royal Gold Crown Frame',
-            'uploads/bases/profile_base_diamond_wings.svg' => 'Diamond Wings Frame',
-            'uploads/bases/profile_base_cyber_neon.svg'    => 'Cyber Neon Future Frame',
-            'uploads/bases/profile_base_fire_dragon.svg'   => 'Fire Dragon Flame Frame',
-            'uploads/bases/profile_base_svip_crown.svg'    => 'SVIP Supreme Emperor Frame',
+            'uploads/bases/profile_base_novice_cadet.svg'      => 'Lv.0 Novice Cadet Frame',
+            'uploads/bases/profile_base_bronze_star.svg'       => 'Lv.1 Bronze Star Starter Frame',
+            'uploads/bases/profile_base_dollar_ring.svg'       => 'Lv.2 Fatima Dollar Ring Rich Gold',
+            'uploads/bases/profile_base_circus_gentleman.svg'  => 'Lv.3 Maryam Circus Gentleman Hat',
+            'uploads/bases/profile_base_top3_spotlight.svg'    => 'Lv.4 Abdul TOP 3 Stage Spotlight',
+            'uploads/bases/profile_base_blue_captain.svg'      => 'Lv.5 Momo Blue Captain Sailor Wheel',
+            'uploads/bases/profile_base_devil_horns.svg'       => 'Lv.6 Omar Devil Horns Flame Crest',
+            'uploads/bases/profile_base_cricket_superstar.png' => 'Lv.7 Amir Cricket Superstar (3D PNG)',
+            'uploads/bases/profile_base_cricket_superstar.svg' => 'Lv.7 Amir Cricket Superstar (SVG)',
+            'uploads/bases/profile_base_cyber_speedometer.svg' => 'Lv.8 Zainab Cyber Speedometer Shield',
+            'uploads/bases/profile_base_rose_garden.svg'       => 'Lv.9 Priya Luxury Rose Garden Queen',
+            'uploads/bases/profile_base_queen_imperial.png'    => 'Lv.10 QUEEN Imperial Diamond Wings (3D PNG)',
+            'uploads/bases/profile_base_queen_imperial.svg'    => 'Lv.10 QUEEN Imperial Diamond Wings (SVG)',
+            'uploads/bases/profile_base_king_royal.png'        => 'Lv.11 KING 24K Gold Winged Crown (3D PNG)',
+            'uploads/bases/profile_base_king_royal.svg'        => 'Lv.11 KING 24K Gold Winged Crown (SVG)',
+            'uploads/bases/profile_base_superbike_rider.svg'   => 'Lv.12 Superbike Nitro Racer Helmet',
+            'uploads/bases/profile_base_phoenix_immortal.svg'  => 'Lv.13 Fire Phoenix Immortal Wings',
+            'uploads/bases/profile_base_ocean_poseidon.svg'    => 'Lv.14 Ocean Leviathan Poseidon Trident',
+            'uploads/bases/profile_base_supreme_sovereign.svg' => 'Lv.15 Supreme Sovereign God-Tier Aura',
+            'uploads/bases/profile_base_diamond_wings.svg'     => 'Diamond Wings Sovereign Frame',
+            'uploads/bases/profile_base_crescent_moon.svg'     => 'Crescent Moon Star Wings Frame',
         ];
 
         return view('admin.profile-bases.index', compact(
