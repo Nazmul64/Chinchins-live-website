@@ -372,6 +372,11 @@
                         <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">{{ $activeLiveStreamsCount }}</span>
                     @endif
                 </a>
+                <a href="{{ route('admin.calls.monitoring') }}" class="submenu-item {{ request()->routeIs('admin.calls.monitoring') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>1-on-1 Call Video Records</span>
+                    <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">Monitoring</span>
+                </a>
                 <a href="{{ route('admin.live-streams.gift-transactions') }}" class="submenu-item {{ request()->routeIs('admin.live-streams.gift-transactions') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
                     <span>Gift Transactions Log</span>

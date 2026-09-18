@@ -52,6 +52,14 @@ class LiveStream extends Model
     }
 
     /**
+     * Currently active participants who haven't left yet.
+     */
+    public function activeParticipants(): HasMany
+    {
+        return $this->hasMany(LiveParticipant::class, 'live_stream_id')->whereNull('left_at');
+    }
+
+    /**
      * Active co-hosting guests.
      */
     public function guests(): HasMany

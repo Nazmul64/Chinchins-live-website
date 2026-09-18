@@ -18,7 +18,7 @@ class LiveStreamAdminController extends Controller
     {
         $status = $request->input('status', 'all');
 
-        $query = LiveStream::with(['host', 'activeParticipants.user'])->latest('id');
+        $query = LiveStream::with(['host', 'guests.user', 'viewers.user'])->latest('id');
 
         if ($status === 'live') {
             $query->where('status', 'live');
@@ -26,11 +26,15 @@ class LiveStreamAdminController extends Controller
             $query->where('status', 'ended');
         }
 
-        $streams = $query->paginate(20);
+        $streams = $query->paginate(20)->withQueryString();
 
-        $activeLivesCount = LiveStream::where('status', 'live')->count();
-        $totalDiamondsEarned = LiveStream::sum('total_diamonds_earned');
-        $totalTransactionsCount = GiftTransaction::count();
+        $activeLivesCount = 0;
+        $totalDiamondsEarned = 0;
+        $totalTransactionsCount = 0;
+
+        try { $activeLivesCount = LiveStream::where('status', 'live')->count(); } catch (\Throwable $e) {}
+        try { $totalDiamondsEarned = (int) LiveStream::sum('total_diamonds_earned'); } catch (\Throwable $e) {}
+        try { $totalTransactionsCount = GiftTransaction::count(); } catch (\Throwable $e) {}
 
         return view('admin.live_streams.index', compact(
             'streams',
