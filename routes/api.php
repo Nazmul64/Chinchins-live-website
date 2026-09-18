@@ -430,6 +430,8 @@ Route::prefix('v1/call')->group(function () {
     Route::get('/quick-messages', [\App\Http\Controllers\Api\InCallApiController::class, 'getQuickMessages']);
     Route::post('/initiate', [CallController::class, 'initiate']);
     Route::post('/signal', [CallController::class, 'sendSignal']);
+    Route::post('/mute-toggle', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
+    Route::post('/toggle-mute', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
     Route::post('/send-message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::post('/message', [\App\Http\Controllers\Api\InCallApiController::class, 'sendMessage']);
     Route::get('/messages', [CallController::class, 'getCallMessages']);
@@ -447,6 +449,8 @@ Route::prefix('v1/stream')->group(function () {
     Route::get('/active', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/list', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
+    Route::get('/{id}/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
@@ -480,6 +484,8 @@ Route::prefix('v1/live')->group(function () {
     Route::get('/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/streamers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
+    Route::get('/{id}/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
@@ -516,6 +522,8 @@ Route::prefix('live')->group(function () {
     Route::get('/feed', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/streamers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+    Route::get('/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
+    Route::get('/{id}/viewers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getViewers']);
     Route::post('/start', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
     Route::post('/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
     Route::post('/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);

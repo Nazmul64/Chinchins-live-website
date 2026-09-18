@@ -198,6 +198,7 @@ Schema::create('live_participants', function (Blueprint $table) {
 | :--- | :--- | :--- | :--- |
 | **Active Lives** | `GET` | `/api/live/active` | একটিভ লাইভ ব্রডকাস্টারদের তালিকা (LIVE ট্যাবের জন্য) |
 | **Active Streamers** | `GET` | `/api/live/streamers` | লাইভ ফিড স্ট্রিমার্স লিস্ট |
+| **Live Viewers** | `GET` | `/api/live/viewers` | লাইভ স্ট্রিম সক্রিয় দর্শকের তালিকা ও প্রোফাইল ডাটা |
 | **Live Start** | `POST` | `/api/live/start` | গো লাইভ - নতুন ব্রডকাস্ট রুম চালু ও Agora টোকেন জেনারেশন |
 | **Live End** | `POST` | `/api/live/end` | লাইভ স্ট্রিম সমাপ্তি ও সামারি ক্যালকুলেশন |
 | **Live Join** | `POST` | `/api/live/join` | লাইভ রুমে অডিয়েন্স হিসেবে জয়েন ও ভিউয়ার কাউন্টার আপডেট |
@@ -208,7 +209,8 @@ Schema::create('live_participants', function (Blueprint $table) {
 | **Join Request** | `POST` | `/api/live/join-request` | ভিউয়ার কর্তৃক কো-হোস্ট হতে আবেদন |
 | **Respond Request** | `POST` | `/api/live/accept-request` | হোস্ট কর্তৃক কো-হোস্ট আবেদন একসেপ্ট / রিজেক্ট |
 | **Kick Guest** | `POST` | `/api/live/kick-guest` | হোস্ট কর্তৃক কো-হোস্ট গেস্ট রিমুভ / কিক |
-| **Mute Control** | `POST` | `/api/live/mute-toggle` | অডিও মিউট / আনমিউট স্টেট সিঙ্ক |
+| **Live Mute Control** | `POST` | `/api/live/mute-toggle` | লাইভ স্ট্রিমে অডিও মিউট / আনমিউট স্টেট সিঙ্ক |
+| **Call Mute Control** | `POST` | `/api/v1/call/mute-toggle` | অডিও ও ভিডিও কলে মাইক্রোফোন মিউট / আনমিউট সিঙ্ক |
 | **WebRTC Signal** | `POST` | `/api/live/signal` | মাল্টি-গেস্ট WebRTC SDP Offer/Answer/Candidate সিগন্যালিং |
 | **In-Call Chat** | `POST` | `/api/v1/call/message/send` | ১-অন-১ ভিডিও কলে রিয়েল-টাইম মেসেজ |
 | **In-Call Gift** | `POST` | `/api/v1/call/gift/send` | ১-অন-১ ভিডিও কলে লাক্সারি গিফট সেন্ড |

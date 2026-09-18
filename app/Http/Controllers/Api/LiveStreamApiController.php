@@ -1103,4 +1103,48 @@ class LiveStreamApiController extends Controller
             'data'    => $kickPayload,
         ], 200);
     }
+
+    /**
+     * 12. Get Active Viewers List for Live Stream.
+     * GET /api/live/{id}/viewers, GET /api/live/viewers, GET /api/v1/live/viewers
+     */
+    public function getViewers(Request $request, $id = null): JsonResponse
+    {
+        $streamId = $id ?? $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+
+        if (!$stream) {
+            return response()->json(['status' => false, 'message' => 'Live stream not found.'], 404);
+        }
+
+        $viewers = LiveParticipant::with('user:id,account_id,name,display_name,avatar,level,gender,country')
+            ->where('live_stream_id', $stream->id)
+            ->where('role', 'viewer')
+            ->whereNull('left_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function ($p) {
+                $u = $p->user;
+                return [
+                    'user_id'      => $p->user_id,
+                    'account_id'   => $u?->account_id,
+                    'display_name' => $u?->display_name ?? $u?->name ?? 'Viewer',
+                    'name'         => $u?->display_name ?? $u?->name ?? 'Viewer',
+                    'avatar_url'   => $u?->avatar_url,
+                    'avatar'       => $u?->avatar_url,
+                    'level'        => $u?->level ?: 'Lv1',
+                    'gender'       => $u?->gender ?: 'female',
+                    'joined_at'    => $p->joined_at ? $p->joined_at->toIso8601String() : null,
+                ];
+            });
+
+        return response()->json([
+            'status'       => true,
+            'success'      => true,
+            'message'      => 'Viewers retrieved successfully.',
+            'viewer_count' => $viewers->count() ?: (int) $stream->viewer_count,
+            'data'         => $viewers,
+            'viewers'      => $viewers,
+        ], 200);
+    }
 }
