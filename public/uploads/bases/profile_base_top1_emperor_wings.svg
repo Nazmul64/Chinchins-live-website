@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- 24K Rich Imperial Gold Gradient -->
+    <linearGradient id="emperorGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="20%" stop-color="#FEF08A"/>
+      <stop offset="45%" stop-color="#FACC15"/>
+      <stop offset="70%" stop-color="#EAB308"/>
+      <stop offset="90%" stop-color="#CA8A04"/>
+      <stop offset="100%" stop-color="#713F12"/>
+    </linearGradient>
+
+    <!-- Ruby Red Monarch Gradient -->
+    <linearGradient id="monarchRuby" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F87171"/>
+      <stop offset="40%" stop-color="#DC2626"/>
+      <stop offset="80%" stop-color="#991B1B"/>
+      <stop offset="100%" stop-color="#450A0A"/>
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="emperorGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes monarchShine { 0%, 100% { opacity: 0.95; transform: scale(1); } 50% { opacity: 1; transform: scale(1.02); } }
+    @keyframes emperorWingsFloat { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-3px) rotate(1deg); } }
+    .emperor-crown { transform-origin: 250px 65px; animation: monarchShine 2.5s infinite ease-in-out; }
+    .emperor-left-wing { transform-origin: 100px 250px; animation: emperorWingsFloat 3.2s infinite ease-in-out; }
+    .emperor-right-wing { transform-origin: 400px 250px; animation: emperorWingsFloat 3.2s infinite ease-in-out reverse; }
+  </style>
+
+  <!-- Massive Left 24K Emperor Wings Arch -->
+  <g class="emperor-left-wing" filter="url(#emperorGlow)">
+    <path d="M 125 210 C 20 130, 0 40, 70 10 C 85 65, 55 130, 135 185 Z" fill="url(#emperorGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 100 240 C 5 180, -5 100, 50 65 C 60 120, 35 180, 110 225 Z" fill="url(#emperorGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 105 295 C 10 280, 5 200, 70 150 C 70 205, 55 255, 115 280 Z" fill="url(#emperorGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 130 355 C 45 375, 20 315, 75 245 C 90 280, 80 325, 140 345 Z" fill="url(#emperorGold)" stroke="#713F12" stroke-width="1.5"/>
+  </g>
+
+  <!-- Massive Right 24K Emperor Wings Arch -->
+  <g class="emperor-right-wing" filter="url(#emperorGlow)">
+    <path d="M 375 210 C 480 130, 500 40, 430 10 C 415 65, 445 130, 365 185 Z" fill="url(#emperorGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 400 240 C 495 180, 505 100, 450 65 C 440 120, 465 180, 390 225 Z" fill="url(#emperorGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 395 295 C 490 280, 495 200, 430 150 C 430 205, 445 255, 385 280 Z" fill="url(#emperorGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 370 355 C 455 375, 480 315, 425 245 C 410 280, 420 325, 360 345 Z" fill="url(#emperorGold)" stroke="#713F12" stroke-width="1.5"/>
+  </g>
+
+  <!-- Circular Avatar Golden Frame Rim (Centered Hollow for Avatar) -->
+  <circle cx="250" cy="250" r="168" fill="none" stroke="url(#emperorGold)" stroke-width="18" filter="url(#emperorGlow)"/>
+  <circle cx="250" cy="250" r="156" fill="none" stroke="#FFFFFF" stroke-width="3" opacity="0.9"/>
+  <circle cx="250" cy="250" r="180" fill="none" stroke="#713F12" stroke-width="3"/>
+
+  <!-- Ornate Golden Filigree Dots around Rim -->
+  <circle cx="95" cy="250" r="6" fill="url(#emperorGold)" stroke="#FFF" stroke-width="1"/>
+  <circle cx="405" cy="250" r="6" fill="url(#emperorGold)" stroke="#FFF" stroke-width="1"/>
+  <circle cx="140" cy="140" r="5" fill="url(#monarchRuby)" stroke="#FFF" stroke-width="1"/>
+  <circle cx="360" cy="140" r="5" fill="url(#monarchRuby)" stroke="#FFF" stroke-width="1"/>
+  <circle cx="140" cy="360" r="5" fill="url(#monarchRuby)" stroke="#FFF" stroke-width="1"/>
+  <circle cx="360" cy="360" r="5" fill="url(#monarchRuby)" stroke="#FFF" stroke-width="1"/>
+
+  <!-- Top Imperial SVIP 9 Emperor Crown with Velvet Red Inset & Large Diamond -->
+  <g class="emperor-crown" filter="url(#emperorGlow)">
+    <path d="M 160 100 L 140 25 L 200 65 L 250 5 L 300 65 L 360 25 L 340 100 Z" fill="url(#emperorGold)" stroke="#FFFFFF" stroke-width="2.5"/>
+    <ellipse cx="250" cy="100" rx="90" ry="22" fill="url(#monarchRuby)" stroke="url(#emperorGold)" stroke-width="4"/>
+    
+    <!-- Large Center Diamond & Ruby Jewels -->
+    <polygon points="250,-5 262,12 250,28 238,12" fill="#E0F2FE" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="140" cy="28" r="8" fill="url(#monarchRuby)" stroke="#FFFFFF" stroke-width="1.5"/>
+    <circle cx="360" cy="28" r="8" fill="url(#monarchRuby)" stroke="#FFFFFF" stroke-width="1.5"/>
+    <circle cx="200" cy="68" r="6" fill="#38BDF8" stroke="#FFFFFF" stroke-width="1.5"/>
+    <circle cx="300" cy="68" r="6" fill="#38BDF8" stroke="#FFFFFF" stroke-width="1.5"/>
+  </g>
+
+  <!-- Bottom 3D "TOP 1 SVIP 9" Plaque Banner -->
+  <g transform="translate(250, 420)" filter="url(#emperorGlow)">
+    <!-- Red Monarch Back Ribbon -->
+    <path d="M -150 0 L -175 -18 L -165 30 L -115 22 Z" fill="#7F1D1D"/>
+    <path d="M 150 0 L 175 -18 L 165 30 L 115 22 Z" fill="#7F1D1D"/>
+    <!-- Gold Plaque Shield -->
+    <path d="M -130 -20 L 130 -20 Q 145 18 120 30 L -120 30 Q -145 18 -130 -20 Z" fill="url(#monarchRuby)" stroke="url(#emperorGold)" stroke-width="5"/>
+    <text x="0" y="8" font-family="'Arial Black', Impact, sans-serif" font-size="22" font-weight="900" fill="url(#emperorGold)" stroke="#450A0A" stroke-width="1.5" text-anchor="middle" letter-spacing="3">TOP 1 SVIP 9</text>
+  </g>
+
+  <!-- Sparkling Diamond Flares -->
+  <polygon points="100,50 106,68 124,74 106,80 100,98 94,80 76,74 94,68" fill="#FFFFFF" opacity="0.95"/>
+  <polygon points="400,50 406,68 424,74 406,80 400,98 394,80 376,74 394,68" fill="#FFFFFF" opacity="0.95"/>
+</svg>

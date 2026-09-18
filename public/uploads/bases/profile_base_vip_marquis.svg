@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="marquisGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="25%" stop-color="#FEF08A"/>
+      <stop offset="60%" stop-color="#EAB308"/>
+      <stop offset="100%" stop-color="#713F12"/>
+    </linearGradient>
+    <linearGradient id="marquisRoyalBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#93C5FD"/>
+      <stop offset="50%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <filter id="marquisGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Circular Halo Ring -->
+  <circle cx="250" cy="250" r="172" fill="none" stroke="url(#marquisGold)" stroke-width="13" filter="url(#marquisGlow)"/>
+  <circle cx="250" cy="250" r="162" fill="none" stroke="url(#marquisRoyalBlue)" stroke-width="3"/>
+  <circle cx="250" cy="250" r="182" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.9"/>
+
+  <!-- Top Marquis Crown with Sapphire -->
+  <g transform="translate(250, 68)" filter="url(#marquisGlow)">
+    <path d="M -25 15 L -20 -10 L 0 5 L 20 -10 L 25 15 Z" fill="url(#marquisGold)" stroke="#FFF" stroke-width="2"/>
+    <circle cx="0" cy="8" r="6" fill="url(#marquisRoyalBlue)" stroke="#FFF" stroke-width="1.5"/>
+  </g>
+
+  <!-- Left Imperial Eagle Wing -->
+  <g transform="translate(85, 250)" filter="url(#marquisGlow)">
+    <path d="M 0 -20 C -40 -40 -60 -20 -50 15 C -40 5 -20 0 0 -20 Z" fill="url(#marquisGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 0 5 C -45 -15 -65 15 -55 42 C -45 30 -20 20 0 5 Z" fill="url(#marquisGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 0 30 C -40 25 -55 50 -48 70 C -35 55 -15 42 0 30 Z" fill="url(#marquisRoyalBlue)"/>
+  </g>
+
+  <!-- Right Imperial Eagle Wing -->
+  <g transform="translate(415, 250)" filter="url(#marquisGlow)">
+    <path d="M 0 -20 C 40 -40 60 -20 50 15 C 40 5 20 0 0 -20 Z" fill="url(#marquisGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 0 5 C 45 -15 65 15 55 42 C 45 30 20 20 0 5 Z" fill="url(#marquisGold)" stroke="#713F12" stroke-width="1.5"/>
+    <path d="M 0 30 C 40 25 55 50 48 70 C 35 55 15 42 0 30 Z" fill="url(#marquisRoyalBlue)"/>
+  </g>
+
+  <!-- Bottom Marquis Golden Eagle Plaque -->
+  <g transform="translate(250, 420)" filter="url(#marquisGlow)">
+    <!-- Golden Eagle Wings Spread -->
+    <path d="M 0 -10 C -25 -25 -50 -10 -40 10 C -25 5 -10 15 0 20 C 10 15 25 5 40 10 C 50 -10 25 -25 0 -10 Z" fill="url(#marquisGold)" stroke="#713F12" stroke-width="2"/>
+    <circle cx="0" cy="5" r="8" fill="url(#marquisRoyalBlue)" stroke="#FFF" stroke-width="1.5"/>
+  </g>
+</svg>

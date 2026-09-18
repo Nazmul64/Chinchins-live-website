@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="lionGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="25%" stop-color="#FEF08A"/>
+      <stop offset="60%" stop-color="#EAB308"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+    <linearGradient id="fireOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="35%" stop-color="#F97316"/>
+      <stop offset="70%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#7F1D1D"/>
+    </linearGradient>
+    <filter id="lionGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes firePulsing { 0%, 100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.03); } }
+    .fire-aura { transform-origin: 250px 250px; animation: firePulsing 2.5s infinite ease-in-out; }
+  </style>
+
+  <!-- Fire Aura Rays Outer Ring -->
+  <g class="fire-aura" filter="url(#lionGlow)">
+    <circle cx="250" cy="250" r="185" fill="none" stroke="url(#fireOrange)" stroke-width="6" stroke-dasharray="12 8" opacity="0.8"/>
+  </g>
+
+  <!-- Circular Outer Golden Rim -->
+  <circle cx="250" cy="250" r="172" fill="none" stroke="url(#lionGold)" stroke-width="16" filter="url(#lionGlow)"/>
+  <circle cx="250" cy="250" r="160" fill="none" stroke="#FFFFFF" stroke-width="3" opacity="0.9"/>
+  <circle cx="250" cy="250" r="182" fill="none" stroke="#78350F" stroke-width="3"/>
+
+  <!-- Top Imperial Monarch Crown with Sunburst Diamonds -->
+  <g transform="translate(250, 60)" filter="url(#lionGlow)">
+    <path d="M -70 45 L -55 -15 L -20 20 L 0 -30 L 20 20 L 55 -15 L 70 45 Z" fill="url(#lionGold)" stroke="#FFFFFF" stroke-width="2.5"/>
+    <ellipse cx="0" cy="45" rx="70" ry="16" fill="url(#fireOrange)" stroke="url(#lionGold)" stroke-width="3"/>
+    <!-- Rubies & Diamonds -->
+    <polygon points="0,-40 8,-25 0,-10 -8,-25" fill="#FFF" stroke="url(#fireOrange)" stroke-width="1.5"/>
+    <circle cx="-55" cy="-15" r="6" fill="#FFF"/>
+    <circle cx="55" cy="-15" r="6" fill="#FFF"/>
+    <circle cx="0" cy="45" r="8" fill="#DC2626" stroke="#FFF" stroke-width="2"/>
+  </g>
+
+  <!-- Bottom Left: White Lion Head Crest with Fire Mane -->
+  <g transform="translate(95, 385)" filter="url(#lionGlow)">
+    <!-- Fire Mane -->
+    <path d="M -35 10 C -50 -15 -35 -45 -10 -40 C 15 -50 40 -20 25 10 C 15 35 -15 35 -35 10 Z" fill="url(#fireOrange)"/>
+    <!-- White Lion Face -->
+    <path d="M -20 -20 Q 0 -35 20 -20 Q 25 10 0 20 Q -25 10 -20 -20 Z" fill="#F8FAFC" stroke="url(#lionGold)" stroke-width="2.5"/>
+    <!-- Eyes & Snout -->
+    <circle cx="-8" cy="-10" r="3" fill="#0284C7"/>
+    <circle cx="8" cy="-10" r="3" fill="#0284C7"/>
+    <polygon points="0,-2 4,5 -4,5" fill="#0F172A"/>
+  </g>
+
+  <!-- Bottom Right: Golden Tiger Head Crest with Glowing Blue Eyes -->
+  <g transform="translate(405, 385)" filter="url(#lionGlow)">
+    <!-- Fire Aura -->
+    <path d="M -25 10 C -40 -20 -15 -50 10 -40 C 35 -45 50 -15 35 10 C 15 35 -15 35 -25 10 Z" fill="url(#fireOrange)"/>
+    <!-- Gold Tiger Face -->
+    <path d="M -20 -20 Q 0 -35 20 -20 Q 25 10 0 20 Q -25 10 -20 -20 Z" fill="url(#lionGold)" stroke="#78350F" stroke-width="2.5"/>
+    <!-- Tiger Stripes -->
+    <path d="M -18 -20 L -8 -15" stroke="#78350F" stroke-width="2"/>
+    <path d="M 18 -20 L 8 -15" stroke="#78350F" stroke-width="2"/>
+    <path d="M 0 -30 L 0 -18" stroke="#78350F" stroke-width="2"/>
+    <!-- Glowing Blue Eyes -->
+    <circle cx="-7" cy="-8" r="3.5" fill="#38BDF8" stroke="#FFF" stroke-width="1"/>
+    <circle cx="7" cy="-8" r="3.5" fill="#38BDF8" stroke="#FFF" stroke-width="1"/>
+    <polygon points="0,0 4,7 -4,7" fill="#0F172A"/>
+  </g>
+
+  <!-- Bottom Center 3D Golden Lion Shield Plaque -->
+  <g transform="translate(250, 425)" filter="url(#lionGlow)">
+    <path d="M -85 -18 L 85 -18 Q 95 15 75 25 L -75 25 Q -95 15 -85 -18 Z" fill="url(#fireOrange)" stroke="url(#lionGold)" stroke-width="4"/>
+    <text x="0" y="8" font-family="'Arial Black', Impact, sans-serif" font-size="20" font-weight="900" fill="url(#lionGold)" stroke="#450A0A" stroke-width="1.5" text-anchor="middle" letter-spacing="3">LION FIRE</text>
+  </g>
+</svg>

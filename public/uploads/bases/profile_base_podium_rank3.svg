@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="rank3Bronze" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFEDD5"/>
+      <stop offset="40%" stop-color="#F97316"/>
+      <stop offset="70%" stop-color="#C2410C"/>
+      <stop offset="100%" stop-color="#7C2D12"/>
+    </linearGradient>
+    <linearGradient id="rank3Gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="50%" stop-color="#EAB308"/>
+      <stop offset="100%" stop-color="#854D0E"/>
+    </linearGradient>
+    <filter id="rank3Glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Circular Outer Bronze Rim -->
+  <circle cx="250" cy="250" r="172" fill="none" stroke="url(#rank3Bronze)" stroke-width="14" filter="url(#rank3Glow)"/>
+  <circle cx="250" cy="250" r="162" fill="none" stroke="url(#rank3Gold)" stroke-width="2.5"/>
+  <circle cx="250" cy="250" r="182" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.9"/>
+
+  <!-- Left Bronze Wings -->
+  <g transform="translate(100, 250)" filter="url(#rank3Glow)">
+    <path d="M 0 -15 C -35 -35 -55 -15 -45 15 C -35 5 -15 0 0 -15 Z" fill="url(#rank3Bronze)" stroke="#7C2D12" stroke-width="1.5"/>
+    <path d="M 0 10 C -40 -10 -60 15 -50 38 C -40 28 -15 20 0 10 Z" fill="url(#rank3Bronze)" stroke="#7C2D12" stroke-width="1.5"/>
+    <path d="M 0 32 C -35 28 -45 50 -40 68 C -30 55 -10 42 0 32 Z" fill="url(#rank3Gold)"/>
+  </g>
+
+  <!-- Right Bronze Wings -->
+  <g transform="translate(400, 250)" filter="url(#rank3Glow)">
+    <path d="M 0 -15 C 35 -35 55 -15 45 15 C 35 5 15 0 0 -15 Z" fill="url(#rank3Bronze)" stroke="#7C2D12" stroke-width="1.5"/>
+    <path d="M 0 10 C 40 -10 60 15 50 38 C 40 28 15 20 0 10 Z" fill="url(#rank3Bronze)" stroke="#7C2D12" stroke-width="1.5"/>
+    <path d="M 0 32 C 35 28 45 50 40 68 C 30 55 10 42 0 32 Z" fill="url(#rank3Gold)"/>
+  </g>
+
+  <!-- Top Bronze Crown -->
+  <g transform="translate(250, 70)" filter="url(#rank3Glow)">
+    <path d="M -45 25 L -35 -15 L -10 10 L 0 -25 L 10 10 L 35 -15 L 45 25 Z" fill="url(#rank3Bronze)" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="0" cy="12" r="7" fill="url(#rank3Gold)" stroke="#FFF" stroke-width="1.5"/>
+  </g>
+
+  <!-- Bottom Rank 3 Badge -->
+  <g transform="translate(250, 420)" filter="url(#rank3Glow)">
+    <circle cx="0" cy="0" r="28" fill="url(#rank3Bronze)" stroke="#FFFFFF" stroke-width="3"/>
+    <text x="0" y="9" font-family="'Arial Black', Impact, sans-serif" font-size="24" font-weight="900" fill="#FFFFFF" text-anchor="middle">III</text>
+    <!-- 1 Star -->
+    <polygon points="0,26 2,30 6,30 3,33 4,37 0,34 -4,37 -3,33 -6,30 -2,30" fill="url(#rank3Gold)"/>
+  </g>
+</svg>
