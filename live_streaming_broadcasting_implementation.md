@@ -570,7 +570,7 @@ void listenToLiveRoom(String roomId) {
       .listen('.viewer.updated', (data) {
         liveScreenKey.currentState?.updateViewerCount(data['viewer_count']);
       })
-      // ৪. ফুল-স্ক্রিন লাক্সারি SVGA গিফট
+      // ৪. ফুল-স্ক্রিন লাক্সারি SVGA গিফট (সেন্ডার ও রিসিভার উভয়ের স্ক্রিনেই ট্রিগার)
       .listen('.LiveGiftSent', (data) {
         giftAnimationKey.currentState?.playLuxuryGift(data['gift']);
       });
@@ -584,4 +584,248 @@ void listenToLiveRoom(String roomId) {
 ```
 
 ---
+
+## ৭. ভয়েস পার্টি রুম (Voice Party Room), স্পিকিং ওয়েভ ও লাক্সারি অ্যাভাটার ফ্রেম
+
+### ৭.১ লেভেল বেস ও ফ্রেম ডিরেক্টরি (Level Badges & Profile Frames)
+
+| Level | ফ্রেমের নাম | ফাইল পাথ (SVG) | গ্লো ও থিম | বিশেষ প্রিভিলেজ |
+| :--- | :--- | :--- | :--- | :--- |
+| **Lv. 10** | **KING Golden Royal Winged Crown** | `uploads/bases/profile_base_king_royal.svg` | 24K Gold, Ruby Red | সুপ্রিম কিং ২4K গোল্ড উইংস বেস ও গ্লোবাল শাউট |
+| **Lv. 9** | **QUEEN Imperial Diamond Wings** | `uploads/bases/profile_base_queen_imperial.svg` | Pink Diamond, Purple Aura | ইম্পেরিয়াল কুইন ডায়মন্ড ক্রাউন ও এঞ্জেল উইংস বেস |
+| **Lv. 8** | **Diamond Wings Sovereign** | `uploads/bases/profile_base_diamond_wings.svg` | Celestial Cyan (#38bdf8) | সেলেস্টিয়াল ডায়মন্ড উইংস ভিআইপি অরা ফ্রেম |
+| **Lv. 7** | **TOP 3 Stage Spotlight Base** | `uploads/bases/profile_base_top3_spotlight.svg` | Purple (#a855f7) Neon | টপ ৩ পার্পল স্টেজ স্পটলাইট ফ্রেম |
+| **Lv. 6** | **Devil Horns Flame Crest** | `uploads/bases/profile_base_devil_horns.svg` | Crimson Fire (#ef4444) | ফ্লেমিং ডেভিল হর্নস ও রেড রুবি ফ্রেম |
+| **Lv. 5** | **Cricket Superstar Gold** | `uploads/bases/profile_base_cricket_superstar.svg` | Gold & Blue (#eab308) | ক্রিকেট সুপারস্টার গোল্ড হেলমেট, ব্যাট ও বল ফ্রেম |
+| **Lv. 4** | **Blue Captain Steering Wheel** | `uploads/bases/profile_base_blue_captain.svg` | Ocean Cyan (#00f0ff) | ব্লু ক্যাপ্টেন শিপ স্টিয়ারিং হুইল ফ্রেম |
+| **Lv. 3** | **Circus Gentleman Rich** | `uploads/bases/profile_base_circus_gentleman.svg` | Gold & Ruby Ribbon | সার্কাস জেন্টলম্যান গোল্ড হ্যাট ও রিচ ব্যানার |
+| **Lv. 2** | **Dollar Ring Rich Gold** | `uploads/bases/profile_base_dollar_ring.svg` | Emerald (#10b981) & Gold | ডলার রিং গোল্ড লরেল ও কয়েন গ্লো |
+| **Lv. 1** | **Bronze Star** | `uploads/bases/profile_base_bronze_star.svg` | Bronze Star (#f97316) | ব্রোঞ্জ স্টার অ্যাভাটার ফ্রেম |
+| **Lv. 0** | **Novice Cadet** | `uploads/bases/profile_base_novice_cadet.svg` | Slate Glow | স্ট্যান্ডার্ড প্রোফাইল ফ্রেম |
+
+---
+
+### ৭.২ Flutter Voice Party Seat Widget (স্পিকিং রিপল ওয়েভ, ফ্রেম ও মাইক আইকন)
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+class VoicePartySeatWidget extends StatefulWidget {
+  final int seatIndex;
+  final String? userName;
+  final String? avatarUrl;
+  final String? frameSvgUrl;
+  final bool isSpeaking;
+  final bool isMuted;
+  final bool isLocked;
+  final VoidCallback onTap;
+
+  const VoicePartySeatWidget({
+    Key? key,
+    required this.seatIndex,
+    this.userName,
+    this.avatarUrl,
+    this.frameSvgUrl,
+    this.isSpeaking = false,
+    this.isMuted = false,
+    this.isLocked = false,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  State<VoicePartySeatWidget> createState() => _VoicePartySeatWidgetState();
+}
+
+class _VoicePartySeatWidgetState extends State<VoicePartySeatWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _waveController;
+
+  @override
+  void initState() {
+    super.initState();
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    if (widget.isSpeaking) {
+      _waveController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(VoicePartySeatWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSpeaking && !_waveController.isAnimating) {
+      _waveController.repeat();
+    } else if (!widget.isSpeaking && _waveController.isAnimating) {
+      _waveController.stop();
+      _waveController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 90,
+            height: 90,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // ১. স্পিকিং রিপল ওয়েভ অ্যানিমেশন (যখন মাইকে কথা বলে)
+                if (widget.isSpeaking)
+                  AnimatedBuilder(
+                    animation: _waveController,
+                    builder: (context, child) {
+                      return Container(
+                        width: 80 + (_waveController.value * 16),
+                        height: 80 + (_waveController.value * 16),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFF43F5E).withOpacity(1.0 - _waveController.value),
+                            width: 2.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF43F5E).withOpacity(0.4 * (1.0 - _waveController.value)),
+                              blurRadius: 12,
+                              spreadRadius: 4,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                // ২. ইউজার সার্কুলার প্রোফাইল ছবি
+                ClipOval(
+                  child: Container(
+                    width: 62,
+                    height: 62,
+                    color: Colors.white10,
+                    child: widget.avatarUrl != null
+                        ? Image.network(widget.avatarUrl!, fit: BoxFit.cover)
+                        : (widget.isLocked
+                            ? const Icon(Icons.lock, color: Colors.amber, size: 24)
+                            : const Icon(Icons.add, color: Colors.white54, size: 28)),
+                  ),
+                ),
+
+                // ৩. লাক্সারি অ্যাভাটার ফ্রেম ওভারলে (King, Queen, Cricket, etc.)
+                if (widget.frameSvgUrl != null && widget.frameSvgUrl!.isNotEmpty)
+                  Positioned.fill(
+                    child: SvgPicture.network(
+                      widget.frameSvgUrl!,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+
+                // ৪. মাইক ও মিউট স্ট্যাটাস ইন্ডিকেটর (নিচে ডানপাশে)
+                if (widget.avatarUrl != null)
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: widget.isMuted ? Colors.black87 : const Color(0xFFE11D48),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: Icon(
+                        widget.isMuted ? Icons.mic_off : Icons.mic,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // ৫. সিট নম্বর ও ইউজারের নাম
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE11D48),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${widget.seatIndex}',
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 55),
+                  child: Text(
+                    widget.userName ?? 'Seat ${widget.seatIndex}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+---
+
+### ৭.৩ Agora অডিও ভলিউম ইন্ডিকেশন লিসেনার (Real-Time Voice Waves)
+
+```dart
+// Agora RTC Engine অডিও ভলিউম ইন্ডিকেটর সক্রিয়করণ
+await rtcEngine.enableAudioVolumeIndication(
+  interval: 200, // প্রতি ২০০ms অন্তর ভলিউম আপডেট
+  smooth: 3,
+  reportVad: true,
+);
+
+// ইভেন্ট হ্যান্ডলারে স্পিকিং স্টেট আপডেট
+rtcEngine.registerEventHandler(
+  RtcEngineEventHandler(
+    onAudioVolumeIndication: (RtcConnection connection, List<AudioVolumeInfo> speakers, int totalVolume) {
+      for (var speaker in speakers) {
+        if (speaker.volume! > 10) {
+          // ইউজার কথা বলছেন -> রিপল ওয়েভ ট্রু
+          setSeatSpeaking(speaker.uid, true);
+        } else {
+          setSeatSpeaking(speaker.uid, false);
+        }
+      }
+    },
+  ),
+);
+```
+
+---
 *Generated and verified for Chinchins Live Production Engine (TikTok & Bigo Live Standard).*
+

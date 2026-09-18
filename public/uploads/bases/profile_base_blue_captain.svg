@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="captainBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7DD3FC"/>
+      <stop offset="50%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#0C4A6E"/>
+    </linearGradient>
+    <linearGradient id="captainGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFBEB"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+    <filter id="captainGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Ship's Steering Wheel Spokes around circle -->
+  <g filter="url(#captainGlow)">
+    <!-- 8 Steering Pegs -->
+    <rect x="242" y="30" width="16" height="35" rx="5" fill="url(#captainGold)"/>
+    <rect x="242" y="435" width="16" height="35" rx="5" fill="url(#captainGold)"/>
+    <rect x="30" y="242" width="35" height="16" rx="5" fill="url(#captainGold)"/>
+    <rect x="435" y="242" width="35" height="16" rx="5" fill="url(#captainGold)"/>
+    <!-- Diagonals -->
+    <rect x="242" y="30" width="16" height="35" rx="5" fill="url(#captainGold)" transform="rotate(45 250 250)"/>
+    <rect x="242" y="435" width="16" height="35" rx="5" fill="url(#captainGold)" transform="rotate(45 250 250)"/>
+    <rect x="30" y="242" width="35" height="16" rx="5" fill="url(#captainGold)" transform="rotate(45 250 250)"/>
+    <rect x="435" y="242" width="35" height="16" rx="5" fill="url(#captainGold)" transform="rotate(45 250 250)"/>
+  </g>
+
+  <!-- Main Ring Wheel -->
+  <circle cx="250" cy="250" r="175" fill="none" stroke="url(#captainBlue)" stroke-width="15" filter="url(#captainGlow)"/>
+  <circle cx="250" cy="250" r="165" fill="none" stroke="url(#captainGold)" stroke-width="3"/>
+  <circle cx="250" cy="250" r="185" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.8"/>
+
+  <!-- Top Golden Compass Crest -->
+  <g transform="translate(250, 75)" filter="url(#captainGlow)">
+    <circle cx="0" cy="0" r="18" fill="url(#captainGold)" stroke="#FFF" stroke-width="2"/>
+    <polygon points="0,-12 4,-3 12,0 4,3 0,12 -4,3 -12,0 -4,-3" fill="#DC2626"/>
+  </g>
+
+  <!-- Bottom Right: Marine Anchor -->
+  <g transform="translate(390, 390)" filter="url(#captainGlow)">
+    <circle cx="0" cy="-25" r="8" fill="none" stroke="url(#captainGold)" stroke-width="3"/>
+    <rect x="-3" y="-18" width="6" height="35" fill="url(#captainGold)"/>
+    <rect x="-18" y="-12" width="36" height="5" fill="url(#captainGold)"/>
+    <path d="M -25 8 Q 0 25 25 8" fill="none" stroke="url(#captainGold)" stroke-width="4"/>
+  </g>
+</svg>
