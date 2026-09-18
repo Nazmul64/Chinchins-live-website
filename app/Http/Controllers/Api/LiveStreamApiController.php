@@ -176,6 +176,11 @@ class LiveStreamApiController extends Controller
                     'city'         => $host->city ?: '',
                     'level'        => $host->level ?: 'Lv1',
                 ] : null,
+                'is_live'               => true,
+                'is_speaking'           => true,
+                'speaking_indicator'    => true,
+                'audio_waves_active'    => true,
+                'pip_preview_url'       => $s->stream_url ?: $coverUrl,
                 'active_guests'         => $s->guests->map(fn($g) => [
                     'user_id'      => $g->user_id,
                     'account_id'   => $g->user?->account_id,

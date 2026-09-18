@@ -171,4 +171,111 @@ class CallAdminController extends Controller
 
         return back()->with('success', "Call rates, ringtones & revenue split updated! Host receives {$hostPercent}%, Platform receives {$adminPercent}%.");
     }
+
+    /**
+     * Display Video Call Monitoring, Recorded Sessions & Complaints Inspector.
+     */
+    public function monitoring(Request $request)
+    {
+        $search = trim($request->input('search', ''));
+        $type = $request->input('type', 'all');
+
+        $query = \App\Models\CallSession::with(['caller', 'receiver'])->latest();
+
+        if (in_array($type, ['video', 'audio'])) {
+            $query->where('call_type', $type);
+        }
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('channel_name', 'like', "%{$search}%")
+                  ->orWhere('id', $search)
+                  ->orWhereHas('caller', function ($uq) use ($search) {
+                      $uq->where('name', 'like', "%{$search}%")
+                         ->orWhere('display_name', 'like', "%{$search}%")
+                         ->orWhere('account_id', 'like', "%{$search}%")
+                         ->orWhere('id', $search);
+                  })
+                  ->orWhereHas('receiver', function ($uq) use ($search) {
+                      $uq->where('name', 'like', "%{$search}%")
+                         ->orWhere('display_name', 'like', "%{$search}%")
+                         ->orWhere('account_id', 'like', "%{$search}%")
+                         ->orWhere('id', $search);
+                  });
+            });
+        }
+
+        $callSessions = $query->paginate(20)->withQueryString();
+
+        // Also fetch pending reports & recordings
+        $reports = \App\Models\CallModerationReport::with(['reporter', 'reportedUser'])->latest()->take(15)->get();
+        $recordingsCount = \App\Models\CallRecording::count();
+        $pendingReportsCount = \App\Models\CallModerationReport::where('status', 'pending')->count();
+
+        return view('admin.calls.monitoring', compact(
+            'callSessions',
+            'reports',
+            'search',
+            'type',
+            'recordingsCount',
+            'pendingReportsCount'
+        ));
+    }
+
+    /**
+     * Handle Admin Moderation Action (Warning / Ban / Dismiss) on Reported Calls.
+     */
+    public function handleReportAction(Request $request, $id)
+    {
+        $report = \App\Models\CallModerationReport::findOrFail($id);
+        
+        $action = $request->input('action'); // warning, ban, dismiss
+        $adminNotes = $request->input('admin_notes', 'Reviewed by admin');
+
+        if ($action === 'warning') {
+            $report->update([
+                'status' => 'warning_issued',
+                'admin_notes' => $adminNotes,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+            ]);
+
+            // Create notification for reported user
+            if ($report->reportedUser) {
+                try {
+                    \App\Models\Notification::create([
+                        'user_id' => $report->reported_user_id,
+                        'title' => '⚠️ Video Call Warning',
+                        'message' => 'Your recent video call was reported for inappropriate behavior. Please adhere to community guidelines.',
+                        'type' => 'moderation_warning',
+                    ]);
+                } catch (\Throwable $e) {}
+            }
+
+            return back()->with('success', "Official warning issued to user #{$report->reported_user_id}.");
+        } elseif ($action === 'ban') {
+            $report->update([
+                'status' => 'banned',
+                'admin_notes' => $adminNotes,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+            ]);
+
+            if ($report->reportedUser) {
+                $report->reportedUser->update(['is_banned' => true]);
+            }
+
+            return back()->with('success', "User #{$report->reported_user_id} has been suspended.");
+        } else {
+            $report->update([
+                'status' => 'dismissed',
+                'admin_notes' => $adminNotes,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+            ]);
+
+            return back()->with('success', "Report #{$id} dismissed.");
+        }
+    }
 }
+

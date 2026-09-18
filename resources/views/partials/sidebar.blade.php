@@ -337,6 +337,11 @@
                     <span class="submenu-bullet"></span>
                     <span>Call Sessions Log</span>
                 </a>
+                <a href="{{ route('admin.calls.monitoring') }}" class="submenu-item {{ request()->routeIs('admin.calls.monitoring*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Video Call Monitoring</span>
+                    <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">Live</span>
+                </a>
                 <a href="{{ route('admin.calls.settings') }}" class="submenu-item {{ request()->routeIs('admin.calls.settings') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
                     <span>Call & Ringtone Settings</span>

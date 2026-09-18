@@ -127,8 +127,11 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
 
     // Audio & Video Call Sessions & Revenue Settings
     Route::get('/calls', [\App\Http\Controllers\Admin\CallAdminController::class, 'index'])->name('calls.index')->middleware('permission:calls.view');
+    Route::get('/calls/monitoring', [\App\Http\Controllers\Admin\CallAdminController::class, 'monitoring'])->name('calls.monitoring')->middleware('permission:calls.view');
+    Route::post('/calls/monitoring/{id}/action', [\App\Http\Controllers\Admin\CallAdminController::class, 'handleReportAction'])->name('calls.monitoring.action')->middleware('permission:calls.settings');
     Route::get('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'settings'])->name('calls.settings')->middleware('permission:calls.settings');
     Route::post('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'updateSettings'])->name('calls.settings.update')->middleware('permission:calls.settings');
+
 
     // KYC Identity Verification Management
     Route::get('/kyc', [\App\Http\Controllers\Admin\KycAdminController::class, 'index'])->name('kyc.index')->middleware('permission:kyc.view');

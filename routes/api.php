@@ -1093,8 +1093,18 @@ Route::post('/conversations/direct', [\App\Http\Controllers\Api\MessagingApiCont
 Route::post('/messages/send', [\App\Http\Controllers\Api\MessagingApiController::class, 'sendMessage']);
 Route::get('/conversations/{id}/messages', [\App\Http\Controllers\Api\MessagingApiController::class, 'getMessages']);
 
+// ==========================================
+// 🛡️ 1-on-1 Call Moderation, Abuse Reporting & Recording Logs
+// ==========================================
+Route::prefix('v1')->group(function () {
+    Route::post('/call/recording/save', [\App\Http\Controllers\Api\CallModerationApiController::class, 'saveRecording']);
+    Route::post('/call/report', [\App\Http\Controllers\Api\CallModerationApiController::class, 'submitReport']);
+    Route::get('/admin/call-moderation/logs', [\App\Http\Controllers\Api\CallModerationApiController::class, 'getAdminLogs']);
+    Route::get('/user/honor-profile', [\App\Http\Controllers\Api\CallModerationApiController::class, 'getHonorProfile']);
+});
 
-
-
-
-
+Route::post('/call/recording/save', [\App\Http\Controllers\Api\CallModerationApiController::class, 'saveRecording']);
+Route::post('/call/report', [\App\Http\Controllers\Api\CallModerationApiController::class, 'submitReport']);
+Route::get('/admin/call-moderation/logs', [\App\Http\Controllers\Api\CallModerationApiController::class, 'getAdminLogs']);
+Route::get('/user/honor-profile', [\App\Http\Controllers\Api\CallModerationApiController::class, 'getHonorProfile']);
+Route::get('/honor-profile', [\App\Http\Controllers\Api\CallModerationApiController::class, 'getHonorProfile']);

@@ -429,18 +429,149 @@ Echo.instance.channel('call.$callId')
 
 ---
 
-## 10. Flutter Laravel Echo WebSocket Channel & Event Mapping
+---
 
-| ফিচার | সাবস্ক্রিপশন চ্যানেল (Flutter Channel) | লিসেনিং ইভেন্ট নাম (Event Name) | বর্ণনা |
-| :--- | :--- | :--- | :--- |
-| **১-অন-১ কল মেসেজ** | `call.{callId}` অথবা `user.{myId}` | `.call.message.sent` | কলার ও রিসিভার দুই ফোনেই সাথে সাথে মেসেজ যোগ হবে |
-| **১-অন-১ কল গিফট** | `call.{callId}` অথবা `user.{myId}` | `.gift.received` | কলার ও রিসিভার দুই ফোনেই SVGA/Lottie প্লে হবে |
-| **কল রিজেক্ট** | `user.{myId}` অথবা `call.{callId}` | `.call.rejected` | রিংটোন সাথে সাথে বন্ধ হবে |
-| **কল ক্যানসেল** | `user.{myId}` অথবা `call.{callId}` | `.call.cancelled` | রিংটোন সাথে সাথে বন্ধ হবে |
-| **কল সমাপ্ত** | `user.{myId}` অথবা `call.{callId}` | `.call.ended` | কল স্ক্রিন ক্লোজ হবে |
-| **লাইভ চ্যাট মেসেজ** | `presence-stream.{roomId}` | `.message.sent` | রুমে থাকা সকল দর্শকের কাছে চ্যাট পৌঁছাবে |
-| **লাইভ গিফট অ্যানিমেশন** | `presence-stream.{roomId}` | `.gift.received` | হোস্ট ও সকল দর্শকের স্ক্রিনে গিফট অ্যানিমেশন প্লে হবে |
-| **লাইভ ভিউয়ার সংখ্যা** | `presence-stream.{roomId}` | `.viewer.count.updated`| ভিউয়ার সংখ্যা রিয়েল-টাইমে আপডেট হবে |
+## 11. Party Rooms Feed & Voice Party Grid APIs
+
+### 🔹 1. Browse Party Rooms (Party Tab Feed)
+* **Method:** `GET`
+* **Endpoints:** `/api/party-rooms`, `/api/v1/party-rooms/list`
+* **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "status": true,
+    "data": [
+      {
+        "id": 12,
+        "room_id": "P89201",
+        "room_title": "SONA 🌹 SONA 🌹",
+        "room_type": "voice",
+        "topic_tag": "ChitChat",
+        "room_cover": "https://chinchins.live/uploads/host_image/cover1.jpg",
+        "viewer_count": 13,
+        "heat_score": 35150,
+        "heat_score_formatted": "35.15K",
+        "speaking_indicator": true,
+        "active_seats_avatars": [
+          {
+            "seat_index": 1,
+            "user_id": 101,
+            "name": "Alex",
+            "avatar_url": "https://chinchins.live/uploads/alex.jpg",
+            "is_speaking": true,
+            "is_muted": false
+          },
+          {
+            "seat_index": 2,
+            "user_id": 102,
+            "name": "Maria",
+            "avatar_url": "https://chinchins.live/uploads/maria.jpg",
+            "is_speaking": false,
+            "is_muted": false
+          }
+        ],
+        "host": {
+          "id": 5,
+          "name": "SONA",
+          "avatar_url": "https://chinchins.live/uploads/sona.jpg",
+          "level": 8,
+          "charm_level": 6
+        }
+      }
+    ]
+  }
+  ```
 
 ---
+
+## 12. 1-on-1 Call Moderation & Abuse Reporting (Admin Video Inspection)
+
+### 🔹 1. Save Call Recording & Snapshot Logs
+* **Method:** `POST`
+* **Endpoints:** `/api/v1/call/recording/save`, `/api/call/recording/save`
+* **Request Body:**
+  ```json
+  {
+    "call_session_id": "call_105_1726671234",
+    "caller_id": 1,
+    "receiver_id": 2,
+    "call_type": "video",
+    "duration_seconds": 185,
+    "recording_url": "https://chinchins.live/recordings/call_105.mp4",
+    "snapshots": [
+      "https://chinchins.live/snapshots/call_105_01.jpg",
+      "https://chinchins.live/snapshots/call_105_02.jpg"
+    ],
+    "engine": "vps_webrtc"
+  }
+  ```
+
+### 🔹 2. Submit Call Abuse Complaint / Report
+* **Method:** `POST`
+* **Endpoints:** `/api/v1/call/report`, `/api/call/report`
+* **Request Body:**
+  ```json
+  {
+    "call_session_id": "call_105_1726671234",
+    "reported_user_id": 2,
+    "reason": "Inappropriate Behavior / Harassment",
+    "description": "The user exhibited vulgar behavior during video call."
+  }
+  ```
+
+---
+
+## 13. User Honor Profile & Gifts Received Wall (Me Screen)
+
+### 🔹 Get Honor Profile & Gifts Received
+* **Method:** `GET`
+* **Endpoints:** `/api/v1/user/honor-profile`, `/api/user/honor-profile`
+* **Query Params:** `?user_id=2`
+* **Response (200 OK):**
+  ```json
+  {
+    "status": true,
+    "data": {
+      "user": {
+        "id": 2,
+        "name": "SONA",
+        "avatar_url": "https://chinchins.live/uploads/sona.jpg",
+        "is_live": true,
+        "video_rate": 2700,
+        "video_rate_tag": "2700/min"
+      },
+      "honor": {
+        "charm_level": 6,
+        "charm_level_tag": "Lv6",
+        "top_fan": {
+          "rank": 1,
+          "name": "SUPER_BOY...",
+          "avatar_url": "https://chinchins.live/uploads/fan.jpg"
+        }
+      },
+      "gifts_received": [
+        {
+          "id": 1,
+          "name": "Dragon King",
+          "icon_url": "https://chinchins.live/images/gifts/dragon.png",
+          "coin_tag": "18.88K",
+          "count_formatted": "x2",
+          "received_count": 2
+        },
+        {
+          "id": 2,
+          "name": "Super Car",
+          "icon_url": "https://chinchins.live/images/gifts/car.png",
+          "coin_tag": "9.99K",
+          "count_formatted": "x50",
+          "received_count": 50
+        }
+      ]
+    }
+  }
+  ```
+
+---
+
 *ডকুমেন্টেশন প্রস্তুতকারক: Antigravity AI — Chinchins Live Backend Team*
