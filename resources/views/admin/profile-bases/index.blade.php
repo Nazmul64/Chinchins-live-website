@@ -196,10 +196,10 @@
                         </thead>
                         <tbody>
                             @forelse($bases as $base)
-                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <tr style="border-bottom: 1px solid #f1f5f9;" id="levelRow_{{ $base->level }}">
                                 <!-- Level Number Badge -->
                                 <td class="ps-4">
-                                    <span class="badge rounded-pill fw-bold" style="background: {{ $base->badge_color }}; color: #ffffff; padding: 6px 12px; font-size: 12px;">
+                                    <span class="badge rounded-pill fw-bold" onclick="selectLevelPreview({{ $base->level }})" style="background: {{ $base->badge_color }}; color: #ffffff; padding: 6px 12px; font-size: 12px; cursor: pointer;" title="Click to preview Lv.{{ $base->level }} in top card">
                                         Lv.{{ $base->level }}
                                     </span>
                                 </td>
@@ -207,7 +207,7 @@
                                 <!-- Frame Base Thumbnail & Direct Upload -->
                                 <td>
                                     <div class="d-flex align-items-center gap-3">
-                                        <div class="position-relative d-flex align-items-center justify-content-center rounded-circle" style="width: 58px; height: 58px; background: radial-gradient(circle, #334155 0%, #0f172a 100%); flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
+                                        <div class="position-relative d-flex align-items-center justify-content-center rounded-circle" onclick="selectLevelPreview({{ $base->level }})" style="width: 58px; height: 58px; background: radial-gradient(circle, #334155 0%, #0f172a 100%); flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: pointer; transition: transform 0.2s ease;" title="Click to preview this frame in top Live Preview card" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
                                             <!-- Sample Avatar inside frame -->
                                             <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
                                             <!-- Overlay Profile Base Frame -->
@@ -571,6 +571,24 @@
         badge.style.backgroundColor = color;
         badge.innerHTML = `<i class="fa-solid fa-${icon} me-1"></i> Lv.${level}`;
     }
+
+    // Select and preview a specific level from table click
+    function selectLevelPreview(level) {
+        const select = document.getElementById('previewLevelSelector');
+        if (select) {
+            select.value = level;
+            updateLivePreview(level);
+            scrollToPreview();
+        }
+    }
+
+    // Auto-sync preview on initial page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('previewLevelSelector');
+        if (select && select.value !== undefined) {
+            updateLivePreview(select.value);
+        }
+    });
 
     function scrollToPreview() {
         document.getElementById('liveAvatarPreviewSection')?.scrollIntoView({ behavior: 'smooth' });
