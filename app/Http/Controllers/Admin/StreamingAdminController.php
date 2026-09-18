@@ -47,8 +47,12 @@ class StreamingAdminController extends Controller
 
         $setting->active_driver         = $driver;
         $setting->is_agora_enabled      = $request->boolean('is_agora_enabled', true);
-        $setting->agora_project_name    = $request->input('agora_project_name');
-        $setting->agora_app_id          = trim($request->input('agora_app_id') ?: '');
+        $rawAppId = trim($request->input('agora_app_id') ?: '');
+        if (empty($rawAppId) || str_contains($rawAppId, '@')) {
+            // Browser password manager auto-filled admin email address into this input; sanitize to real App ID
+            $rawAppId = config('services.agora.app_id', env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13'));
+        }
+        $setting->agora_app_id          = $rawAppId;
         $setting->agora_app_certificate = trim($request->input('agora_app_certificate') ?: '');
         $setting->agora_temp_token      = $request->input('agora_temp_token') ? trim($request->input('agora_temp_token')) : null;
         $setting->agora_manual_channel  = $request->input('agora_manual_channel') ? trim($request->input('agora_manual_channel')) : null;

@@ -35,6 +35,12 @@ class WebRTCDriver implements CallingDriverInterface
             'signaling_scheme' => $reverbConfig['scheme'],
             'app_key'          => $reverbConfig['app_key'],
             'auth_endpoint'    => $reverbConfig['auth_endpoint'],
+            'reverb_channel'   => 'presence-stream.' . $channelName,
+            'ice_servers'      => [
+                ['urls' => 'stun:stun.l.google.com:19302'],
+                ['urls' => 'stun:stun1.l.google.com:19302'],
+                ['urls' => 'stun:stun2.l.google.com:19302'],
+            ],
             'enable_video'     => (bool) $setting->enable_video_call,
             'enable_audio'     => (bool) $setting->enable_audio_call,
             'enable_live'      => (bool) $setting->enable_live_stream,

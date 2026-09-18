@@ -241,14 +241,16 @@ class LiveStreamApiController extends Controller
             'ended_at' => now(),
         ]);
 
-        // Generate RTC token for Broadcaster / Host (Agora driver enforced for live)
+        // Generate RTC credentials for Broadcaster / Host (respecting Admin active_driver)
         $sessionTokenData = $this->callingManager->initializeSession(
             $host,
             $channelName,
             'live',
             'publisher',
-            ['uid' => $host->id, 'is_live' => true]
+            ['uid' => $host->id]
         );
+
+        $activeDriver = $sessionTokenData['driver'] ?? $this->callingManager->getActiveDriverName();
 
         $agoraToken = $sessionTokenData['agora_token'] 
                    ?? $sessionTokenData['rtc_token'] 
@@ -304,7 +306,11 @@ class LiveStreamApiController extends Controller
             'viewer_count'       => 1,
             'likes_count'        => 0,
             'host_id'            => $host->id,
-            'active_engine'      => 'agora',
+            'active_engine'      => $activeDriver,
+            'active_driver'      => $activeDriver,
+            'driver'             => $activeDriver,
+            'is_agora'           => $activeDriver === 'agora',
+            'is_vps_webrtc'      => $activeDriver === 'vps_webrtc',
             'app_id'             => $appId,
             'agora_app_id'       => $appId,
             'uid'                => $host->id,
@@ -313,7 +319,8 @@ class LiveStreamApiController extends Controller
             'agora_token'        => $agoraToken,
             'rtc_token'          => $agoraToken,
             'reverb_channel'     => 'presence-stream.' . $liveStream->id,
-            'engine_credentials' => [
+            'engine_credentials' => array_merge([
+                'driver'       => $activeDriver,
                 'app_id'       => $appId,
                 'agora_app_id' => $appId,
                 'token'        => $agoraToken,
@@ -322,7 +329,7 @@ class LiveStreamApiController extends Controller
                 'channel_name' => $channelName,
                 'uid'          => $host->id,
                 'agora_uid'    => $host->id,
-            ],
+            ], $sessionTokenData),
             'session'            => $sessionTokenData,
             'host'               => [
                 'id'           => $host->id,
@@ -478,14 +485,16 @@ class LiveStreamApiController extends Controller
 
         $viewerUid = (int) ($viewer?->id ?? rand(100000, 999999));
 
-        // Generate audience token (Agora driver enforced for live)
+        // Generate audience credentials (respecting Admin active_driver)
         $sessionTokenData = $this->callingManager->initializeSession(
             $viewer,
             $stream->channel_name,
             'live',
             'subscriber',
-            ['uid' => $viewerUid, 'is_live' => true]
+            ['uid' => $viewerUid]
         );
+
+        $activeDriver = $sessionTokenData['driver'] ?? $this->callingManager->getActiveDriverName();
 
         $agoraAudienceToken = $sessionTokenData['agora_token'] 
                             ?? $sessionTokenData['rtc_token'] 
@@ -512,7 +521,11 @@ class LiveStreamApiController extends Controller
                 'viewer_count'       => (int) $stream->viewer_count,
                 'likes_count'        => (int) ($stream->likes_count ?? 0),
                 'role'               => 'audience',
-                'active_engine'      => 'agora',
+                'active_engine'      => $activeDriver,
+                'active_driver'      => $activeDriver,
+                'driver'             => $activeDriver,
+                'is_agora'           => $activeDriver === 'agora',
+                'is_vps_webrtc'      => $activeDriver === 'vps_webrtc',
                 'app_id'             => $appId,
                 'agora_app_id'       => $appId,
                 'uid'                => $viewerUid,
@@ -524,7 +537,8 @@ class LiveStreamApiController extends Controller
                 'seat_layout'        => 'single',
                 'is_following'       => false,
                 'session'            => $sessionTokenData,
-                'engine_credentials' => [
+                'engine_credentials' => array_merge([
+                    'driver'       => $activeDriver,
                     'app_id'       => $appId,
                     'agora_app_id' => $appId,
                     'token'        => $agoraAudienceToken,
@@ -533,7 +547,7 @@ class LiveStreamApiController extends Controller
                     'channel_name' => $stream->channel_name,
                     'uid'          => $viewerUid,
                     'agora_uid'    => $viewerUid,
-                ],
+                ], $sessionTokenData),
                 'host'               => [
                     'id'           => $stream->host?->id,
                     'account_id'   => $stream->host?->account_id,

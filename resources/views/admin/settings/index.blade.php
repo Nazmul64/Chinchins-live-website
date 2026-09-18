@@ -650,14 +650,14 @@
                             <!-- App ID -->
                             <div class="col-12 col-md-4">
                                 <label class="form-label fw-semibold" style="font-size: 13px;">Agora App ID <span class="text-danger">*</span></label>
-                                <input type="text" name="agora_app_id" class="form-control font-monospace" placeholder="Paste App ID from Basic Settings" value="{{ old('agora_app_id', $streamingSetting->agora_app_id ?? '') }}">
+                                <input type="text" name="agora_app_id" class="form-control font-monospace" placeholder="Paste App ID from Basic Settings" value="{{ old('agora_app_id', $streamingSetting->agora_app_id ?? '') }}" autocomplete="new-password">
                                 <small class="text-muted" style="font-size: 11px;">Primary Key for Flutter App & Token Builder</small>
                             </div>
 
                             <!-- Primary Certificate -->
                             <div class="col-12 col-md-4">
                                 <label class="form-label fw-semibold" style="font-size: 13px;">Agora Primary Certificate <span class="text-danger">*</span></label>
-                                <input type="password" name="agora_app_certificate" class="form-control font-monospace" placeholder="Paste Primary Certificate from Security" value="{{ old('agora_app_certificate', $streamingSetting->agora_app_certificate ?? '') }}">
+                                <input type="password" name="agora_app_certificate" class="form-control font-monospace" placeholder="Paste Primary Certificate from Security" value="{{ old('agora_app_certificate', $streamingSetting->agora_app_certificate ?? '') }}" autocomplete="new-password">
                                 <small class="text-muted" style="font-size: 11px;">Kept secret on server (never exposed to client app)</small>
                             </div>
                         </div>

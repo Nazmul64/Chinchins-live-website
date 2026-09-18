@@ -54,6 +54,7 @@ class CallingManager
 
     /**
      * Initialize call session with credentials.
+     * Dynamic dual-engine: strictly respects the Admin Panel setting (vps_webrtc vs agora).
      */
     public function initializeSession(
         ?User $user,
@@ -63,12 +64,15 @@ class CallingManager
         array $options = [],
         ?string $overrideDriver = null
     ): array {
-        // Enforce Agora engine for live broadcast / streaming sessions
-        if ($callType === 'live' || ($options['stream_type'] ?? '') === 'live' || ($options['is_live'] ?? false)) {
-            $driver = $this->getDriver('agora');
-        } else {
-            $driver = $this->getDriver($overrideDriver);
-        }
+        // Priority:
+        // 1. Explicit override passed in method call ($overrideDriver)
+        // 2. Explicit options 'driver' or 'engine'
+        // 3. Admin Panel configured active driver (StreamingSetting::$active_driver: 'vps_webrtc' or 'agora')
+        $targetDriver = $overrideDriver 
+                     ?: ($options['driver'] ?? $options['engine'] ?? null) 
+                     ?: $this->getActiveDriverName();
+
+        $driver = $this->getDriver($targetDriver);
         return $driver->initializeSession($user, $channelName, $callType, $role, $options);
     }
 

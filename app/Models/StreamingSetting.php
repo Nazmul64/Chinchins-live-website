@@ -81,7 +81,11 @@ class StreamingSetting extends Model
      */
     public function getAgoraAppIdAttribute($value): string
     {
-        return !empty($value) ? $value : (string) env('AGORA_APP_ID', config('services.agora.app_id', 'c13c72df342d4a1386da678ba4c95f13'));
+        $val = trim($value ?? '');
+        if (empty($val) || str_contains($val, '@')) {
+            return (string) env('AGORA_APP_ID', config('services.agora.app_id', 'c13c72df342d4a1386da678ba4c95f13'));
+        }
+        return $val;
     }
 
     /**
