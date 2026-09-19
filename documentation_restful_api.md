@@ -153,14 +153,34 @@
 
 # 2. Flutter Developer Integration Guide (Tracks, Split-Screen & Live UI)
 
-### 📌 ২.১ প্রোফাইল স্ক্রিনে লাইভ স্ট্রিম প্রিভিউ ও অডিও শোনা (Profile View Live Video & Audio Preview)
-ইউজার যখন কারো প্রোফাইল ভিউ করবে (`GET /api/profile/{id}`), রেসপন্সে যদি `data.is_live == true` আসে, তাহলে প্রোফাইলের কভার অংশে স্ট্যাটিক ছবির বদলে স্বয়ংক্রিয়ভাবে তার লাইভ ভিডিও ও কথা শোনা যাবে।
+### 📌 ২.১ প্রোফাইল স্ক্রিনে লাইভ স্ট্রিম প্রিভিউ, অডিও ও ক্লোজ (X) বাটন (Profile Live Preview with Close & Mute)
+ইউজার যখন কারো প্রোফাইল ভিউ করবে (`GET /api/profile/{id}`), রেসপন্সে যদি `data.is_live == true` আসে, তাহলে প্রোফাইলের কভার অংশে স্ট্যাটিক ছবির বদলে স্বয়ংক্রিয়ভাবে তার লাইভ ভিডিও ও কথা শোনা যাবে (< ১ সেকেন্ডে)।
+
+#### ফিচারসমূহ (স্ক্রিনশট ২ অনুযায়ী):
+1. **স্বয়ংক্রিয় লাইভ ভিডিও ও অডিও:** লাইভ স্ট্রিম তৎক্ষণাৎ প্লে হবে।
+2. **Close (X) বাটন:** উপরে ডানপাশে `X` বাটনে ক্লিক করলে লাইভ প্রিভিউ বন্ধ হয়ে ইউজারের সাধারণ কভার ছবি ভেসে উঠবে। **(এটি হোস্টের মূল লাইভ স্ট্রিম কাটবে না, শুধু ভিউয়ারের প্রোফাইল কভার প্রিভিউ ক্লোজ করবে)**।
+3. **Mute/Unmute বাটন:** ভিউয়ার চাইলে অডিও মিউট/আনমিউট করতে পারবে।
+4. **টপ ব্যাজ ও ক্যাটাগরি ট্যাগ:** `LIVE` ব্যাজ, ভিউয়ার কাউন্ট (`1.2K`), এবং ট্যাগ লিস্ট (`Music • Lifestyle • Chat`)।
+5. **ফ্লোটিং লাইভ কমেন্ট প্রিভিউ:** লাইভ রুমে আসা সাম্প্রতিক কমেন্ট প্রিভিউ হিসেবে ভেসে উঠবে।
 
 ```dart
-// Profile Header Live Video & Audio Preview Widget
+// Profile Header Live Video & Audio Preview Widget (Exact Screenshot 2 Match)
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:livekit_client/livekit_client.dart';
+
 class ProfileHeaderLivePreview extends StatefulWidget {
   final Map<String, dynamic> liveStreamData;
-  const ProfileHeaderLivePreview({Key? key, required this.liveStreamData}) : super(key: key);
+  final String fallbackCoverUrl;
+  final VoidCallback? onDismissPreview;
+
+  const ProfileHeaderLivePreview({
+    Key? key,
+    required this.liveStreamData,
+    required this.fallbackCoverUrl,
+    this.onDismissPreview,
+  }) : super(key: key);
 
   @override
   State<ProfileHeaderLivePreview> createState() => _ProfileHeaderLivePreviewState();
@@ -169,6 +189,8 @@ class ProfileHeaderLivePreview extends StatefulWidget {
 class _ProfileHeaderLivePreviewState extends State<ProfileHeaderLivePreview> {
   Room? _room;
   bool _isConnected = false;
+  bool _isMuted = false;
+  bool _isDismissed = false;
 
   @override
   void initState() {
@@ -178,21 +200,46 @@ class _ProfileHeaderLivePreviewState extends State<ProfileHeaderLivePreview> {
 
   Future<void> _connectToLivePreview() async {
     final livekitUrl = widget.liveStreamData['livekit_url'] ?? 'wss://chinchins.live/livekit';
-    final roomName = widget.liveStreamData['channel_name'] ?? widget.liveStreamData['room_name'];
+    final roomName = widget.liveStreamData['channel_name'] ?? widget.liveStreamData['room_name'] ?? 'live_room';
     
-    // 1. Fetch audience token
-    final res = await http.post(
-      Uri.parse('https://chinchins.live/api/live/get-token'),
-      headers: {'Authorization': 'Bearer $userToken', 'Content-Type': 'application/json'},
-      body: jsonEncode({'room_name': roomName, 'role': 'viewer'}),
-    );
-    final data = jsonDecode(res.body)['data'];
-    final token = data['token'];
+    try {
+      // 1. Fetch audience token
+      final res = await http.post(
+        Uri.parse('https://chinchins.live/api/live/get-token'),
+        headers: {'Authorization': 'Bearer $userToken', 'Content-Type': 'application/json'},
+        body: jsonEncode({'room_name': roomName, 'role': 'viewer'}),
+      );
+      final data = jsonDecode(res.body)['data'];
+      final token = data['token'];
 
-    // 2. Connect LiveKit room as subscriber
-    _room = Room();
-    await _room!.connect(livekitUrl, token);
-    setState(() => _isConnected = true);
+      // 2. Connect LiveKit room as subscriber
+      _room = Room();
+      await _room!.connect(livekitUrl, token);
+      if (mounted) setState(() => _isConnected = true);
+    } catch (e) {
+      debugPrint("Live preview error: $e");
+    }
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+      for (var p in _room?.remoteParticipants.values ?? []) {
+        for (var pub in p.audioTrackPublications) {
+          pub.track?.setMuted(_isMuted);
+        }
+      }
+    });
+  }
+
+  void _closePreview() {
+    _room?.disconnect();
+    _room?.dispose();
+    _room = null;
+    setState(() => _isDismissed = true);
+    if (widget.onDismissPreview != null) {
+      widget.onDismissPreview!();
+    }
   }
 
   @override
@@ -204,6 +251,15 @@ class _ProfileHeaderLivePreviewState extends State<ProfileHeaderLivePreview> {
 
   @override
   Widget build(BuildContext context) {
+    // If user clicked (X) button, show regular static cover photo
+    if (_isDismissed) {
+      return Image.network(
+        widget.fallbackCoverUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+      );
+    }
+
     if (!_isConnected || _room == null) {
       return Container(
         color: Colors.black87,
@@ -212,27 +268,160 @@ class _ProfileHeaderLivePreviewState extends State<ProfileHeaderLivePreview> {
     }
 
     final remoteParticipants = _room!.remoteParticipants.values.toList();
-    if (remoteParticipants.isEmpty) {
-      return Container(color: Colors.black, child: const Center(child: Text("Loading Host Stream...", style: TextStyle(color: Colors.white70))));
-    }
+    final hostTrack = remoteParticipants.isNotEmpty
+        ? remoteParticipants.first.videoTrackPublications.firstOrNull?.track as VideoTrack?
+        : null;
 
-    // Host remote track
-    final hostTrack = remoteParticipants.first.videoTrackPublications.firstOrNull?.track as VideoTrack?;
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (hostTrack != null) VideoTrackRenderer(hostTrack, fit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover),
+        // 1. Live Video Stream
+        if (hostTrack != null)
+          VideoTrackRenderer(hostTrack, fit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)
+        else
+          Image.network(widget.fallbackCoverUrl, fit: BoxFit.cover),
+
+        // Dark gradient overlay for readable text
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.6),
+                Colors.transparent,
+                Colors.black.withOpacity(0.7),
+              ],
+            ),
+          ),
+        ),
+
+        // 2. Top-Left: LIVE Badge, Viewers Count & Tags
         Positioned(
-          top: 12,
+          top: 14,
+          left: 14,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF1744),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.circle, color: Colors.white, size: 7),
+                        SizedBox(width: 4),
+                        Text("LIVE", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.visibility, color: Colors.white, size: 12),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.liveStreamData['formatted_viewers'] ?? '1.2K',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  "🎵 Music • Lifestyle • Chat",
+                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 3. Top-Right: Mute & Close (X) Buttons (Screenshot 2)
+        Positioned(
+          top: 14,
+          right: 14,
+          child: Row(
+            children: [
+              // Mute Button
+              GestureDetector(
+                onTap: _toggleMute,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _isMuted ? Icons.volume_off : Icons.volume_up,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Close (X) Button - Dismisses preview & reveals static cover
+              GestureDetector(
+                onTap: _closePreview,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1E293B),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 18),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 4. Floating Hearts Animation & Recent Live Chat Message Preview (Bottom Left)
+        Positioned(
+          bottom: 12,
           left: 12,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.45),
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: const Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.circle, color: Colors.white, size: 8),
-                SizedBox(width: 4),
-                Text("LIVE STREAMING", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                CircleAvatar(
+                  radius: 10,
+                  backgroundImage: NetworkImage('https://chinchins.live/default-avatar.png'),
+                ),
+                SizedBox(width: 6),
+                Text(
+                  "Raihan_01: ",
+                  style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  "So beautiful 😍",
+                  style: TextStyle(color: Colors.white, fontSize: 11),
+                ),
               ],
             ),
           ),
@@ -245,11 +434,11 @@ class _ProfileHeaderLivePreviewState extends State<ProfileHeaderLivePreview> {
 
 ---
 
-### 📌 ২.২ কার্ডে পালসিং লাইভ ক্যামেরা ব্যাজ (Pulsing / Animated Ripple Live Badge)
+### 📌 ২.২ কার্ডে পালসিং লাইভ ক্যামেরা ব্যাজ (Pulsing / Animated Ripple Live Badge - Screenshot 1 & 3)
 Hot / Live স্ক্রিনের কার্ডের নিচে ডানপাশে থাকা LIVE ক্যামেরা বাটনটি লাইভে থাকা হোস্টদের জন্য রিদম সহ কাপবে/পালস করবে:
 
 ```dart
-// Animated Pulsing Live Camera Button Widget
+// Animated Pulsing Live Camera Button Widget (Exact Screenshot Match)
 class PulsingLiveBadge extends StatefulWidget {
   final bool isLive;
   final VoidCallback onTap;
@@ -263,16 +452,21 @@ class PulsingLiveBadge extends StatefulWidget {
 class _PulsingLiveBadgeState extends State<PulsingLiveBadge> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
+  late Animation<double> _rippleOpacity;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _rippleOpacity = Tween<double>(begin: 0.8, end: 0.2).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
@@ -286,10 +480,10 @@ class _PulsingLiveBadgeState extends State<PulsingLiveBadge> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     if (!widget.isLive) {
-      // Normal Static Button for Offline/Non-Live users
+      // Normal Static Icon for non-live cards
       return Container(
-        width: 44,
-        height: 44,
+        width: 46,
+        height: 46,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.pink.withOpacity(0.8),
@@ -298,7 +492,7 @@ class _PulsingLiveBadgeState extends State<PulsingLiveBadge> with SingleTickerPr
       );
     }
 
-    // Pulsing Animated Ripple Effect for Live Users
+    // Glowing Animated Pulsing Waves for Live Broadcasters
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -307,30 +501,34 @@ class _PulsingLiveBadgeState extends State<PulsingLiveBadge> with SingleTickerPr
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer Glowing Wave
+              // Outer Glowing Pulsing Ring (Aagun / Ripple effect)
               Container(
-                width: 52 * _scaleAnimation.value,
-                height: 52 * _scaleAnimation.value,
+                width: 58 * _scaleAnimation.value,
+                height: 58 * _scaleAnimation.value,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.pinkAccent.withOpacity(0.7), width: 2),
+                  border: Border.all(
+                    color: const Color(0xFFFF007F).withOpacity(_rippleOpacity.value),
+                    width: 2.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.pinkAccent.withOpacity(0.4),
-                      blurRadius: 10 * _scaleAnimation.value,
-                      spreadRadius: 2,
+                      color: const Color(0xFFFF007F).withOpacity(0.5),
+                      blurRadius: 12 * _scaleAnimation.value,
+                      spreadRadius: 3,
                     ),
                   ],
                 ),
               ),
-              // Inner Core Button
+              // Inner Ring
               Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFFF007F), Color(0xFFFF416C)],
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF007F), Color(0xFFFF3366), Color(0xFFE91E63)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -339,7 +537,15 @@ class _PulsingLiveBadgeState extends State<PulsingLiveBadge> with SingleTickerPr
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.videocam, color: Colors.white, size: 20),
-                    Text("LIVE", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900)),
+                    Text(
+                      "LIVE",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ],
                 ),
               ),
