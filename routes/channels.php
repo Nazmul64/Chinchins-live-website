@@ -115,3 +115,34 @@ Broadcast::channel('presence-live.{liveId}', function ($user, $liveId) {
         'level'        => $user->level ?: 'Lv1',
     ];
 });
+
+Broadcast::channel('presence-stream.{streamId}', function ($user, $streamId) {
+    if (!$user) return true;
+    return [
+        'id'           => $user->id,
+        'account_id'   => $user->account_id,
+        'display_name' => $user->display_name ?? $user->name ?? 'Viewer',
+        'avatar_url'   => $user->avatar_url,
+        'level'        => $user->level ?: 'Lv1',
+    ];
+});
+
+// 8. Voice Party Room Channels
+Broadcast::channel('party.{roomId}', function ($user, $roomId) {
+    return true;
+});
+
+Broadcast::channel('party-room.{roomId}', function ($user, $roomId) {
+    return true;
+});
+
+Broadcast::channel('presence-party.{roomId}', function ($user, $roomId) {
+    if (!$user) return true;
+    return [
+        'id'           => $user->id,
+        'account_id'   => $user->account_id,
+        'display_name' => $user->display_name ?? $user->name ?? 'Participant',
+        'avatar_url'   => $user->avatar_url,
+        'level'        => $user->level ?: 'Lv1',
+    ];
+});
