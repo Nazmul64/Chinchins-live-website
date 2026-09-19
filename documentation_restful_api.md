@@ -151,11 +151,210 @@
 
 ---
 
-# 2. Flutter Developer Integration Guide (Tracks & Split-Screen UI)
+# 2. Flutter Developer Integration Guide (Tracks, Split-Screen & Live UI)
 
-### 📌 Flutter Requirement: Publishing Tracks & Split Screen UI
+### 📌 ২.১ প্রোফাইল স্ক্রিনে লাইভ স্ট্রিম প্রিভিউ ও অডিও শোনা (Profile View Live Video & Audio Preview)
+ইউজার যখন কারো প্রোফাইল ভিউ করবে (`GET /api/profile/{id}`), রেসপন্সে যদি `data.is_live == true` আসে, তাহলে প্রোফাইলের কভার অংশে স্ট্যাটিক ছবির বদলে স্বয়ংক্রিয়ভাবে তার লাইভ ভিডিও ও কথা শোনা যাবে।
 
-#### ১. গেস্ট অ্যাকসেপ্ট হওয়ার পর ট্র্যাক অন করা:
+```dart
+// Profile Header Live Video & Audio Preview Widget
+class ProfileHeaderLivePreview extends StatefulWidget {
+  final Map<String, dynamic> liveStreamData;
+  const ProfileHeaderLivePreview({Key? key, required this.liveStreamData}) : super(key: key);
+
+  @override
+  State<ProfileHeaderLivePreview> createState() => _ProfileHeaderLivePreviewState();
+}
+
+class _ProfileHeaderLivePreviewState extends State<ProfileHeaderLivePreview> {
+  Room? _room;
+  bool _isConnected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectToLivePreview();
+  }
+
+  Future<void> _connectToLivePreview() async {
+    final livekitUrl = widget.liveStreamData['livekit_url'] ?? 'wss://chinchins.live/livekit';
+    final roomName = widget.liveStreamData['channel_name'] ?? widget.liveStreamData['room_name'];
+    
+    // 1. Fetch audience token
+    final res = await http.post(
+      Uri.parse('https://chinchins.live/api/live/get-token'),
+      headers: {'Authorization': 'Bearer $userToken', 'Content-Type': 'application/json'},
+      body: jsonEncode({'room_name': roomName, 'role': 'viewer'}),
+    );
+    final data = jsonDecode(res.body)['data'];
+    final token = data['token'];
+
+    // 2. Connect LiveKit room as subscriber
+    _room = Room();
+    await _room!.connect(livekitUrl, token);
+    setState(() => _isConnected = true);
+  }
+
+  @override
+  void dispose() {
+    _room?.disconnect();
+    _room?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isConnected || _room == null) {
+      return Container(
+        color: Colors.black87,
+        child: const Center(child: CircularProgressIndicator(color: Colors.pinkAccent)),
+      );
+    }
+
+    final remoteParticipants = _room!.remoteParticipants.values.toList();
+    if (remoteParticipants.isEmpty) {
+      return Container(color: Colors.black, child: const Center(child: Text("Loading Host Stream...", style: TextStyle(color: Colors.white70))));
+    }
+
+    // Host remote track
+    final hostTrack = remoteParticipants.first.videoTrackPublications.firstOrNull?.track as VideoTrack?;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (hostTrack != null) VideoTrackRenderer(hostTrack, fit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover),
+        Positioned(
+          top: 12,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(12)),
+            child: const Row(
+              children: [
+                Icon(Icons.circle, color: Colors.white, size: 8),
+                SizedBox(width: 4),
+                Text("LIVE STREAMING", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+```
+
+---
+
+### 📌 ২.২ কার্ডে পালসিং লাইভ ক্যামেরা ব্যাজ (Pulsing / Animated Ripple Live Badge)
+Hot / Live স্ক্রিনের কার্ডের নিচে ডানপাশে থাকা LIVE ক্যামেরা বাটনটি লাইভে থাকা হোস্টদের জন্য রিদম সহ কাপবে/পালস করবে:
+
+```dart
+// Animated Pulsing Live Camera Button Widget
+class PulsingLiveBadge extends StatefulWidget {
+  final bool isLive;
+  final VoidCallback onTap;
+
+  const PulsingLiveBadge({Key? key, required this.isLive, required this.onTap}) : super(key: key);
+
+  @override
+  State<PulsingLiveBadge> createState() => _PulsingLiveBadgeState();
+}
+
+class _PulsingLiveBadgeState extends State<PulsingLiveBadge> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isLive) {
+      // Normal Static Button for Offline/Non-Live users
+      return Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.pink.withOpacity(0.8),
+        ),
+        child: const Icon(Icons.videocam, color: Colors.white, size: 24),
+      );
+    }
+
+    // Pulsing Animated Ripple Effect for Live Users
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return GestureDetector(
+          onTap: widget.onTap,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer Glowing Wave
+              Container(
+                width: 52 * _scaleAnimation.value,
+                height: 52 * _scaleAnimation.value,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.pinkAccent.withOpacity(0.7), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.pinkAccent.withOpacity(0.4),
+                      blurRadius: 10 * _scaleAnimation.value,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+              // Inner Core Button
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFFF007F), Color(0xFFFF416C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.videocam, color: Colors.white, size: 20),
+                    Text("LIVE", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
+---
+
+### 📌 ২.৩ গেস্ট অ্যাকসেপ্ট হওয়ার পর ট্র্যাক অন করা:
 হোস্ট রিকোয়েস্ট অ্যাকসেপ্ট করার নোটিফিকেশন (`cohost.accepted`) পাওয়া মাত্রই গেস্টের ফোনে এই ফাংশনটি ট্রিগার করতে হবে:
 ```dart
 // CoHostAcceptedEvent পাওয়ার পর গেস্টের ক্যামেরা ও মাইক্রোফোন পাবলিশ করা
@@ -166,7 +365,7 @@ await room.localParticipant?.setMicrophoneEnabled(true);
 
 ---
 
-#### ২. ইউজার ইন্টারফেস (৬০% ভিডিও গ্রিড, ৪০% লাইভ চ্যাট ও গিফট):
+### 📌 ২.৪ ইউজার ইন্টারফেস (৬০% ভিডিও গ্রিড, ৪০% লাইভ চ্যাট ও গিফট):
 ৪-৫ জন জয়েন করলে বা হোস্ট-গেস্ট মিলে ভিডিও দেখার সুবিধার্থে স্ক্রিনটিকে দুটি অংশে বিভক্ত করার ফ্লাটার কোড:
 
 ```dart

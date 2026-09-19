@@ -92,8 +92,19 @@ class ProfileController extends Controller
         $perPage = (int) $request->input('per_page', 30);
         $users = $query->paginate($perPage);
 
-        $formattedUsers = collect($users->items())->map(function ($u) {
+        // Fetch active live streams map for these users
+        $userIds = collect($users->items())->pluck('id')->toArray();
+        $activeLiveStreams = \App\Models\LiveStream::whereIn('host_id', $userIds)
+            ->whereIn('status', ['live', 'active'])
+            ->get()
+            ->keyBy('host_id');
+
+        $formattedUsers = collect($users->items())->map(function ($u) use ($activeLiveStreams) {
             $videoRate = (int) ($u->video_call_rate ?: 100);
+            $liveStream = $activeLiveStreams->get($u->id);
+            $isLive = !empty($liveStream);
+            $onlineStatus = $isLive ? 'in_live' : ($u->current_status ?? $u->online_status ?? ($u->is_online ? 'online' : 'offline'));
+
             return [
                 'id'              => $u->id,
                 'account_id'      => $u->account_id ?: (string) $u->id,
@@ -118,12 +129,25 @@ class ProfileController extends Controller
                 'city'            => $u->city ?: 'Dhaka',
                 'is_active'       => (bool) $u->is_active,
                 'is_online'       => (bool) $u->is_online,
-                'is_available'    => (bool) $u->is_available,
-                'online_status'   => $u->current_status ?? $u->online_status ?? ($u->is_online ? 'online' : 'offline'),
-                'current_status'  => $u->current_status ?? $u->online_status ?? ($u->is_online ? 'available' : 'offline'),
-                'status_text'     => $u->status_text,
+                'is_available'    => (bool) ($u->is_available && !$isLive),
+                'is_live'         => $isLive,
+                'is_pulsing'      => $isLive, // For animated pulsating camera button in Flutter
+                'live_stream_id'  => $liveStream?->id,
+                'live_stream'     => $liveStream ? [
+                    'id'              => $liveStream->id,
+                    'room_id'         => (string) $liveStream->id,
+                    'channel_name'    => $liveStream->channel_name,
+                    'title'           => $liveStream->title,
+                    'cover_image_url' => $liveStream->cover_image_url,
+                    'viewer_count'    => (int) $liveStream->viewer_count,
+                    'likes_count'     => (int) ($liveStream->likes_count ?? 0),
+                    'livekit_url'     => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+                ] : null,
+                'online_status'   => $onlineStatus,
+                'current_status'  => $onlineStatus,
+                'status_text'     => $isLive ? '🔴 In Live Streaming' : $u->status_text,
                 'last_active_at'  => $u->last_seen_at ? $u->last_seen_at->toIso8601String() : null,
-                'is_busy'         => (bool) $u->is_busy,
+                'is_busy'         => (bool) ($u->is_busy || $isLive),
                 'is_free_caller'  => (bool) $u->is_free_caller,
                 'is_verified'     => (bool) $u->is_verified,
                 'video_call_rate' => $videoRate,
@@ -446,10 +470,40 @@ class ProfileController extends Controller
         $followersCount = \App\Models\UserFollow::where('user_id', $user->id)->count();
         $followingCount = \App\Models\UserFollow::where('follower_id', $user->id)->count();
 
+        // Check if user is currently Live Streaming for header live preview
+        $activeLiveStream = \App\Models\LiveStream::where('host_id', $user->id)
+            ->whereIn('status', ['live', 'active'])
+            ->latest()
+            ->first();
+
+        $isLive = !empty($activeLiveStream);
+        $onlineStatus = $isLive ? 'in_live' : ($user->current_status ?? $user->online_status ?? ($user->is_online ? 'online' : 'offline'));
+        $canCall = !$isLive && $user->is_online && !$user->is_busy;
+
         return response()->json([
             'status' => true,
             'data'   => [
                 'user'                  => $user->fresh(),
+                'is_live'               => $isLive,
+                'online_status'         => $onlineStatus,
+                'current_status'        => $onlineStatus,
+                'status_text'           => $isLive ? '🔴 In Live Streaming' : $user->status_text,
+                'can_call'              => $canCall,
+                'can_video_call'        => $canCall,
+                'call_button_mode'      => $isLive ? 'watch_live' : 'video_call',
+                'call_button_text'      => $isLive ? 'Watch Live' : 'Video Call',
+                'live_stream'           => $activeLiveStream ? [
+                    'id'              => $activeLiveStream->id,
+                    'room_id'         => (string) $activeLiveStream->id,
+                    'room_name'       => $activeLiveStream->channel_name,
+                    'channel_name'    => $activeLiveStream->channel_name,
+                    'title'           => $activeLiveStream->title,
+                    'cover_image_url' => $activeLiveStream->cover_image_url,
+                    'viewer_count'    => (int) $activeLiveStream->viewer_count,
+                    'likes_count'     => (int) ($activeLiveStream->likes_count ?? 0),
+                    'livekit_url'     => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+                    'status'          => 'live',
+                ] : null,
                 'is_following'          => $isFollowing,
                 'followers_count'       => $followersCount,
                 'following_count'       => $followingCount,
