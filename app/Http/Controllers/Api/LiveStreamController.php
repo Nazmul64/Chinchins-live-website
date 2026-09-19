@@ -123,7 +123,7 @@ class LiveStreamController extends Controller
             ->setTtl(86400); // ২৪ ঘণ্টার ভ্যালিডিটি
 
         $token->init($tokenOptions);
-        $token->addGrant($grant);
+        $token->setGrant($grant);
 
         $jwt = $token->toJwt();
 
@@ -247,7 +247,7 @@ class LiveStreamController extends Controller
                 ->setTtl(86400);
 
             $token->init($tokenOptions);
-            $token->addGrant($grant);
+            $token->setGrant($grant);
 
             $guestToken = [
                 'token'       => $token->toJwt(),
