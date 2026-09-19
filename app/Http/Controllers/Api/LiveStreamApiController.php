@@ -92,6 +92,40 @@ class LiveStreamApiController extends Controller
     }
 
     /**
+     * Generate LiveKit Token Helper
+     */
+    protected function generateLiveKitJwt(?User $user, string $roomName, bool $canPublish = false): ?string
+    {
+        try {
+            $apiKey = config('services.livekit.api_key', env('LIVEKIT_API_KEY', 'APIVbeXzKatSo3u'));
+            $apiSecret = config('services.livekit.api_secret', env('LIVEKIT_API_SECRET', 'thzlQ2sYGQQIxBPQMkjO9Rres6xuuMsqweZdT61XNsK'));
+
+            $token = new \Agence104\LiveKit\AccessToken($apiKey, $apiSecret);
+            $grant = new \Agence104\LiveKit\VideoGrant();
+            $grant->setRoomJoin(true)
+                  ->setRoomName($roomName)
+                  ->setCanPublish($canPublish)
+                  ->setCanSubscribe(true)
+                  ->setCanPublishData(true);
+
+            $userId = $user ? (string)$user->id : (string)rand(100000, 999999);
+            $userName = $user ? ($user->display_name ?? $user->name ?? "User_{$user->id}") : "Viewer_{$userId}";
+
+            $tokenOptions = (new \Agence104\LiveKit\AccessTokenOptions())
+                ->setIdentity($userId)
+                ->setName($userName)
+                ->setTtl(86400);
+
+            $token->init($tokenOptions);
+            $token->setGrant($grant);
+
+            return $token->toJwt();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * 1. Get Currently Active Live Streams List.
      * GET /api/lives/active, GET /api/live/active, GET /api/live/list, GET /api/live/active-streams, GET /api/live/streamers
      */
@@ -298,11 +332,16 @@ class LiveStreamApiController extends Controller
             'last_seen_at'   => now(),
         ]);
 
+        $livekitHostToken = $this->generateLiveKitJwt($host, $channelName, true);
+
         $streamPayload = [
             'room_id'            => (string) $liveStream->id,
             'live_stream_id'     => $liveStream->id,
             'stream_id'          => $liveStream->id,
             'channel_name'       => $channelName,
+            'room_name'          => $channelName,
+            'livekit_token'      => $livekitHostToken,
+            'livekit_url'        => 'wss://chinchins.live/livekit',
             'title'              => $title,
             'cover_image_url'    => $liveStream->cover_image_url,
             'cover_image'        => $liveStream->cover_image_url,
@@ -325,15 +364,18 @@ class LiveStreamApiController extends Controller
             'rtc_token'          => $agoraToken,
             'reverb_channel'     => 'presence-stream.' . $liveStream->id,
             'engine_credentials' => array_merge([
-                'driver'       => $activeDriver,
-                'app_id'       => $appId,
-                'agora_app_id' => $appId,
-                'token'        => $agoraToken,
-                'agora_token'  => $agoraToken,
-                'rtc_token'    => $agoraToken,
-                'channel_name' => $channelName,
-                'uid'          => $host->id,
-                'agora_uid'    => $host->id,
+                'driver'        => $activeDriver,
+                'app_id'        => $appId,
+                'agora_app_id'  => $appId,
+                'token'         => $agoraToken,
+                'agora_token'   => $agoraToken,
+                'rtc_token'     => $agoraToken,
+                'channel_name'  => $channelName,
+                'room_name'     => $channelName,
+                'livekit_token' => $livekitHostToken,
+                'livekit_url'   => 'wss://chinchins.live/livekit',
+                'uid'           => $host->id,
+                'agora_uid'     => $host->id,
             ], $sessionTokenData),
             'session'            => $sessionTokenData,
             'host'               => [
@@ -542,15 +584,26 @@ class LiveStreamApiController extends Controller
               ?? $sessionTokenData['app_id'] 
               ?? config('services.agora.app_id', env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13'));
 
+        $livekitViewerToken = $this->generateLiveKitJwt($viewer, $stream->channel_name, false);
+
         return response()->json([
-            'status'  => true,
-            'success' => true,
-            'message' => 'Joined live stream successfully.',
+            'status'        => true,
+            'success'       => true,
+            'message'       => 'Joined live stream successfully.',
+            'token'         => $livekitViewerToken,
+            'livekit_token' => $livekitViewerToken,
+            'room_name'     => $stream->channel_name,
+            'channel_name'  => $stream->channel_name,
+            'livekit_url'   => 'wss://chinchins.live/livekit',
             'data'    => [
                 'room_id'            => (string) $stream->id,
                 'live_stream_id'     => $stream->id,
                 'stream_id'          => $stream->id,
                 'channel_name'       => $stream->channel_name,
+                'room_name'          => $stream->channel_name,
+                'livekit_token'      => $livekitViewerToken,
+                'token'              => $livekitViewerToken,
+                'livekit_url'        => 'wss://chinchins.live/livekit',
                 'title'              => $stream->title,
                 'cover_image_url'    => $stream->cover_image_url,
                 'viewer_count'       => (int) $stream->viewer_count,
@@ -565,7 +618,6 @@ class LiveStreamApiController extends Controller
                 'agora_app_id'       => $appId,
                 'uid'                => $viewerUid,
                 'agora_uid'          => $viewerUid,
-                'token'              => $agoraAudienceToken,
                 'agora_token'        => $agoraAudienceToken,
                 'rtc_token'          => $agoraAudienceToken,
                 'reverb_channel'     => 'presence-stream.' . $stream->id,
@@ -573,15 +625,18 @@ class LiveStreamApiController extends Controller
                 'is_following'       => false,
                 'session'            => $sessionTokenData,
                 'engine_credentials' => array_merge([
-                    'driver'       => $activeDriver,
-                    'app_id'       => $appId,
-                    'agora_app_id' => $appId,
-                    'token'        => $agoraAudienceToken,
-                    'agora_token'  => $agoraAudienceToken,
-                    'rtc_token'    => $agoraAudienceToken,
-                    'channel_name' => $stream->channel_name,
-                    'uid'          => $viewerUid,
-                    'agora_uid'    => $viewerUid,
+                    'driver'        => $activeDriver,
+                    'app_id'        => $appId,
+                    'agora_app_id'  => $appId,
+                    'token'         => $agoraAudienceToken,
+                    'agora_token'   => $agoraAudienceToken,
+                    'rtc_token'     => $agoraAudienceToken,
+                    'channel_name'  => $stream->channel_name,
+                    'room_name'     => $stream->channel_name,
+                    'livekit_token' => $livekitViewerToken,
+                    'livekit_url'   => 'wss://chinchins.live/livekit',
+                    'uid'           => $viewerUid,
+                    'agora_uid'     => $viewerUid,
                 ], $sessionTokenData),
                 'host'               => [
                     'id'           => $stream->host?->id,

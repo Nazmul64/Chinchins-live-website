@@ -79,11 +79,6 @@ class LiveStreamController extends Controller
      */
     public function getRoomToken(Request $request): JsonResponse
     {
-        $request->validate([
-            'room_name' => 'required|string',
-            'role'      => 'required|in:host,co_host,viewer,publisher,subscriber,guest',
-        ]);
-
         $user = $this->resolveUser($request) ?? auth()->user();
         if (!$user) {
             return response()->json([
@@ -92,8 +87,30 @@ class LiveStreamController extends Controller
             ], 401);
         }
 
-        $roomName = $request->room_name;
-        $role = $request->role;
+        $rawRoom = $request->input('room_name') 
+                ?? $request->input('room_id') 
+                ?? $request->input('live_stream_id') 
+                ?? $request->input('channel_name')
+                ?? $request->input('host_id')
+                ?? $request->input('id');
+
+        $role = $request->input('role', 'viewer');
+
+        // Resolve to real active stream channel_name
+        $stream = null;
+        if ($rawRoom) {
+            $stream = LiveStream::where('channel_name', $rawRoom)
+                ->orWhere('id', $rawRoom)
+                ->orWhere('host_id', $rawRoom)
+                ->latest()
+                ->first();
+        }
+
+        if (!$stream) {
+            $stream = LiveStream::whereIn('status', ['live', 'active'])->latest()->first();
+        }
+
+        $roomName = $stream ? $stream->channel_name : ($rawRoom ?: 'live_' . $user->id);
 
         // রোল চেক: হোস্ট এবং কো-হোস্টের জন্য ক্যান-পাবলিশ ট্রু হবে
         $canPublish = in_array($role, ['host', 'co_host', 'publisher', 'guest']);
@@ -128,18 +145,22 @@ class LiveStreamController extends Controller
         $jwt = $token->toJwt();
 
         return response()->json([
-            'status'      => true,
-            'message'     => 'Token generated successfully',
-            'token'       => $jwt,
-            'room_name'   => $roomName,
-            'livekit_url' => $livekitUrl,
-            'data'        => [
-                'token'       => $jwt,
-                'room_name'   => $roomName,
-                'role'        => $role,
-                'can_publish' => $canPublish,
-                'livekit_url' => $livekitUrl,
-                'user'        => [
+            'status'        => true,
+            'message'       => 'Token generated successfully',
+            'token'         => $jwt,
+            'livekit_token' => $jwt,
+            'room_name'     => $roomName,
+            'channel_name'  => $roomName,
+            'livekit_url'   => $livekitUrl,
+            'data'          => [
+                'token'         => $jwt,
+                'livekit_token' => $jwt,
+                'room_name'     => $roomName,
+                'channel_name'  => $roomName,
+                'livekit_url'   => $livekitUrl,
+                'role'          => $role,
+                'can_publish'   => $canPublish,
+                'user'          => [
                     'id'           => $user->id,
                     'account_id'   => $user->account_id,
                     'display_name' => $user->display_name ?? $user->name,
