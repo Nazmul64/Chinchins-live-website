@@ -791,3 +791,164 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
 | **Wallet** | `GET` | `/api/wallet/balance` | Get user coins and earnings balance |
 | **Profile** | `GET` | `/api/profile/{id}` | Get profile details and real-time online status |
 | **Follow** | `POST` | `/api/user/follow` | Follow a user |
+
+---
+
+# 6. Live Active Viewers Bar & Count (Screenshot 1 Top-Right UI)
+
+In the live broadcast screen (top-right corner), overlapping circle avatars of top active viewers and the total formatted viewer count (e.g. `3.2K`) are displayed dynamically.
+
+### REST API: Get Live Room Viewers
+* **Endpoint:** `GET /api/v1/live/{roomId}/viewers`
+* **Response:**
+```json
+{
+  "status": true,
+  "data": {
+    "total_viewers": 3240,
+    "formatted_count": "3.2K",
+    "viewers": [
+      {
+        "id": 102,
+        "name": "Sarah",
+        "avatar_url": "https://chinchins.live/storage/avatars/user1.jpg",
+        "level": "Lv.5"
+      },
+      {
+        "id": 105,
+        "name": "David",
+        "avatar_url": "https://chinchins.live/storage/avatars/user2.jpg",
+        "level": "Lv.8"
+      },
+      {
+        "id": 108,
+        "name": "Alex",
+        "avatar_url": "https://chinchins.live/storage/avatars/user3.jpg",
+        "level": "Lv.3"
+      }
+    ]
+  }
+}
+```
+
+### Flutter Widget: `ActiveViewersBar`
+```dart
+import 'package:flutter/material.dart';
+
+class ActiveViewersBar extends StatelessWidget {
+  final List<dynamic> viewers;
+  final String formattedCount;
+  final VoidCallback? onTap;
+
+  const ActiveViewersBar({
+    Key? key,
+    required this.viewers,
+    required this.formattedCount,
+    this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.45),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Overlapping Avatars (Max 3 shown)
+            SizedBox(
+              height: 28,
+              width: (viewers.take(3).length * 20.0) + 8,
+              child: Stack(
+                children: List.generate(
+                  viewers.take(3).length,
+                  (index) {
+                    final viewer = viewers[index];
+                    return Positioned(
+                      left: index * 18.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundImage: NetworkImage(
+                            viewer['avatar_url'] ?? 'https://chinchins.live/default-avatar.png',
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            // Formatted Viewer Count (e.g. 3.2K)
+            Text(
+              formattedCount.isNotEmpty ? formattedCount : "${viewers.length}",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+---
+
+# 7. Real-Time Heart Likes & Floating Particle Animations
+
+When viewers tap anywhere on the screen during a live broadcast, hearts float upwards and the like count increments in real-time.
+
+* **API:** `POST /api/v1/live/like`
+* **Payload:** `{"room_id": "1", "count": 1}`
+* **WebSocket Broadcast:** `live-room.{roomId}` -> event: `LiveLikeSent`
+* **Flutter Implementation:** Uses a particle animation controller to generate randomized pastel colored hearts (`Icons.favorite`) floating from bottom right to mid-screen with opacity fade out.
+
+---
+
+# 8. Real-Time Virtual Gifts & Full Screen SVGA Overlay
+
+When a viewer sends a gift:
+* **API:** `POST /api/v1/live/send-gift`
+* **Payload:** `{"live_stream_id": 1, "gift_id": 5, "quantity": 1}`
+* **Broadcast:** `live-room.{roomId}` -> event: `LiveGiftSentEvent`
+* **Flutter Client:** Renders the SVGA animation file from `gift.animation_url` directly over the video layer using `svgaplayer_flutter`, while updating the host's diamond balance and top gifter leaderboard.
+
+---
+
+# 9. Co-Host 2-Way Audio & Video LiveKit Architecture
+
+### Sequence Flow
+1. **Viewer Requests Co-Host:**
+   - Flutter calls `POST /api/live/request-join` with `{ "room_id": "1" }`.
+   - Backend creates `LiveJoinRequest` (status: `pending`) and fires `LiveJoinRequested` event to the host via Reverb.
+2. **Host Accepts Request:**
+   - Host taps Accept on the incoming request modal.
+   - Flutter calls `POST /api/live/respond-request` with `{ "request_id": 12, "action": "accept" }`.
+   - Backend generates a LiveKit JWT token with **`canPublish: true`**, **`canSubscribe: true`**, **`canPublishData: true`**.
+   - Backend broadcasts `CoHostAcceptedEvent` on `live-room.{roomId}`.
+3. **Guest Client Receives Acceptance:**
+   - Reverb listener on guest device catches `cohost.accepted`.
+   - Guest app connects to LiveKit Room using the provided token.
+   - Guest app triggers:
+     ```dart
+     await room.localParticipant?.setCameraEnabled(true);
+     await room.localParticipant?.setMicrophoneEnabled(true);
+     ```
+4. **Split-Screen Dual Video Feed:**
+   - Both host and co-host camera tracks are published to the room.
+   - All viewers and participants receive both `RemoteVideoTrack` instances and render the split-screen (50/50 dual grid) view seamlessly without any black screen or connection stalls.
