@@ -625,6 +625,11 @@ Route::prefix('live')->group(function () {
     Route::post('/gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
     Route::post('/send-gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
 
+    // LiveKit Room Token Generator with Role Permissions (Host, Co-Host, Viewer)
+    Route::post('/get-token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
+    Route::post('/token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
+    Route::post('/livekit-token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
+
     // Co-Hosting / Multi-Host Video Grid (Max 4-5 Persons)
     Route::post('/cohost-action', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'handleCoHost']);
     Route::post('/handle-cohost', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'handleCoHost']);
@@ -634,13 +639,21 @@ Route::prefix('live')->group(function () {
     Route::post('/send-signal', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendSignal']);
     Route::post('/mute-toggle', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
     Route::post('/toggle-mute', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
-    Route::post('/join-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestJoin']);
-    Route::post('/request-join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestJoin']);
-    Route::post('/accept-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'respondJoinRequest']);
-    Route::post('/respond-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'respondJoinRequest']);
+    Route::post('/join-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
+    Route::post('/request-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
+    Route::post('/accept-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
+    Route::post('/respond-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
     Route::post('/kick-guest', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
     Route::post('/kick', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
 });
+
+// Direct root-level LiveKit and Live Co-Host Routes
+Route::post('/live/get-token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
+Route::post('/live/request-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
+Route::post('/live/respond-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
+Route::post('/live/send-message', [\App\Http\Controllers\Api\LiveStreamController::class, 'sendMessage']);
+Route::post('/live/token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
+
 
 // ==========================================
 // 🟢 User Online Presence, Heartbeat & Push Tokens

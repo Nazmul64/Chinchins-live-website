@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'livekit' => [
+        'api_key' => env('LIVEKIT_API_KEY'),
+        'api_secret' => env('LIVEKIT_API_SECRET'),
+        'url' => env('LIVEKIT_URL', 'wss://chinchins.live/livekit'),
+    ],
+
+    'agora' => [
+        'app_id' => env('AGORA_APP_ID', 'c13c72df342d4a1386da678ba4c95f13'),
+        'app_certificate' => env('AGORA_APP_CERTIFICATE'),
+    ],
+
 ];
