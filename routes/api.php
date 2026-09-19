@@ -641,16 +641,21 @@ Route::prefix('live')->group(function () {
     Route::post('/toggle-mute', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'toggleMute']);
     Route::post('/join-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
     Route::post('/request-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
+    Route::match(['get', 'post'], '/join-requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
+    Route::match(['get', 'post'], '/requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
     Route::post('/accept-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
     Route::post('/respond-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
-    Route::post('/kick-guest', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
-    Route::post('/kick', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
+    Route::match(['get', 'post'], '/kick-guest', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
+    Route::match(['get', 'post'], '/kick', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
 });
 
 // Direct root-level LiveKit and Live Co-Host Routes
 Route::post('/live/get-token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
 Route::post('/live/request-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
+Route::match(['get', 'post'], '/live/join-requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
+Route::match(['get', 'post'], '/live/requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
 Route::post('/live/respond-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
+Route::match(['get', 'post'], '/live/kick-guest', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
 Route::post('/live/send-message', [\App\Http\Controllers\Api\LiveStreamController::class, 'sendMessage']);
 Route::post('/live/token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
 

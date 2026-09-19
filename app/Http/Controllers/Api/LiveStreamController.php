@@ -357,4 +357,107 @@ class LiveStreamController extends Controller
             'data'    => $messagePayload,
         ], 200);
     }
+
+    /**
+     * 5. Get List of Co-Host Join Requests for Host
+     * GET/POST /api/live/join-requests
+     */
+    public function getJoinRequests(Request $request): JsonResponse
+    {
+        $host = $this->resolveUser($request) ?? auth()->user();
+        if (!$host) {
+            return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $roomId = $request->input('room_id') ?? $request->input('room_name') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $stream = LiveStream::where('id', $roomId)->orWhere('channel_name', $roomId)->first();
+
+        if (!$stream) {
+            $stream = LiveStream::where('host_id', $host->id)->whereIn('status', ['live', 'active'])->latest()->first();
+        }
+
+        if (!$stream) {
+            return response()->json([
+                'status'   => true,
+                'message'  => 'No active live stream found',
+                'data'     => [],
+                'requests' => [],
+            ], 200);
+        }
+
+        $requests = LiveJoinRequest::with('user')
+            ->where('live_stream_id', $stream->id)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->orderByRaw("FIELD(status, 'pending', 'accepted')")
+            ->latest()
+            ->get()
+            ->map(function ($req) {
+                $u = $req->user;
+                return [
+                    'request_id'   => $req->id,
+                    'id'           => $req->id,
+                    'user_id'      => $req->user_id,
+                    'status'       => $req->status, // 'pending' or 'accepted'
+                    'user_name'    => $u?->display_name ?? $u?->name ?? "User_{$req->user_id}",
+                    'display_name' => $u?->display_name ?? $u?->name ?? "User_{$req->user_id}",
+                    'avatar_url'   => $u?->avatar_url ?? 'https://chinchins.live/default-avatar.png',
+                    'level'        => $u?->level ?? 'Lv1',
+                    'gender'       => $u?->gender ?? 'female',
+                    'created_at'   => $req->created_at?->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'status'   => true,
+            'message'  => 'Join requests retrieved successfully',
+            'room_id'  => (string) $stream->id,
+            'data'     => $requests,
+            'requests' => $requests,
+        ], 200);
+    }
+
+    /**
+     * 6. Host Kicks / Removes a Co-Host
+     * POST /api/live/kick-guest
+     */
+    public function kickGuest(Request $request): JsonResponse
+    {
+        $host = $this->resolveUser($request) ?? auth()->user();
+        $guestUserId = $request->input('guest_user_id') ?? $request->input('user_id');
+        $requestId = $request->input('request_id');
+        $roomId = $request->input('room_id') ?? $request->input('live_stream_id');
+
+        $stream = LiveStream::where('id', $roomId)->orWhere('channel_name', $roomId)->first();
+        if (!$stream && $host) {
+            $stream = LiveStream::where('host_id', $host->id)->whereIn('status', ['live', 'active'])->latest()->first();
+        }
+
+        if ($stream && $guestUserId) {
+            LiveParticipant::where('live_stream_id', $stream->id)
+                ->where('user_id', $guestUserId)
+                ->update(['left_at' => now()]);
+
+            LiveJoinRequest::where('live_stream_id', $stream->id)
+                ->where('user_id', $guestUserId)
+                ->update(['status' => 'rejected']);
+
+            try {
+                $guestUser = User::find($guestUserId);
+                broadcast(new CoHostStatusEvent($stream->id, 'reject', $guestUser))->toOthers();
+            } catch (\Throwable $e) {}
+        } elseif ($requestId) {
+            $req = LiveJoinRequest::find($requestId);
+            if ($req) {
+                $req->update(['status' => 'rejected']);
+                LiveParticipant::where('live_stream_id', $req->live_stream_id)
+                    ->where('user_id', $req->user_id)
+                    ->update(['left_at' => now()]);
+            }
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Co-host removed successfully',
+        ], 200);
+    }
 }
