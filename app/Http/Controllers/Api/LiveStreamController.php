@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use Agence104\LiveKit\AccessToken;
+use Agence104\LiveKit\AccessTokenOptions;
 use Agence104\LiveKit\VideoGrant;
 use App\Events\CoHostAcceptedEvent;
 use App\Events\CoHostStatusEvent;
@@ -116,10 +117,13 @@ class LiveStreamController extends Controller
               ->setCanSubscribe(true)             // সবার কথা ও ভিডিও দেখার জন্য
               ->setCanPublishData(true);          // লাইভ চ্যাটের জন্য Data Packet পারমিশন
 
-        $token->init($grant)
-              ->setName($user->display_name ?? $user->name ?? "User_{$user->id}")
-              ->setIdentity((string) $user->id)
-              ->setTtl(86400); // ২৪ ঘণ্টার ভ্যালিডিটি
+        $tokenOptions = (new AccessTokenOptions())
+            ->setIdentity((string) $user->id)
+            ->setName($user->display_name ?? $user->name ?? "User_{$user->id}")
+            ->setTtl(86400); // ২৪ ঘণ্টার ভ্যালিডিটি
+
+        $token->init($tokenOptions);
+        $token->addGrant($grant);
 
         $jwt = $token->toJwt();
 
@@ -234,10 +238,13 @@ class LiveStreamController extends Controller
                   ->setCanSubscribe(true)
                   ->setCanPublishData(true);
 
-            $token->init($grant)
-                  ->setName($guestUser->display_name ?? $guestUser->name ?? "User_{$guestUser->id}")
-                  ->setIdentity((string) $guestUser->id)
-                  ->setTtl(86400);
+            $tokenOptions = (new AccessTokenOptions())
+                ->setIdentity((string) $guestUser->id)
+                ->setName($guestUser->display_name ?? $guestUser->name ?? "User_{$guestUser->id}")
+                ->setTtl(86400);
+
+            $token->init($tokenOptions);
+            $token->addGrant($grant);
 
             $guestToken = [
                 'token'       => $token->toJwt(),

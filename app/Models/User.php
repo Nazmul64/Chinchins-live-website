@@ -26,6 +26,7 @@ class User extends Authenticatable
         'first_name',
         'last_name',
         'name',
+        'display_name',
         'nickname',
         'phone',
         'email',
@@ -688,7 +689,7 @@ class User extends Authenticatable
      */
     public function getDisplayNameAttribute(): string
     {
-        return $this->nickname ?: ($this->name ?: trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? '')));
+        return $this->attributes['display_name'] ?? ($this->nickname ?: ($this->name ?: trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''))));
     }
 
     /**
