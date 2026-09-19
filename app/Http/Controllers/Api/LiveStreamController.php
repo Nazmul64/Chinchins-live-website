@@ -128,9 +128,12 @@ class LiveStreamController extends Controller
         $jwt = $token->toJwt();
 
         return response()->json([
-            'status'  => true,
-            'message' => 'Token generated successfully',
-            'data'    => [
+            'status'      => true,
+            'message'     => 'Token generated successfully',
+            'token'       => $jwt,
+            'room_name'   => $roomName,
+            'livekit_url' => $livekitUrl,
+            'data'        => [
                 'token'       => $jwt,
                 'room_name'   => $roomName,
                 'role'        => $role,
