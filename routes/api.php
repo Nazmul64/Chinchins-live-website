@@ -1044,7 +1044,8 @@ Route::prefix('party-rooms')->group(function () {
     
     // Seats Management (10 Seats Grid)
     Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
-    Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
+    Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
+    Route::get('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getSeatRequests']);
     Route::post('/{id}/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
     Route::post('/{id}/kick-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'kickSeat']);
     Route::post('/{id}/toggle-mic', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleMic']);
@@ -1076,6 +1077,8 @@ Route::prefix('party-room')->group(function () {
     Route::post('/{id}/invite-guest', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'inviteGuest']);
     Route::post('/{id}/respond-invite', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondInvite']);
     Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
+    Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
+    Route::get('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getSeatRequests']);
     Route::post('/{id}/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
     Route::post('/{id}/kick-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'kickSeat']);
     Route::post('/{id}/toggle-mic', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleMic']);

@@ -686,6 +686,22 @@ class PartyRoomApiController extends Controller
             'status' => 'pending',
         ]);
 
+        // Broadcast to guest and room via Reverb
+        try {
+            broadcast(new \App\Events\SeatRequestEvent($room->id, [
+                'invitation_id' => $invitation->id,
+                'host_id' => $user->id,
+                'user_id' => $targetUser->id,
+                'user_name' => $user->display_name ?? $user->name,
+                'target_name' => $targetUser->display_name ?? $targetUser->name,
+                'avatar' => $user->avatar_url ?? $user->avatar,
+                'seat_index' => $seatIndex,
+                'type' => 'invite',
+            ]))->toOthers();
+        } catch (\Throwable $e) {
+            \Log::warning('SeatRequestEvent invite broadcast failed: ' . $e->getMessage());
+        }
+
         // Broadcast System Notice in chat
         PartyRoomMessage::create([
             'party_room_id' => $room->id,
@@ -876,6 +892,110 @@ class PartyRoomApiController extends Controller
                 'room' => $this->formatRoomDetails($room, $user),
                 'rtc' => $rtcCredentials,
             ],
+        ]);
+    }
+
+    /**
+     * Audience Requests a Seat from Host.
+     * POST /api/party-rooms/{id}/request-seat
+     */
+    public function requestSeat(Request $request, $id): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
+        }
+
+        $room = PartyRoom::where('id', $id)->orWhere('room_id', $id)->first();
+        if (!$room || $room->status !== 'active') {
+            return response()->json(['success' => false, 'message' => 'Party room is not active.'], 404);
+        }
+
+        $existingSeat = $room->seats()->where('user_id', $user->id)->where('status', 'occupied')->first();
+        if ($existingSeat) {
+            return response()->json([
+                'success' => true,
+                'message' => "You are already on Seat #{$existingSeat->seat_index}.",
+                'data' => ['seat_index' => $existingSeat->seat_index],
+            ]);
+        }
+
+        $seatIndex = $request->input('seat_index');
+
+        // Create or update pending seat request
+        $invitation = PartyRoomSeatInvitation::updateOrCreate(
+            [
+                'party_room_id' => $room->id,
+                'user_id' => $user->id,
+                'status' => 'pending',
+            ],
+            [
+                'host_id' => $room->host_id,
+                'seat_index' => $seatIndex,
+            ]
+        );
+
+        // Broadcast to Host and Room via Reverb
+        try {
+            broadcast(new \App\Events\SeatRequestEvent($room->id, [
+                'invitation_id' => $invitation->id,
+                'user_id' => $user->id,
+                'user_name' => $user->display_name ?? $user->name,
+                'avatar' => $user->avatar_url ?? $user->avatar,
+                'seat_index' => $seatIndex,
+            ]))->toOthers();
+        } catch (\Throwable $e) {
+            \Log::warning('SeatRequestEvent broadcast failed: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'status' => true,
+            'message' => 'Seat request sent to host successfully.',
+            'data' => [
+                'invitation_id' => $invitation->id,
+                'seat_index' => $seatIndex,
+            ],
+        ]);
+    }
+
+    /**
+     * Get Pending Seat Requests for Host.
+     * GET /api/party-rooms/{id}/seat-requests
+     */
+    public function getSeatRequests(Request $request, $id): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
+        }
+
+        $room = PartyRoom::where('id', $id)->orWhere('room_id', $id)->first();
+        if (!$room) {
+            return response()->json(['success' => false, 'message' => 'Room not found.'], 404);
+        }
+
+        $requests = PartyRoomSeatInvitation::with('user')
+            ->where('party_room_id', $room->id)
+            ->where('status', 'pending')
+            ->latest()
+            ->get()
+            ->map(function ($inv) {
+                return [
+                    'id' => $inv->id,
+                    'invitation_id' => $inv->id,
+                    'user_id' => $inv->user_id,
+                    'user_name' => $inv->user ? ($inv->user->display_name ?? $inv->user->name) : 'User',
+                    'avatar' => $inv->user ? $inv->user->avatar_url : null,
+                    'seat_index' => $inv->seat_index,
+                    'created_at' => $inv->created_at?->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'status' => true,
+            'data' => $requests,
         ]);
     }
 
