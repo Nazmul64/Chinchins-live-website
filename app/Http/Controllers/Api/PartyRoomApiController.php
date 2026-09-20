@@ -42,12 +42,12 @@ class PartyRoomApiController extends Controller
     /**
      * Generate LiveKit Token for Voice/Video Party Room
      */
-    public function generatePartyRoomLiveKitToken(PartyRoom $room, User $user, bool $canPublish = false): array
+    public function generatePartyRoomLiveKitToken(PartyRoom $room, User $user, bool $canPublish = false, ?string $customRoomName = null): array
     {
         $apiKey = config('services.livekit.api_key', env('LIVEKIT_API_KEY', 'APIVbeXzKatSo3u'));
         $apiSecret = config('services.livekit.api_secret', env('LIVEKIT_API_SECRET', 'thzlQ2sYGQQIxBPQMkjO9Rres6xuuMsqweZdT61XNsK'));
         $livekitUrl = config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit'));
-        $roomName = $room->channel_name ?: $room->room_id ?: (string) $room->id;
+        $roomName = $customRoomName ?: ($room->channel_name ?: ($room->room_id ?: ('party_room_' . $room->id)));
 
         $token = new AccessToken($apiKey, $apiSecret);
         $grant = new VideoGrant();
@@ -75,6 +75,7 @@ class PartyRoomApiController extends Controller
             'can_publish'   => $canPublish,
         ];
     }
+
 
 
     /**
@@ -1432,17 +1433,41 @@ class PartyRoomApiController extends Controller
             return response()->json(['success' => false, 'status' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id') ?? $request->input('channel_name');
-        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
-        if (!$room) {
-            return response()->json(['success' => false, 'status' => false, 'message' => 'Party room not found.'], 404);
+        $requestedRoomName = $request->input('room_name') ?? $request->input('channel_name');
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id') ?? $requestedRoomName;
+        
+        $room = null;
+        if ($roomId) {
+            $room = PartyRoom::where('id', $roomId)
+                ->orWhere('room_id', $roomId)
+                ->orWhere('channel_name', $roomId)
+                ->first();
         }
 
-        $isOccupyingSeat = $room->seats()->where('user_id', $user->id)->where('status', 'occupied')->exists();
-        $isHost = ($user->id === $room->host_id);
-        $canPublish = $request->boolean('can_publish', ($isHost || $isOccupyingSeat));
+        if (!$room && $requestedRoomName) {
+            if (preg_match('/party_room_(\d+)/i', $requestedRoomName, $matches)) {
+                $room = PartyRoom::find($matches[1]);
+            }
+        }
 
-        $tokenData = $this->generatePartyRoomLiveKitToken($room, $user, $canPublish);
+        if (!$room) {
+            if ($requestedRoomName) {
+                $room = new PartyRoom([
+                    'id' => 0,
+                    'room_id' => $requestedRoomName,
+                    'channel_name' => $requestedRoomName,
+                ]);
+            } else {
+                return response()->json(['success' => false, 'status' => false, 'message' => 'Party room not found.'], 404);
+            }
+        }
+
+        $isOccupyingSeat = $room->id > 0 ? $room->seats()->where('user_id', $user->id)->where('status', 'occupied')->exists() : false;
+        $isHost = ($user->id === $room->host_id);
+        $canPublish = $request->has('can_publish') ? $request->boolean('can_publish') : ($isHost || $isOccupyingSeat);
+
+        $targetRoomName = $requestedRoomName ?: ($room->channel_name ?: ($room->room_id ?: ('party_room_' . $room->id)));
+        $tokenData = $this->generatePartyRoomLiveKitToken($room, $user, $canPublish, $targetRoomName);
 
         return response()->json([
             'success'       => true,
@@ -1457,6 +1482,7 @@ class PartyRoomApiController extends Controller
             'data'          => $tokenData,
         ]);
     }
+
 
 
     /**
