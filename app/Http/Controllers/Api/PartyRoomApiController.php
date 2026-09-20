@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use Agence104\LiveKit\AccessToken;
+use Agence104\LiveKit\AccessTokenOptions;
+use Agence104\LiveKit\VideoGrant;
+use App\Events\SeatUpdatedEvent;
 use App\Http\Controllers\Controller;
+
 use App\Models\CoinTransaction;
 use App\Models\Gift;
 use App\Models\GiftTransaction;
@@ -21,6 +26,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -32,6 +38,44 @@ class PartyRoomApiController extends Controller
     {
         $this->callingManager = $callingManager;
     }
+
+    /**
+     * Generate LiveKit Token for Voice/Video Party Room
+     */
+    public function generatePartyRoomLiveKitToken(PartyRoom $room, User $user, bool $canPublish = false): array
+    {
+        $apiKey = config('services.livekit.api_key', env('LIVEKIT_API_KEY', 'APIVbeXzKatSo3u'));
+        $apiSecret = config('services.livekit.api_secret', env('LIVEKIT_API_SECRET', 'thzlQ2sYGQQIxBPQMkjO9Rres6xuuMsqweZdT61XNsK'));
+        $livekitUrl = config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit'));
+        $roomName = $room->channel_name ?: $room->room_id ?: (string) $room->id;
+
+        $token = new AccessToken($apiKey, $apiSecret);
+        $grant = new VideoGrant();
+        $grant->setRoomJoin(true)
+              ->setRoomName($roomName)
+              ->setCanPublish($canPublish)        // মাইক্রোফোন অন করার পারমিশন (seat occupant/host = true)
+              ->setCanSubscribe(true)             // সবার কথা শোনার পারমিশন
+              ->setCanPublishData(true);          // মেসেজ/চ্যাটের পারমিশন
+
+        $tokenOptions = (new AccessTokenOptions())
+            ->setIdentity((string) $user->id)
+            ->setName($user->display_name ?? $user->name ?? "User_{$user->id}")
+            ->setTtl(86400);
+
+        $token->init($tokenOptions);
+        $token->setGrant($grant);
+        $jwt = $token->toJwt();
+
+        return [
+            'token'         => $jwt,
+            'livekit_token' => $jwt,
+            'room_name'     => $roomName,
+            'channel_name'  => $roomName,
+            'livekit_url'   => $livekitUrl,
+            'can_publish'   => $canPublish,
+        ];
+    }
+
 
     /**
      * Resilient User Resolver across Bearer token, Sanctum, Headers, and Request params.
@@ -330,13 +374,23 @@ class PartyRoomApiController extends Controller
             'host'
         );
 
+        $livekitToken = $this->generatePartyRoomLiveKitToken($room, $user, true);
+
         return response()->json([
-            'success' => true,
-            'status' => true,
-            'message' => 'Party room created successfully!',
-            'data' => [
-                'room' => $this->formatRoomDetails($room, $user),
-                'rtc' => $rtcCredentials,
+            'success'       => true,
+            'status'        => true,
+            'message'       => 'Party room created successfully!',
+            'token'         => $livekitToken['token'],
+            'livekit_token' => $livekitToken['token'],
+            'livekit_url'   => $livekitToken['livekit_url'],
+            'can_publish'   => true,
+            'data'          => [
+                'room'          => $this->formatRoomDetails($room, $user),
+                'rtc'           => $rtcCredentials,
+                'token'         => $livekitToken['token'],
+                'livekit_token' => $livekitToken['token'],
+                'livekit_url'   => $livekitToken['livekit_url'],
+                'can_publish'   => true,
             ],
         ], 201);
     }
@@ -363,14 +417,17 @@ class PartyRoomApiController extends Controller
 
         // Determine User RTC Role (Publisher if in seat 1..10, Audience/Subscriber otherwise)
         $role = 'audience';
+        $canPublish = false;
         if ($user) {
             $isOccupyingSeat = $room->seats()->where('user_id', $user->id)->where('status', 'occupied')->exists();
             if ($user->id === $room->host_id || $isOccupyingSeat) {
                 $role = ($user->id === $room->host_id) ? 'host' : 'publisher';
+                $canPublish = true;
             }
         }
 
         $rtcCredentials = null;
+        $livekitToken = null;
         if ($user) {
             $rtcCredentials = $this->callingManager->initializeSession(
                 $user,
@@ -378,14 +435,23 @@ class PartyRoomApiController extends Controller
                 $room->room_type,
                 $role
             );
+            $livekitToken = $this->generatePartyRoomLiveKitToken($room, $user, $canPublish);
         }
 
         return response()->json([
-            'success' => true,
-            'status' => true,
-            'data' => [
-                'room' => $this->formatRoomDetails($room, $user),
-                'rtc' => $rtcCredentials,
+            'success'       => true,
+            'status'        => true,
+            'token'         => $livekitToken ? $livekitToken['token'] : null,
+            'livekit_token' => $livekitToken ? $livekitToken['token'] : null,
+            'livekit_url'   => $livekitToken ? $livekitToken['livekit_url'] : null,
+            'can_publish'   => $canPublish,
+            'data'          => [
+                'room'          => $this->formatRoomDetails($room, $user),
+                'rtc'           => $rtcCredentials,
+                'token'         => $livekitToken ? $livekitToken['token'] : null,
+                'livekit_token' => $livekitToken ? $livekitToken['token'] : null,
+                'livekit_url'   => $livekitToken ? $livekitToken['livekit_url'] : null,
+                'can_publish'   => $canPublish,
             ],
         ]);
     }
@@ -447,20 +513,31 @@ class PartyRoomApiController extends Controller
             ]);
         }
 
+        $isHost = ($user->id === $room->host_id);
         $rtcCredentials = $this->callingManager->initializeSession(
             $user,
             $room->channel_name,
             $room->room_type,
-            ($user->id === $room->host_id) ? 'host' : 'audience'
+            $isHost ? 'host' : 'audience'
         );
 
+        $livekitToken = $this->generatePartyRoomLiveKitToken($room, $user, $isHost);
+
         return response()->json([
-            'success' => true,
-            'status' => true,
-            'message' => 'Joined party room successfully.',
-            'data' => [
-                'room' => $this->formatRoomDetails($room, $user),
-                'rtc' => $rtcCredentials,
+            'success'       => true,
+            'status'        => true,
+            'message'       => 'Joined party room successfully.',
+            'token'         => $livekitToken['token'],
+            'livekit_token' => $livekitToken['token'],
+            'livekit_url'   => $livekitToken['livekit_url'],
+            'can_publish'   => $isHost,
+            'data'          => [
+                'room'          => $this->formatRoomDetails($room, $user),
+                'rtc'           => $rtcCredentials,
+                'token'         => $livekitToken['token'],
+                'livekit_token' => $livekitToken['token'],
+                'livekit_url'   => $livekitToken['livekit_url'],
+                'can_publish'   => $isHost,
             ],
         ]);
     }
@@ -773,10 +850,12 @@ class PartyRoomApiController extends Controller
 
         // Assign user to seat
         $seat->update([
-            'user_id' => $user->id,
-            'role' => 'speaker',
-            'status' => 'occupied',
-            'joined_at' => now(),
+            'user_id'        => $user->id,
+            'role'           => 'speaker',
+            'status'         => 'occupied',
+            'is_muted'       => false,
+            'is_video_muted' => false,
+            'joined_at'      => now(),
             'last_billed_at' => now(),
         ]);
 
@@ -791,10 +870,13 @@ class PartyRoomApiController extends Controller
         // System message
         PartyRoomMessage::create([
             'party_room_id' => $room->id,
-            'user_id' => $user->id,
-            'type' => 'seat_join',
-            'message' => '🎙️ ' . ($user->display_name ?? $user->name) . " joined Seat #{$seat->seat_index}!",
+            'user_id'       => $user->id,
+            'type'          => 'seat_join',
+            'message'       => '🎙️ ' . ($user->display_name ?? $user->name) . " joined Seat #{$seat->seat_index}!",
         ]);
+
+        // Generate LiveKit token with canPublish = true (microphone & audio permission)
+        $livekitToken = $this->generatePartyRoomLiveKitToken($room, $user, true);
 
         // Generate Publisher Streaming Token
         $rtcCredentials = $this->callingManager->initializeSession(
@@ -804,30 +886,72 @@ class PartyRoomApiController extends Controller
             'publisher'
         );
 
+        $seatPayload = [
+            'room_id'     => (string) $room->id,
+            'room_name'   => $room->channel_name ?: $room->room_id,
+            'seat_index'  => (int) $seat->seat_index,
+            'user_id'     => $user->id,
+            'is_muted'    => 0,
+            'is_occupied' => true,
+            'action'      => 'take_seat',
+            'can_publish' => true,
+            'user'        => [
+                'id'               => $user->id,
+                'account_id'       => $user->account_id,
+                'name'             => $user->display_name ?? $user->name,
+                'display_name'     => $user->display_name ?? $user->name,
+                'avatar_url'       => $user->avatar_url,
+                'avatar_frame_url' => $user->avatar_frame_url,
+                'level'            => (int) ($user->level ?? 1),
+            ],
+            'timestamp'   => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
+        } catch (\Throwable $e) {
+            Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
+        }
+
         return response()->json([
-            'success' => true,
-            'status' => true,
-            'message' => "You have taken Seat #{$seat->seat_index}!",
-            'data' => [
-                'seat_index' => $seat->seat_index,
-                'room' => $this->formatRoomDetails($room, $user),
-                'rtc' => $rtcCredentials,
+            'success'       => true,
+            'status'        => true,
+            'message'       => "You have taken Seat #{$seat->seat_index}!",
+            'seat_index'    => (int) $seat->seat_index,
+            'user_id'       => $user->id,
+            'is_muted'      => 0,
+            'can_publish'   => true,
+            'token'         => $livekitToken['token'],
+            'livekit_token' => $livekitToken['token'],
+            'livekit_url'   => $livekitToken['livekit_url'],
+            'data'          => [
+                'seat_index'    => (int) $seat->seat_index,
+                'user_id'       => $user->id,
+                'is_muted'      => 0,
+                'can_publish'   => true,
+                'token'         => $livekitToken['token'],
+                'livekit_token' => $livekitToken['token'],
+                'livekit_url'   => $livekitToken['livekit_url'],
+                'room'          => $this->formatRoomDetails($room, $user),
+                'rtc'           => $rtcCredentials,
             ],
         ]);
     }
 
     /**
      * Directly Take / Request an Open Seat.
-     * POST /api/party-rooms/{id}/take-seat
+     * POST /api/party-rooms/take-seat or POST /api/party-rooms/{id}/take-seat
      */
-    public function takeSeat(Request $request, $id): JsonResponse
+    public function takeSeat(Request $request, $id = null): JsonResponse
     {
         $user = $this->resolveUser($request);
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        $room = PartyRoom::where('id', $id)->orWhere('room_id', $id)->first();
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
         if (!$room || $room->status !== 'active') {
             return response()->json(['success' => false, 'message' => 'Party room is not active.'], 404);
         }
@@ -835,14 +959,31 @@ class PartyRoomApiController extends Controller
         // Check if user is already on a seat
         $existingSeat = $room->seats()->where('user_id', $user->id)->where('status', 'occupied')->first();
         if ($existingSeat) {
+            $livekitToken = $this->generatePartyRoomLiveKitToken($room, $user, true);
             return response()->json([
-                'success' => true,
-                'message' => "You are already on Seat #{$existingSeat->seat_index}.",
-                'data' => ['seat_index' => $existingSeat->seat_index],
+                'success'       => true,
+                'status'        => true,
+                'message'       => "You are already on Seat #{$existingSeat->seat_index}.",
+                'seat_index'    => (int) $existingSeat->seat_index,
+                'user_id'       => $user->id,
+                'is_muted'      => (int) $existingSeat->is_muted,
+                'can_publish'   => true,
+                'token'         => $livekitToken['token'],
+                'livekit_token' => $livekitToken['token'],
+                'livekit_url'   => $livekitToken['livekit_url'],
+                'data'          => [
+                    'seat_index'    => (int) $existingSeat->seat_index,
+                    'user_id'       => $user->id,
+                    'is_muted'      => (int) $existingSeat->is_muted,
+                    'can_publish'   => true,
+                    'token'         => $livekitToken['token'],
+                    'livekit_token' => $livekitToken['token'],
+                    'livekit_url'   => $livekitToken['livekit_url'],
+                ],
             ]);
         }
 
-        $requestedIndex = $request->input('seat_index');
+        $requestedIndex = $request->input('seat_index') ?? $request->input('seatIndex');
         if ($requestedIndex) {
             $seat = $room->seats()->where('seat_index', $requestedIndex)->first();
             if (!$seat || $seat->status === 'occupied' || $seat->is_locked) {
@@ -855,12 +996,14 @@ class PartyRoomApiController extends Controller
             }
         }
 
-        // Assign to seat
+        // Assign to seat (is_muted = 0)
         $seat->update([
-            'user_id' => $user->id,
-            'role' => 'speaker',
-            'status' => 'occupied',
-            'joined_at' => now(),
+            'user_id'        => $user->id,
+            'role'           => 'speaker',
+            'status'         => 'occupied',
+            'is_muted'       => false,
+            'is_video_muted' => false,
+            'joined_at'      => now(),
             'last_billed_at' => now(),
         ]);
 
@@ -871,10 +1014,13 @@ class PartyRoomApiController extends Controller
 
         PartyRoomMessage::create([
             'party_room_id' => $room->id,
-            'user_id' => $user->id,
-            'type' => 'seat_join',
-            'message' => '🎤 ' . ($user->display_name ?? $user->name) . " stepped up to Seat #{$seat->seat_index}!",
+            'user_id'       => $user->id,
+            'type'          => 'seat_join',
+            'message'       => '🎤 ' . ($user->display_name ?? $user->name) . " stepped up to Seat #{$seat->seat_index}!",
         ]);
+
+        // Generate LiveKit token with canPublish = true (microphone & audio permission)
+        $livekitToken = $this->generatePartyRoomLiveKitToken($room, $user, true);
 
         $rtcCredentials = $this->callingManager->initializeSession(
             $user,
@@ -883,14 +1029,56 @@ class PartyRoomApiController extends Controller
             'publisher'
         );
 
+        $seatPayload = [
+            'room_id'     => (string) $room->id,
+            'room_name'   => $room->channel_name ?: $room->room_id,
+            'seat_index'  => (int) $seat->seat_index,
+            'user_id'     => $user->id,
+            'is_muted'    => 0,
+            'is_occupied' => true,
+            'action'      => 'take_seat',
+            'can_publish' => true,
+            'user'        => [
+                'id'               => $user->id,
+                'account_id'       => $user->account_id,
+                'name'             => $user->display_name ?? $user->name,
+                'display_name'     => $user->display_name ?? $user->name,
+                'avatar_url'       => $user->avatar_url,
+                'avatar_frame_url' => $user->avatar_frame_url,
+                'level'            => (int) ($user->level ?? 1),
+            ],
+            'timestamp'   => now()->toIso8601String(),
+        ];
+
+        // Broadcast SeatUpdatedEvent in real time via Reverb
+        try {
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
+        } catch (\Throwable $e) {
+            Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
+        }
+
         return response()->json([
-            'success' => true,
-            'status' => true,
-            'message' => "You are now on Seat #{$seat->seat_index}!",
-            'data' => [
-                'seat_index' => $seat->seat_index,
-                'room' => $this->formatRoomDetails($room, $user),
-                'rtc' => $rtcCredentials,
+            'success'       => true,
+            'status'        => true,
+            'message'       => "You are now on Seat #{$seat->seat_index}!",
+            'seat_index'    => (int) $seat->seat_index,
+            'user_id'       => $user->id,
+            'is_muted'      => 0,
+            'can_publish'   => true,
+            'token'         => $livekitToken['token'],
+            'livekit_token' => $livekitToken['token'],
+            'livekit_url'   => $livekitToken['livekit_url'],
+            'data'          => [
+                'seat_index'    => (int) $seat->seat_index,
+                'user_id'       => $user->id,
+                'is_muted'      => 0,
+                'can_publish'   => true,
+                'token'         => $livekitToken['token'],
+                'livekit_token' => $livekitToken['token'],
+                'livekit_url'   => $livekitToken['livekit_url'],
+                'room'          => $this->formatRoomDetails($room, $user),
+                'rtc'           => $rtcCredentials,
             ],
         ]);
     }
@@ -899,14 +1087,15 @@ class PartyRoomApiController extends Controller
      * Audience Requests a Seat from Host.
      * POST /api/party-rooms/{id}/request-seat
      */
-    public function requestSeat(Request $request, $id): JsonResponse
+    public function requestSeat(Request $request, $id = null): JsonResponse
     {
         $user = $this->resolveUser($request);
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        $room = PartyRoom::where('id', $id)->orWhere('room_id', $id)->first();
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
         if (!$room || $room->status !== 'active') {
             return response()->json(['success' => false, 'message' => 'Party room is not active.'], 404);
         }
@@ -945,7 +1134,7 @@ class PartyRoomApiController extends Controller
                 'seat_index' => $seatIndex,
             ]))->toOthers();
         } catch (\Throwable $e) {
-            \Log::warning('SeatRequestEvent broadcast failed: ' . $e->getMessage());
+            Log::warning('SeatRequestEvent broadcast failed: ' . $e->getMessage());
         }
 
         return response()->json([
@@ -963,14 +1152,15 @@ class PartyRoomApiController extends Controller
      * Get Pending Seat Requests for Host.
      * GET /api/party-rooms/{id}/seat-requests
      */
-    public function getSeatRequests(Request $request, $id): JsonResponse
+    public function getSeatRequests(Request $request, $id = null): JsonResponse
     {
         $user = $this->resolveUser($request);
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        $room = PartyRoom::where('id', $id)->orWhere('room_id', $id)->first();
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
         if (!$room) {
             return response()->json(['success' => false, 'message' => 'Room not found.'], 404);
         }
@@ -1001,16 +1191,17 @@ class PartyRoomApiController extends Controller
 
     /**
      * Leave Seat Back to Audience.
-     * POST /api/party-rooms/{id}/leave-seat
+     * POST /api/party-rooms/leave-seat or POST /api/party-rooms/{id}/leave-seat
      */
-    public function leaveSeat(Request $request, $id): JsonResponse
+    public function leaveSeat(Request $request, $id = null): JsonResponse
     {
         $user = $this->resolveUser($request);
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        $room = PartyRoom::where('id', $id)->orWhere('room_id', $id)->first();
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
         if (!$room) {
             return response()->json(['success' => false, 'message' => 'Room not found.'], 404);
         }
@@ -1020,11 +1211,11 @@ class PartyRoomApiController extends Controller
             return response()->json(['success' => false, 'message' => 'You are not occupying a guest seat.'], 422);
         }
 
-        $seatIndex = $seat->seat_index;
+        $seatIndex = (int) $seat->seat_index;
         $seat->update([
-            'user_id' => null,
-            'status' => 'empty',
-            'is_muted' => false,
+            'user_id'        => null,
+            'status'         => 'empty',
+            'is_muted'       => false,
             'is_video_muted' => false,
         ]);
 
@@ -1034,10 +1225,13 @@ class PartyRoomApiController extends Controller
 
         PartyRoomMessage::create([
             'party_room_id' => $room->id,
-            'user_id' => $user->id,
-            'type' => 'seat_leave',
-            'message' => '🚶 ' . ($user->display_name ?? $user->name) . " stepped down from Seat #{$seatIndex}.",
+            'user_id'       => $user->id,
+            'type'          => 'seat_leave',
+            'message'       => '🚶 ' . ($user->display_name ?? $user->name) . " stepped down from Seat #{$seatIndex}.",
         ]);
+
+        // Generate LiveKit token with canPublish = false (audience role)
+        $livekitToken = $this->generatePartyRoomLiveKitToken($room, $user, false);
 
         $rtcCredentials = $this->callingManager->initializeSession(
             $user,
@@ -1046,13 +1240,46 @@ class PartyRoomApiController extends Controller
             'audience'
         );
 
+        $seatPayload = [
+            'room_id'     => (string) $room->id,
+            'room_name'   => $room->channel_name ?: $room->room_id,
+            'seat_index'  => $seatIndex,
+            'user_id'     => null,
+            'is_muted'    => 0,
+            'is_occupied' => false,
+            'action'      => 'leave_seat',
+            'can_publish' => false,
+            'user'        => null,
+            'timestamp'   => now()->toIso8601String(),
+        ];
+
+        // Broadcast SeatUpdatedEvent in real time via Reverb
+        try {
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
+        } catch (\Throwable $e) {
+            Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
+        }
+
         return response()->json([
-            'success' => true,
-            'status' => true,
-            'message' => 'Stepped down from seat successfully.',
-            'data' => [
-                'room' => $this->formatRoomDetails($room, $user),
-                'rtc' => $rtcCredentials,
+            'success'       => true,
+            'status'        => true,
+            'message'       => 'Stepped down from seat successfully.',
+            'seat_index'    => $seatIndex,
+            'user_id'       => null,
+            'can_publish'   => false,
+            'token'         => $livekitToken['token'],
+            'livekit_token' => $livekitToken['token'],
+            'livekit_url'   => $livekitToken['livekit_url'],
+            'data'          => [
+                'seat_index'    => $seatIndex,
+                'user_id'       => null,
+                'can_publish'   => false,
+                'token'         => $livekitToken['token'],
+                'livekit_token' => $livekitToken['token'],
+                'livekit_url'   => $livekitToken['livekit_url'],
+                'room'          => $this->formatRoomDetails($room, $user),
+                'rtc'           => $rtcCredentials,
             ],
         ]);
     }
@@ -1061,14 +1288,15 @@ class PartyRoomApiController extends Controller
      * Host Kicks Guest from Seat.
      * POST /api/party-rooms/{id}/kick-seat
      */
-    public function kickSeat(Request $request, $id): JsonResponse
+    public function kickSeat(Request $request, $id = null): JsonResponse
     {
         $user = $this->resolveUser($request);
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        $room = PartyRoom::where('id', $id)->orWhere('room_id', $id)->first();
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
         if (!$room) {
             return response()->json(['success' => false, 'message' => 'Room not found.'], 404);
         }
@@ -1093,10 +1321,11 @@ class PartyRoomApiController extends Controller
         }
 
         $kickedUser = $seat->user;
+        $vacatedIndex = (int) $seat->seat_index;
         $seat->update([
-            'user_id' => null,
-            'status' => 'empty',
-            'is_muted' => false,
+            'user_id'        => null,
+            'status'         => 'empty',
+            'is_muted'       => false,
             'is_video_muted' => false,
         ]);
 
@@ -1107,18 +1336,39 @@ class PartyRoomApiController extends Controller
 
             PartyRoomMessage::create([
                 'party_room_id' => $room->id,
-                'user_id' => $user->id,
-                'type' => 'system',
-                'message' => '⚠️ Host removed ' . ($kickedUser->display_name ?? $kickedUser->name) . " from Seat #{$seat->seat_index}.",
+                'user_id'       => $user->id,
+                'type'          => 'system',
+                'message'       => '⚠️ Host removed ' . ($kickedUser->display_name ?? $kickedUser->name) . " from Seat #{$vacatedIndex}.",
             ]);
+        }
+
+        $seatPayload = [
+            'room_id'     => (string) $room->id,
+            'room_name'   => $room->channel_name ?: $room->room_id,
+            'seat_index'  => $vacatedIndex,
+            'user_id'     => null,
+            'is_muted'    => 0,
+            'is_occupied' => false,
+            'action'      => 'kick_seat',
+            'can_publish' => false,
+            'user'        => null,
+            'timestamp'   => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
+        } catch (\Throwable $e) {
+            Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
         }
 
         return response()->json([
             'success' => true,
-            'status' => true,
-            'message' => "Guest removed from Seat #{$seat->seat_index}.",
-            'data' => [
-                'room' => $this->formatRoomDetails($room, $user),
+            'status'  => true,
+            'message' => "Guest removed from Seat #{$vacatedIndex}.",
+            'data'    => [
+                'seat_index' => $vacatedIndex,
+                'room'       => $this->formatRoomDetails($room, $user),
             ],
         ]);
     }
@@ -1127,14 +1377,15 @@ class PartyRoomApiController extends Controller
      * Toggle Mic Mute / Unmute on Seat.
      * POST /api/party-rooms/{id}/toggle-mic
      */
-    public function toggleMic(Request $request, $id): JsonResponse
+    public function toggleMic(Request $request, $id = null): JsonResponse
     {
         $user = $this->resolveUser($request);
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        $room = PartyRoom::where('id', $id)->orWhere('room_id', $id)->first();
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
         if (!$room) {
             return response()->json(['success' => false, 'message' => 'Room not found.'], 404);
         }
@@ -1147,13 +1398,66 @@ class PartyRoomApiController extends Controller
         $isMuted = $request->has('is_muted') ? $request->boolean('is_muted') : !$seat->is_muted;
         $seat->update(['is_muted' => $isMuted]);
 
+        $seatPayload = [
+            'room_id'     => (string) $room->id,
+            'room_name'   => $room->channel_name ?: $room->room_id,
+            'seat_index'  => (int) $seat->seat_index,
+            'user_id'     => $user->id,
+            'is_muted'    => $isMuted ? 1 : 0,
+            'is_occupied' => true,
+            'action'      => 'toggle_mic',
+            'timestamp'   => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
+        } catch (\Throwable $e) {}
+
         return response()->json([
-            'success' => true,
-            'status' => true,
-            'is_muted' => $isMuted,
-            'message' => $isMuted ? 'Microphone muted.' : 'Microphone unmuted.',
+            'success'  => true,
+            'status'   => true,
+            'is_muted' => $isMuted ? 1 : 0,
+            'message'  => $isMuted ? 'Microphone muted.' : 'Microphone unmuted.',
         ]);
     }
+
+    /**
+     * Generate LiveKit Token for Party Room Participant
+     * POST /api/party-rooms/token or POST /api/party-rooms/{id}/token
+     */
+    public function getRoomToken(Request $request, $id = null): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['success' => false, 'status' => false, 'message' => 'Unauthorized.'], 401);
+        }
+
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id') ?? $request->input('channel_name');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
+        if (!$room) {
+            return response()->json(['success' => false, 'status' => false, 'message' => 'Party room not found.'], 404);
+        }
+
+        $isOccupyingSeat = $room->seats()->where('user_id', $user->id)->where('status', 'occupied')->exists();
+        $isHost = ($user->id === $room->host_id);
+        $canPublish = $request->boolean('can_publish', ($isHost || $isOccupyingSeat));
+
+        $tokenData = $this->generatePartyRoomLiveKitToken($room, $user, $canPublish);
+
+        return response()->json([
+            'success'       => true,
+            'status'        => true,
+            'message'       => 'Party room token generated successfully',
+            'token'         => $tokenData['token'],
+            'livekit_token' => $tokenData['token'],
+            'room_name'     => $tokenData['room_name'],
+            'channel_name'  => $tokenData['channel_name'],
+            'livekit_url'   => $tokenData['livekit_url'],
+            'can_publish'   => $tokenData['can_publish'],
+            'data'          => $tokenData,
+        ]);
+    }
+
 
     /**
      * Toggle Video Camera on Seat (For Video Party).

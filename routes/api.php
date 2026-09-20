@@ -643,6 +643,7 @@ Route::prefix('live')->group(function () {
     Route::post('/request-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
     Route::match(['get', 'post'], '/join-requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
     Route::match(['get', 'post'], '/requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
+    Route::post('/accept-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'acceptJoin']);
     Route::post('/accept-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
     Route::post('/respond-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
     Route::match(['get', 'post'], '/kick-guest', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
@@ -652,12 +653,15 @@ Route::prefix('live')->group(function () {
 // Direct root-level LiveKit and Live Co-Host Routes
 Route::post('/live/get-token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
 Route::post('/live/request-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
+Route::post('/live/accept-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'acceptJoin']);
 Route::match(['get', 'post'], '/live/join-requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
 Route::match(['get', 'post'], '/live/requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
 Route::post('/live/respond-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
+Route::post('/live/accept-request', [\App\Http\Controllers\Api\LiveStreamController::class, 'acceptJoin']);
 Route::match(['get', 'post'], '/live/kick-guest', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
 Route::post('/live/send-message', [\App\Http\Controllers\Api\LiveStreamController::class, 'sendMessage']);
 Route::post('/live/token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
+
 
 
 // ==========================================
@@ -1043,6 +1047,10 @@ Route::prefix('party-rooms')->group(function () {
     Route::post('/{id}/respond-invite', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondInvite']);
     
     // Seats Management (10 Seats Grid)
+    Route::post('/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
+    Route::post('/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
+    Route::post('/token', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getRoomToken']);
+    Route::post('/{id}/token', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getRoomToken']);
     Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
     Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
     Route::get('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getSeatRequests']);
@@ -1076,6 +1084,10 @@ Route::prefix('party-room')->group(function () {
     Route::get('/{id}/search-invitees', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'searchInvitees']);
     Route::post('/{id}/invite-guest', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'inviteGuest']);
     Route::post('/{id}/respond-invite', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondInvite']);
+    Route::post('/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
+    Route::post('/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
+    Route::post('/token', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getRoomToken']);
+    Route::post('/{id}/token', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getRoomToken']);
     Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
     Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
     Route::get('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getSeatRequests']);

@@ -136,6 +136,10 @@ Broadcast::channel('party-room.{roomId}', function ($user, $roomId) {
     return true;
 });
 
+Broadcast::channel('party-room-seat.{roomId}', function ($user, $roomId) {
+    return true;
+});
+
 Broadcast::channel('presence-party.{roomId}', function ($user, $roomId) {
     if (!$user) return true;
     return [
@@ -146,3 +150,4 @@ Broadcast::channel('presence-party.{roomId}', function ($user, $roomId) {
         'level'        => $user->level ?: 'Lv1',
     ];
 });
+

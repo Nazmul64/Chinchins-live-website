@@ -6,6 +6,8 @@ use Agence104\LiveKit\AccessToken;
 use Agence104\LiveKit\AccessTokenOptions;
 use Agence104\LiveKit\VideoGrant;
 use App\Events\CoHostAcceptedEvent;
+use App\Events\CoHostRequestAccepted;
+use App\Events\CoHostRequestReceived;
 use App\Events\CoHostStatusEvent;
 use App\Events\LiveChatMessageEvent;
 use App\Events\LiveJoinRequested;
@@ -20,6 +22,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class LiveStreamController extends Controller
@@ -193,16 +196,24 @@ class LiveStreamController extends Controller
             ['status' => 'pending']
         );
 
+        $hostId = $request->input('host_id') ?? $stream->host_id;
+
         $requestPayload = [
             'request_id'     => $joinReq->id,
             'room_id'        => (string) $stream->id,
             'room_name'      => $stream->channel_name ?: (string) $stream->id,
             'live_stream_id' => $stream->id,
+            'host_id'        => (int) $hostId,
+            'user_id'        => $user->id,
+            'name'           => $user->display_name ?? $user->name,
+            'avatar'         => $user->avatar_url ?? $user->avatar ?? null,
             'user'           => [
                 'id'           => $user->id,
                 'account_id'   => $user->account_id,
                 'display_name' => $user->display_name ?? $user->name,
+                'name'         => $user->display_name ?? $user->name,
                 'avatar_url'   => $user->avatar_url,
+                'avatar'       => $user->avatar_url ?? $user->avatar ?? null,
                 'gender'       => $user->gender ?: 'female',
                 'level'        => $user->level ?: 'Lv1',
             ],
@@ -211,14 +222,35 @@ class LiveStreamController extends Controller
         ];
 
         try {
-            event(new LiveJoinRequested($stream->id, $stream->host_id, $requestPayload));
-        } catch (\Throwable $e) {}
+            broadcast(new CoHostRequestReceived($hostId, [
+                'user_id'    => auth()->id() ?? $user->id,
+                'name'       => $user->display_name ?? $user->name,
+                'avatar'     => $user->avatar_url ?? $user->avatar ?? null,
+                'request_id' => $joinReq->id,
+                'room_id'    => (string) $stream->id,
+                'room_name'  => $stream->channel_name ?: (string) $stream->id,
+            ]))->toOthers();
+            broadcast(new CoHostRequestReceived($hostId, $requestPayload));
+            event(new LiveJoinRequested($stream->id, $hostId, $requestPayload));
+        } catch (\Throwable $e) {
+            Log::warning('CoHostRequestReceived broadcast failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'status'  => true,
             'message' => 'Co-host request sent to host successfully',
             'data'    => $requestPayload,
         ], 200);
+    }
+
+    /**
+     * Dedicated Accept Join Endpoint
+     * POST /api/live/accept-join
+     */
+    public function acceptJoin(Request $request): JsonResponse
+    {
+        $request->merge(['action' => 'accept']);
+        return $this->respondRequest($request);
     }
 
     /**
@@ -231,23 +263,43 @@ class LiveStreamController extends Controller
         $requestId = $request->input('request_id');
         $action = strtolower($request->input('action', 'accept')); // 'accept' or 'reject'
 
-        $joinReq = LiveJoinRequest::with(['liveStream', 'user'])->find($requestId);
+        $joinReq = null;
+        if ($requestId) {
+            $joinReq = LiveJoinRequest::with(['liveStream', 'user'])->find($requestId);
+        }
+
+        if (!$joinReq && $request->filled('user_id')) {
+            $targetUserId = $request->input('user_id');
+            $roomId = $request->input('room_id') ?? $request->input('live_stream_id');
+            $joinReqQuery = LiveJoinRequest::with(['liveStream', 'user'])
+                ->where('user_id', $targetUserId);
+            if ($roomId) {
+                $joinReqQuery->where(function($q) use ($roomId) {
+                    $q->where('live_stream_id', $roomId)
+                      ->orWhereHas('liveStream', fn($sq) => $sq->where('channel_name', $roomId));
+                });
+            }
+            $joinReq = $joinReqQuery->latest()->first();
+        }
+
         if (!$joinReq) {
             return response()->json(['status' => false, 'message' => 'Join request not found.'], 404);
         }
 
         $stream = $joinReq->liveStream;
         $guestUser = $joinReq->user;
-        $roomName = $stream->channel_name ?: (string) $stream->id;
+        $roomName = $stream ? ($stream->channel_name ?: (string) $stream->id) : 'live_room';
 
         $guestToken = null;
 
         if ($action === 'accept') {
             $joinReq->update(['status' => 'accepted']);
-            LiveParticipant::updateOrCreate(
-                ['live_stream_id' => $stream->id, 'user_id' => $guestUser->id],
-                ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
-            );
+            if ($stream) {
+                LiveParticipant::updateOrCreate(
+                    ['live_stream_id' => $stream->id, 'user_id' => $guestUser->id],
+                    ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
+                );
+            }
 
             // Generate LiveKit token with canPublish = true for co-host
             $apiKey = config('services.livekit.api_key', env('LIVEKIT_API_KEY', 'APIVbeXzKatSo3u'));
@@ -271,45 +323,69 @@ class LiveStreamController extends Controller
             $token->setGrant($grant);
 
             $guestToken = [
-                'token'       => $token->toJwt(),
-                'room_name'   => $roomName,
-                'role'        => 'co_host',
-                'can_publish' => true,
-                'livekit_url' => $livekitUrl,
+                'token'         => $token->toJwt(),
+                'livekit_token' => $token->toJwt(),
+                'room_name'     => $roomName,
+                'role'          => 'co_host',
+                'can_publish'   => true,
+                'livekit_url'   => $livekitUrl,
             ];
 
-            // Dispatch CoHostAcceptedEvent so guest's phone triggers camera & mic
+            // Dispatch CoHostRequestAccepted & CoHostAcceptedEvent
+            $acceptedPayload = [
+                'room_name'     => $roomName,
+                'room_id'       => (string) ($stream ? $stream->id : ''),
+                'can_publish'   => true,
+                'user_id'       => $guestUser->id,
+                'name'          => $guestUser->display_name ?? $guestUser->name,
+                'avatar'        => $guestUser->avatar_url ?? $guestUser->avatar ?? null,
+                'request_id'    => $joinReq->id,
+                'token'         => $guestToken['token'],
+                'livekit_token' => $guestToken['token'],
+                'livekit_url'   => $livekitUrl,
+            ];
+
             try {
-                event(new CoHostAcceptedEvent($stream->id, $guestUser->id, [
-                    'request_id'    => $joinReq->id,
-                    'room_id'       => (string) $stream->id,
-                    'room_name'     => $roomName,
-                    'guest_user_id' => $guestUser->id,
-                    'token'         => $guestToken['token'],
-                    'livekit_url'   => $livekitUrl,
+                broadcast(new CoHostRequestAccepted($guestUser->id, [
+                    'room_name'   => $roomName,
+                    'room_id'     => (string) ($stream ? $stream->id : ''),
+                    'can_publish' => true,
+                    'token'       => $guestToken['token'],
+                    'livekit_url' => $livekitUrl,
                 ]));
-                broadcast(new CoHostStatusEvent($stream->id, 'accept', $guestUser))->toOthers();
-            } catch (\Throwable $e) {}
+                broadcast(new CoHostRequestAccepted($guestUser->id, $acceptedPayload))->toOthers();
+                if ($stream) {
+                    event(new CoHostAcceptedEvent($stream->id, $guestUser->id, $acceptedPayload));
+                    broadcast(new CoHostStatusEvent($stream->id, 'accept', $guestUser))->toOthers();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('CoHostRequestAccepted broadcast failed: ' . $e->getMessage());
+            }
         } else {
             $joinReq->update(['status' => 'rejected']);
-            try {
-                broadcast(new CoHostStatusEvent($stream->id, 'reject', $guestUser))->toOthers();
-            } catch (\Throwable $e) {}
+            if ($stream) {
+                try {
+                    broadcast(new CoHostStatusEvent($stream->id, 'reject', $guestUser))->toOthers();
+                } catch (\Throwable $e) {}
+            }
         }
 
         $responsePayload = [
             'request_id'     => $joinReq->id,
-            'room_id'        => (string) $stream->id,
+            'room_id'        => (string) ($stream ? $stream->id : ''),
             'room_name'      => $roomName,
             'guest_user_id'  => $guestUser->id,
             'status'         => $joinReq->status,
             'action'         => $action,
+            'can_publish'    => ($action === 'accept'),
             'guest_token'    => $guestToken,
         ];
 
-        try {
-            event(new LiveJoinResponded($stream->id, $guestUser->id, $responsePayload));
-        } catch (\Throwable $e) {}
+        if ($stream) {
+            try {
+                event(new LiveJoinResponded($stream->id, $guestUser->id, $responsePayload));
+            } catch (\Throwable $e) {}
+        }
 
         return response()->json([
             'status'  => true,
@@ -317,6 +393,7 @@ class LiveStreamController extends Controller
             'data'    => $responsePayload,
         ], 200);
     }
+
 
     /**
      * 4. Send Real-Time Live Chat Message
