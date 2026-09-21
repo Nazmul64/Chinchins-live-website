@@ -829,20 +829,24 @@ Route::get('/user/notifications', [\App\Http\Controllers\Api\MessageApiControlle
 // ==========================================
 // 🎁 Gifts, Rewards & Profile Received Gifts APIs
 // ==========================================
+Route::get('/gifts/catalog', [\App\Http\Controllers\Api\CommonDataController::class, 'getGiftsCatalog']);
+Route::get('/payment/gateways', [\App\Http\Controllers\Api\CommonDataController::class, 'getPaymentGateways']);
+Route::get('/payment-gateways', [\App\Http\Controllers\Api\CommonDataController::class, 'getPaymentGateways']);
+
 Route::prefix('gifts')->group(function () {
-    // 1. Gift Catalog (Store of gifts)
-    Route::get('/', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
-    Route::get('/catalog', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
-    Route::get('/list', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
+    // 1. Gift Catalog (Store of gifts - 24hr Cache)
+    Route::get('/', [\App\Http\Controllers\Api\CommonDataController::class, 'getGiftsCatalog']);
+    Route::get('/catalog', [\App\Http\Controllers\Api\CommonDataController::class, 'getGiftsCatalog']);
+    Route::get('/list', [\App\Http\Controllers\Api\CommonDataController::class, 'getGiftsCatalog']);
     Route::get('/categories', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
 
     // 2. User's Received Gifts (For Profile Charm Level & Gifts Received Screen)
     Route::get('/received/{id?}', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
     Route::get('/user/{id?}', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
 
-    // 3. Send Gift to Host/User
-    Route::post('/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
-    Route::post('/give', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+    // 3. Send Gift to Host/User (Atomic Zero-Latency Queue Transaction)
+    Route::post('/send', [\App\Http\Controllers\Api\GiftTransactionController::class, 'sendGift']);
+    Route::post('/give', [\App\Http\Controllers\Api\GiftTransactionController::class, 'sendGift']);
 
     // 4. Top Fans Leaderboard & Likes
     Route::get('/top-fans/{id?}', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
@@ -866,10 +870,10 @@ Route::get('/users/{id}/gifts-received', [\App\Http\Controllers\Api\GiftApiContr
 Route::get('/users/{id}/top-fans', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
 Route::post('/profile/{id}/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
 Route::post('/user/{id}/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
-Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
-Route::post('/gifts/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
-Route::post('/live/send-gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
-Route::post('/live-stream/gift', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendGift']);
+Route::post('/gift/send', [\App\Http\Controllers\Api\GiftTransactionController::class, 'sendGift']);
+Route::post('/gifts/send', [\App\Http\Controllers\Api\GiftTransactionController::class, 'sendGift']);
+Route::post('/live/send-gift', [\App\Http\Controllers\Api\GiftTransactionController::class, 'sendGift']);
+Route::post('/live-stream/gift', [\App\Http\Controllers\Api\GiftTransactionController::class, 'sendGift']);
 // ==========================================
 // 👥 Follow & Unfollow User APIs
 // ==========================================
