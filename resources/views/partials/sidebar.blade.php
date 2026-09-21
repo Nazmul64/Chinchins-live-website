@@ -531,4 +531,25 @@
         </a>
         @endhasPermission
     </div>
+
+    <script>
+        (function() {
+            try {
+                const sidebar = document.currentScript.closest('.sidebar');
+                if (sidebar) {
+                    const activeElem = sidebar.querySelector('.submenu-item.active') || sidebar.querySelector('.menu-item.active:not(.menu-dropdown-toggle)') || sidebar.querySelector('.menu-item-group.active');
+                    if (activeElem) {
+                        requestAnimationFrame(function() {
+                            activeElem.scrollIntoView({ block: 'center', inline: 'nearest' });
+                        });
+                    } else {
+                        const saved = sessionStorage.getItem('admin_sidebar_scroll_pos');
+                        if (saved) {
+                            sidebar.scrollTop = parseInt(saved, 10);
+                        }
+                    }
+                }
+            } catch (e) {}
+        })();
+    </script>
 </aside>

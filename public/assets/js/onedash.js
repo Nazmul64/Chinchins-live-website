@@ -54,6 +54,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // 1.2 Sidebar Scroll Persistence & Auto Focus on Active Menu Item
+    const sidebarEl = document.querySelector('.sidebar');
+    if (sidebarEl) {
+        // Auto scroll active item into view
+        const activeSubmenu = sidebarEl.querySelector('.submenu-item.active');
+        const activeMenuItem = sidebarEl.querySelector('.menu-item.active:not(.menu-dropdown-toggle)');
+        const activeGroup = sidebarEl.querySelector('.menu-item-group.active, .menu-item-group.open');
+        const targetActive = activeSubmenu || activeMenuItem || activeGroup;
+
+        if (targetActive) {
+            setTimeout(() => {
+                targetActive.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+            }, 30);
+        } else {
+            const savedSidebarScroll = sessionStorage.getItem('admin_sidebar_scroll_pos');
+            if (savedSidebarScroll) {
+                sidebarEl.scrollTop = parseInt(savedSidebarScroll, 10);
+            }
+        }
+
+        // Save position on scroll
+        sidebarEl.addEventListener('scroll', () => {
+            sessionStorage.setItem('admin_sidebar_scroll_pos', sidebarEl.scrollTop);
+        }, { passive: true });
+
+        // Save position when user clicks any link in the sidebar
+        sidebarEl.querySelectorAll('a').forEach(a => {
+            a.addEventListener('click', () => {
+                sessionStorage.setItem('admin_sidebar_scroll_pos', sidebarEl.scrollTop);
+            });
+        });
+    }
+
     // 2. Profile Dropdown Toggle
     const userProfileBtn = document.getElementById('userProfileDropdownBtn');
     const userDropdownMenu = document.getElementById('userDropdownMenu');
