@@ -717,6 +717,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Push notifications sent to or related to this user.
+     */
+    public function pushNotifications()
+    {
+        return $this->hasMany(PushNotification::class, 'user_id');
+    }
+
+    /**
      * Profile views where this user was visited as host/owner.
      */
     public function profileVisitors()

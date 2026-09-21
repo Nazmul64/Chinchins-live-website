@@ -20,8 +20,18 @@ class FirebaseNotificationAdminController extends Controller
      */
     public function apps()
     {
+        $apps = collect();
         try {
-            $apps = FirebaseApp::withCount(['deviceRegistrations', 'pushNotifications'])->latest()->get();
+            if (Schema::hasTable('firebase_apps')) {
+                $query = FirebaseApp::query();
+                if (Schema::hasTable('device_registrations')) {
+                    $query->withCount('deviceRegistrations');
+                }
+                if (Schema::hasTable('push_notifications')) {
+                    $query->withCount('pushNotifications');
+                }
+                $apps = $query->latest()->get();
+            }
         } catch (\Throwable $e) {
             $apps = collect();
         }
@@ -142,29 +152,48 @@ class FirebaseNotificationAdminController extends Controller
      */
     public function send()
     {
+        $apps = collect();
+        $recentNotifications = collect();
+        $firebaseCount = 0;
+        $oneSignalCount = 0;
+        $totalCount = 0;
+        $users = collect();
+
         try {
-            $apps = FirebaseApp::where('is_active', true)->get();
-            $recentNotifications = PushNotification::with('firebaseApp')->latest()->take(10)->get();
+            if (Schema::hasTable('firebase_apps')) {
+                $apps = FirebaseApp::where('is_active', true)->get();
+            }
+        } catch (\Throwable $e) {}
 
-            // Platform stats pill counts
-            $firebaseCount = PushNotification::where('platform', 'firebase')->count();
-            $oneSignalCount = PushNotification::where('platform', 'onesignal')->count();
-            $totalCount = PushNotification::count();
+        try {
+            if (Schema::hasTable('push_notifications')) {
+                $recentNotifications = PushNotification::with('firebaseApp')->latest()->take(10)->get();
+                $firebaseCount = PushNotification::where('platform', 'firebase')->count();
+                $oneSignalCount = PushNotification::where('platform', 'onesignal')->count();
+                $totalCount = PushNotification::count();
+            }
+        } catch (\Throwable $e) {}
 
-            $users = User::select('id', 'name', 'email', 'avatar', 'fcm_token', 'account_id')
-                ->where(function($q) {
+        try {
+            $userQuery = User::query();
+            if (Schema::hasColumn('users', 'fcm_token')) {
+                $userQuery->where(function($q) {
                     $q->whereNotNull('fcm_token')->where('fcm_token', '!=', '');
-                })
-                ->orWhereHas('deviceRegistrations')
-                ->take(50)
-                ->get();
+                });
+            }
+            if (Schema::hasTable('device_registrations')) {
+                $userQuery->orWhereHas('deviceRegistrations');
+            }
+            $users = $userQuery->take(50)->get();
+            if ($users->isEmpty()) {
+                $users = User::take(20)->get();
+            }
         } catch (\Throwable $e) {
-            $apps = collect();
-            $recentNotifications = collect();
-            $firebaseCount = 0;
-            $oneSignalCount = 0;
-            $totalCount = 0;
-            $users = collect();
+            try {
+                $users = User::take(20)->get();
+            } catch (\Throwable $e2) {
+                $users = collect();
+            }
         }
 
         return view('admin.firebase.send', compact('apps', 'recentNotifications', 'firebaseCount', 'oneSignalCount', 'totalCount', 'users'));
@@ -216,39 +245,46 @@ class FirebaseNotificationAdminController extends Controller
      */
     public function history(Request $request)
     {
+        $apps = collect();
+        $notifications = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
+        $totalNotifications = 0;
+        $totalSent = 0;
+        $totalFailed = 0;
+        $avgSuccessRate = 0;
+
         try {
-            $apps = FirebaseApp::all();
-
-            $query = PushNotification::with(['firebaseApp', 'creator'])->latest();
-
-            if ($request->filled('app_id')) {
-                $query->where('firebase_app_id', $request->app_id);
+            if (Schema::hasTable('firebase_apps')) {
+                $apps = FirebaseApp::all();
             }
 
-            if ($request->filled('date_from')) {
-                $query->whereDate('created_at', '>=', $request->date_from);
+            if (Schema::hasTable('push_notifications')) {
+                $query = PushNotification::query();
+                if (Schema::hasTable('firebase_apps')) {
+                    $query->with('firebaseApp');
+                }
+                $query->latest();
+
+                if ($request->filled('app_id')) {
+                    $query->where('firebase_app_id', $request->app_id);
+                }
+
+                if ($request->filled('date_from')) {
+                    $query->whereDate('created_at', '>=', $request->date_from);
+                }
+
+                if ($request->filled('date_to')) {
+                    $query->whereDate('created_at', '<=', $request->date_to);
+                }
+
+                $notifications = $query->paginate(15)->withQueryString();
+
+                $totalNotifications = PushNotification::count();
+                $totalSent = PushNotification::sum('sent_count');
+                $totalFailed = PushNotification::sum('failed_count');
+                $totalDispatches = $totalSent + $totalFailed;
+                $avgSuccessRate = $totalDispatches > 0 ? (int) round(($totalSent / $totalDispatches) * 100) : 0;
             }
-
-            if ($request->filled('date_to')) {
-                $query->whereDate('created_at', '<=', $request->date_to);
-            }
-
-            $notifications = $query->paginate(15)->withQueryString();
-
-            // Stats calculation
-            $totalNotifications = PushNotification::count();
-            $totalSent = PushNotification::sum('sent_count');
-            $totalFailed = PushNotification::sum('failed_count');
-            $totalDispatches = $totalSent + $totalFailed;
-            $avgSuccessRate = $totalDispatches > 0 ? (int) round(($totalSent / $totalDispatches) * 100) : 0;
-        } catch (\Throwable $e) {
-            $apps = collect();
-            $notifications = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 15);
-            $totalNotifications = 0;
-            $totalSent = 0;
-            $totalFailed = 0;
-            $avgSuccessRate = 0;
-        }
+        } catch (\Throwable $e) {}
 
         return view('admin.firebase.history', compact(
             'apps',
@@ -277,53 +313,57 @@ class FirebaseNotificationAdminController extends Controller
      */
     public function users(Request $request)
     {
+        $apps = collect();
+        $devices = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
+        $totalUsersWithFcm = 0;
+        $activeTokens = 0;
+        $androidUsers = 0;
+        $iosUsers = 0;
+
         try {
-            $apps = FirebaseApp::all();
-
-            $query = DeviceRegistration::with(['user', 'firebaseApp'])->latest('last_active_at');
-
-            if ($request->filled('app_id')) {
-                $query->where('firebase_app_id', $request->app_id);
+            if (Schema::hasTable('firebase_apps')) {
+                $apps = FirebaseApp::all();
             }
 
-            if ($request->filled('device_type') && $request->device_type !== 'all') {
-                $query->where('device_type', strtolower($request->device_type));
+            if (Schema::hasTable('device_registrations')) {
+                $query = DeviceRegistration::with(['user', 'firebaseApp'])->latest('last_active_at');
+
+                if ($request->filled('app_id')) {
+                    $query->where('firebase_app_id', $request->app_id);
+                }
+
+                if ($request->filled('device_type') && $request->device_type !== 'all') {
+                    $query->where('device_type', strtolower($request->device_type));
+                }
+
+                if ($request->filled('search')) {
+                    $s = trim($request->search);
+                    $query->where(function ($q) use ($s) {
+                        $q->where('device_id', 'like', "%{$s}%")
+                          ->orWhere('fcm_token', 'like', "%{$s}%")
+                          ->orWhereHas('user', function ($uq) use ($s) {
+                              $uq->where('name', 'like', "%{$s}%")
+                                 ->orWhere('email', 'like', "%{$s}%")
+                                 ->orWhere('account_id', 'like', "%{$s}%");
+                          });
+                    });
+                }
+
+                $devices = $query->paginate(20)->withQueryString();
+
+                $totalUsersWithFcm = DeviceRegistration::whereNotNull('fcm_token')
+                    ->distinct('user_id')
+                    ->count('user_id');
+
+                $activeTokens = DeviceRegistration::where('is_active', true)->whereNotNull('fcm_token')->count();
+                $androidUsers = DeviceRegistration::where('device_type', 'android')->where('is_active', true)->count();
+                $iosUsers = DeviceRegistration::where('device_type', 'ios')->where('is_active', true)->count();
             }
 
-            if ($request->filled('search')) {
-                $s = trim($request->search);
-                $query->where(function ($q) use ($s) {
-                    $q->where('device_id', 'like', "%{$s}%")
-                      ->orWhere('fcm_token', 'like', "%{$s}%")
-                      ->orWhereHas('user', function ($uq) use ($s) {
-                          $uq->where('name', 'like', "%{$s}%")
-                             ->orWhere('email', 'like', "%{$s}%")
-                             ->orWhere('account_id', 'like', "%{$s}%");
-                      });
-                });
-            }
-
-            $devices = $query->paginate(20)->withQueryString();
-
-            // Top Stat cards
-            $totalUsersWithFcm = DeviceRegistration::whereNotNull('fcm_token')
-                ->distinct('user_id')
-                ->count('user_id');
-            if ($totalUsersWithFcm == 0) {
+            if ($totalUsersWithFcm == 0 && Schema::hasColumn('users', 'fcm_token')) {
                 $totalUsersWithFcm = User::whereNotNull('fcm_token')->count();
             }
-
-            $activeTokens = DeviceRegistration::where('is_active', true)->whereNotNull('fcm_token')->count();
-            $androidUsers = DeviceRegistration::where('device_type', 'android')->where('is_active', true)->count();
-            $iosUsers = DeviceRegistration::where('device_type', 'ios')->where('is_active', true)->count();
-        } catch (\Throwable $e) {
-            $apps = collect();
-            $devices = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
-            $totalUsersWithFcm = 0;
-            $activeTokens = 0;
-            $androidUsers = 0;
-            $iosUsers = 0;
-        }
+        } catch (\Throwable $e) {}
 
         return view('admin.firebase.users', compact(
             'apps',
