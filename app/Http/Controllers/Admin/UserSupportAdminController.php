@@ -109,7 +109,7 @@ class UserSupportAdminController extends Controller
             return back()->with('error', 'Please enter a reply or upload an image.');
         }
 
-        UserAdminSupportMessage::create([
+        $supportMsg = UserAdminSupportMessage::create([
             'user_id' => $user->id,
             'admin_id' => $admin ? $admin->id : null,
             'sender_type' => 'admin',
@@ -119,6 +119,31 @@ class UserSupportAdminController extends Controller
             'is_read_by_admin' => true,
             'is_read_by_user' => false,
         ]);
+
+        // 🔔 Dispatch Real-Time FCM Push Notification to User Device
+        try {
+            $tokens = \App\Services\PushNotificationService::getUserTokens($user->id);
+            if (!empty($tokens)) {
+                $pushBody = $type === 'image' ? '📷 Customer support sent an image attachment' : ($msgText ?: 'You have a new message from Support');
+                \App\Services\PushNotificationService::sendToTokens(
+                    tokens: $tokens,
+                    title: 'Customer Support 🎧',
+                    body: $pushBody,
+                    data: [
+                        'action'      => 'SUPPORT_MESSAGE',
+                        'type'        => 'support_message',
+                        'message_id'  => (string) $supportMsg->id,
+                        'message'     => (string) ($msgText ?: ''),
+                        'media_url'   => (string) ($mediaUrl ? asset($mediaUrl) : ''),
+                        'action_url'  => '/support',
+                    ],
+                    priority: 'high',
+                    imageUrl: $mediaUrl ? asset($mediaUrl) : null
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Support Chat Push Error: " . $e->getMessage());
+        }
 
         return redirect()->route('admin.support.index', ['user_id' => $user->id])
             ->with('success', "Reply sent to {$user->display_name} successfully!");

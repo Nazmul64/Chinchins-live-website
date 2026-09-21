@@ -83,6 +83,43 @@ class DepositRequestController extends Controller
             $deposit->save();
 
             DB::commit();
+
+            // 🔔 Dispatch Instant FCM Push & In-App Notification to User
+            try {
+                \App\Models\Notification::create([
+                    'user_id' => $user->id,
+                    'actor_id' => Auth::id(),
+                    'type'    => 'wallet',
+                    'title'   => 'Deposit Approved! 🎉',
+                    'message' => "Your deposit of " . number_format($deposit->coins) . " Coins has been approved and added to your wallet!",
+                    'data'    => [
+                        'coins'          => $deposit->coins,
+                        'new_balance'    => $user->fresh()->coins,
+                        'transaction_id' => $deposit->transaction_id,
+                    ],
+                    'is_read' => false,
+                ]);
+
+                $tokens = \App\Services\PushNotificationService::getUserTokens($user->id);
+                if (!empty($tokens)) {
+                    \App\Services\PushNotificationService::sendToTokens(
+                        tokens: $tokens,
+                        title: 'Deposit Approved! 🎉',
+                        body: "Your deposit of " . number_format($deposit->coins) . " coins is now available in your balance!",
+                        data: [
+                            'action'         => 'WALLET_UPDATED',
+                            'type'           => 'wallet_deposit',
+                            'coins'          => (string) $deposit->coins,
+                            'total_balance'  => (string) $user->fresh()->coins,
+                            'action_url'     => '/wallet',
+                        ],
+                        priority: 'high'
+                    );
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Deposit Approval Push Error: " . $e->getMessage());
+            }
+
             return back()->with('success', "Deposit of " . number_format($deposit->coins) . " Coins for {$user->display_name} has been Approved and Credited!");
         } catch (\Exception $e) {
             DB::rollBack();

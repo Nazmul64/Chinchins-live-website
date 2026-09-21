@@ -1248,4 +1248,12 @@ class User extends Authenticatable
             ->withPivot('joined_at')
             ->withTimestamps();
     }
+
+    /**
+     * Registered mobile/web devices with FCM tokens for push notifications.
+     */
+    public function deviceRegistrations()
+    {
+        return $this->hasMany(DeviceRegistration::class, 'user_id');
+    }
 }
