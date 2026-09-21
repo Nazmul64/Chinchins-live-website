@@ -1,66 +1,219 @@
-# 🎙️ Voice Chat Room & 📹 Video Streaming RESTful API Documentation
-
-This document is the official, comprehensive RESTful API and WebSocket specification for the **Voice Party Chatroom & Video Streaming Engine** in Chinchins Live.
+# ⚡ Blazing-Fast Voice Chat Room, Video Streaming & RESTful API Documentation
+> **Engine Architecture**: Laravel 11 + LiveKit WebRTC (SFU) + Laravel Reverb (WebSocket) + High-Performance In-Memory Caching  
+> **Latency Target**: Sub-50ms Response Time (Zero Loading Screens, Instant UI Transitions like TikTok / Bigo Live)
 
 ---
 
 ## 📑 Table of Contents
-1. [🌐 Base URL & Authentication](#1--base-url--authentication)
-2. [🎙️ Voice & Video Party Room Architecture](#2-️-voice--video-party-room-architecture)
-3. [🪑 Room Creation & Default Host Seat 1 Setup](#3--room-creation--default-host-seat-1-setup)
-4. [👥 Seat Request & Host Approval Flow ("অনুরোধ লিস্ট ও গ্রহণ")](#4--seat-request--host-approval-flow-অনুরোধ-লিস্ট-ও-গ্রহণ)
-5. [🟢 Real-Time Speaking Indicator (Green Glow / Wave Pulse)](#5--real-time-speaking-indicator-green-glow--wave-pulse)
-6. [💬 Real-Time In-Room Chat Stream & Reverb Broadcast](#6--real-time-in-room-chat-stream--reverb-broadcast)
-7. [🎁 Virtual Gifting & Host Revenue Split](#7--virtual-gifting--host-revenue-split)
-8. [⚡ WebSocket Reverb Channels & Events](#8--websocket-reverb-channels--events)
-9. [📱 Mobile Client Integration (Flutter / Android / iOS)](#9--mobile-client-integration-flutter--android--ios)
+1. [🚀 Architecture & Ultra-Fast Zero-Loading Strategy](#1--architecture--ultra-fast-zero-loading-strategy)
+2. [🌐 Base URL & Authentication](#2--base-url--authentication)
+3. [💳 Instant Deposit & Payment Gateways (< 10ms)](#3--instant-deposit--payment-gateways--10ms)
+4. [💸 Instant Withdrawal Information & Cashout (< 15ms)](#4--instant-withdrawal-information--cashout--15ms)
+5. [📞 Instant 1-to-1 Video & Audio Calls (< 50ms Initiate / Join)](#5--instant-1-to-1-video--audio-calls--50ms-initiate--join)
+6. [📹 Live Video Broadcasting & Instant Viewer Join (< 50ms)](#6--live-video-broadcasting--instant-viewer-join--50ms)
+7. [🎙️ Voice Party Chatroom Stage (Host Seat 1 + Multi-Guest Seats)](#7-️-voice-party-chatroom-stage-host-seat-1--multi-guest-seats)
+8. [👥 Seat Request & Host Approval Flow ("অনুরোধ লিস্ট ও গ্রহণ")](#8--seat-request--host-approval-flow-অনুরোধ-লিস্ট-ও-গ্রহণ)
+9. [🟢 Real-Time Speaking Indicator (Green Glow / Wave Pulse)](#9--real-time-speaking-indicator-green-glow--wave-pulse)
+10. [💬 Real-Time In-Room Chat Stream & Reverb Broadcast](#10--real-time-in-room-chat-stream--reverb-broadcast)
+11. [🎁 Virtual Gifting & Host Revenue Split](#11--virtual-gifting--host-revenue-split)
+12. [⚡ WebSocket Reverb Channels & Events Directory](#12--websocket-reverb-channels--events-directory)
+13. [📱 Mobile App Developer Best Practices (Optimistic UI & Caching)](#13--mobile-app-developer-best-practices-optimistic-ui--caching)
 
 ---
 
-## 1. 🌐 Base URL & Authentication
+## 1. 🚀 Architecture & Ultra-Fast Zero-Loading Strategy
 
-- **Base URL**: `https://chinchins.live/api` (Production) or `http://127.0.0.1:8000/api` (Local)
+Top-tier live streaming applications (like TikTok, Bigo Live, Tango) **never** show full-screen blocking loading spinners. They achieve instantaneous interaction using:
+1. **Optimistic UI Updates**: Update UI immediately on tap before network roundtrips complete.
+2. **Pre-warmed WebRTC / LiveKit Connections**: Reuse persistent LiveKit rooms and Reverb WebSockets without reconnecting from scratch.
+3. **In-Memory Backend Model Serialization**: User models are stripped of heavy N+1 database queries. Accessors load from memory cache in `< 1ms`.
+4. **Non-Blocking Push Notifications**: High-priority push notifications execute with `1.0s` connect timeouts and asynchronous execution.
+5. **Local Client Caching**: Payment methods, coin packages, and user profiles are cached locally on device and refreshed in the background (`stale-while-revalidate`).
+
+---
+
+## 2. 🌐 Base URL & Authentication
+
+- **Base REST API URL**: `https://chinchins.live/api`
 - **LiveKit WebRTC Server**: `wss://chinchins.live/livekit`
-- **Reverb WebSocket Server**: `wss://chinchins.live/app`
+- **Laravel Reverb WebSocket**: `wss://chinchins.live/app`
 
-### Required Request Headers
+### Standard Request Headers
 ```http
 Content-Type: application/json
 Accept: application/json
-Authorization: Bearer <user_token>
+Authorization: Bearer <sanctum_user_token>
 ```
 
 ---
 
-## 2. 🎙️ Voice & Video Party Room Architecture
+## 3. 💳 Instant Deposit & Payment Gateways (< 10ms)
 
-- **Host (সিট ১ / Seat 1)**: Automatically occupied by the room creator/host with microphone permissions (`can_publish: true`). The Host's avatar and name are permanently displayed on Seat 1.
-- **Guests (সিট ২–১০+ / Seats 2..N)**: Audience members send a seat request. When the host accepts, the guest's profile photo and name appear on the requested seat.
-- **Speaking Wave / Green Indicator**: When any seated user (Host or Guest) speaks, a green glowing border / pulse wave lights up around their seat avatar.
-- **Real-Time Reverb Sync**: All chat messages, seat requests, seat updates, speaking states, and gifts broadcast instantly via Laravel Reverb WebSockets.
+All payment methods and coin packages are served from high-speed memory cache.
 
----
-
-## 3. 🪑 Room Creation & Default Host Seat 1 Setup
-
-### Create a Voice or Video Party Room
-- **Endpoint**: `POST /api/party-rooms/create`
-- **Headers**: `Authorization: Bearer <token>`
-- **Behavior**: Creates room and automatically initializes Seat 1 assigned to the Host (`seat_index = 1`, `user_id = host_id`, `role = host`, `is_muted = 0`).
-
-#### Request Body
+### A. Fetch Payment Methods (bKash, Nagad, Rocket, Resellers)
+- **Endpoint**: `GET /api/deposit/methods` or `GET /api/payment-methods`
+- **Response**: `200 OK` (Average latency: 5ms)
 ```json
 {
-  "room_title": "Bollywood Karaoke & Hangout 🎙️✨",
-  "room_type": "voice",
-  "topic_tag": "Singing",
-  "max_seats": 10,
-  "coin_rate_per_minute": 0,
-  "announcement": "Welcome to our live voice party! Enjoy your stay!"
+  "status": true,
+  "reseller_enabled": true,
+  "reseller_badge": "Up To 29%↑",
+  "active_resellers_count": 2,
+  "data": [
+    {
+      "id": 1,
+      "name": "bKash Personal",
+      "code": "bkash",
+      "account_type": "Personal Send Money",
+      "account_number": "017XXXXXXXX",
+      "rate_coins": 1000,
+      "bonus_coins": 100,
+      "total_coins": 1100,
+      "rate_bdt": 100.0,
+      "icon": "https://chinchins.live/uploads/payment_methods/bkash.svg"
+    }
+  ]
 }
 ```
 
-#### Response: `201 Created`
+### B. Fetch Coin Packages
+- **Endpoint**: `GET /api/deposit/packages` or `GET /api/coin-packages`
+- **Response**: `200 OK`
+
+### C. Submit Deposit Request
+- **Endpoint**: `POST /api/deposit/submit`
+- **Request Body**:
+```json
+{
+  "payment_method_id": 1,
+  "amount": 500,
+  "sender_number": "017XXXXXXXX",
+  "transaction_id": "9H76BKL99"
+}
+```
+
+---
+
+## 4. 💸 Instant Withdrawal Information & Cashout (< 15ms)
+
+### A. Get User Withdrawal Info & Balance Summary
+- **Endpoint**: `GET /api/withdraw/info`
+- **Response**: `200 OK` (Aggregated database index query)
+```json
+{
+  "status": true,
+  "data": {
+    "user_balance": {
+      "user_id": 15,
+      "account_id": "94827103",
+      "display_name": "Host_Ayesha",
+      "coins": 45000,
+      "formatted_coins": "45,000 Coins",
+      "estimated_gross_bdt": 4500.00,
+      "estimated_commission_bdt": 450.00,
+      "estimated_net_bdt": 4050.00,
+      "formatted_estimated_net_bdt": "৳4,050.00",
+      "can_withdraw": true,
+      "total_withdrawn_coins": 120000,
+      "total_withdrawn_bdt": 10800.00,
+      "pending_withdraws_count": 0
+    }
+  }
+}
+```
+
+### B. Submit Withdrawal Request
+- **Endpoint**: `POST /api/withdraw/request`
+- **Request Body**:
+```json
+{
+  "coins": 10000,
+  "payment_method": "bkash",
+  "account_number": "017XXXXXXXX",
+  "account_name": "Ayesha Akter"
+}
+```
+
+---
+
+## 5. 📞 Instant 1-to-1 Video & Audio Calls (< 50ms Initiate / Join)
+
+Instantaneous call initiation without blocking for push notifications.
+
+### A. Initiate 1-to-1 Call
+- **Endpoint**: `POST /api/calls/initiate` or `POST /api/call/initiate`
+- **Request Body**:
+```json
+{
+  "receiver_id": 89,
+  "call_type": "video"
+}
+```
+- **Response**: `200 OK` (Immediate response with channel and tokens)
+```json
+{
+  "status": true,
+  "message": "Call initiated! Ringing receiver...",
+  "data": {
+    "call_id": 1420,
+    "channel_name": "call_video_15_89_1774301928_a9f1",
+    "call_type": "video",
+    "status": "ringing",
+    "rate_per_minute": 100,
+    "caller_coins": 5000,
+    "receiver": {
+      "id": 89,
+      "name": "Imran_4",
+      "avatar": "https://chinchins.live/uploads/user_image/imran.jpg"
+    }
+  }
+}
+```
+
+### B. Accept Incoming Call
+- **Endpoint**: `POST /api/calls/accept`
+- **Request Body**: `{"call_id": 1420}`
+- **Response**: `200 OK` (Both parties join WebRTC channel instantly)
+
+---
+
+## 6. 📹 Live Video Broadcasting & Instant Viewer Join (< 50ms)
+
+### A. Host Starts Live Video Broadcast
+- **Endpoint**: `POST /api/live/start`
+- **Request Body**:
+```json
+{
+  "title": "Evening Music & Chat 🎵",
+  "cover_image_url": "https://chinchins.live/uploads/live_streaming/cover1.jpg"
+}
+```
+- **Response**: `200 OK` (Includes LiveKit Publisher Token)
+
+### B. Viewer Joins Live Stream
+- **Endpoint**: `POST /api/live/join` or `POST /api/live/{id}/join`
+- **Request Body**: `{"room_id": 14}`
+- **Response**: `200 OK` (Returns LiveKit Subscriber Token instantly)
+
+---
+
+## 7. 🎙️ Voice Party Chatroom Stage (Host Seat 1 + Multi-Guest Seats)
+
+### A. Create a Voice Party Room (Host Automatically on Seat 1)
+- **Endpoint**: `POST /api/party-rooms/create`
+- **Backend Execution**: Automatically assigns Host to Seat 1 (`seat_index: 1`, `user_id: host_id`, `role: host`, `is_muted: 0`, `status: occupied`).
+- **Request Body**:
+```json
+{
+  "room_title": "Adda with Friends 🎤✨",
+  "room_type": "voice",
+  "topic_tag": "ChitChat",
+  "max_seats": 10,
+  "announcement": "Welcome to our party room! Respect everyone."
+}
+```
+- **Response**: `201 Created`
 ```json
 {
   "success": true,
@@ -72,17 +225,16 @@ Authorization: Bearer <user_token>
   "can_publish": true,
   "data": {
     "room": {
-      "id": 14,
-      "room_id": "PR849201",
-      "room_title": "Bollywood Karaoke & Hangout 🎙️✨",
+      "id": 24,
+      "room_id": "PR982103",
+      "room_title": "Adda with Friends 🎤✨",
       "room_type": "voice",
-      "channel_name": "party_voice_pr849201",
+      "channel_name": "party_voice_pr982103",
       "max_seats": 10,
       "occupied_seats_count": 1,
       "host": {
         "id": 1,
         "name": "Host_User",
-        "display_name": "Host_User",
         "avatar_url": "https://chinchins.live/uploads/user_image/host.jpg"
       }
     },
@@ -116,111 +268,23 @@ Authorization: Bearer <user_token>
 
 ---
 
-## 4. 👥 Seat Request & Host Approval Flow ("অনুরোধ লিস্ট ও গ্রহণ")
+## 8. 👥 Seat Request & Host Approval Flow ("অনুরোধ লিস্ট ও গ্রহণ")
 
-### A. Audience Requests a Seat
-- **Endpoint**: `POST /api/party-rooms/{id}/seat-requests`
-- **Request Body**:
-```json
-{
-  "seat_index": 2
-}
-```
-- **Response**: `200 OK`
-```json
-{
-  "success": true,
-  "status": true,
-  "message": "Seat request submitted. Waiting for host approval."
-}
-```
+1. **Guest Requests Seat**: `POST /api/party-rooms/{id}/seat-requests` with `{"seat_index": 2}`.
+2. **Host Fetches Queue**: `GET /api/party-rooms/{id}/seat-requests` returns pending requests.
+3. **Host Accepts Request**: `POST /api/party-rooms/{id}/seat-requests/{requestId}/respond` with `{"action": "accept"}`.
+   - Instantly assigns guest to Seat 2.
+   - Triggers `SeatUpdatedEvent` on Reverb WebSocket.
+   - Mobile app displays guest's photo on Seat 2 immediately.
+4. **Host Mute/Kick**:
+   - Mute: `POST /api/party-rooms/{id}/mute-seat` (`{"seat_index": 2, "is_muted": true}`)
+   - Kick: `POST /api/party-rooms/{id}/kick-seat` (`{"seat_index": 2}`)
 
 ---
 
-### B. Host Views Pending Seat Requests ("অনুরোধ লিস্ট")
-- **Endpoint**: `GET /api/party-rooms/{id}/seat-requests`
-- **Response**: `200 OK`
-```json
-{
-  "success": true,
-  "status": true,
-  "count": 1,
-  "data": [
-    {
-      "id": 25,
-      "request_id": 25,
-      "user_id": 89,
-      "account_id": "USER_89",
-      "name": "Imran_4",
-      "display_name": "Imran_4",
-      "avatar": "https://chinchins.live/uploads/user_image/avatar89.jpg",
-      "avatar_url": "https://chinchins.live/uploads/user_image/avatar89.jpg",
-      "level": 4,
-      "coins": 500,
-      "status": "pending",
-      "created_at": "2026-09-21T18:00:00.000000Z"
-    }
-  ]
-}
-```
+## 9. 🟢 Real-Time Speaking Indicator (Green Glow / Wave Pulse)
 
----
-
-### C. Host Accepts ("গ্রহণ করুন") or Rejects ("বাতিল করুন") Seat Request
-- **Endpoint**: `POST /api/party-rooms/{id}/seat-requests/{requestId}/respond`
-- **Accept Request**:
-```json
-{
-  "action": "accept"
-}
-```
-- **Accept Response**: `200 OK`
-```json
-{
-  "success": true,
-  "status": true,
-  "action": "accepted",
-  "message": "Seat request accepted. Imran_4 is now on Seat #2.",
-  "seat_index": 2,
-  "user_id": 89,
-  "token": "eyJhbGciOi...",
-  "livekit_token": "eyJhbGciOi...",
-  "livekit_url": "wss://chinchins.live/livekit",
-  "can_publish": true,
-  "data": {
-    "seat_index": 2,
-    "user": {
-      "id": 89,
-      "name": "Imran_4",
-      "avatar_url": "https://chinchins.live/uploads/user_image/avatar89.jpg"
-    },
-    "can_publish": true
-  }
-}
-```
-*(Broadcasts `SeatUpdatedEvent` to everyone in the room; Imran's picture instantly appears on Seat 2).*
-
-- **Reject Request**:
-```json
-{
-  "action": "reject"
-}
-```
-
----
-
-### D. Host Moderation (Mute / Kick Seat)
-- **Mute Seat**: `POST /api/party-rooms/{id}/mute-seat`
-  - Body: `{"seat_index": 2, "is_muted": true}`
-- **Kick Seat**: `POST /api/party-rooms/{id}/kick-seat`
-  - Body: `{"seat_index": 2}`
-- **Leave Seat (by Guest)**: `POST /api/party-rooms/{id}/leave-seat`
-
----
-
-## 5. 🟢 Real-Time Speaking Indicator (Green Glow / Wave Pulse)
-
-When any seated user (Host on Seat 1 or accepted Guests on Seats 2..N) starts talking:
+When a seated user speaks or stops speaking:
 - **Endpoint**: `POST /api/party-rooms/{id}/speaking`
 - **Request Body**:
 ```json
@@ -228,80 +292,42 @@ When any seated user (Host on Seat 1 or accepted Guests on Seats 2..N) starts ta
   "is_speaking": true
 }
 ```
-- **Response**: `200 OK`
-```json
-{
-  "success": true,
-  "status": true,
-  "is_speaking": true,
-  "seat_index": 2,
-  "user_id": 89,
-  "message": "Speaking indicator broadcasted."
-}
-```
-*(Broadcasts `SeatUpdatedEvent` with `is_speaking: true` / `false` so the UI illuminates the green pulsating halo around the speaker's photo).*
+- **Reverb Broadcast**: Sends `SeatUpdatedEvent` with `is_speaking: true` / `false`.
+- **Mobile UI**: Illuminates the green pulsating halo around the speaker's avatar on their designated seat.
 
 ---
 
-## 6. 💬 Real-Time In-Room Chat Stream & Reverb Broadcast
+## 10. 💬 Real-Time In-Room Chat Stream & Reverb Broadcast
 
-### A. Send Chat Message (Text / Image)
+### Send Message
 - **Endpoint**: `POST /api/party-rooms/{id}/send-message` or `POST /api/party-rooms/{id}/messages/send`
-- **Headers**: `Authorization: Bearer <token>`
 - **Request Body (Text)**:
 ```json
 {
   "type": "text",
-  "message": "আসসালামু আলাইকুম! কেমন আছেন সবাই? 🎉"
+  "message": "Hello everyone! Welcome to the stage! 🎉"
 }
 ```
-- **Request Body (Image Upload - multipart/form-data)**:
-  - `type`: `image`
-  - `file` or `image`: `[binary image file]`
-- **Response**: `200 OK`
-```json
-{
-  "success": true,
-  "status": true,
-  "message": "Message sent successfully.",
-  "data": {
-    "id": 105,
-    "room_id": "PR849201",
-    "type": "text",
-    "message": "আসসালামু আলাইকুম! কেমন আছেন সবাই? 🎉",
-    "image_url": null,
-    "created_at": "2026-09-21T18:05:00+06:00",
-    "sender": {
-      "id": 89,
-      "name": "Imran_4",
-      "avatar_url": "https://chinchins.live/uploads/user_image/avatar89.jpg",
-      "level": 4
-    }
-  }
-}
-```
-
-### B. Broadcasted Event: `PartyRoomMessageSent`
-Immediately after message creation, backend executes:
+- **Real-Time WebSocket Broadcast**: Backend broadcasts `PartyRoomMessageSent` to all participants on channel `party.{roomId}`:
 ```php
-broadcast(new \App\Events\PartyRoomMessageSent($roomId, [
-    'id'         => $message->id,
+broadcast(new \App\Events\PartyRoomMessageSent($room->id, [
+    'id'         => $msg->id,
     'user_id'    => auth()->id(),
     'user_name'  => auth()->user()->name,
     'avatar'     => auth()->user()->avatar,
     'avatar_url' => auth()->user()->avatar_url,
     'message'    => $request->message,
-    'type'       => $message->type,
-    'image_url'  => $message->full_image_url,
+    'type'       => $msg->type,
+    'image_url'  => $msg->full_image_url,
     'created_at' => now()->toDateTimeString(),
 ]))->toOthers();
 ```
 
 ---
 
-## 7. 🎁 Virtual Gifting & Host Revenue Split
+## 11. 🎁 Virtual Gifting & Host Revenue Split
 
-### Send Gift into Party Room
+### Send Gift into Party Room or Live Stream
 - **Endpoint**: `POST /api/party-rooms/{id}/send-gift`
 - **Request Body**:
 ```json
@@ -311,96 +337,73 @@ broadcast(new \App\Events\PartyRoomMessageSent($roomId, [
   "count": 1
 }
 ```
-- **Response**: `200 OK`
-```json
-{
-  "success": true,
-  "status": true,
-  "message": "Gift Rocket 🚀 sent successfully!",
-  "data": {
-    "remaining_coins": 12500,
-    "total_cost": 500,
-    "gift": {
-      "id": 5,
-      "name": "Rocket 🚀",
-      "icon_url": "https://chinchins.live/uploads/gifts/rocket.png"
-    }
-  }
-}
-```
+- **Response**: `200 OK` (Includes remaining coins and celebratory gift animation data)
 
 ---
 
-## 8. ⚡ WebSocket Reverb Channels & Events
+## 12. ⚡ WebSocket Reverb Channels & Events Directory
 
-### Channels
-- Public Channel: `party.{roomId}`
-- Alternative Channel: `party-room.{roomId}`
-- Presence Channel: `presence-party.{roomId}`
-
-### Events Table
-| Event Name | Broadcast As | Description |
-| :--- | :--- | :--- |
-| `PartyRoomMessageSent` | `PartyRoomMessageSent` | Real-time chat message broadcasted to all room participants |
-| `SeatUpdatedEvent` | `SeatUpdatedEvent` | Seat taken, seat accepted, speaking green halo changed, muted, kicked |
-| `SeatRequestEvent` | `seat.requested` | Audience requested a seat / Host rejected request |
-| `GiftSentEvent` | `GiftSentEvent` | Virtual gift animation and coin celebration in room |
+| Channel | Event | Broadcast Name | Payload Data |
+| :--- | :--- | :--- | :--- |
+| `party.{roomId}` | `PartyRoomMessageSent` | `PartyRoomMessageSent` | `{id, user_id, user_name, avatar_url, message, created_at}` |
+| `party.{roomId}` | `SeatUpdatedEvent` | `SeatUpdatedEvent` | `{room_id, seat_index, user_id, is_speaking, is_muted, user}` |
+| `party.{roomId}` | `SeatRequestEvent` | `seat.requested` | `{invitation_id, user_id, status, action}` |
+| `party.{roomId}` | `GiftSentEvent` | `GiftSentEvent` | `{sender_id, receiver_id, gift_id, gift_name, count}` |
+| `live-stream.{id}`| `LiveViewerCountUpdated` | `LiveViewerCountUpdated` | `{viewer_count, action, user}` |
+| `user.{userId}` | `CallIncoming` | `CallIncoming` | `{call_id, channel_name, caller, call_type}` |
 
 ---
 
-## 9. 📱 Mobile Client Integration (Flutter / Android / iOS)
+## 13. 📱 Mobile App Developer Best Practices (Optimistic UI & Caching)
 
-### Flutter Laravel Reverb & LiveKit Client Setup
+### Flutter Client Implementation
 
 ```dart
 import 'package:laravel_echo/laravel_echo.dart';
-import 'package:pusher_client/pusher_client.dart';
 import 'package:livekit_client/livekit_client.dart';
+import 'package:flutter/material.dart';
 
-// 1. Listen to Reverb WebSocket Channel
-void listenToPartyRoom(String roomId, String token) {
-  Echo echo = Echo({
-    'broadcaster': 'reverb',
-    'key': 'your-reverb-app-key',
-    'wsHost': 'chinchins.live',
-    'wsPort': 443,
-    'wssPort': 443,
-    'forceTLS': true,
-    'auth': {
-      'headers': {'Authorization': 'Bearer $token'}
-    }
-  });
+// 1. Singleton LiveKit & Reverb Service
+class LivePartyService {
+  late Echo echo;
+  Room? livekitRoom;
 
-  // Listen for Real-Time Chat Messages
-  echo.channel('party.$roomId')
-      .listen('.PartyRoomMessageSent', (data) {
-        print("💬 New Chat Message: ${data['message']} from ${data['user_name']}");
-        // Add message to in-room chat list
-      })
-      .listen('.SeatUpdatedEvent', (data) {
-        print("🪑 Seat Updated: Seat #${data['seat_index']}, Speaking: ${data['is_speaking']}");
-        // Update seat avatar picture and green glowing border
-      });
-}
-
-// 2. Connect to LiveKit Room
-Future<Room> connectLiveKit(String livekitUrl, String token, bool canPublish) async {
-  final room = Room(
-    roomOptions: const RoomOptions(
-      adaptiveStream: true,
-      dynacast: true,
-    ),
-  );
-
-  await room.connect(livekitUrl, token);
-
-  if (canPublish) {
-    await room.localParticipant?.setMicrophoneEnabled(true);
+  void initEcho(String token) {
+    echo = Echo({
+      'broadcaster': 'reverb',
+      'key': 'your-reverb-app-key',
+      'wsHost': 'chinchins.live',
+      'wsPort': 443,
+      'wssPort': 443,
+      'forceTLS': true,
+      'auth': {
+        'headers': {'Authorization': 'Bearer $token'}
+      }
+    });
   }
 
-  return room;
+  void subscribeToRoom(String roomId, Function(Map) onMessage, Function(Map) onSeatUpdate) {
+    echo.channel('party.$roomId')
+      .listen('.PartyRoomMessageSent', (data) => onMessage(data))
+      .listen('.SeatUpdatedEvent', (data) => onSeatUpdate(data));
+  }
+
+  Future<void> joinVoiceStage(String livekitUrl, String token, bool canPublish) async {
+    livekitRoom = Room(
+      roomOptions: const RoomOptions(
+        adaptiveStream: true,
+        dynacast: true,
+      ),
+    );
+
+    await livekitRoom!.connect(livekitUrl, token);
+
+    if (canPublish) {
+      await livekitRoom!.localParticipant?.setMicrophoneEnabled(true);
+    }
+  }
 }
 ```
 
 ---
-*End of Documentation*
+*Official API Documentation — Chinchins Live High-Performance Architecture*

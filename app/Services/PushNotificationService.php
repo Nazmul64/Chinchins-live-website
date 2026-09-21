@@ -84,7 +84,7 @@ class PushNotificationService
 
             $jwt = JWT::encode($payload, $serviceAccount['private_key'], 'RS256');
 
-            $response = Http::asForm()->timeout(10)->post('https://oauth2.googleapis.com/token', [
+            $response = Http::asForm()->connectTimeout(1)->timeout(2)->post('https://oauth2.googleapis.com/token', [
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion'  => $jwt,
             ]);
@@ -533,7 +533,7 @@ class PushNotificationService
                     $res = Http::withHeaders([
                         'Authorization' => 'Bearer ' . $accessToken,
                         'Content-Type'  => 'application/json',
-                    ])->timeout(8)->post($v1Url, $v1Payload);
+                    ])->connectTimeout(1)->timeout(2)->post($v1Url, $v1Payload);
 
                     if ($res->successful()) {
                         $sent++;
@@ -591,7 +591,7 @@ class PushNotificationService
                 $response = Http::withHeaders([
                     'Authorization' => 'key=' . $serverKey,
                     'Content-Type'  => 'application/json',
-                ])->timeout(10)->post('https://fcm.googleapis.com/fcm/send', $payload);
+                ])->connectTimeout(1)->timeout(2)->post('https://fcm.googleapis.com/fcm/send', $payload);
 
                 $result = $response->json();
                 $successCount = $result['success'] ?? 0;

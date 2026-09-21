@@ -179,71 +179,82 @@ class PaymentController extends Controller
 
         $formattedAmount = 'BDT ' . number_format($amount, 2);
 
-        $paymentMethods = PaymentMethod::where('is_active', true)
-            ->orderBy('sort_order')
-            ->get();
+        $options = \Illuminate\Support\Facades\Cache::remember('api_payment_options_list', 3600, function () {
+            $paymentMethods = PaymentMethod::where('is_active', true)
+                ->orderBy('sort_order')
+                ->get();
 
-        $options = [];
+            $opts = [];
+            foreach ($paymentMethods as $pm) {
+                $code = strtolower($pm->code ?: $pm->name);
+                $iconPath = $pm->icon_url ?: asset($pm->icon ?: "uploads/payment_methods/{$code}.svg");
 
-        foreach ($paymentMethods as $pm) {
-            $code = strtolower($pm->code ?: $pm->name);
-            $iconPath = $pm->icon_url ?: asset($pm->icon ?: "uploads/payment_methods/{$code}.svg");
+                $opts[] = [
+                    'id' => $pm->id,
+                    'key' => $code,
+                    'name' => $pm->name,
+                    'type' => 'gateway',
+                    'account_type' => $pm->account_type,
+                    'account_number' => $pm->account_number,
+                    'icon' => $iconPath,
+                    'icon_url' => $iconPath,
+                    'svg_url' => $iconPath,
+                    'png_url' => $iconPath,
+                    'badge' => null,
+                    'instructions' => $pm->instructions,
+                ];
+            }
 
-            $options[] = [
-                'id' => $pm->id,
-                'key' => $code,
-                'name' => $pm->name,
-                'type' => 'gateway',
-                'account_type' => $pm->account_type,
-                'account_number' => $pm->account_number,
-                'icon' => $iconPath,
-                'icon_url' => $iconPath,
-                'svg_url' => $iconPath,
-                'png_url' => $iconPath,
-                'badge' => null,
-                'instructions' => $pm->instructions,
-            ];
-        }
-
-        // Add Google Play option with local clean asset icon
-        $googlePlayIcon = asset('uploads/payment_methods/google_play.svg');
-        $options[] = [
-            'id' => 'google_play',
-            'key' => 'google_play',
-            'name' => 'Google Play',
-            'type' => 'in_app_purchase',
-            'account_type' => 'Official In-App Store',
-            'account_number' => null,
-            'icon' => $googlePlayIcon,
-            'icon_url' => $googlePlayIcon,
-            'svg_url' => $googlePlayIcon,
-            'png_url' => $googlePlayIcon,
-            'badge' => null,
-            'instructions' => 'Instant Google Play in-app purchase.',
-        ];
-
-        // Add Reseller option dynamically only if active resellers exist in database
-        $activeResellers = class_exists('\App\Models\Reseller') ? \App\Models\Reseller::where('is_active', true)->count() : 0;
-        $resellerBadge = class_exists('\App\Models\ResellerSetting') ? \App\Models\ResellerSetting::get('reseller_offer_badge', 'Up To 29%↑') : 'Up To 29%↑';
-
-        if ($activeResellers > 0) {
-            $resellerIcon = asset('uploads/payment_methods/reseller.svg');
-            $options[] = [
-                'id' => 'reseller',
-                'key' => 'reseller',
-                'name' => 'Reseller',
-                'type' => 'reseller',
-                'account_type' => 'Direct Agent Chat',
+            // Add Google Play option with local clean asset icon
+            $googlePlayIcon = asset('uploads/payment_methods/google_play.svg');
+            $opts[] = [
+                'id' => 'google_play',
+                'key' => 'google_play',
+                'name' => 'Google Play',
+                'type' => 'in_app_purchase',
+                'account_type' => 'Official In-App Store',
                 'account_number' => null,
-                'icon' => $resellerIcon,
-                'icon_url' => $resellerIcon,
-                'svg_url' => $resellerIcon,
-                'png_url' => $resellerIcon,
-                'badge' => $resellerBadge,
-                'badge_color' => '#ef4444',
-                'active_count' => $activeResellers,
-                'instructions' => 'Recharge via authorized live resellers with exclusive discounts.',
+                'icon' => $googlePlayIcon,
+                'icon_url' => $googlePlayIcon,
+                'svg_url' => $googlePlayIcon,
+                'png_url' => $googlePlayIcon,
+                'badge' => null,
+                'instructions' => 'Instant Google Play in-app purchase.',
             ];
+
+            // Add Reseller option dynamically only if active resellers exist in database
+            $activeResellers = class_exists('\App\Models\Reseller') ? \App\Models\Reseller::where('is_active', true)->count() : 0;
+            $resellerBadge = class_exists('\App\Models\ResellerSetting') ? \App\Models\ResellerSetting::get('reseller_offer_badge', 'Up To 29%↑') : 'Up To 29%↑';
+
+            if ($activeResellers > 0) {
+                $resellerIcon = asset('uploads/payment_methods/reseller.svg');
+                $opts[] = [
+                    'id' => 'reseller',
+                    'key' => 'reseller',
+                    'name' => 'Reseller',
+                    'type' => 'reseller',
+                    'account_type' => 'Direct Agent Chat',
+                    'account_number' => null,
+                    'icon' => $resellerIcon,
+                    'icon_url' => $resellerIcon,
+                    'svg_url' => $resellerIcon,
+                    'png_url' => $resellerIcon,
+                    'badge' => $resellerBadge,
+                    'badge_color' => '#ef4444',
+                    'active_count' => $activeResellers,
+                    'instructions' => 'Recharge via authorized live resellers with exclusive discounts.',
+                ];
+            }
+
+            return $opts;
+        });
+
+        $hasReseller = false;
+        foreach ($options as $opt) {
+            if (($opt['key'] ?? '') === 'reseller') {
+                $hasReseller = true;
+                break;
+            }
         }
 
         return response()->json([

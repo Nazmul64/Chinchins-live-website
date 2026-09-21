@@ -101,12 +101,19 @@ class WithdrawalApiController extends Controller
         $config = WithdrawalSetting::getAllConfig();
         $user = $this->resolveUser($request);
 
-        // Fetch active payment methods supporting withdrawal
-        $paymentMethods = PaymentMethod::where('is_active', true)
-            ->where('supports_withdraw', true)
-            ->orderBy('sort_order')
-            ->get()
-            ->map(function ($pm) {
+        $paymentMethods = \Illuminate\Support\Facades\Cache::remember('api_withdraw_methods_list', 3600, function () {
+            $methods = PaymentMethod::where('is_active', true)
+                ->where('supports_withdraw', true)
+                ->orderBy('sort_order')
+                ->get();
+
+            if ($methods->isEmpty()) {
+                $methods = PaymentMethod::where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->get();
+            }
+
+            return $methods->map(function ($pm) {
                 return [
                     'id' => $pm->id,
                     'name' => $pm->name,
@@ -119,26 +126,7 @@ class WithdrawalApiController extends Controller
                     'instructions' => $pm->instructions,
                 ];
             });
-
-        // If no payment method specifically has supports_withdraw = true, fallback to all active payment methods
-        if ($paymentMethods->isEmpty()) {
-            $paymentMethods = PaymentMethod::where('is_active', true)
-                ->orderBy('sort_order')
-                ->get()
-                ->map(function ($pm) {
-                    return [
-                        'id' => $pm->id,
-                        'name' => $pm->name,
-                        'code' => $pm->code,
-                        'account_type' => $pm->account_type,
-                        'icon' => $pm->icon_url ?: $pm->icon,
-                        'icon_url' => $pm->icon_url ?: $pm->icon,
-                        'min_withdraw' => (float) ($pm->min_withdraw ?: 50.00),
-                        'max_withdraw' => (float) ($pm->max_withdraw ?: 50000.00),
-                        'instructions' => $pm->instructions,
-                    ];
-                });
-        }
+        });
 
         $userBalanceData = null;
         if ($user) {
@@ -149,10 +137,18 @@ class WithdrawalApiController extends Controller
             $estimatedCommissionBdt = round($estimatedGrossBdt * ($commissionPercent / 100), 2);
             $estimatedNetBdt = round($estimatedGrossBdt - $estimatedCommissionBdt, 2);
 
-            $approvedWithdraws = WithdrawRequest::where('user_id', $user->id)->where('status', 'approved');
-            $totalWithdrawnCoins = (int) $approvedWithdraws->sum('coins');
-            $totalWithdrawnBdt = (float) $approvedWithdraws->sum('net_payable_amount');
-            $pendingCount = WithdrawRequest::where('user_id', $user->id)->where('status', 'pending')->count();
+            $stats = \Illuminate\Support\Facades\DB::table('withdraw_requests')
+                ->where('user_id', $user->id)
+                ->selectRaw("
+                    SUM(CASE WHEN status = 'approved' THEN coins ELSE 0 END) as total_withdrawn_coins,
+                    SUM(CASE WHEN status = 'approved' THEN net_payable_amount ELSE 0 END) as total_withdrawn_bdt,
+                    COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count
+                ")
+                ->first();
+
+            $totalWithdrawnCoins = (int) ($stats->total_withdrawn_coins ?? 0);
+            $totalWithdrawnBdt = (float) ($stats->total_withdrawn_bdt ?? 0);
+            $pendingCount = (int) ($stats->pending_count ?? 0);
 
             $userBalanceData = [
                 'user_id' => $user->id,

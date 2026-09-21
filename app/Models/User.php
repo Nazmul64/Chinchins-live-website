@@ -165,11 +165,6 @@ class User extends Authenticatable
             return $this->_cachedKycStatus = ($this->kycVerification?->status ?? ($this->is_verified ? 'approved' : 'not_submitted'));
         }
 
-        $latestKyc = $this->kycVerification()->first();
-        if ($latestKyc) {
-            return $this->_cachedKycStatus = $latestKyc->status;
-        }
-
         return $this->_cachedKycStatus = ($this->is_verified ? 'approved' : 'not_submitted');
     }
 
@@ -859,12 +854,11 @@ class User extends Authenticatable
          }
 
          // 1. Direct wallet earnings if preloaded or available
-         $walletEarnings = $this->relationLoaded('wallet')
-             ? (int) ($this->wallet?->earnings ?? 0)
-             : (int) ($this->wallet?->earnings ?? 0);
-
-         if ($walletEarnings > 0) {
-             return $this->_cachedTotalEarnedCoins = $walletEarnings;
+         if ($this->relationLoaded('wallet')) {
+             $walletEarnings = (int) ($this->wallet?->earnings ?? 0);
+             if ($walletEarnings > 0) {
+                 return $this->_cachedTotalEarnedCoins = $walletEarnings;
+             }
          }
 
          // 2. If user has an explicit level configured, use that base requirement instantly
@@ -875,17 +869,12 @@ class User extends Authenticatable
              }
          }
 
-         // 3. Fast fallback: check gifts/sessions if not resolved
-         $computed = $walletEarnings;
-         try {
-             if ($this->relationLoaded('receivedGifts')) {
-                 $computed = (int) $this->receivedGifts->sum('coin_value');
-             } else {
-                 $computed = (int) UserGift::where('user_id', $this->id)->sum('coin_value');
-             }
-         } catch (\Throwable $e) {}
+         // 3. Fast fallback: check gifts if preloaded
+         if ($this->relationLoaded('receivedGifts')) {
+             return $this->_cachedTotalEarnedCoins = (int) $this->receivedGifts->sum('coin_value');
+         }
 
-         return $this->_cachedTotalEarnedCoins = $computed;
+         return $this->_cachedTotalEarnedCoins = 0;
      }
 
      /**
