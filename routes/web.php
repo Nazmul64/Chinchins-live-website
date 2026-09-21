@@ -126,11 +126,11 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::post('/withdrawals/methods/{id}/toggle', [\App\Http\Controllers\Admin\WithdrawalAdminController::class, 'toggleMethodWithdraw'])->name('withdrawals.toggle-method')->middleware('permission:withdrawals.settings');
 
     // Audio & Video Call Sessions & Revenue Settings
-    Route::get('/calls', [\App\Http\Controllers\Admin\CallAdminController::class, 'index'])->name('calls.index')->middleware('permission:calls.view');
-    Route::get('/calls/monitoring', [\App\Http\Controllers\Admin\CallAdminController::class, 'monitoring'])->name('calls.monitoring')->middleware('permission:calls.view');
-    Route::post('/calls/monitoring/{id}/action', [\App\Http\Controllers\Admin\CallAdminController::class, 'handleReportAction'])->name('calls.monitoring.action')->middleware('permission:calls.settings');
-    Route::get('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'settings'])->name('calls.settings')->middleware('permission:calls.settings');
-    Route::post('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'updateSettings'])->name('calls.settings.update')->middleware('permission:calls.settings');
+    Route::get('/calls', [\App\Http\Controllers\Admin\CallAdminController::class, 'index'])->name('calls.index')->middleware('permission:calls.view|call_revenue.view');
+    Route::get('/calls/monitoring', [\App\Http\Controllers\Admin\CallAdminController::class, 'monitoring'])->name('calls.monitoring')->middleware('permission:calls.view|call_revenue.view');
+    Route::post('/calls/monitoring/{id}/action', [\App\Http\Controllers\Admin\CallAdminController::class, 'handleReportAction'])->name('calls.monitoring.action')->middleware('permission:calls.settings|call_revenue.settings');
+    Route::get('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'settings'])->name('calls.settings')->middleware('permission:calls.settings|call_revenue.settings');
+    Route::post('/calls/settings', [\App\Http\Controllers\Admin\CallAdminController::class, 'updateSettings'])->name('calls.settings.update')->middleware('permission:calls.settings|call_revenue.settings');
 
 
     // KYC Identity Verification Management
@@ -235,6 +235,7 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
 
     // Party Rooms & Multi-Guest Live Stages Management
     Route::get('/party-rooms', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'index'])->name('party-rooms.index');
+    Route::get('/party-rooms/live-preview', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'livePreview'])->name('party-rooms.live-preview');
     Route::get('/party-rooms/settings', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'settings'])->name('party-rooms.settings');
     Route::post('/party-rooms/settings', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'updateSettings'])->name('party-rooms.settings.update');
     Route::get('/party-rooms/{id}', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'show'])->name('party-rooms.show');

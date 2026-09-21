@@ -80,12 +80,19 @@ class CallSetting extends Model
             3600,
             function () {
                 $defaults = static::defaults();
-                $dbSettings = static::pluck('value', 'key')->toArray();
-                return array_merge($defaults, $dbSettings);
+                try {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('call_settings')) {
+                        $dbSettings = static::pluck('value', 'key')->toArray();
+                        return array_merge($defaults, $dbSettings);
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('CallSetting: unable to read table call_settings: ' . $e->getMessage());
+                }
+                return $defaults;
             }
         );
 
-        return static::$_staticSettings;
+        return static::$_staticSettings ?? static::defaults();
     }
 
     /**
@@ -100,18 +107,27 @@ class CallSetting extends Model
     /**
      * Set setting value and invalidate cache.
      */
-    public static function set(string $key, $value, ?string $description = null): self
+    public static function set(string $key, $value, ?string $description = null): ?self
     {
-        $record = static::updateOrCreate(
-            ['key' => $key],
-            [
-                'value' => is_array($value) ? json_encode($value) : (string) $value,
-                'description' => $description,
-            ]
-        );
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('call_settings')) {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            }
 
-        static::clearCache();
-        return $record;
+            $record = static::updateOrCreate(
+                ['key' => $key],
+                [
+                    'value' => is_array($value) ? json_encode($value) : (string) $value,
+                    'description' => $description,
+                ]
+            );
+
+            static::clearCache();
+            return $record;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("CallSetting set failed for key '{$key}': " . $e->getMessage());
+            return null;
+        }
     }
 
     /**

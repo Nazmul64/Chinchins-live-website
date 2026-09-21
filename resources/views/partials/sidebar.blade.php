@@ -323,7 +323,7 @@
         @endhasPermission
 
         <!-- Audio & Video Calling Sessions & Revenue -->
-        @hasPermission('calls.view')
+        @canAnyPermission(['calls.view', 'call_revenue.view', 'calls.settings', 'call_revenue.settings'])
         <div class="menu-item-group {{ request()->routeIs('admin.calls.*') ? 'active open' : '' }}">
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.calls.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
@@ -342,13 +342,13 @@
                     <span>Video Call Monitoring</span>
                     <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">Live</span>
                 </a>
-                <a href="{{ route('admin.calls.settings') }}" class="submenu-item {{ request()->routeIs('admin.calls.settings') ? 'active' : '' }}">
+                <a href="{{ route('admin.calls.settings') }}" class="submenu-item {{ request()->routeIs('admin.calls.settings*') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
                     <span>Call & Ringtone Settings</span>
                 </a>
             </div>
         </div>
-        @endhasPermission
+        @endcanAnyPermission
 
         <!-- Live Streaming Broadcasts & Multi-Guest Rooms -->
         <div class="menu-item-group {{ request()->routeIs('admin.live-streams.*') ? 'active open' : '' }}">
@@ -393,7 +393,7 @@
             <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.party-rooms.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
                     <i class="fa-solid fa-microphone-lines" style="color: #6366f1;"></i>
-                    <span>Party Rooms</span>
+                    <span>Party Rooms (লাইভ স্টেজ)</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
                     @php
@@ -409,7 +409,12 @@
             <div class="submenu" style="{{ request()->routeIs('admin.party-rooms.*') ? 'display: block;' : '' }}">
                 <a href="{{ route('admin.party-rooms.index') }}" class="submenu-item {{ request()->routeIs('admin.party-rooms.index') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
-                    <span>All Party Rooms</span>
+                    <span>All Party Rooms (সকল রুম)</span>
+                </a>
+                <a href="{{ route('admin.party-rooms.live-preview') }}" class="submenu-item {{ request()->routeIs('admin.party-rooms.show') || request()->routeIs('admin.party-rooms.live-preview') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Live Stage Preview (লাইভ স্টেজ ডিজাইন)</span>
+                    <span class="badge bg-primary ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">Preview</span>
                 </a>
                 <a href="{{ route('admin.party-rooms.settings') }}" class="submenu-item {{ request()->routeIs('admin.party-rooms.settings') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>

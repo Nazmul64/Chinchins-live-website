@@ -59,6 +59,51 @@ class PartyRoomAdminController extends Controller
     }
 
     /**
+     * Direct shortcut to Live Stage UI Preview (4-5 Video Grid / 8-16 Voice Stage).
+     */
+    public function livePreview()
+    {
+        $room = PartyRoom::where('status', 'active')->latest()->first();
+
+        if (!$room) {
+            $room = PartyRoom::latest()->first();
+        }
+
+        if (!$room) {
+            // Create a demo room on the fly if table is empty
+            $host = \App\Models\User::first();
+            $room = PartyRoom::create([
+                'room_id' => 'PR' . rand(100000, 999999),
+                'channel_name' => 'party_room_preview_' . rand(1000, 9999),
+                'host_id' => $host ? $host->id : 1,
+                'room_title' => '🎶 Live Party Stage & Voice Chatroom',
+                'room_type' => 'video',
+                'topic_tag' => 'Music & Chill',
+                'max_seats' => 8,
+                'status' => 'active',
+                'coin_rate_per_minute' => 10,
+                'host_commission_percentage' => 50.00,
+                'admin_commission_percentage' => 50.00,
+            ]);
+
+            // Initialize seats
+            for ($i = 0; $i < 8; $i++) {
+                \App\Models\PartyRoomSeat::create([
+                    'party_room_id' => $room->id,
+                    'seat_index' => $i,
+                    'user_id' => ($i === 0 && $host) ? $host->id : null,
+                    'status' => ($i === 0 && $host) ? 'occupied' : 'empty',
+                    'is_muted' => false,
+                    'is_video_muted' => false,
+                    'seat_role' => $i === 0 ? 'host' : 'guest',
+                ]);
+            }
+        }
+
+        return redirect()->route('admin.party-rooms.show', $room->id);
+    }
+
+    /**
      * Inspect Live Room (Seats, Chat messages, Participants, Speaker Queue).
      */
     public function show($id)

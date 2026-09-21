@@ -72,7 +72,12 @@ class CallAdminController extends Controller
      */
     public function settings()
     {
-        $config = CallSetting::getAllConfig();
+        try {
+            $config = CallSetting::getAllConfig();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('CallAdminController::settings error: ' . $e->getMessage());
+            $config = CallSetting::defaults();
+        }
 
         return view('admin.calls.settings', compact('config'));
     }
