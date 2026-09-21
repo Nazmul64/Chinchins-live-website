@@ -58,16 +58,21 @@ class PartyRoomSeat extends Model
         }
 
         $user = $this->user;
+        $avatar = $user->avatar_url ?: ($user->avatar ? User::resolveImageUrl($user->avatar) : null);
+        $displayName = $user->display_name ?? $user->name ?? 'Guest';
+
         return [
-            'id' => $user->id,
-            'account_id' => $user->account_id,
-            'name' => $user->display_name ?? $user->name ?? 'Guest',
-            'avatar_url' => $user->avatar_url,
+            'id'               => $user->id,
+            'account_id'       => $user->account_id,
+            'name'             => $displayName,
+            'display_name'     => $displayName,
+            'avatar'           => $avatar,
+            'avatar_url'       => $avatar,
             'avatar_frame_url' => $user->avatar_frame_url,
-            'level' => (int) ($user->level ?? 1),
-            'coins' => (int) ($user->coins ?? 0),
-            'gender' => $user->gender ?? 'unspecified',
-            'is_host' => ($this->role === 'host' || $this->seat_index === 1),
+            'level'            => (int) ($user->level ?? 1),
+            'coins'            => (int) ($user->coins ?? 0),
+            'gender'           => $user->gender ?? 'unspecified',
+            'is_host'          => ($this->role === 'host' || $this->seat_index === 1),
         ];
     }
 }

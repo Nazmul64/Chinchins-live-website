@@ -928,7 +928,8 @@ class PartyRoomApiController extends Controller
                 'account_id'       => $user->account_id,
                 'name'             => $user->display_name ?? $user->name,
                 'display_name'     => $user->display_name ?? $user->name,
-                'avatar_url'       => $user->avatar_url,
+                'avatar'           => $user->avatar_url ?: ($user->avatar ? User::resolveImageUrl($user->avatar) : null),
+                'avatar_url'       => $user->avatar_url ?: ($user->avatar ? User::resolveImageUrl($user->avatar) : null),
                 'avatar_frame_url' => $user->avatar_frame_url,
                 'level'            => (int) ($user->level ?? 1),
             ],
@@ -1071,7 +1072,8 @@ class PartyRoomApiController extends Controller
                 'account_id'       => $user->account_id,
                 'name'             => $user->display_name ?? $user->name,
                 'display_name'     => $user->display_name ?? $user->name,
-                'avatar_url'       => $user->avatar_url,
+                'avatar'           => $user->avatar_url ?: ($user->avatar ? User::resolveImageUrl($user->avatar) : null),
+                'avatar_url'       => $user->avatar_url ?: ($user->avatar ? User::resolveImageUrl($user->avatar) : null),
                 'avatar_frame_url' => $user->avatar_frame_url,
                 'level'            => (int) ($user->level ?? 1),
             ],
@@ -1119,47 +1121,63 @@ class PartyRoomApiController extends Controller
     {
         $user = $this->resolveUser($request);
         if (!$user) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
+            return response()->json(['success' => false, 'status' => false, 'message' => 'Unauthorized.'], 401);
         }
 
         $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
         $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
         if (!$room || $room->status !== 'active') {
-            return response()->json(['success' => false, 'message' => 'Party room is not active.'], 404);
+            return response()->json(['success' => false, 'status' => false, 'message' => 'Party room is not active.'], 404);
         }
 
         $existingSeat = $room->seats()->where('user_id', $user->id)->where('status', 'occupied')->first();
         if ($existingSeat) {
             return response()->json([
                 'success' => true,
+                'status'  => true,
                 'message' => "You are already on Seat #{$existingSeat->seat_index}.",
-                'data' => ['seat_index' => $existingSeat->seat_index],
+                'data'    => ['seat_index' => (int) $existingSeat->seat_index],
             ]);
         }
 
-        $seatIndex = $request->input('seat_index');
+        $requestedIndex = $request->input('seat_index') ?? $request->input('seatIndex');
+        if ($requestedIndex && is_numeric($requestedIndex) && (int)$requestedIndex >= 2 && (int)$requestedIndex <= 16) {
+            $seatIndex = (int) $requestedIndex;
+        } else {
+            // Find lowest available empty seat index > 1
+            $availableSeat = $room->seats()->where('seat_index', '>', 1)->where('status', 'empty')->where('is_locked', false)->orderBy('seat_index', 'asc')->first();
+            $seatIndex = $availableSeat ? (int) $availableSeat->seat_index : 2;
+        }
 
-        // Create or update pending seat request
+        // Create or update pending seat request safely
         $invitation = PartyRoomSeatInvitation::updateOrCreate(
             [
                 'party_room_id' => $room->id,
-                'user_id' => $user->id,
-                'status' => 'pending',
+                'user_id'       => $user->id,
+                'status'        => 'pending',
             ],
             [
-                'host_id' => $room->host_id,
+                'host_id'    => $room->host_id,
                 'seat_index' => $seatIndex,
             ]
         );
+
+        $userAvatar = $user->avatar_url ?: ($user->avatar ? User::resolveImageUrl($user->avatar) : null);
+        $displayName = $user->display_name ?? $user->name ?? 'Audience Member';
 
         // Broadcast to Host and Room via Reverb
         try {
             broadcast(new \App\Events\SeatRequestEvent($room->id, [
                 'invitation_id' => $invitation->id,
-                'user_id' => $user->id,
-                'user_name' => $user->display_name ?? $user->name,
-                'avatar' => $user->avatar_url ?? $user->avatar,
-                'seat_index' => $seatIndex,
+                'request_id'    => $invitation->id,
+                'user_id'       => $user->id,
+                'account_id'    => $user->account_id,
+                'user_name'     => $displayName,
+                'display_name'  => $displayName,
+                'avatar'        => $userAvatar,
+                'avatar_url'    => $userAvatar,
+                'seat_index'    => $seatIndex,
+                'status'        => 'pending',
             ]))->toOthers();
         } catch (\Throwable $e) {
             Log::warning('SeatRequestEvent broadcast failed: ' . $e->getMessage());
@@ -1167,11 +1185,22 @@ class PartyRoomApiController extends Controller
 
         return response()->json([
             'success' => true,
-            'status' => true,
+            'status'  => true,
             'message' => 'Seat request sent to host successfully.',
-            'data' => [
+            'data'    => [
                 'invitation_id' => $invitation->id,
-                'seat_index' => $seatIndex,
+                'request_id'    => $invitation->id,
+                'seat_index'    => $seatIndex,
+                'user'          => [
+                    'id'               => $user->id,
+                    'account_id'       => $user->account_id,
+                    'name'             => $displayName,
+                    'display_name'     => $displayName,
+                    'avatar'           => $userAvatar,
+                    'avatar_url'       => $userAvatar,
+                    'avatar_frame_url' => $user->avatar_frame_url,
+                    'level'            => (int) ($user->level ?? 1),
+                ],
             ],
         ]);
     }
@@ -1365,7 +1394,8 @@ class PartyRoomApiController extends Controller
                 'account_id'       => $targetUser->account_id,
                 'name'             => $targetUser->display_name ?? $targetUser->name,
                 'display_name'     => $targetUser->display_name ?? $targetUser->name,
-                'avatar_url'       => $targetUser->avatar_url,
+                'avatar'           => $targetUser->avatar_url ?: ($targetUser->avatar ? User::resolveImageUrl($targetUser->avatar) : null),
+                'avatar_url'       => $targetUser->avatar_url ?: ($targetUser->avatar ? User::resolveImageUrl($targetUser->avatar) : null),
                 'avatar_frame_url' => $targetUser->avatar_frame_url,
                 'level'            => (int) ($targetUser->level ?? 1),
             ],
