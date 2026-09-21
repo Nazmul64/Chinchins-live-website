@@ -457,4 +457,85 @@ class FirebaseApiController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Firebase FCM Configuration & Connection Status Diagnostic.
+     * GET /api/fcm/status or GET /api/fcm/check
+     */
+    public function getStatus(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        $appsCount = FirebaseApp::where('is_active', true)->count();
+        $registeredDevicesCount = DeviceRegistration::count();
+        $userWithFcmCount = User::whereNotNull('fcm_token')->where('fcm_token', '!=', '')->count();
+
+        $activeApp = FirebaseApp::where('is_active', true)->first();
+
+        return response()->json([
+            'status'     => true,
+            'connected'  => true,
+            'message'    => 'Firebase FCM service is active and operational.',
+            'diagnostic' => [
+                'firebase_configured'     => true,
+                'active_firebase_apps'    => $appsCount,
+                'default_project_id'      => $activeApp?->project_id ?? config('services.firebase.project_id', 'chinchins-live'),
+                'package_name'            => $activeApp?->package_name ?? 'com.chinchins.live',
+                'registered_devices'      => $registeredDevicesCount,
+                'users_with_fcm_token'    => $userWithFcmCount,
+                'current_user'            => $user ? [
+                    'id'                => $user->id,
+                    'name'              => $user->display_name ?: $user->name,
+                    'account_id'        => $user->account_id,
+                    'has_fcm_token'     => !empty($user->fcm_token),
+                    'fcm_token_preview' => !empty($user->fcm_token) ? (substr($user->fcm_token, 0, 20) . '...') : null,
+                    'device_type'       => $user->device_type ?? 'android',
+                ] : null,
+            ],
+        ]);
+    }
+
+    /**
+     * Send Instant Test Push Notification to Verify Delivery.
+     * POST /api/fcm/test-push or POST /api/fcm/test
+     */
+    public function testPush(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        $targetToken = $request->input('fcm_token') ?: ($user?->fcm_token);
+
+        if (!$targetToken && $request->filled('user_id')) {
+            $u = User::find($request->user_id) ?? User::where('account_id', $request->user_id)->first();
+            $targetToken = $u?->fcm_token;
+        }
+
+        if (empty($targetToken)) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'No FCM token found. Please pass fcm_token or log in from a registered device first.',
+            ], 422);
+        }
+
+        $title = $request->input('title', '🎉 ChinChins Live Test Push');
+        $body = $request->input('body', 'Firebase Push Notification connected successfully! 🚀');
+
+        $result = PushNotificationService::sendCustomPush(
+            fcmToken: $targetToken,
+            title: $title,
+            body: $body,
+            data: [
+                'type'         => 'test_notification',
+                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                'timestamp'    => (string) now()->timestamp,
+            ]
+        );
+
+        return response()->json([
+            'status'     => $result['status'] ?? true,
+            'message'    => 'Test push notification dispatched.',
+            'fcm_token'  => substr($targetToken, 0, 25) . '...',
+            'title'      => $title,
+            'body'       => $body,
+            'result'     => $result,
+        ]);
+    }
 }

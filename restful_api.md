@@ -283,3 +283,96 @@ pusher.subscribe(
   },
 );
 ```
+
+---
+
+## 🔥 ৫. Firebase FCM পুশ নোটিফিকেশন ভেরিফিকেশন ও টেস্ট (Firebase Diagnostics)
+
+### ৫.১ রেজিস্ট্রেশন ও লগইনে FCM টোকেন পাঠানো (Auto-Sync on Register & Login)
+ইউজার যখন অ্যাপে রেজিস্টার বা লগইন করবে, তখন বডিতে `fcm_token` বা `device_token` পাঠালে তা স্বয়ংক্রিয়ভাবে `users` টেবিলে এবং `device_registrations` টেবিলে সেভ হয়ে যায়:
+- **Payload (`POST /api/register` বা `POST /api/login`)**:
+```json
+{
+  "email": "user@gmail.com",
+  "password": "password123",
+  "fcm_token": "fXyZ123456...device_token_from_firebase",
+  "device_type": "android"
+}
+```
+
+### ৫.২ ডিভাইস টোকেন আপডেট / রিফ্রেশ এপিআই (Sync FCM Token)
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/update-fcm-token`
+- **Body**:
+```json
+{
+  "fcm_token": "fXyZ123456...device_token_from_firebase",
+  "device_type": "android",
+  "device_brand": "Samsung",
+  "device_model": "Galaxy S23"
+}
+```
+
+### ৫.৩ ফায়ারবেস কানেকশন স্ট্যাটাস চেক (Check Firebase Status)
+- **Method**: `GET`
+- **URL**: `https://chinchins.live/api/fcm/status`
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Accept: application/json
+  ```
+- **Response**:
+```json
+{
+  "status": true,
+  "connected": true,
+  "message": "Firebase FCM service is active and operational.",
+  "diagnostic": {
+    "firebase_configured": true,
+    "active_firebase_apps": 1,
+    "default_project_id": "chinchins-live",
+    "package_name": "com.chinchins.live",
+    "registered_devices": 145,
+    "users_with_fcm_token": 128,
+    "current_user": {
+      "id": 101,
+      "name": "Nazmul",
+      "account_id": "84920183",
+      "has_fcm_token": true,
+      "fcm_token_preview": "fXyZ123456...",
+      "device_type": "android"
+    }
+  }
+}
+```
+
+### ৫.৪ ইনস্ট্যান্ট টেস্ট নোটিফিকেশন পাঠানো (Trigger Instant Test Push)
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/fcm/test-push`
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Accept: application/json
+  ```
+- **Body**:
+```json
+{
+  "title": "🎉 ChinChins Live Test Push",
+  "body": "Firebase Push Notification connected successfully! 🚀"
+}
+```
+- **Response**:
+```json
+{
+  "status": true,
+  "message": "Test push notification dispatched.",
+  "fcm_token": "fXyZ123456...",
+  "title": "🎉 ChinChins Live Test Push",
+  "body": "Firebase Push Notification connected successfully! 🚀",
+  "result": {
+    "status": true,
+    "multicast_id": "89201823"
+  }
+}
+```
+

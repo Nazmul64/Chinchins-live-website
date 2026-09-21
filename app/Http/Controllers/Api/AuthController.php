@@ -98,6 +98,9 @@ class AuthController extends Controller
         }
         $tags = array_values(array_filter((array) $rawTags)) ?: ['Live Chat', 'Music', 'Gaming'];
 
+        $fcmToken = trim((string) ($request->input('fcm_token') ?: $request->input('device_token') ?: $request->input('push_token', '')));
+        $deviceType = $request->input('device_type', 'android');
+
         try {
             $user = User::create([
                 'first_name'      => $firstName,
@@ -119,7 +122,27 @@ class AuthController extends Controller
                 'is_active'       => true,
                 'level'           => 1,
                 'charm_level'     => 1,
+                'fcm_token'       => $fcmToken ?: null,
+                'device_token'    => $fcmToken ?: null,
+                'device_type'     => $deviceType,
             ]);
+
+            if (!empty($fcmToken) && class_exists('\App\Models\DeviceRegistration')) {
+                try {
+                    \App\Models\DeviceRegistration::registerDevice(
+                        userId: $user->id,
+                        fcmToken: $fcmToken,
+                        deviceMeta: [
+                            'device_id'    => $request->input('device_id'),
+                            'device_type'  => $deviceType,
+                            'device_brand' => $request->input('device_brand') ?? $request->input('brand'),
+                            'device_model' => $request->input('device_model') ?? $request->input('model'),
+                            'os_version'   => $request->input('os_version') ?? $request->input('os'),
+                            'app_version'  => $request->input('app_version'),
+                        ]
+                    );
+                } catch (\Throwable $e) {}
+            }
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -221,8 +244,35 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Set user to active online upon login
-        $user->update(['is_active' => true]);
+        // Set user to active online upon login & sync FCM token
+        $fcmToken = trim((string) ($request->input('fcm_token') ?: $request->input('device_token') ?: $request->input('push_token', '')));
+        $deviceType = $request->input('device_type', $user->device_type ?: 'android');
+
+        $updateData = ['is_active' => true];
+        if (!empty($fcmToken)) {
+            $updateData['fcm_token'] = $fcmToken;
+            $updateData['device_token'] = $fcmToken;
+            $updateData['device_type'] = $deviceType;
+
+            if (class_exists('\App\Models\DeviceRegistration')) {
+                try {
+                    \App\Models\DeviceRegistration::registerDevice(
+                        userId: $user->id,
+                        fcmToken: $fcmToken,
+                        deviceMeta: [
+                            'device_id'    => $request->input('device_id'),
+                            'device_type'  => $deviceType,
+                            'device_brand' => $request->input('device_brand') ?? $request->input('brand'),
+                            'device_model' => $request->input('device_model') ?? $request->input('model'),
+                            'os_version'   => $request->input('os_version') ?? $request->input('os'),
+                            'app_version'  => $request->input('app_version'),
+                        ]
+                    );
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        $user->update($updateData);
 
         // Issue token
         $token = $user->createToken('auth_token')->plainTextToken;

@@ -1203,3 +1203,9 @@ Route::post('/fcm/mark-read', [\App\Http\Controllers\Api\FirebaseApiController::
 // 7. Push Dispatch History Log
 Route::get('/fcm/history', [\App\Http\Controllers\Api\FirebaseApiController::class, 'getHistory']);
 
+// 8. Firebase FCM Connection Status & Live Push Test
+Route::get('/fcm/status', [\App\Http\Controllers\Api\FirebaseApiController::class, 'getStatus']);
+Route::get('/fcm/check', [\App\Http\Controllers\Api\FirebaseApiController::class, 'getStatus']);
+Route::post('/fcm/test-push', [\App\Http\Controllers\Api\FirebaseApiController::class, 'testPush']);
+Route::post('/fcm/test', [\App\Http\Controllers\Api\FirebaseApiController::class, 'testPush']);
+
