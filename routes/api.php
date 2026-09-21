@@ -1046,7 +1046,7 @@ Route::prefix('party-rooms')->group(function () {
     Route::post('/{id}/invite', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'inviteGuest']);
     Route::post('/{id}/respond-invite', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondInvite']);
     
-    // Seats Management (10 Seats Grid)
+    // Seats Management (Multi-Guest Voice Stage up to 16 Seats)
     Route::post('/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
     Route::post('/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
     Route::post('/token', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getRoomToken']);
@@ -1054,10 +1054,19 @@ Route::prefix('party-rooms')->group(function () {
     Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
     Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
     Route::get('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getSeatRequests']);
+    Route::post('/{id}/seat-requests/{requestId}/respond', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/seat-requests/{requestId}/accept', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/seat-requests/{requestId}/reject', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/respond-seat-request', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/accept-seat-request', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/reject-seat-request', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
     Route::post('/{id}/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
     Route::post('/{id}/kick-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'kickSeat']);
+    Route::post('/{id}/mute-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'muteSeat']);
     Route::post('/{id}/toggle-mic', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleMic']);
     Route::post('/{id}/toggle-video', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleVideo']);
+    Route::post('/{id}/speaking', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'setSpeaking']);
+    Route::post('/{id}/toggle-speaking', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'setSpeaking']);
     
     // In-Room Chat, Photo Uploads (uploads/host_image) & Gifting
     Route::get('/{id}/messages', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getMessages']);
@@ -1091,10 +1100,19 @@ Route::prefix('party-room')->group(function () {
     Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
     Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
     Route::get('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getSeatRequests']);
+    Route::post('/{id}/seat-requests/{requestId}/respond', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/seat-requests/{requestId}/accept', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/seat-requests/{requestId}/reject', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/respond-seat-request', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/accept-seat-request', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
+    Route::post('/{id}/reject-seat-request', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
     Route::post('/{id}/leave-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'leaveSeat']);
     Route::post('/{id}/kick-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'kickSeat']);
+    Route::post('/{id}/mute-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'muteSeat']);
     Route::post('/{id}/toggle-mic', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleMic']);
     Route::post('/{id}/toggle-video', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'toggleVideo']);
+    Route::post('/{id}/speaking', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'setSpeaking']);
+    Route::post('/{id}/toggle-speaking', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'setSpeaking']);
     Route::get('/{id}/messages', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getMessages']);
     Route::post('/{id}/messages/send', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'sendMessage']);
     Route::post('/{id}/send-gift', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'sendGift']);

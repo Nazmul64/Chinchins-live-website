@@ -529,9 +529,192 @@ void setupForegroundPushListeners(BuildContext context) {
 
 ---
 
+## 🎙️ Live Voice Party Room & Multi-Guest Stage (8–16 Seats)
+
+### 1. Real-Time Speaking / Wave Pulse Halo (`POST /api/party-rooms/{id}/speaking`)
+When a speaker speaks on stage or stops speaking, the app sends their state so the frontend displays a pulsating green glow halo animation around their avatar (e.g. *"Shakil কথা বলছেন..."*).
+
+**Endpoint**: `POST /api/party-rooms/{id}/speaking` or `POST /api/party-room/{id}/speaking`
+**Headers**:
+```http
+Authorization: Bearer <user_token>
+Content-Type: application/json
+```
+**Body**:
+```json
+{
+  "is_speaking": true
+}
+```
+**Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "is_speaking": true,
+  "seat_index": 5,
+  "user_id": 142,
+  "message": "Speaking indicator active."
+}
+```
+
+---
+
+### 2. Speaker Queue / Request List for Host (`GET /api/party-rooms/{id}/seat-requests`)
+Exclusively fetched by the Host to review audience members waiting in the speaker queue.
+
+**Endpoint**: `GET /api/party-rooms/{id}/seat-requests`
+**Headers**:
+```http
+Authorization: Bearer <host_token>
+```
+**Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "count": 2,
+  "data": [
+    {
+      "id": 12,
+      "invitation_id": 12,
+      "request_id": 12,
+      "user_id": 89,
+      "account_id": "IMRAN4_99",
+      "name": "Imran_4",
+      "display_name": "Imran_4",
+      "avatar": "https://chinchins.live/uploads/user_image/avatar1.jpg",
+      "avatar_url": "https://chinchins.live/uploads/user_image/avatar1.jpg",
+      "level": 4,
+      "coins": 500,
+      "seat_index": null,
+      "status": "pending",
+      "created_at": "2026-09-21T07:45:00.000000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 3. Host Responds to Seat Request: Accept ("গ্রহণ করুন") / Reject ("বাতিল করুন")
+**Endpoint**: `POST /api/party-rooms/{id}/seat-requests/{requestId}/respond` or `POST /api/party-rooms/{id}/seat-requests/{requestId}/accept` / `reject`
+**Headers**:
+```http
+Authorization: Bearer <host_token>
+Content-Type: application/json
+```
+**Accept Request Body**:
+```json
+{
+  "action": "accept"
+}
+```
+**Accept Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "action": "accepted",
+  "message": "Seat request accepted. Imran_4 is now on Seat #3.",
+  "seat_index": 3,
+  "user_id": 89,
+  "token": "eyJhbGciOi...",
+  "livekit_token": "eyJhbGciOi...",
+  "livekit_url": "wss://chinchins.live/livekit",
+  "can_publish": true,
+  "data": {
+    "seat_index": 3,
+    "user": {
+      "id": 89,
+      "name": "Imran_4",
+      "avatar_url": "https://chinchins.live/uploads/user_image/avatar1.jpg"
+    },
+    "can_publish": true
+  }
+}
+```
+
+**Reject Request Body**:
+```json
+{
+  "action": "reject"
+}
+```
+**Reject Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "action": "rejected",
+  "message": "Seat request has been rejected (বাতিল করা হয়েছে)."
+}
+```
+
+---
+
+### 4. Host Mute / Unmute Speaker (`POST /api/party-rooms/{id}/mute-seat`)
+**Endpoint**: `POST /api/party-rooms/{id}/mute-seat`
+**Headers**:
+```http
+Authorization: Bearer <host_token>
+Content-Type: application/json
+```
+**Body**:
+```json
+{
+  "seat_index": 3,
+  "is_muted": true
+}
+```
+**Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "is_muted": 1,
+  "seat_index": 3,
+  "message": "Seat #3 has been muted."
+}
+```
+
+---
+
+### 5. WebSocket Real-Time Event Subscription (`SeatUpdatedEvent`)
+Listen on channels: `party.{roomId}` or `presence-party.{roomId}` or `party-room.{roomId}`.
+
+**Payload received on speaking change**:
+```json
+{
+  "event": "SeatUpdatedEvent",
+  "data": {
+    "room_id": "24",
+    "room_name": "party_voice_PR9821",
+    "seat_index": 5,
+    "user_id": 142,
+    "is_speaking": true,
+    "action": "speaking_change",
+    "user": {
+      "id": 142,
+      "account_id": "SHAKIL_77",
+      "name": "Shakil",
+      "display_name": "Shakil",
+      "avatar_url": "https://chinchins.live/uploads/user_image/avatar2.jpg",
+      "avatar_frame_url": "https://chinchins.live/uploads/frames/gold.png",
+      "level": 7
+    },
+    "timestamp": "2026-09-21T07:50:00+06:00"
+  }
+}
+```
+
+---
+
 ## 🚀 Summary
-The Firebase Push Notification subsystem is completely integrated into both the Laravel Web Admin and Mobile REST APIs, fully supporting:
-- Multi-App Service Account JSON and Legacy FCM credentials.
-- 1-to-1 Incoming Call notifications with high-priority audio channels.
-- 1-to-1 Chat & Photo notifications with real-time sender avatars and text.
-- Broadcast & Targeted push notifications with comprehensive delivery logs and metrics.
+The entire platform backend is fully tuned, real-time optimized, and production-ready:
+- Multi-App Firebase push notifications with Google OAuth2 v1 + legacy fallback.
+- 1-on-1 High Priority Call & Chat Push Notifications with custom ringtones.
+- Live Customer Support Admin Chat with instant mobile FCM dispatch.
+- Admin Deposit Approvals with instant wallet credit & user push notification.
+- Live Voice Party Room (8–16 Multi-Guest Stage) with real-time green glowing speaking wave pulse indicators, host-only speaker queue with Accept/Reject controls, and LiveKit audio permissions.
+

@@ -179,7 +179,7 @@ class PartyRoom extends Model
      */
     public function initializeSeats(): void
     {
-        $maxSeats = max(1, min(12, $this->max_seats ?: 10));
+        $maxSeats = max(1, min(16, $this->max_seats ?: 10));
 
         for ($i = 1; $i <= $maxSeats; $i++) {
             if ($i === 1) {

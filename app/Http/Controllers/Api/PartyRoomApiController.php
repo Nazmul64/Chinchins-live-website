@@ -286,7 +286,7 @@ class PartyRoomApiController extends Controller
             'topic_tag' => 'nullable|string|max:64',
             'room_cover' => 'nullable',
             'room_cover_file' => 'nullable|image|max:10240',
-            'max_seats' => 'nullable|integer|min:4|max:12',
+            'max_seats' => 'nullable|integer|min:4|max:16',
             'coin_rate_per_minute' => 'nullable|integer|min:0',
             'announcement' => 'nullable|string|max:500',
             'password' => 'nullable|string|max:32',
@@ -1150,7 +1150,7 @@ class PartyRoomApiController extends Controller
     }
 
     /**
-     * Get Pending Seat Requests for Host.
+     * Get Pending Seat Requests for Host / Speaker Queue.
      * GET /api/party-rooms/{id}/seat-requests
      */
     public function getSeatRequests(Request $request, $id = null): JsonResponse
@@ -1172,21 +1172,343 @@ class PartyRoomApiController extends Controller
             ->latest()
             ->get()
             ->map(function ($inv) {
+                $targetUser = $inv->user;
                 return [
-                    'id' => $inv->id,
-                    'invitation_id' => $inv->id,
-                    'user_id' => $inv->user_id,
-                    'user_name' => $inv->user ? ($inv->user->display_name ?? $inv->user->name) : 'User',
-                    'avatar' => $inv->user ? $inv->user->avatar_url : null,
-                    'seat_index' => $inv->seat_index,
-                    'created_at' => $inv->created_at?->toIso8601String(),
+                    'id'               => $inv->id,
+                    'invitation_id'    => $inv->id,
+                    'request_id'       => $inv->id,
+                    'user_id'          => $inv->user_id,
+                    'account_id'       => $targetUser?->account_id,
+                    'name'             => $targetUser ? ($targetUser->display_name ?? $targetUser->name) : 'User',
+                    'display_name'     => $targetUser ? ($targetUser->display_name ?? $targetUser->name) : 'User',
+                    'avatar'           => $targetUser?->avatar_url,
+                    'avatar_url'       => $targetUser?->avatar_url,
+                    'avatar_frame_url' => $targetUser?->avatar_frame_url,
+                    'level'            => (int) ($targetUser?->level ?? 1),
+                    'coins'            => (int) ($targetUser?->coins ?? 0),
+                    'gender'           => $targetUser?->gender ?? 'unspecified',
+                    'seat_index'       => $inv->seat_index,
+                    'status'           => $inv->status,
+                    'created_at'       => $inv->created_at?->toIso8601String(),
                 ];
             });
 
         return response()->json([
             'success' => true,
-            'status' => true,
-            'data' => $requests,
+            'status'  => true,
+            'count'   => $requests->count(),
+            'data'    => $requests,
+        ]);
+    }
+
+    /**
+     * Host Responds to Audience Seat Request (Accept "গ্রহণ করুন" / Reject "বাতিল করুন").
+     * POST /api/party-rooms/{id}/seat-requests/{requestId}/respond
+     * POST /api/party-rooms/{id}/respond-seat-request
+     */
+    public function respondSeatRequest(Request $request, $id = null, $requestId = null): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
+        }
+
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
+        if (!$room || $room->status !== 'active') {
+            return response()->json(['success' => false, 'message' => 'Party room is not active.'], 404);
+        }
+
+        if ($user->id !== $room->host_id && !$user->isSuperAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Only the room host can accept or reject seat requests.'], 403);
+        }
+
+        $reqId = $requestId ?? $request->input('request_id') ?? $request->input('invitation_id') ?? $request->input('id');
+        $targetUserId = $request->input('user_id') ?? $request->input('target_user_id');
+
+        $seatReqQuery = PartyRoomSeatInvitation::where('party_room_id', $room->id)
+            ->where('status', 'pending');
+
+        if ($reqId) {
+            $seatReqQuery->where('id', $reqId);
+        } elseif ($targetUserId) {
+            $seatReqQuery->where('user_id', $targetUserId);
+        }
+
+        $seatRequest = $seatReqQuery->latest()->first();
+        if (!$seatRequest) {
+            return response()->json(['success' => false, 'message' => 'No pending seat request found.'], 404);
+        }
+
+        $action = strtolower($request->input('action', 'accept')); // accept | reject | decline | cancel
+        $targetUser = $seatRequest->user ?: User::find($seatRequest->user_id);
+
+        if (!$targetUser) {
+            return response()->json(['success' => false, 'message' => 'Target user not found.'], 404);
+        }
+
+        if ($action === 'reject' || $action === 'decline' || $action === 'cancel') {
+            $seatRequest->update(['status' => 'rejected']);
+
+            try {
+                broadcast(new \App\Events\SeatRequestEvent($room->id, [
+                    'invitation_id' => $seatRequest->id,
+                    'user_id'       => $targetUser->id,
+                    'status'        => 'rejected',
+                    'action'        => 'seat_request_rejected',
+                ]))->toOthers();
+            } catch (\Throwable $e) {}
+
+            return response()->json([
+                'success' => true,
+                'status'  => true,
+                'action'  => 'rejected',
+                'message' => 'Seat request has been rejected (বাতিল করা হয়েছে).',
+            ]);
+        }
+
+        // Action: ACCEPT ("গ্রহণ করুন")
+        // Check if user is already seated
+        $alreadySeated = $room->seats()->where('user_id', $targetUser->id)->where('status', 'occupied')->first();
+        if ($alreadySeated) {
+            $seatRequest->update(['status' => 'accepted']);
+            return response()->json([
+                'success'    => true,
+                'message'    => "User is already seated at Seat #{$alreadySeated->seat_index}.",
+                'seat_index' => (int) $alreadySeated->seat_index,
+            ]);
+        }
+
+        // Find requested seat or next empty guest seat
+        $targetSeat = null;
+        if ($seatRequest->seat_index && $seatRequest->seat_index > 1) {
+            $candidate = $room->seats()->where('seat_index', $seatRequest->seat_index)->first();
+            if ($candidate && $candidate->status === 'empty' && !$candidate->is_locked) {
+                $targetSeat = $candidate;
+            }
+        }
+
+        if (!$targetSeat) {
+            $targetSeat = $room->seats()->where('seat_index', '>', 1)->where('status', 'empty')->where('is_locked', false)->first();
+        }
+
+        if (!$targetSeat) {
+            return response()->json(['success' => false, 'message' => 'All guest seats are currently occupied.'], 422);
+        }
+
+        // Assign user to seat
+        $targetSeat->update([
+            'user_id'        => $targetUser->id,
+            'role'           => 'speaker',
+            'status'         => 'occupied',
+            'is_muted'       => false,
+            'is_video_muted' => false,
+            'joined_at'      => now(),
+            'last_billed_at' => now(),
+        ]);
+
+        $seatRequest->update(['status' => 'accepted', 'seat_index' => $targetSeat->seat_index]);
+
+        PartyRoomMember::updateOrCreate(
+            ['party_room_id' => $room->id, 'user_id' => $targetUser->id],
+            ['role' => 'speaker', 'status' => 'active', 'last_active_at' => now()]
+        );
+
+        // System message in chat
+        PartyRoomMessage::create([
+            'party_room_id' => $room->id,
+            'user_id'       => $user->id,
+            'type'          => 'seat_join',
+            'message'       => '🎉 ' . ($user->display_name ?? $user->name) . ' accepted ' . ($targetUser->display_name ?? $targetUser->name) . " to Speaker Stage (Seat #{$targetSeat->seat_index})!",
+        ]);
+
+        $livekitToken = $this->generatePartyRoomLiveKitToken($room, $targetUser, true);
+
+        $seatPayload = [
+            'room_id'     => (string) $room->id,
+            'room_name'   => $room->channel_name ?: $room->room_id,
+            'seat_index'  => (int) $targetSeat->seat_index,
+            'user_id'     => $targetUser->id,
+            'is_muted'    => 0,
+            'is_occupied' => true,
+            'action'      => 'take_seat',
+            'can_publish' => true,
+            'user'        => [
+                'id'               => $targetUser->id,
+                'account_id'       => $targetUser->account_id,
+                'name'             => $targetUser->display_name ?? $targetUser->name,
+                'display_name'     => $targetUser->display_name ?? $targetUser->name,
+                'avatar_url'       => $targetUser->avatar_url,
+                'avatar_frame_url' => $targetUser->avatar_frame_url,
+                'level'            => (int) ($targetUser->level ?? 1),
+            ],
+            'timestamp'   => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
+        } catch (\Throwable $e) {
+            Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
+        }
+
+        // Send Push Notification to accepted user
+        try {
+            PushNotificationService::sendLivePartyInvite(
+                $targetUser,
+                $user->display_name ?? $user->name ?? 'Host',
+                $room->room_title ?: 'Voice Party Stage',
+                $room->id
+            );
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'success'       => true,
+            'status'        => true,
+            'action'        => 'accepted',
+            'message'       => "Seat request accepted. {$targetUser->name} is now on Seat #{$targetSeat->seat_index}.",
+            'seat_index'    => (int) $targetSeat->seat_index,
+            'user_id'       => $targetUser->id,
+            'token'         => $livekitToken['token'],
+            'livekit_token' => $livekitToken['token'],
+            'livekit_url'   => $livekitToken['livekit_url'],
+            'can_publish'   => true,
+            'data'          => [
+                'seat_index'    => (int) $targetSeat->seat_index,
+                'user'          => $seatPayload['user'],
+                'can_publish'   => true,
+                'token'         => $livekitToken['token'],
+                'livekit_token' => $livekitToken['token'],
+                'livekit_url'   => $livekitToken['livekit_url'],
+                'room'          => $this->formatRoomDetails($room, $user),
+            ],
+        ]);
+    }
+
+    /**
+     * Broadcast Real-Time Speaking / Wave Animation State for Seated Speakers.
+     * POST /api/party-rooms/{id}/speaking
+     */
+    public function setSpeaking(Request $request, $id = null): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
+        }
+
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
+        if (!$room) {
+            return response()->json(['success' => false, 'message' => 'Party room not found.'], 404);
+        }
+
+        $isSpeaking = $request->boolean('is_speaking', true);
+        $seat = $room->seats()->where('user_id', $user->id)->first();
+        $isHost = ($user->id === $room->host_id);
+
+        if (!$seat && !$isHost) {
+            return response()->json(['success' => false, 'message' => 'User is not occupying a seat.'], 422);
+        }
+
+        $seatIndex = $seat ? (int) $seat->seat_index : 1;
+
+        $payload = [
+            'room_id'     => (string) $room->id,
+            'room_name'   => $room->channel_name ?: $room->room_id,
+            'seat_index'  => $seatIndex,
+            'user_id'     => $user->id,
+            'is_speaking' => $isSpeaking,
+            'action'      => 'speaking_change',
+            'user'        => [
+                'id'               => $user->id,
+                'account_id'       => $user->account_id,
+                'name'             => $user->display_name ?? $user->name,
+                'display_name'     => $user->display_name ?? $user->name,
+                'avatar_url'       => $user->avatar_url,
+                'avatar_frame_url' => $user->avatar_frame_url,
+                'level'            => (int) ($user->level ?? 1),
+            ],
+            'timestamp'   => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new SeatUpdatedEvent($room->id, $payload))->toOthers();
+            broadcast(new SeatUpdatedEvent($room->id, $payload));
+        } catch (\Throwable $e) {
+            Log::warning('SeatUpdatedEvent speaking broadcast failed: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success'     => true,
+            'status'      => true,
+            'is_speaking' => $isSpeaking,
+            'seat_index'  => $seatIndex,
+            'user_id'     => $user->id,
+            'message'     => $isSpeaking ? 'Speaking indicator active.' : 'Speaking indicator idle.',
+        ]);
+    }
+
+    /**
+     * Host Mutes / Unmutes a Seated Guest.
+     * POST /api/party-rooms/{id}/mute-seat
+     */
+    public function muteSeat(Request $request, $id = null): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
+        }
+
+        $roomId = $id ?? $request->input('room_id') ?? $request->input('id') ?? $request->input('party_room_id');
+        $room = PartyRoom::where('id', $roomId)->orWhere('room_id', $roomId)->orWhere('channel_name', $roomId)->first();
+        if (!$room) {
+            return response()->json(['success' => false, 'message' => 'Room not found.'], 404);
+        }
+
+        if ($user->id !== $room->host_id && !$user->isSuperAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Only the host can mute other speakers.'], 403);
+        }
+
+        $seatIndex = $request->input('seat_index');
+        $targetUserId = $request->input('user_id');
+
+        $seatQuery = $room->seats()->where('status', 'occupied');
+        if ($seatIndex) {
+            $seatQuery->where('seat_index', $seatIndex);
+        } elseif ($targetUserId) {
+            $seatQuery->where('user_id', $targetUserId);
+        }
+
+        $seat = $seatQuery->first();
+        if (!$seat) {
+            return response()->json(['success' => false, 'message' => 'No speaker found on this seat.'], 422);
+        }
+
+        $isMuted = $request->has('is_muted') ? $request->boolean('is_muted') : !$seat->is_muted;
+        $seat->update(['is_muted' => $isMuted]);
+
+        $seatPayload = [
+            'room_id'     => (string) $room->id,
+            'room_name'   => $room->channel_name ?: $room->room_id,
+            'seat_index'  => (int) $seat->seat_index,
+            'user_id'     => $seat->user_id,
+            'is_muted'    => $isMuted ? 1 : 0,
+            'is_occupied' => true,
+            'action'      => 'host_mute_seat',
+            'timestamp'   => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
+            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'success'    => true,
+            'status'     => true,
+            'is_muted'   => $isMuted ? 1 : 0,
+            'seat_index' => (int) $seat->seat_index,
+            'message'    => $isMuted ? "Seat #{$seat->seat_index} has been muted." : "Seat #{$seat->seat_index} unmuted.",
         ]);
     }
 
