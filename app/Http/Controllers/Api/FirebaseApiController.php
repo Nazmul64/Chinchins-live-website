@@ -355,20 +355,52 @@ class FirebaseApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
-        $notifications = Notification::with('actor:id,name,display_name,profile_image,avatar_url,account_id')
+        $limit = max(1, min(100, (int) ($request->input('limit') ?: $request->input('per_page') ?: 20)));
+
+        $notifications = Notification::with(['actor' => function ($query) {
+                $query->select('id', 'name', 'display_name', 'avatar', 'account_id', 'level');
+            }])
             ->where('user_id', $user->id)
             ->latest()
-            ->paginate($request->input('limit', 20));
+            ->paginate($limit);
 
         $unreadCount = Notification::where('user_id', $user->id)->where('is_read', false)->count();
 
+        $items = collect($notifications->items())->map(function ($notif) {
+            $actor = $notif->actor;
+            return [
+                'id'         => $notif->id,
+                'user_id'    => $notif->user_id,
+                'actor_id'   => $notif->actor_id,
+                'type'       => $notif->type,
+                'title'      => $notif->title,
+                'message'    => $notif->message,
+                'data'       => $notif->data,
+                'is_read'    => (bool) $notif->is_read,
+                'read_at'    => $notif->read_at?->toIso8601String(),
+                'created_at' => $notif->created_at?->toIso8601String(),
+                'actor'      => $actor ? [
+                    'id'           => $actor->id,
+                    'name'         => $actor->name,
+                    'display_name' => $actor->display_name ?? $actor->name,
+                    'account_id'   => $actor->account_id,
+                    'avatar'       => $actor->avatar_url,
+                    'avatar_url'   => $actor->avatar_url,
+                    'level'        => (int) ($actor->level ?? 1),
+                ] : null,
+            ];
+        });
+
         return response()->json([
-            'status'       => true,
-            'unread_count' => $unreadCount,
-            'data'         => $notifications->items(),
-            'pagination'   => [
+            'status'        => true,
+            'success'       => true,
+            'unread_count'  => $unreadCount,
+            'data'          => $items,
+            'notifications' => $items,
+            'pagination'    => [
                 'current_page' => $notifications->currentPage(),
                 'last_page'    => $notifications->lastPage(),
+                'per_page'     => $notifications->perPage(),
                 'total'        => $notifications->total(),
             ],
         ]);

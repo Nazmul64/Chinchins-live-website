@@ -429,7 +429,8 @@ class PartyRoomApiController extends Controller
     public function show(Request $request, $id): JsonResponse
     {
         $user = $this->resolveUser($request);
-        $room = PartyRoom::where('id', $id)
+        $room = PartyRoom::with(['host', 'seats.user'])
+            ->where('id', $id)
             ->orWhere('room_id', $id)
             ->orWhere('channel_name', $id)
             ->first();
@@ -2308,6 +2309,10 @@ class PartyRoomApiController extends Controller
             }
         }
 
+        $host = $room->host ?: User::find($room->host_id);
+        $hostName = $host?->display_name ?? $host?->name ?? 'Host';
+        $hostAvatar = $host?->avatar_url ?: ($host?->avatar ? User::resolveImageUrl($host->avatar) : null);
+
         return [
             'id' => $room->id,
             'room_id' => $room->room_id,
@@ -2330,13 +2335,15 @@ class PartyRoomApiController extends Controller
             'is_host' => $currentUser ? ($currentUser->id === $room->host_id) : false,
             'current_user_seat' => $currentUserSeat,
             'host' => [
-                'id' => $room->host?->id,
-                'account_id' => $room->host?->account_id,
-                'name' => $room->host?->display_name ?? $room->host?->name ?? 'Host',
-                'avatar_url' => $room->host?->avatar_url,
-                'avatar_frame_url' => $room->host?->avatar_frame_url,
-                'level' => (int) ($room->host?->level ?? 1),
-                'coins' => (int) ($room->host?->coins ?? 0),
+                'id'               => $host?->id,
+                'name'             => $hostName,
+                'display_name'     => $hostName,
+                'account_id'       => $host?->account_id,
+                'avatar'           => $hostAvatar,
+                'avatar_url'       => $hostAvatar,
+                'avatar_frame_url' => $host?->avatar_frame_url,
+                'level'            => (int) ($host?->level ?? 1),
+                'coins'            => (int) ($host?->coins ?? 0),
             ],
             'seats' => $formattedSeats,
             'created_at' => $room->created_at?->toIso8601String(),
