@@ -239,6 +239,10 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::post('/party-rooms/settings', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'updateSettings'])->name('party-rooms.settings.update');
     Route::get('/party-rooms/{id}', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'show'])->name('party-rooms.show');
     Route::post('/party-rooms/{id}/force-close', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'forceClose'])->name('party-rooms.force-close');
+    Route::post('/party-rooms/{id}/kick-seat/{seatIndex}', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'kickSeat'])->name('party-rooms.kick-seat');
+    Route::post('/party-rooms/{id}/mute-seat/{seatIndex}', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'toggleMuteSeat'])->name('party-rooms.mute-seat');
+    Route::post('/party-rooms/{id}/respond-request/{requestId}', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'respondRequest'])->name('party-rooms.respond-request');
+    Route::post('/party-rooms/{id}/send-message', [\App\Http\Controllers\Admin\PartyRoomAdminController::class, 'sendAdminMessage'])->name('party-rooms.send-message');
 
     // Live Streaming Broadcasts & Rooms Management
     Route::prefix('live-streams')->name('live-streams.')->group(function () {
