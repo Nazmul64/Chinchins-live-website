@@ -133,7 +133,7 @@ class LiveStreamController extends Controller
         $grant = new VideoGrant();
         $grant->setRoomJoin(true)
               ->setRoomName($roomName)
-              ->setCanPublish($canPublish)        // গেস্ট জয়েন করলে true হতে হবে
+              ->setCanPublish(true)               // টোকেনে পাবলিশ পারমিশন সর্বদা true
               ->setCanSubscribe(true)             // সবার কথা ও ভিডিও দেখার জন্য
               ->setCanPublishData(true);          // লাইভ চ্যাটের জন্য Data Packet পারমিশন
 

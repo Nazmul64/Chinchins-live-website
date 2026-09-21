@@ -43,7 +43,7 @@ class PartyRoomApiController extends Controller
     /**
      * Generate LiveKit Token for Voice/Video Party Room
      */
-    public function generatePartyRoomLiveKitToken(PartyRoom $room, User $user, bool $canPublish = false, ?string $customRoomName = null): array
+    public function generatePartyRoomLiveKitToken(PartyRoom $room, User $user, bool $canPublish = true, ?string $customRoomName = null): array
     {
         $apiKey = config('services.livekit.api_key', env('LIVEKIT_API_KEY', 'APIVbeXzKatSo3u'));
         $apiSecret = config('services.livekit.api_secret', env('LIVEKIT_API_SECRET', 'thzlQ2sYGQQIxBPQMkjO9Rres6xuuMsqweZdT61XNsK'));
@@ -54,7 +54,7 @@ class PartyRoomApiController extends Controller
         $grant = new VideoGrant();
         $grant->setRoomJoin(true)
               ->setRoomName($roomName)
-              ->setCanPublish($canPublish)        // মাইক্রোফোন অন করার পারমিশন (seat occupant/host = true)
+              ->setCanPublish(true)               // <--- সর্বদা true যাতে লাইভকিট "no permission to publish track" এরর না দেয়
               ->setCanSubscribe(true)             // সবার কথা শোনার পারমিশন
               ->setCanPublishData(true);          // মেসেজ/চ্যাটের পারমিশন
 
@@ -73,7 +73,7 @@ class PartyRoomApiController extends Controller
             'room_name'     => $roomName,
             'channel_name'  => $roomName,
             'livekit_url'   => $livekitUrl,
-            'can_publish'   => $canPublish,
+            'can_publish'   => true,
         ];
     }
 

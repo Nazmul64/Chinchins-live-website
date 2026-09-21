@@ -104,7 +104,7 @@ class LiveStreamApiController extends Controller
             $grant = new \Agence104\LiveKit\VideoGrant();
             $grant->setRoomJoin(true)
                   ->setRoomName($roomName)
-                  ->setCanPublish($canPublish)
+                  ->setCanPublish(true)
                   ->setCanSubscribe(true)
                   ->setCanPublishData(true);
 
