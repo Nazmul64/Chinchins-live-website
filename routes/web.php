@@ -249,6 +249,28 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
 
     // Coin Transaction Ledger
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index')->middleware('permission:transactions.view');
+
+    // 🔥 Firebase FCM & Push Notification Management (Screenshots 1-5)
+    Route::prefix('firebase')->name('firebase.')->group(function () {
+        // 1. Firebase Apps (Screenshot 1)
+        Route::get('/apps', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'apps'])->name('apps.index');
+        Route::post('/apps', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'storeApp'])->name('apps.store');
+        Route::put('/apps/{id}', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'updateApp'])->name('apps.update');
+        Route::delete('/apps/{id}', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'destroyApp'])->name('apps.destroy');
+        Route::post('/apps/{id}/toggle-status', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'toggleAppStatus'])->name('apps.toggle-status');
+
+        // 2. Send Push Notification (Screenshots 2 & 3)
+        Route::get('/send', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'send'])->name('send');
+        Route::post('/send', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'submitSend'])->name('send.submit');
+
+        // 3. Notification History & Reports (Screenshot 4)
+        Route::get('/history', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'history'])->name('history');
+        Route::get('/history/{id}', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'viewNotification'])->name('history.show');
+
+        // 4. Users with FCM Tokens (Screenshot 5)
+        Route::get('/users', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'users'])->name('users');
+        Route::post('/users/{userId}/send', [\App\Http\Controllers\Admin\FirebaseNotificationAdminController::class, 'sendToUser'])->name('users.send');
+    });
 });
 
 // Shortcut aliases

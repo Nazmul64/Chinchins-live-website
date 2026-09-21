@@ -1141,3 +1141,39 @@ Route::post('/call/report', [\App\Http\Controllers\Api\CallModerationApiControll
 Route::get('/admin/call-moderation/logs', [\App\Http\Controllers\Api\CallModerationApiController::class, 'getAdminLogs']);
 Route::get('/user/honor-profile', [\App\Http\Controllers\Api\CallModerationApiController::class, 'getHonorProfile']);
 Route::get('/honor-profile', [\App\Http\Controllers\Api\CallModerationApiController::class, 'getHonorProfile']);
+
+// ==========================================
+// 🔥 Firebase FCM Push Notifications & 1-on-1 Real-time Calling/Chat RESTful APIs
+// ==========================================
+// 1. Device FCM Token Registration & Sync
+Route::post('/update-fcm-token', [\App\Http\Controllers\Api\FirebaseApiController::class, 'updateFcmToken']);
+Route::post('/fcm/update-token', [\App\Http\Controllers\Api\FirebaseApiController::class, 'updateFcmToken']);
+Route::post('/fcm/register-token', [\App\Http\Controllers\Api\FirebaseApiController::class, 'updateFcmToken']);
+Route::post('/fcm/token', [\App\Http\Controllers\Api\FirebaseApiController::class, 'updateFcmToken']);
+
+// 2. Active Firebase Apps List
+Route::get('/fcm/apps', [\App\Http\Controllers\Api\FirebaseApiController::class, 'getApps']);
+
+// 3. 1-to-1 Incoming Call FCM Notification Trigger
+Route::post('/fcm/send-call-notification', [\App\Http\Controllers\Api\FirebaseApiController::class, 'sendCallNotification']);
+Route::post('/fcm/send-call', [\App\Http\Controllers\Api\FirebaseApiController::class, 'sendCallNotification']);
+Route::post('/fcm/call', [\App\Http\Controllers\Api\FirebaseApiController::class, 'sendCallNotification']);
+
+// 4. 1-to-1 Chat Message / Photo FCM Notification Trigger
+Route::post('/fcm/send-chat-notification', [\App\Http\Controllers\Api\FirebaseApiController::class, 'sendChatNotification']);
+Route::post('/fcm/send-chat', [\App\Http\Controllers\Api\FirebaseApiController::class, 'sendChatNotification']);
+Route::post('/fcm/chat', [\App\Http\Controllers\Api\FirebaseApiController::class, 'sendChatNotification']);
+
+// 5. Broadcast / Group Push Notification
+Route::post('/fcm/send-broadcast', [\App\Http\Controllers\Api\FirebaseApiController::class, 'sendBroadcast']);
+Route::post('/fcm/broadcast', [\App\Http\Controllers\Api\FirebaseApiController::class, 'sendBroadcast']);
+
+// 6. In-App User Notifications Inbox & Mark Read
+Route::get('/notifications', [\App\Http\Controllers\Api\FirebaseApiController::class, 'getMyNotifications']);
+Route::get('/fcm/my-notifications', [\App\Http\Controllers\Api\FirebaseApiController::class, 'getMyNotifications']);
+Route::post('/notifications/read', [\App\Http\Controllers\Api\FirebaseApiController::class, 'markAsRead']);
+Route::post('/fcm/mark-read', [\App\Http\Controllers\Api\FirebaseApiController::class, 'markAsRead']);
+
+// 7. Push Dispatch History Log
+Route::get('/fcm/history', [\App\Http\Controllers\Api\FirebaseApiController::class, 'getHistory']);
+

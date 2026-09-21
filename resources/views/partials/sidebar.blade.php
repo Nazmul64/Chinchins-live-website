@@ -475,6 +475,36 @@
         @endhasPermission
         @endcanAnyPermission
 
+        <!-- Firebase & Push Notifications Management -->
+        <div class="menu-category-title">Push & Notifications</div>
+        <div class="menu-item-group {{ request()->routeIs('admin.firebase.*') ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.firebase.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+                <div class="menu-item-left">
+                    <i class="fa-solid fa-fire" style="color: #f59e0b;"></i>
+                    <span>Firebase Push</span>
+                </div>
+                <i class="fa-solid fa-chevron-right menu-arrow"></i>
+            </button>
+            <div class="submenu" style="{{ request()->routeIs('admin.firebase.*') ? 'display: block;' : '' }}">
+                <a href="{{ route('admin.firebase.apps.index') }}" class="submenu-item {{ request()->routeIs('admin.firebase.apps.*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Firebase Apps</span>
+                </a>
+                <a href="{{ route('admin.firebase.send') }}" class="submenu-item {{ request()->routeIs('admin.firebase.send') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Send Push Notification</span>
+                </a>
+                <a href="{{ route('admin.firebase.history') }}" class="submenu-item {{ request()->routeIs('admin.firebase.history*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Notification History</span>
+                </a>
+                <a href="{{ route('admin.firebase.users') }}" class="submenu-item {{ request()->routeIs('admin.firebase.users*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Users with FCM</span>
+                </a>
+            </div>
+        </div>
+
         <!-- App Debugging & Diagnostics Mode -->
         @php
             $isDebugOn = (bool) \App\Models\AppSetting::get('debug_mode_enabled', '0');
