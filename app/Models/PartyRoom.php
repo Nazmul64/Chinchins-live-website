@@ -175,34 +175,37 @@ class PartyRoom extends Model
     }
 
     /**
-     * Auto initialize empty 10 seats for a newly created room.
+     * Auto initialize seats for a newly created room (Seat 1 = Host, Seats 2..N = Guests).
      */
     public function initializeSeats(): void
     {
         $maxSeats = max(1, min(16, $this->max_seats ?: 10));
+        $hostId = $this->host_id ?: (auth()->check() ? auth()->id() : null);
+
+        $this->seats()->delete();
 
         for ($i = 1; $i <= $maxSeats; $i++) {
             if ($i === 1) {
                 // Seat 1 is always the Host
                 $this->seats()->create([
                     'seat_index' => 1,
-                    'user_id' => $this->host_id,
+                    'user_id' => $hostId,
                     'role' => 'host',
-                    'is_muted' => false,
-                    'is_video_muted' => false,
-                    'is_locked' => false,
+                    'is_muted' => 0,
+                    'is_video_muted' => 0,
+                    'is_locked' => 0,
                     'status' => 'occupied',
                     'joined_at' => now(),
                 ]);
             } else {
-                // Seats 2..10 are empty guest seats
+                // Seats 2..N are empty guest seats
                 $this->seats()->create([
                     'seat_index' => $i,
                     'user_id' => null,
                     'role' => 'guest',
-                    'is_muted' => false,
-                    'is_video_muted' => false,
-                    'is_locked' => false,
+                    'is_muted' => 0,
+                    'is_video_muted' => 0,
+                    'is_locked' => 0,
                     'status' => 'empty',
                 ]);
             }

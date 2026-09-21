@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use Agence104\LiveKit\AccessToken;
 use Agence104\LiveKit\AccessTokenOptions;
 use Agence104\LiveKit\VideoGrant;
+use App\Events\PartyRoomMessageSent;
 use App\Events\SeatUpdatedEvent;
 use App\Http\Controllers\Controller;
 
@@ -350,8 +351,33 @@ class PartyRoomApiController extends Controller
             'started_at' => now(),
         ]);
 
-        // Initialize 10 seats (Seat 1 = Host, Seats 2..10 = Guests)
-        $room->initializeSeats();
+        // Party Room তৈরির ঠিক পর সিট ১-এ হোস্টকে ডিফল্ট বসানো:
+        PartyRoomSeat::create([
+            'party_room_id' => $room->id,
+            'seat_index'    => 1,
+            'user_id'       => auth()->id() ?: $user->id,
+            'role'          => 'host',
+            'is_muted'      => 0,
+            'is_video_muted'=> 0,
+            'is_locked'     => 0,
+            'status'        => 'occupied',
+            'joined_at'     => now(),
+        ]);
+
+        // Initialize remaining guest seats (2..N)
+        $maxSeats = max(1, min(16, (int) ($request->input('max_seats') ?: $settings->max_guests_per_room ?: 10)));
+        for ($i = 2; $i <= $maxSeats; $i++) {
+            PartyRoomSeat::create([
+                'party_room_id'  => $room->id,
+                'seat_index'     => $i,
+                'user_id'        => null,
+                'role'           => 'guest',
+                'is_muted'       => 0,
+                'is_video_muted' => 0,
+                'is_locked'      => 0,
+                'status'         => 'empty',
+            ]);
+        }
 
         // Add Host as Active Member
         PartyRoomMember::updateOrCreate(
@@ -1901,6 +1927,24 @@ class PartyRoomApiController extends Controller
             'message' => $messageText,
             'image_url' => $imagePath,
         ]);
+
+        // ২. চ্যাট মেসেজ রিয়েল-টাইম ব্রডকাস্ট করা (Reverb WebSocket):
+        try {
+            $senderUser = auth()->user() ?: $user;
+            broadcast(new \App\Events\PartyRoomMessageSent($room->id, [
+                'id'         => $msg->id,
+                'user_id'    => auth()->id() ?: $user->id,
+                'user_name'  => $senderUser->display_name ?? $senderUser->name ?? 'User',
+                'avatar'     => $senderUser->avatar ?? $senderUser->avatar_url ?? null,
+                'avatar_url' => $senderUser->avatar_url ?? $senderUser->avatar ?? null,
+                'message'    => $request->message ?? $msg->message,
+                'type'       => $msg->type,
+                'image_url'  => $msg->full_image_url,
+                'created_at' => now()->toDateTimeString(),
+            ]))->toOthers();
+        } catch (\Throwable $e) {
+            Log::warning('Reverb broadcast PartyRoomMessageSent error: ' . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,
