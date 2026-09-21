@@ -30,8 +30,10 @@
 !/public/uploads/my_bag
 !/public/uploads/my_bag/*
 /storage/*.key
-/storage/pail
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
 /vendor
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
