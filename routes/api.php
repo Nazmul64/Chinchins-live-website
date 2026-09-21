@@ -1058,6 +1058,8 @@ Route::prefix('party-rooms')->group(function () {
     Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
     Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
     Route::get('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getSeatRequests']);
+    Route::post('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
+    Route::post('/{id}/seat-requests/respond', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
     Route::post('/{id}/seat-requests/{requestId}/respond', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
     Route::post('/{id}/seat-requests/{requestId}/accept', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
     Route::post('/{id}/seat-requests/{requestId}/reject', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
@@ -1104,6 +1106,8 @@ Route::prefix('party-room')->group(function () {
     Route::post('/{id}/take-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'takeSeat']);
     Route::post('/{id}/request-seat', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
     Route::get('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getSeatRequests']);
+    Route::post('/{id}/seat-requests', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'requestSeat']);
+    Route::post('/{id}/seat-requests/respond', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
     Route::post('/{id}/seat-requests/{requestId}/respond', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
     Route::post('/{id}/seat-requests/{requestId}/accept', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);
     Route::post('/{id}/seat-requests/{requestId}/reject', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'respondSeatRequest']);

@@ -1167,7 +1167,7 @@ class PartyRoomApiController extends Controller
 
         // Broadcast to Host and Room via Reverb
         try {
-            broadcast(new \App\Events\SeatRequestEvent($room->id, [
+            $requestPayload = [
                 'invitation_id' => $invitation->id,
                 'request_id'    => $invitation->id,
                 'user_id'       => $user->id,
@@ -1178,9 +1178,11 @@ class PartyRoomApiController extends Controller
                 'avatar_url'    => $userAvatar,
                 'seat_index'    => $seatIndex,
                 'status'        => 'pending',
-            ]))->toOthers();
+            ];
+            broadcast(new \App\Events\SeatRequestEvent($room->id, $requestPayload))->toOthers();
+            broadcast(new \App\Events\SeatRequestReceivedEvent($room->id, $requestPayload))->toOthers();
         } catch (\Throwable $e) {
-            Log::warning('SeatRequestEvent broadcast failed: ' . $e->getMessage());
+            Log::warning('SeatRequest broadcast failed: ' . $e->getMessage());
         }
 
         return response()->json([
@@ -2146,13 +2148,36 @@ class PartyRoomApiController extends Controller
                 'message' => "🎁 Sent {$count}x {$gift->name} to " . ($receiver->display_name ?? $receiver->name) . "!",
                 'gift_id' => $gift->id,
                 'gift_count' => $count,
-                'coins_amount' => $totalCost,
                 'extra_data' => [
                     'gift_name' => $gift->name,
                     'gift_icon' => $gift->icon_url,
                     'gift_animation' => $gift->animation_url,
                 ],
             ]);
+
+            // Broadcast LiveGiftSentEvent to Room for realtime gift animation
+            try {
+                broadcast(new \App\Events\LiveGiftSentEvent([
+                    'room_name'      => $room->channel_name ?: $room->room_id,
+                    'room_id'        => (string) $room->id,
+                    'party_room_id'  => (string) $room->id,
+                    'sender_id'      => $user->id,
+                    'sender_name'    => $user->display_name ?? $user->name,
+                    'sender_avatar'  => $user->avatar_url ?: ($user->avatar ? User::resolveImageUrl($user->avatar) : null),
+                    'receiver_id'    => $receiver->id,
+                    'receiver_name'  => $receiver->display_name ?? $receiver->name,
+                    'gift_id'        => $gift->id,
+                    'gift_name'      => $gift->name,
+                    'gift_count'     => $count,
+                    'coin_price'     => $gift->coin_price,
+                    'total_coins'    => $totalCost,
+                    'icon_url'       => $gift->icon_url,
+                    'animation_url'  => $gift->animation_url,
+                    'sound_url'      => $gift->sound_url ?? null,
+                ]));
+            } catch (\Throwable $e) {
+                Log::warning('LiveGiftSentEvent broadcast in PartyRoom error: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
