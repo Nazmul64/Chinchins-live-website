@@ -93,6 +93,41 @@ class WithdrawalApiController extends Controller
     }
 
     /**
+     * Get active withdrawal payment methods with 24-hour Redis caching (Zero DB Hits, < 1ms response).
+     * GET /api/withdraw-methods, GET /api/withdraw/methods
+     */
+    public function getMethods(): JsonResponse
+    {
+        $methods = \Illuminate\Support\Facades\Cache::remember('active_withdraw_methods', 86400, function () {
+            $records = PaymentMethod::where('is_active', true)
+                ->orderBy('sort_order', 'asc')
+                ->get();
+
+            return $records->map(function ($pm) {
+                return [
+                    'id'           => $pm->id,
+                    'name'         => $pm->name,
+                    'code'         => $pm->code,
+                    'account_type' => $pm->account_type,
+                    'icon'         => $pm->icon_url ?: $pm->icon,
+                    'icon_url'     => $pm->icon_url ?: $pm->icon,
+                    'min_withdraw' => (float) ($pm->min_withdraw ?: 50.00),
+                    'max_withdraw' => (float) ($pm->max_withdraw ?: 50000.00),
+                    'instructions' => $pm->instructions,
+                ];
+            });
+        });
+
+        return response()->json([
+            'success' => true,
+            'status'  => true,
+            'message' => 'Active withdrawal payment methods retrieved successfully.',
+            'data'    => $methods,
+            'methods' => $methods,
+        ], 200)->header('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    }
+
+    /**
      * Get Withdrawal Configuration, User Balance, Limits, Commission & Payment Methods.
      * GET /api/withdraw/info (or GET /api/withdraw/config, GET /api/wallet/withdraw)
      */

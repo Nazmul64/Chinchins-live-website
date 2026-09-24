@@ -376,3 +376,316 @@ pusher.subscribe(
 }
 ```
 
+---
+
+## ⚡ ৬. জিরো-লেটেন্সি ও হাই-স্পিড এপিআই আর্কিটেকচার (Zero-Latency RESTful APIs)
+
+> **আর্কিটেকচার লক্ষ্য:** রেসপন্স টাইম `< ২০–৩০ms`, নো-ডিবি হিট (২৪ ঘণ্টার Redis ক্যাশ), লাইভকিট ইন-মেমোরি টোকেন জেনারেশন এবং নন-ব্লকিং ব্যাকগ্রাউন্ড কিউ (Queue Worker)।
+
+---
+
+### ৬.১ অল-ইন-ওয়ান গ্লোবাল বুটস্ট্র্যাপ কনফিগ (All-In-One Bootstrap Config)
+অ্যাপ ওপেন করার সময় মাত্র ১টি এপিআই কল দিয়ে পেমেন্ট মেথড, কয়েন প্যাকেজ, গিফট, লেভেল ব্যাজ, ভিআইপি ফ্রেম এবং অ্যাপ সেটিংস রিটার্ন হবে।
+- **Method**: `GET`
+- **URL**: `https://chinchins.live/api/bootstrap-config` (অ্যালিয়াস: `/api/app-config`, `/api/v1/bootstrap`)
+- **Headers**:
+  ```http
+  Accept: application/json
+  ```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "Global bootstrap configuration loaded from memory.",
+  "timestamp": 1727179000,
+  "data": {
+    "payment_methods": [
+      {
+        "id": 1,
+        "name": "bKash Personal",
+        "code": "bkash",
+        "account_type": "Personal",
+        "account_number": "017XXXXXXXX",
+        "icon_url": "https://chinchins.live/uploads/payment_methods/bkash.svg",
+        "rate_coins": 1000,
+        "bonus_coins": 100,
+        "total_coins": 1100,
+        "rate_bdt": 100.00
+      }
+    ],
+    "coin_packages": [
+      {
+        "id": 1,
+        "title": "500 Gems Pack",
+        "coins": 500,
+        "bonus_coins": 50,
+        "total_coins": 550,
+        "price": 50.00,
+        "formatted_price": "৳50",
+        "badge": "Hot Offer",
+        "badge_color": "pink",
+        "icon_url": "https://chinchins.live/uploads/coin_packages/gem_small.svg"
+      }
+    ],
+    "gifts_catalog": [
+      {
+        "id": 31,
+        "name": "Private Jet",
+        "coins": 1200,
+        "coin_price": 1200,
+        "icon_url": "https://chinchins.live/uploads/gifts/icons/jet.svg",
+        "animation_url": "https://chinchins.live/uploads/gifts/animations/jet.svga",
+        "format": "svga",
+        "display_type": "fullscreen",
+        "category": "svip"
+      }
+    ],
+    "level_badges": [
+      {
+        "level": 1,
+        "name": "Charm Lv.1",
+        "required_coins": 0,
+        "icon_url": "https://chinchins.live/uploads/levels/lv1.svg",
+        "badge_color": "#10b981"
+      }
+    ],
+    "vip_frames": [
+      {
+        "id": 1,
+        "name": "Crown VIP",
+        "card_type": "vip_crown",
+        "price": 500.00,
+        "validity_days": 30,
+        "avatar_frame_url": "https://chinchins.live/uploads/vip/frames/crown_frame.svga"
+      }
+    ],
+    "app_settings": {
+      "app_name": "ChinChins Live",
+      "active_streaming_engine": "livekit",
+      "active_calling_engine": "livekit",
+      "livekit_ws_url": "wss://chinchins.live/livekit",
+      "video_call_rate_default": 100,
+      "audio_call_rate_default": 60,
+      "free_call_duration": 30,
+      "currency": "BDT",
+      "currency_symbol": "৳"
+    },
+    "withdrawal_settings": {
+      "is_withdraw_enabled": true,
+      "min_withdraw_coins": 1000,
+      "max_withdraw_coins": 100000,
+      "commission_percent": 5.0,
+      "rate_coins": 100,
+      "rate_bdt": 10.0,
+      "rate_per_bdt": 10.0
+    }
+  }
+}
+```
+
+---
+
+### ৬.২ উইথড্র পেমেন্ট মেথডস ড্রপডাউন এপিআই (Active Withdraw Methods)
+- **Method**: `GET`
+- **URL**: `https://chinchins.live/api/withdraw-methods` (অ্যালিয়াস: `/api/withdraw/methods`)
+- **Headers**:
+  ```http
+  Accept: application/json
+  ```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "Active withdrawal payment methods retrieved successfully.",
+  "data": [
+    {
+      "id": 1,
+      "name": "bKash Personal",
+      "code": "bkash",
+      "account_type": "Personal",
+      "icon_url": "https://chinchins.live/uploads/payment_methods/bkash.svg",
+      "min_withdraw": 50.0,
+      "max_withdraw": 50000.0,
+      "instructions": "Enter your 11-digit bKash personal mobile number."
+    },
+    {
+      "id": 2,
+      "name": "Nagad Personal",
+      "code": "nagad",
+      "account_type": "Personal",
+      "icon_url": "https://chinchins.live/uploads/payment_methods/nagad.svg",
+      "min_withdraw": 50.0,
+      "max_withdraw": 50000.0,
+      "instructions": "Enter your 11-digit Nagad personal mobile number."
+    }
+  ]
+}
+```
+
+---
+
+### ৬.৩ ইউজারের উইথড্র রিকোয়েস্ট সাবমিট এপিআই (Submit Withdraw Request)
+ইউজার কয়েন পরিমাণ, পেমেন্ট মেথড এবং তার ফোন নাম্বার দিয়ে সাবমিট করবে। রিকোয়েস্ট সাবমিট করার সময় ব্যালেন্স পর্যাপ্ত কি না শুধু চেক হবে, কয়েন কাটবে না (`status = pending` থাকবে)। অ্যাডমিন প্যানেল থেকে Approve করার সাথে সাথে অটোমেটিক ইউজারের ওয়ালেট ও কয়েন ব্যালেন্স থেকে কয়েন মাইনাস হবে।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/withdraw/submit` (অ্যালিয়াস: `/api/withdraw`, `/api/withdraw-submit`)
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Content-Type: application/json
+  Accept: application/json
+  ```
+- **Body**:
+```json
+{
+  "coins": 2000,
+  "payment_method": "bkash",
+  "account_number": "01712345678",
+  "account_type": "Personal",
+  "user_note": "Please process fast"
+}
+```
+- **Response (Success - Pending Approval)**:
+```json
+{
+  "status": true,
+  "success": true,
+  "message": "উইথড্র রিকোয়েস্ট সফলভাবে জমা হয়েছে। অ্যাডমিন অ্যাপ্রুভ করলে আপনার অ্যাকাউন্টে টাকা পাঠিয়ে কয়েন কাটা হবে।",
+  "data": {
+    "withdraw_id": 14,
+    "coins": 2000,
+    "formatted_coins": "2,000 Coins",
+    "gross_amount": 200.0,
+    "formatted_gross_amount": "৳200.00",
+    "commission_percent": 5.0,
+    "commission_amount": 10.0,
+    "formatted_commission_amount": "৳10.00 (5%)",
+    "net_payable_amount": 190.0,
+    "formatted_net_payable_amount": "৳190.00",
+    "payment_method": "bKash Personal",
+    "account_number": "01712345678",
+    "account_type": "Personal",
+    "status": "pending",
+    "user_current_coins": 5400
+  }
+}
+```
+- **Response (Error - Insufficient Balance)**:
+```json
+{
+  "status": false,
+  "success": false,
+  "message": "পর্যাপ্ত ব্যালেন্স নেই!"
+}
+```
+
+---
+
+### ৬.৪ ইনস্ট্যান্ট ১-অন-১ অডিও/ভিডিও কল ও লাইভকিট টোকেন (Instant Call Token - < 5ms)
+মেমোরিতে সরাসরি লাইভকিট টোকেন তৈরি করে সাথে সাথে রেসপন্স দেওয়া হয় এবং রিসিভারের ফোনে ব্যাকগ্রাউন্ড কিউতে পুশ নোটিফিকেশন পাঠানো হয়।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/call/instant` (অ্যালিয়াস: `/api/call/make-call`, `/api/make-instant-call`)
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Content-Type: application/json
+  Accept: application/json
+  ```
+- **Body**:
+```json
+{
+  "receiver_id": 102,
+  "call_type": "video",
+  "room_name": "call_video_101_102_1727179000"
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "room_name": "call_video_101_102_1727179000",
+  "channel_name": "call_video_101_102_1727179000",
+  "token": "eyJhbGciOi...",
+  "livekit_token": "eyJhbGciOi...",
+  "livekit_url": "wss://chinchins.live/livekit",
+  "call_id": 85,
+  "call_type": "video"
+}
+```
+
+---
+
+### ৬.৫ জিরো-ল্যাগ গিফট সেন্ড ও রিয়েল-টাইম ব্রডকাস্ট (Send Gift with Atomic Deduct)
+অ্যাটমিক ব্যালেন্স চেক ও ডিডাক্ট, হোস্ট ওয়ালেট ক্রেডিট এবং `toOthers()` দিয়ে সবার স্ক্রিনে রিয়েল-টাইম গিফট অ্যানিমেশন ব্রডকাস্ট।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/gifts/send` (অ্যালিয়াস: `/api/gift/send`)
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Content-Type: application/json
+  Accept: application/json
+  ```
+- **Body**:
+```json
+{
+  "gift_id": 31,
+  "receiver_id": 102,
+  "room_name": "stream_102",
+  "quantity": 1
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "Gift sent successfully!",
+  "remaining_coins": 4200,
+  "remaining_balance": 4200,
+  "data": {
+    "remaining_coins": 4200,
+    "remaining_balance": 4200,
+    "gift_id": 31,
+    "gift_name": "Private Jet",
+    "total_coins": 1200,
+    "icon_url": "https://chinchins.live/uploads/gifts/icons/jet.svg",
+    "animation_url": "https://chinchins.live/uploads/gifts/animations/jet.svga"
+  }
+}
+```
+
+---
+
+### ৬.৬ অ্যাক্টিভ গিফটস ক্যাটালগ এপিআই (Active Gifts Catalog - 24hr Cache)
+- **Method**: `GET`
+- **URL**: `https://chinchins.live/api/gifts` (অ্যালিয়াস: `/api/gifts/catalog`)
+- **Headers**:
+  ```http
+  Accept: application/json
+  ```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "Active gifts catalog loaded from cache.",
+  "data": [
+    {
+      "id": 31,
+      "name": "Private Jet",
+      "coins": 1200,
+      "coin_price": 1200,
+      "icon_url": "https://chinchins.live/uploads/gifts/icons/jet.svg",
+      "image_url": "https://chinchins.live/uploads/gifts/icons/jet.svg",
+      "animation_url": "https://chinchins.live/uploads/gifts/animations/jet.svga",
+      "format": "svga",
+      "display_type": "fullscreen",
+      "category": "svip"
+    }
+  ]
+}
+```
+
+

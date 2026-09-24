@@ -273,6 +273,8 @@ Route::get('/wallet/deposits', [PaymentController::class, 'getDepositHistory']);
 // ==========================================
 // 💸 Coin Withdrawal & Cash Out APIs
 // ==========================================
+Route::get('/withdraw-methods', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getMethods']);
+Route::get('/withdraw/methods', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getMethods']);
 Route::get('/withdraw/info', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
 Route::get('/withdraw/config', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
 Route::get('/withdraw/settings', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
@@ -286,6 +288,8 @@ Route::post('/withdraw/preview', [\App\Http\Controllers\Api\WithdrawalApiControl
 Route::post('/withdrawals/calculate', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'calculate']);
 
 Route::post('/withdraw/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::post('/withdraw-submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::post('/withdraw', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::post('/withdraw/request', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::post('/withdraw/create', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
 Route::post('/withdrawals/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
@@ -337,10 +341,12 @@ Route::prefix('call')->group(function () {
     Route::match(['get', 'post'], '/check-balance', [CallController::class, 'checkPermission']);
     Route::match(['get', 'post'], '/verify-balance', [CallController::class, 'checkPermission']);
 
-    // Call Signaling & Ringing Lifecycle (< 15ms makeCall)
+    // Call Signaling & Ringing Lifecycle (< 15ms makeCall & makeInstantCall)
     Route::post('/make-call', [CallController::class, 'makeCall']);
     Route::post('/make_call', [CallController::class, 'makeCall']);
     Route::post('/start-call', [CallController::class, 'makeCall']);
+    Route::post('/instant', [CallController::class, 'makeInstantCall']);
+    Route::post('/make-instant-call', [CallController::class, 'makeInstantCall']);
     Route::post('/initiate', [CallController::class, 'initiate']);
     Route::match(['get', 'post'], '/incoming', [CallController::class, 'checkIncoming']);
     Route::match(['get', 'post'], '/check-incoming', [CallController::class, 'checkIncoming']);

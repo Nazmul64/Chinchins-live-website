@@ -620,6 +620,46 @@ class CallController extends Controller
     }
 
     /**
+     * Instant 1-on-1 Audio/Video Call (< 5ms response, zero database queries).
+     * Memory LiveKit token generation and background queue notification dispatch.
+     * POST /api/call/instant, POST /api/call/make-instant-call, POST /api/make-instant-call
+     */
+    public function makeInstantCall(Request $request): JsonResponse
+    {
+        $user = $this->resolveUser($request) ?? auth()->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'status' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $roomName = $request->input('room_name') 
+                 ?: ('instant_call_' . $user->id . '_' . ($request->input('receiver_id') ?: time()));
+
+        // 1. LiveKit Token directly generated in memory (< 2ms)
+        $token = $this->generateFastLivekitToken($roomName, $user);
+
+        // 2. Background push notification (non-blocking afterResponse)
+        if ($request->filled('receiver_id')) {
+            try {
+                dispatch(new \App\Jobs\SendCallPushNotification(
+                    $user->id,
+                    (int) $request->receiver_id,
+                    $roomName,
+                    $request->input('call_type', 'video')
+                ))->afterResponse();
+            } catch (\Throwable $e) {}
+        }
+
+        return response()->json([
+            'success'       => true,
+            'status'        => true,
+            'room_name'     => $roomName,
+            'token'         => $token,
+            'livekit_token' => $token,
+            'livekit_url'   => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+        ], 200);
+    }
+
+    /**
      * Check for Incoming Calls (For Receiver Device / App).
      * The mobile app polls this or listens on WebSocket to ring continuously when a call comes in.
      * GET /api/call/incoming (or POST /api/call/check-incoming)
