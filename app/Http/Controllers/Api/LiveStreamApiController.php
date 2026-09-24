@@ -828,9 +828,8 @@ class LiveStreamApiController extends Controller
         ];
 
         try {
-            // Broadcast without suppression to ensure both sender and receiver devices receive chat updates
-            event(new LiveChatMessageEvent($roomId, $messagePayload));
-            event(new LiveMessageSent($roomId, $messagePayload));
+            // Broadcast with toOthers() to eliminate duplicate chat message echoes
+            broadcast(new LiveChatMessageEvent($roomId, $messagePayload))->toOthers();
         } catch (\Throwable $e) {}
 
         return response()->json([

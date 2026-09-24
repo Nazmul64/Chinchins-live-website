@@ -198,11 +198,9 @@ class InCallApiController extends Controller
             ],
         ];
 
-        // 3. Broadcast real-time Reverb events to BOTH parties (no suppression)
+        // 3. Broadcast real-time Reverb event to peer with toOthers() to eliminate duplicate echo
         try {
-            event(new MessageSentEvent($message));
-            event(new \App\Events\CallMessageSent($callSessionId, $msgData));
-            event(new \App\Events\CallMessageEvent($callSessionId, $msgData));
+            broadcast(new \App\Events\CallMessageSent($callSessionId, $msgData))->toOthers();
 
             // Also save CallSignal for devices polling signaling table
             \App\Models\CallSignal::create([

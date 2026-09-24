@@ -938,7 +938,6 @@ class PartyRoomApiController extends Controller
 
         try {
             broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
-            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
         } catch (\Throwable $e) {
             Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
         }
@@ -1083,7 +1082,6 @@ class PartyRoomApiController extends Controller
         // Broadcast SeatUpdatedEvent in real time via Reverb
         try {
             broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
-            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
         } catch (\Throwable $e) {
             Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
         }
@@ -1406,7 +1404,6 @@ class PartyRoomApiController extends Controller
 
         try {
             broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
-            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
         } catch (\Throwable $e) {
             Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
         }
@@ -1492,7 +1489,6 @@ class PartyRoomApiController extends Controller
 
         try {
             broadcast(new SeatUpdatedEvent($room->id, $payload))->toOthers();
-            broadcast(new SeatUpdatedEvent($room->id, $payload));
         } catch (\Throwable $e) {
             Log::warning('SeatUpdatedEvent speaking broadcast failed: ' . $e->getMessage());
         }
@@ -1559,7 +1555,6 @@ class PartyRoomApiController extends Controller
 
         try {
             broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
-            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -1638,7 +1633,6 @@ class PartyRoomApiController extends Controller
         // Broadcast SeatUpdatedEvent in real time via Reverb
         try {
             broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
-            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
         } catch (\Throwable $e) {
             Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
         }
@@ -1739,7 +1733,6 @@ class PartyRoomApiController extends Controller
 
         try {
             broadcast(new SeatUpdatedEvent($room->id, $seatPayload))->toOthers();
-            broadcast(new SeatUpdatedEvent($room->id, $seatPayload));
         } catch (\Throwable $e) {
             Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
         }

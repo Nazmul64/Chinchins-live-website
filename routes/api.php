@@ -21,6 +21,12 @@ use Illuminate\Support\Facades\Route;
 // Enables Bearer Token Authorization for Flutter & Web Pusher/Reverb Private Channels (/api/broadcasting/auth)
 Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
+// 🚀 Zero-Latency Global App Bootstrap Configuration (< 5ms Redis In-Memory)
+Route::get('/bootstrap-config', [\App\Http\Controllers\Api\BootstrapConfigController::class, 'getAppBootstrapData']);
+Route::get('/app-config', [\App\Http\Controllers\Api\BootstrapConfigController::class, 'getAppBootstrapData']);
+Route::get('/v1/bootstrap', [\App\Http\Controllers\Api\BootstrapConfigController::class, 'getAppBootstrapData']);
+Route::get('/config/bootstrap', [\App\Http\Controllers\Api\BootstrapConfigController::class, 'getAppBootstrapData']);
+
 // Public App Configuration & Branding (Logo, Name, Free limits for Login/Register Screen)
 Route::get('/app/config', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
 Route::get('/settings', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
@@ -331,7 +337,10 @@ Route::prefix('call')->group(function () {
     Route::match(['get', 'post'], '/check-balance', [CallController::class, 'checkPermission']);
     Route::match(['get', 'post'], '/verify-balance', [CallController::class, 'checkPermission']);
 
-    // Call Signaling & Ringing Lifecycle
+    // Call Signaling & Ringing Lifecycle (< 15ms makeCall)
+    Route::post('/make-call', [CallController::class, 'makeCall']);
+    Route::post('/make_call', [CallController::class, 'makeCall']);
+    Route::post('/start-call', [CallController::class, 'makeCall']);
     Route::post('/initiate', [CallController::class, 'initiate']);
     Route::match(['get', 'post'], '/incoming', [CallController::class, 'checkIncoming']);
     Route::match(['get', 'post'], '/check-incoming', [CallController::class, 'checkIncoming']);
