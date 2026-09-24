@@ -25,8 +25,11 @@ class BootstrapConfigController extends Controller
     public function getAppBootstrapData(Request $request): JsonResponse
     {
         $data = Cache::remember('app_global_bootstrap_config', 86400, function () {
-            // 1. Payment Methods (bKash, Nagad, Rocket, Google Play, etc.)
+            // 1. Payment Methods (bKash, Nagad, Rocket, Upay, etc. - Google Play Excluded)
             $paymentMethods = PaymentMethod::where('is_active', true)
+                ->whereNotIn('code', ['google_play', 'google_pay', 'in_app_purchase', 'play_store', 'google'])
+                ->where('name', 'not like', '%google%')
+                ->where('name', 'not like', '%play store%')
                 ->orderBy('sort_order', 'asc')
                 ->get()
                 ->map(function ($pm) {

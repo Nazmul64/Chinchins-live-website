@@ -103,6 +103,9 @@ class PaymentController extends Controller
     {
         $data = \Illuminate\Support\Facades\Cache::remember('api_payment_methods_full', 3600, function () {
             $methods = PaymentMethod::where('is_active', true)
+                ->whereNotIn('code', ['google_play', 'google_pay', 'in_app_purchase', 'play_store', 'google'])
+                ->where('name', 'not like', '%google%')
+                ->where('name', 'not like', '%play store%')
                 ->orderBy('sort_order')
                 ->get()
                 ->map(function ($pm) {

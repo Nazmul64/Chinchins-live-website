@@ -329,14 +329,32 @@ class LivePrivateCallApiController extends Controller
 
         // Check if caller has enough coins for the upcoming minute
         if ($caller->coins < $ratePerMinute) {
+            $call->update([
+                'status'   => 'ended',
+                'ended_at' => now(),
+            ]);
+
+            try {
+                broadcast(new PrivateCallEndedEvent($call->caller_id, $call->receiver_id, [
+                    'call_id'           => $call->id,
+                    'reason'            => 'insufficient_coins',
+                    'duration_seconds'  => (int) $call->duration_seconds,
+                    'coins_deducted'    => (int) $call->coins_deducted,
+                    'host_earned_coins' => (int) $call->host_earned_coins,
+                    'ended_at'          => now()->toIso8601String(),
+                ]));
+            } catch (\Throwable $e) {}
+
             return response()->json([
-                'success'       => false,
-                'status'        => false,
-                'code'          => 'INSUFFICIENT_COINS',
-                'message'       => 'ইউজারের কয়েন শেষ হয়ে গেছে! কল বন্ধ হচ্ছে।',
-                'should_end'    => true,
-                'current_coins' => (int) $caller->coins,
-            ], 400);
+                'success'        => false,
+                'status'         => false,
+                'code'           => 'INSUFFICIENT_COINS',
+                'action'         => 'TERMINATE_CALL',
+                'should_end'     => true,
+                'message'        => 'ইউজারের কয়েন শেষ হয়ে গেছে! কল বন্ধ করা হয়েছে।',
+                'current_coins'  => (int) $caller->coins,
+                'required_coins' => $ratePerMinute,
+            ], 402);
         }
 
         // DB Transaction: Deduct caller coins, split between Admin & Host

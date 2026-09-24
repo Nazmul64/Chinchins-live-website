@@ -152,6 +152,13 @@ Route::get('/profile/visitors', [\App\Http\Controllers\Api\MessageApiController:
 Route::get('/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
 Route::get('/user/visitors', [\App\Http\Controllers\Api\MessageApiController::class, 'getVisitors']);
 
+// User Profile Routes (Explicit Aliases for Flutter & Web)
+Route::get('/user/profile', [ProfileController::class, 'show']);
+Route::get('/user/me', [ProfileController::class, 'show']);
+Route::get('/user/info', [ProfileController::class, 'show']);
+Route::get('/profile', [ProfileController::class, 'show']);
+Route::get('/me', [ProfileController::class, 'show']);
+
 // Public User Profile Route (view any profile by 8-digit Account ID or primary key ID)
 Route::get('/profile/{id}', [ProfileController::class, 'show']);
 

@@ -54,6 +54,9 @@ class CommonDataController extends Controller
     {
         $gateways = Cache::remember('payment_gateways_list', 86400, function () {
             return PaymentMethod::where('is_active', true)
+                ->whereNotIn('code', ['google_play', 'google_pay', 'in_app_purchase', 'play_store', 'google'])
+                ->where('name', 'not like', '%google%')
+                ->where('name', 'not like', '%play store%')
                 ->orderBy('sort_order')
                 ->get()
                 ->map(function ($pm) {

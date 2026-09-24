@@ -480,10 +480,38 @@ class ProfileController extends Controller
         $onlineStatus = $isLive ? 'in_live' : ($user->current_status ?? $user->online_status ?? ($user->is_online ? 'online' : 'offline'));
         $canCall = !$isLive && $user->is_online && !$user->is_busy;
 
+        $realCoins = (int) ($user->coins ?? 0);
+        $realDiamonds = (int) ($user->received_coins ?? $user->diamonds ?? 0);
+        $realLikesReceived = (int) $totalLikes;
+        $videoRate = (int) ($user->video_call_rate ?: 100);
+
+        $freshUser = $user->fresh();
+        $userArray = $freshUser ? $freshUser->toArray() : $user->toArray();
+        $userArray['coins'] = $realCoins;
+        $userArray['diamonds'] = $realDiamonds;
+        $userArray['received_coins'] = $realDiamonds;
+        $userArray['likes_received'] = $realLikesReceived;
+        $userArray['followers_count'] = $followersCount;
+        $userArray['following_count'] = $followingCount;
+        $userArray['my_gems'] = $realCoins;
+        $userArray['gems'] = $realCoins;
+        $userArray['beans'] = $realDiamonds;
+        $userArray['beans_central'] = $realDiamonds;
+
         return response()->json([
             'status' => true,
             'data'   => [
-                'user'                  => $user->fresh(),
+                'user'                  => $userArray,
+                'coins'                 => $realCoins,
+                'diamonds'              => $realDiamonds,
+                'received_coins'        => $realDiamonds,
+                'likes_received'        => $realLikesReceived,
+                'followers_count'       => $followersCount,
+                'following_count'       => $followingCount,
+                'my_gems'               => $realCoins,
+                'gems'                  => $realCoins,
+                'beans'                 => $realDiamonds,
+                'beans_central'         => $realDiamonds,
                 'is_live'               => $isLive,
                 'online_status'         => $onlineStatus,
                 'current_status'        => $onlineStatus,
@@ -505,8 +533,6 @@ class ProfileController extends Controller
                     'status'          => 'live',
                 ] : null,
                 'is_following'          => $isFollowing,
-                'followers_count'       => $followersCount,
-                'following_count'       => $followingCount,
                 'interest_tags'         => $user->interest_tags,
                 'speaking_languages'    => $user->speaking_languages,
                 'country'               => $user->country ?: 'Pakistan',
@@ -520,17 +546,14 @@ class ProfileController extends Controller
                 'video_call_rate_text'  => $videoRate . '/min',
                 'i_like'                => $iLikeCount,
                 'i_like_count'          => $iLikeCount,
-                'like_me'               => $totalLikes,
-                'like_me_count'         => $totalLikes,
-                'my_gems'               => $gemsBalance,
-                'gems'                  => $gemsBalance,
-                'beans'                 => $beansBalance,
-                'beans_central'         => $beansBalance,
+                'like_me'               => $realLikesReceived,
+                'like_me_count'         => $realLikesReceived,
                 'likes'                 => [
-                    'total_likes'     => $totalLikes,
-                    'formatted_likes' => Gift::formatCoins($totalLikes),
+                    'total_likes'     => $realLikesReceived,
+                    'formatted_likes' => Gift::formatCoins($realLikesReceived),
                     'i_like'          => $iLikeCount,
-                    'like_me'         => $totalLikes,
+                    'like_me'         => $realLikesReceived,
+                    'likes_received'  => $realLikesReceived,
                 ],
                 'close_friends'         => [
                     'current' => 0,

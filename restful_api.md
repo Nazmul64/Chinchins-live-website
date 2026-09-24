@@ -1110,6 +1110,133 @@ pusher.subscribe(
 }
 ```
 
+---
+
+## 💎 ১০. পার্ট ২: রিয়েল ইউজার ডাটা, পেমেন্ট ফিল্টারিং ও লাইভ কল টার্মিনেশন (Part 2 Requirements)
+
+---
+
+### ১০.১ রিয়েল ইউজার প্রোফাইল এপিআই (Real User Profile API)
+এই এপিআই ইউজারের ডাটাবেজের সরাসরি প্রকৃত `coins`, `diamonds` (`received_coins`), `likes_received`, এবং `following_count` রিটার্ন করে। এতে ফ্রন্টএন্ডে কোনো ডামি লাইক বা ৪১০ জেমস শো করতে হবে না।
+- **Method**: `GET`
+- **URL**: `https://chinchins.live/api/user/profile` (অ্যালিয়াস: `/api/profile/me`, `/api/user/me`, `/api/profile/{id}`)
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Accept: application/json
+  ```
+- **Response**:
+```json
+{
+  "status": true,
+  "data": {
+    "user": {
+      "id": 101,
+      "account_id": "84920183",
+      "name": "Nazmul",
+      "display_name": "Nazmul",
+      "coins": 4500,
+      "diamonds": 1200,
+      "received_coins": 1200,
+      "likes_received": 350,
+      "followers_count": 85,
+      "following_count": 14,
+      "level": "Lv3",
+      "charm_level": "Charm 2",
+      "avatar": "https://chinchins.live/uploads/avatars/u101.jpg"
+    },
+    "coins": 4500,
+    "diamonds": 1200,
+    "received_coins": 1200,
+    "likes_received": 350,
+    "followers_count": 85,
+    "following_count": 14,
+    "my_gems": 4500,
+    "gems": 4500,
+    "beans": 1200,
+    "is_live": false,
+    "online_status": "online"
+  }
+}
+```
+
+---
+
+### ১০.২ অ্যাক্টিভ পেমেন্ট মেথডস এপিআই (Active Payment Methods - No Google Play)
+ডাটাবেসে যেসব মেথডের `is_active = 1` আছে শুধু সেগুলি রিটার্ন হয় (যেমন: bKash, Nagad, Rocket, Upay)। Google Play কে সম্পূর্ণভাবে বাদ দেওয়া হয়েছে।
+- **Method**: `GET`
+- **URL**: `https://chinchins.live/api/payment-methods` (অ্যালিয়াস: `/api/payment/gateways`, `/api/deposit/methods`)
+- **Headers**:
+  ```http
+  Accept: application/json
+  ```
+- **Response**:
+```json
+{
+  "status": true,
+  "message": "Payment methods retrieved successfully.",
+  "reseller_enabled": true,
+  "reseller_badge": "Up To 29%↑",
+  "active_resellers_count": 3,
+  "data": [
+    {
+      "id": 1,
+      "name": "bKash Personal",
+      "code": "bkash",
+      "account_type": "Personal",
+      "account_number": "017XXXXXXXX",
+      "icon": "https://chinchins.live/assets/images/bkash.png",
+      "rate_coins": 1000,
+      "bonus_coins": 100,
+      "total_coins": 1100,
+      "rate_bdt": 100.00,
+      "price": 100.00,
+      "formatted_price": "৳100",
+      "badge": "Popular",
+      "bonus_text": "+100 Bonus"
+    },
+    {
+      "id": 2,
+      "name": "Nagad Personal",
+      "code": "nagad",
+      "account_type": "Personal",
+      "account_number": "019XXXXXXXX",
+      "icon": "https://chinchins.live/assets/images/nagad.png",
+      "rate_coins": 1000,
+      "bonus_coins": 100,
+      "total_coins": 1100,
+      "rate_bdt": 100.00,
+      "price": 100.00,
+      "formatted_price": "৳100",
+      "badge": "Fast",
+      "bonus_text": "+100 Bonus"
+    }
+  ]
+}
+```
+
+---
+
+### ১০.৩ ১-মিনিট বিলিং ও অটো-টার্মিনেশন কোড (Live Private Call Auto-Termination)
+লাইভ স্ট্রিম চলাকালীন প্রাইভেট কলের প্রতি ৬০ সেকেন্ড বিলিংয়ের সময় ইউজারের পর্যাপ্ত কয়েন না থাকলে এপিআই স্বয়ংক্রিয়ভাবে কলটি `ended` করে এবং টার্মিনেশন কোড রিটার্ন করে।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/private-call/billing-pulse`
+- **Response (কয়েন শেষ হলে - 402 Payment Required)**:
+```json
+{
+  "success": false,
+  "status": false,
+  "code": "INSUFFICIENT_COINS",
+  "action": "TERMINATE_CALL",
+  "should_end": true,
+  "message": "ইউজারের কয়েন শেষ হয়ে গেছে! কল বন্ধ করা হয়েছে।",
+  "current_coins": 20,
+  "required_coins": 100
+}
+```
+- **Websocket Broadcast on Call End:** `private_call.ended` (সরাসরি কলার ও হোস্ট উভয়কে নোটিফাই করে হোস্টের লাইভ ক্যামেরা স্ট্রিম রিস্টোর করা হয়)।
+
+
 
 
 
