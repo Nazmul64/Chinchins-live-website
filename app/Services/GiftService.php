@@ -113,6 +113,24 @@ class GiftService
             if (!empty($roomId)) {
                 try {
                     broadcast(new LiveGiftSentEvent($roomId, $broadcastPayload))->toOthers();
+
+                    // 🌟 Broadcast Global Top Banner Sliding Alert for Room
+                    $receiverUser = User::find($data['receiver_id']);
+                    broadcast(new \App\Events\GlobalTopGiftBannerEvent($roomId, [
+                        'sender_id'        => $sender->id,
+                        'sender_name'      => $sender->display_name ?? $sender->name,
+                        'sender_avatar'    => $sender->avatar_url,
+                        'receiver_id'      => $data['receiver_id'],
+                        'receiver_name'    => $receiverUser?->display_name ?? $receiverUser?->name ?? 'Host',
+                        'receiver_avatar'  => $receiverUser?->avatar_url,
+                        'gift_id'          => $gift->id,
+                        'gift_name'        => $gift->name ?? 'Coins',
+                        'gift_icon'        => $gift->icon_url ?? asset('assets/coin.png'),
+                        'animation_url'    => $gift->animation_url ?? $gift->animation_asset_url,
+                        'amount'           => $totalCost,
+                        'quantity'         => $quantity,
+                        'banner_duration'  => 4,
+                    ]))->toOthers();
                 } catch (\Throwable $e) {}
             }
 

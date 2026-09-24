@@ -558,6 +558,40 @@ Route::prefix('v1/stream')->group(function () {
     Route::post('/kick-guest', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
 });
 
+// ==========================================
+// 🔴 Live Stream 1-on-1 Private Call, PK Battle & Global Banner APIs
+// ==========================================
+Route::prefix('live/private-call')->group(function () {
+    Route::post('/initiate', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'initiateCall']);
+    Route::post('/start', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'initiateCall']);
+    Route::post('/request', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'initiateCall']);
+    Route::post('/accept', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'acceptCall']);
+    Route::post('/reject', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'rejectCall']);
+    Route::post('/billing-pulse', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'billingPulse']);
+    Route::post('/deduct', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'billingPulse']);
+    Route::post('/end', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'endCall']);
+});
+
+Route::post('/live-stream/private-call/initiate', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'initiateCall']);
+Route::post('/live-stream/private-call/accept', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'acceptCall']);
+Route::post('/live-stream/private-call/reject', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'rejectCall']);
+Route::post('/live-stream/private-call/billing-pulse', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'billingPulse']);
+Route::post('/live-stream/private-call/deduct', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'billingPulse']);
+Route::post('/live-stream/private-call/end', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'endCall']);
+
+Route::prefix('live/pk')->group(function () {
+    Route::post('/invite', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'invitePK']);
+    Route::post('/respond', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'respondPK']);
+    Route::post('/accept', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'respondPK']);
+    Route::post('/reject', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'respondPK']);
+    Route::post('/score', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'updatePKScore']);
+    Route::post('/end', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'endPK']);
+});
+
+Route::post('/live/gift-banner/broadcast', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'broadcastGiftBanner']);
+Route::post('/live/top-banner/broadcast', [\App\Http\Controllers\Api\LivePrivateCallApiController::class, 'broadcastGiftBanner']);
+
+
 Route::prefix('v1/live')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
     Route::get('/active-streams', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);

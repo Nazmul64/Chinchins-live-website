@@ -752,5 +752,364 @@ pusher.subscribe(
 }
 ```
 
+---
+
+## ⚡ ৭. লাইভ স্ট্রিম চলাকালীন হোস্টকে ১-অন-১ প্রাইভেট পেইড কলিং ও গ্লোবাল ব্যানার (Live Stream Private Calling & Features)
+
+---
+
+### ৭.১ লাইভ হোস্টকে ১-অন-১ প্রাইভেট কল শুরু (Initiate Private Call)
+ইউজার লাইভ স্ট্রিমে থাকা অবস্থায় হোস্টকে ১-অন-১ পেইড প্রাইভেট ভিডিও কল দেওয়ার জন্য এটি কল করবে। ইউজারের ব্যালেন্স চেক হবে (কমপক্ষে ১ মিনিটের কয়েন থাকা বাধ্যতামূলক)। কলটি শুধুমাত্র হোস্টের প্রাইভেট সকেটে যাবে (`private_call.incoming`), লাইভের অন্যান্য দর্শকরা কিছুই দেখতে পাবে না।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/private-call/initiate` (অ্যালিয়াস: `/api/live/private-call/start`)
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Content-Type: application/json
+  Accept: application/json
+  ```
+- **Body**:
+```json
+{
+  "host_id": 102,
+  "live_stream_id": 45,
+  "call_type": "video"
+}
+```
+- **Response (কয়েন পর্যাপ্ত থাকলে - Success 200)**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "Private call initiated. Host has been alerted privately.",
+  "call_id": 98,
+  "room_name": "private_call_101_102_1727181000",
+  "channel_name": "private_call_101_102_1727181000",
+  "token": "eyJhbGciOi...",
+  "livekit_token": "eyJhbGciOi...",
+  "livekit_url": "wss://chinchins.live/livekit",
+  "rate_per_minute": 100,
+  "caller_coins": 4500,
+  "host": {
+    "id": 102,
+    "account_id": "83749201",
+    "display_name": "Ayesha Khan",
+    "avatar_url": "https://chinchins.live/uploads/avatars/host102.jpg"
+  }
+}
+```
+- **Response (কয়েন অপর্যাপ্ত থাকলে - Error 400)**:
+```json
+{
+  "success": false,
+  "status": false,
+  "code": "INSUFFICIENT_COINS",
+  "message": "পর্যাপ্ত কয়েন নেই! কমপক্ষে ১ মিনিটের কয়েন প্রয়োজন।",
+  "required_coins": 100,
+  "current_coins": 40,
+  "redirect_url": "/deposit"
+}
+```
+
+---
+
+### ৭.২ হোস্ট কর্তৃক প্রাইভেট কল একসেপ্ট (Host Accepts Private Call)
+হোস্ট ডায়ালগে একসেপ্ট বাটনে চাপ দিলে হোস্টের জন্য লাইভকিট টোকেন তৈরি হবে। হোস্টের ভিডিও ক্যামেরা স্ট্রিম সাময়িকভাবে মিউট/ব্ল্যাক/পজ হবে কিন্তু লাইভ স্ট্রিম কাটবে না।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/private-call/accept`
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Content-Type: application/json
+  Accept: application/json
+  ```
+- **Body**:
+```json
+{
+  "call_id": 98
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "Call accepted. Camera stream paused on public live stream.",
+  "call_id": 98,
+  "room_name": "private_call_101_102_1727181000",
+  "token": "eyJhbGciOi...",
+  "livekit_token": "eyJhbGciOi...",
+  "livekit_url": "wss://chinchins.live/livekit"
+}
+```
+
+---
+
+### ৭.৩ হোস্ট কর্তৃক প্রাইভেট কল রিজেক্ট (Host Rejects Private Call)
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/private-call/reject`
+- **Body**:
+```json
+{
+  "call_id": 98,
+  "reason": "host_busy"
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "Call rejected.",
+  "call_id": 98
+}
+```
+
+---
+
+### ৭.৪ প্রতি মিনিটে কয়েন ডিডাক্ট ও রেভিনিউ শেয়ারিং (60s Billing Pulse)
+কল কানেক্ট থাকা অবস্থায় ক্লায়েন্ট প্রতি ৬০ সেকেন্ড পরপর এই এপিআই কল করবে। ইউজারের কয়েন কাটা হবে এবং এডমিন কমিশন ও হোস্ট আর্নিং স্বয়ংক্রিয়ভাবে ভাগ হয়ে যাবে। কয়েন শেষ হয়ে গেলে কল অটো কাটবে।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/private-call/billing-pulse` (অ্যালিয়াস: `/api/live/private-call/deduct`)
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Content-Type: application/json
+  Accept: application/json
+  ```
+- **Body**:
+```json
+{
+  "call_id": 98
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "1-minute billing pulse processed successfully.",
+  "data": {
+    "caller_id": 101,
+    "host_id": 102,
+    "coins_deducted": 100,
+    "host_earned_coins": 50,
+    "admin_earn": 50,
+    "caller_coins": 4400,
+    "total_duration": 60
+  }
+}
+```
+
+---
+
+### ৭.৫ প্রাইভেট কল সমাপ্তকরণ (End Private Call)
+কল শেষ হলে হোস্টের ক্যামেরা আবার পাবলিক লাইভ স্ট্রিমে স্মুথলি চালু হবে।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/private-call/end`
+- **Body**:
+```json
+{
+  "call_id": 98,
+  "duration_seconds": 180
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "Private call ended. Live stream video resumed.",
+  "data": {
+    "call_id": 98,
+    "duration_seconds": 180,
+    "coins_deducted": 300,
+    "host_earned_coins": 150,
+    "ended_at": "2026-09-24T18:45:00Z"
+  }
+}
+```
+
+---
+
+## 🌟 ৮. গ্লোবাল টপ ব্যানার ব্রডকাস্ট (Global Top Sliding Gift/Coin Banner)
+
+লাইভে কোনো বড় গিফট বা কয়েন দেওয়া হলে তা সবার স্ক্রিনের শীর্ষে ৩–৪ সেকেন্ডের জন্য অ্যানিমেশন সহ স্লাইড করে আসবে:
+`[Sender Avatar] Sender Name ➔ Receiver Name [Gift Icon x Count]`
+
+- **Websocket Event:** `global.top_gift_banner`
+- **Channel:** `live-stream.{roomId}`, `presence-stream.{roomId}`, `global-alerts`
+- **Custom Broadcast Endpoint**: `POST https://chinchins.live/api/live/gift-banner/broadcast`
+- **Body**:
+```json
+{
+  "room_name": "stream_102",
+  "receiver_id": 102,
+  "gift_id": 31,
+  "amount": 1200,
+  "quantity": 1
+}
+```
+- **Websocket Payload Structure**:
+```json
+{
+  "event": "global.top_gift_banner",
+  "room_name": "stream_102",
+  "sender_id": 101,
+  "sender_name": "Nazmul",
+  "sender_avatar": "https://chinchins.live/uploads/avatars/u101.jpg",
+  "receiver_id": 102,
+  "receiver_name": "Ayesha Khan",
+  "receiver_avatar": "https://chinchins.live/uploads/avatars/host102.jpg",
+  "gift_id": 31,
+  "gift_name": "Private Jet",
+  "gift_icon": "https://chinchins.live/uploads/gifts/icons/jet.svg",
+  "animation_url": "https://chinchins.live/uploads/gifts/animations/jet.svga",
+  "amount": 1200,
+  "quantity": 1,
+  "display_type": "top_banner",
+  "banner_duration": 4
+}
+```
+
+---
+
+## ⚔️ ৯. পিকে ব্যাটল ও স্প্লিট স্ক্রিন গ্রিড (PK Battle & Split Screen)
+
+---
+
+### ৯.১ পিকে ইনভাইট পাঠানো (Invite Host to PK Battle)
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/pk/invite`
+- **Body**:
+```json
+{
+  "target_host_id": 105,
+  "room_id": "stream_102",
+  "duration_seconds": 180
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "PK battle invitation sent to host.",
+  "data": {
+    "pk_id": "pk_1727181000_892",
+    "inviter_id": 102,
+    "inviter_name": "Ayesha Khan",
+    "inviter_avatar": "https://chinchins.live/uploads/avatars/host102.jpg",
+    "inviter_room_id": "stream_102",
+    "target_host_id": 105,
+    "duration_seconds": 180
+  }
+}
+```
+
+---
+
+### ৯.২ পিকে রেসপন্ড / শুরু (Accept PK & Start Split Screen)
+হোস্ট একসেপ্ট করলে ২ জনের মাঝখানে **'VS'** বা **'PK'** লোগো সহ স্প্লিট বক্স গ্রিড হবে এবং টাইমার চালু হবে।
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/pk/respond` (বা `/api/live/pk/accept`)
+- **Body**:
+```json
+{
+  "pk_id": "pk_1727181000_892",
+  "action": "accept",
+  "inviter_id": 102,
+  "inviter_name": "Ayesha Khan",
+  "inviter_avatar": "https://chinchins.live/uploads/avatars/host102.jpg",
+  "inviter_room_id": "stream_102",
+  "target_room_id": "stream_105",
+  "duration_seconds": 180
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "PK battle started with split screen layout.",
+  "data": {
+    "pk_id": "pk_1727181000_892",
+    "status": "active",
+    "duration_seconds": 180,
+    "host1_id": 102,
+    "host1_name": "Ayesha Khan",
+    "host1_avatar": "https://chinchins.live/uploads/avatars/host102.jpg",
+    "host1_score": 0,
+    "host2_id": 105,
+    "host2_name": "Tania",
+    "host2_avatar": "https://chinchins.live/uploads/avatars/host105.jpg",
+    "host2_score": 0,
+    "started_at": "2026-09-24T18:45:00Z"
+  }
+}
+```
+
+---
+
+### ৯.৩ পিকে স্কোর আপডেট (Update PK Score upon Gift)
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/pk/score`
+- **Body**:
+```json
+{
+  "pk_id": "pk_1727181000_892",
+  "room_id": "stream_102",
+  "host1_score": 1500,
+  "host2_score": 800
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "PK scores updated.",
+  "data": {
+    "pk_id": "pk_1727181000_892",
+    "host1_score": 1500,
+    "host2_score": 800
+  }
+}
+```
+
+---
+
+### ৯.৪ পিকে সমাপ্তকরণ ও বিজয়ী ঘোষণা (End PK Battle & Winner Announcement)
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/live/pk/end`
+- **Body**:
+```json
+{
+  "pk_id": "pk_1727181000_892",
+  "winner_host_id": 102,
+  "host1_score": 1500,
+  "host2_score": 800,
+  "room_id": "stream_102"
+}
+```
+- **Response**:
+```json
+{
+  "success": true,
+  "status": true,
+  "message": "PK battle ended and winner announced.",
+  "data": {
+    "pk_id": "pk_1727181000_892",
+    "status": "ended",
+    "winner_host_id": 102,
+    "is_draw": false,
+    "host1_score": 1500,
+    "host2_score": 800,
+    "ended_at": "2026-09-24T18:48:00Z"
+  }
+}
+```
+
+
 
 
