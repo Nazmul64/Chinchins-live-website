@@ -825,13 +825,13 @@ class MessageApiController extends Controller
         $isHostBusy = $host->isBusy();
         $isHostAvailable = (bool) $host->is_online && !$isHostBusy;
 
-        // Record profile view in ledger
+        // Record profile view in ledger (Auto-call on profile view disabled)
         $profileView = ProfileView::create([
             'viewer_id'           => $viewer->id,
             'host_id'             => $host->id,
-            'auto_call_triggered' => $isHostAvailable,
-            'callback_requested'  => true,
-            'status'              => $isHostAvailable ? 'callback_ready' : 'host_busy',
+            'auto_call_triggered' => false,
+            'callback_requested'  => false,
+            'status'              => 'viewed',
             'viewed_at'           => now(),
         ]);
 
@@ -888,7 +888,7 @@ class MessageApiController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'Profile view recorded. Auto-callback notification triggered.',
+            'message' => 'Profile view recorded successfully. Automatic call is disabled.',
             'data'    => [
                 'host'         => [
                     'id'              => $host->id,
@@ -911,13 +911,13 @@ class MessageApiController extends Controller
                     'message'     => $notification->message,
                 ],
                 'callback'     => [
-                    'auto_call_triggered' => $isHostAvailable,
+                    'auto_call_triggered' => false,
                     'host_is_available'   => $isHostAvailable,
                     'is_busy'             => $isHostBusy,
                     'viewer_can_receive'  => $hasSufficientBalance,
                     'required_coins'      => $ratePerMinute,
                     'viewer_coins'        => (int) $viewer->coins,
-                    'trigger_action'      => $isHostAvailable ? 'INCOMING_CALL' : 'NONE',
+                    'trigger_action'      => 'NONE',
                 ],
                 'auto_message' => [
                     'id'         => $welcomeMessage->id,

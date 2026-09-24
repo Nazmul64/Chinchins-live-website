@@ -688,4 +688,69 @@ pusher.subscribe(
 }
 ```
 
+---
+
+### ৬.৭ প্রোফাইল ভিউ এপিআই (Profile View - Auto-Call Disabled)
+> **গুরুত্বপূর্ণ আপডেট:** কোনো ব্যবহারকারী বা হোস্টের প্রোফাইল ভিউ করলে কোনো অটোমেটিক ইনকামিং কল ট্রিগার হবে না (`auto_call_triggered: false` এবং `trigger_action: "NONE"` থাকবে)। শুধুমাত্র ভিজিটর হিস্ট্রি ও হোস্ট নোটিফিকেশন রেকর্ড হবে।
+
+- **Method**: `POST`
+- **URL**: `https://chinchins.live/api/profile/{id}/view` (অ্যালিয়াস: `/api/profile/view`, `/api/user/view-profile`)
+- **Headers**:
+  ```http
+  Authorization: Bearer {token}
+  Content-Type: application/json
+  Accept: application/json
+  ```
+- **Body** (ঐচ্ছিক যদি URL প্যারামিটারে ID থাকে):
+  ```json
+  {
+    "host_id": 102
+  }
+  ```
+- **Response**:
+```json
+{
+  "status": true,
+  "message": "Profile view recorded successfully. Automatic call is disabled.",
+  "data": {
+    "host": {
+      "id": 102,
+      "account_id": "83749201",
+      "display_name": "Ayesha Khan",
+      "avatar_url": "https://chinchins.live/uploads/avatars/host102.jpg",
+      "is_online": true,
+      "is_busy": false,
+      "is_available": true,
+      "video_call_rate": 100,
+      "country": "Bangladesh",
+      "level": "Lv3"
+    },
+    "notification": {
+      "id": 842,
+      "receiver_id": 102,
+      "type": "profile_view",
+      "title": "New Profile Visitor 👁️",
+      "message": "Nazmul viewed your profile!"
+    },
+    "callback": {
+      "auto_call_triggered": false,
+      "host_is_available": true,
+      "is_busy": false,
+      "viewer_can_receive": true,
+      "required_coins": 100,
+      "viewer_coins": 5000,
+      "trigger_action": "NONE"
+    },
+    "auto_message": {
+      "id": 1290,
+      "sender_id": 102,
+      "message": "Hi Nazmul! Thanks for visiting my profile ❤️",
+      "type": "text",
+      "time": "Just now"
+    }
+  }
+}
+```
+
+
 
