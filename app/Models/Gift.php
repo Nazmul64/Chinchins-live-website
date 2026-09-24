@@ -53,6 +53,27 @@ class Gift extends Model
     ];
 
     /**
+     * Automatic Redis & In-Memory Cache Invalidation.
+     */
+    protected static function booted(): void
+    {
+        $clearCache = function ($gift) {
+            \Illuminate\Support\Facades\Cache::forget('active_gifts_catalog');
+            \Illuminate\Support\Facades\Cache::forget('full_gifts_catalog');
+            if ($gift && isset($gift->id)) {
+                \Illuminate\Support\Facades\Cache::forget("gift_item_{$gift->id}");
+            }
+            $categories = ['all', 'hot', 'lucky', 'svip', 'intimacy', 'wealth', 'festival', 'bag', 'popular', 'romantic', 'luxury', 'effects', 'vip'];
+            foreach ($categories as $cat) {
+                \Illuminate\Support\Facades\Cache::forget('api_gifts_catalog_data_' . $cat);
+            }
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
+
+    /**
      * Get the full URL for the gift icon / image.
      */
     public function getImageUrlAttribute(): string

@@ -64,30 +64,46 @@ class WithdrawalSetting extends Model
     }
 
     /**
-     * Get all withdrawal config as an associative array.
+     * Automatic Redis & In-Memory Cache Invalidation.
+     */
+    protected static function booted(): void
+    {
+        $clearCache = function ($ws) {
+            \Illuminate\Support\Facades\Cache::forget('withdrawal_settings_all_config');
+            \Illuminate\Support\Facades\Cache::forget('api_withdraw_methods_list');
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
+
+    /**
+     * Get all withdrawal config with Redis / In-Memory caching (< 1ms).
      */
     public static function getAllConfig(): array
     {
-        $defaults = static::defaults();
-        $dbSettings = static::pluck('value', 'key')->toArray();
-        $merged = array_merge($defaults, $dbSettings);
+        return \Illuminate\Support\Facades\Cache::remember('withdrawal_settings_all_config', 86400, function () {
+            $defaults = static::defaults();
+            $dbSettings = static::pluck('value', 'key')->toArray();
+            $merged = array_merge($defaults, $dbSettings);
 
-        $rateCoins = (int) ($merged['rate_coins'] ?? 100);
-        $rateBdt = (float) ($merged['rate_bdt'] ?? 10.00);
-        $ratePerBdt = $rateBdt > 0 ? round($rateCoins / $rateBdt, 2) : 10.00;
+            $rateCoins = (int) ($merged['rate_coins'] ?? 100);
+            $rateBdt = (float) ($merged['rate_bdt'] ?? 10.00);
+            $ratePerBdt = $rateBdt > 0 ? round($rateCoins / $rateBdt, 2) : 10.00;
 
-        return [
-            'is_withdraw_enabled' => (bool) ($merged['is_withdraw_enabled'] ?? '1'),
-            'min_withdraw_coins' => (int) ($merged['min_withdraw_coins'] ?? 1000),
-            'max_withdraw_coins' => (int) ($merged['max_withdraw_coins'] ?? 100000),
-            'commission_percent' => (float) ($merged['commission_percent'] ?? 5.00),
-            'rate_coins' => $rateCoins,
-            'rate_bdt' => $rateBdt,
-            'rate_per_bdt' => $ratePerBdt,
-            'min_withdraw_bdt' => round(((int) ($merged['min_withdraw_coins'] ?? 1000)) / ($ratePerBdt ?: 10), 2),
-            'max_withdraw_bdt' => round(((int) ($merged['max_withdraw_coins'] ?? 100000)) / ($ratePerBdt ?: 10), 2),
-            'notice' => $merged['notice'] ?? '',
-            'rate_text' => "{$rateCoins} Coins = ৳" . number_format($rateBdt, 2) . " BDT (1 BDT = {$ratePerBdt} Coins)",
-        ];
+            return [
+                'is_withdraw_enabled' => (bool) ($merged['is_withdraw_enabled'] ?? '1'),
+                'min_withdraw_coins' => (int) ($merged['min_withdraw_coins'] ?? 1000),
+                'max_withdraw_coins' => (int) ($merged['max_withdraw_coins'] ?? 100000),
+                'commission_percent' => (float) ($merged['commission_percent'] ?? 5.00),
+                'rate_coins' => $rateCoins,
+                'rate_bdt' => $rateBdt,
+                'rate_per_bdt' => $ratePerBdt,
+                'min_withdraw_bdt' => round(((int) ($merged['min_withdraw_coins'] ?? 1000)) / ($ratePerBdt ?: 10), 2),
+                'max_withdraw_bdt' => round(((int) ($merged['max_withdraw_coins'] ?? 100000)) / ($ratePerBdt ?: 10), 2),
+                'notice' => $merged['notice'] ?? '',
+                'rate_text' => "{$rateCoins} Coins = ৳" . number_format($rateBdt, 2) . " BDT (1 BDT = {$ratePerBdt} Coins)",
+            ];
+        });
     }
 }

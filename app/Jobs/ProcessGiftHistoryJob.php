@@ -84,10 +84,9 @@ class ProcessGiftHistoryJob implements ShouldQueue
                 'context'        => $this->context,
             ]);
 
-            // 3. Update / Sync Wallets in background
+            // 3. Sync Wallets in background
             $senderWallet = Wallet::firstOrCreate(['user_id' => $this->senderId]);
             $receiverWallet = Wallet::firstOrCreate(['user_id' => $this->receiverId]);
-            $receiverWallet->increment('earnings', $this->totalCoins);
 
             // 4. Coin Transactions Ledger
             CoinTransaction::create([

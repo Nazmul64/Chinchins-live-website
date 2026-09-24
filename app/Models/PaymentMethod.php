@@ -54,6 +54,22 @@ class PaymentMethod extends Model
         'bonus_percentage',
     ];
 
+    /**
+     * Automatic Redis & In-Memory Cache Invalidation.
+     */
+    protected static function booted(): void
+    {
+        $clearCache = function ($pm) {
+            \Illuminate\Support\Facades\Cache::forget('payment_gateways_list');
+            \Illuminate\Support\Facades\Cache::forget('api_payment_methods_full');
+            \Illuminate\Support\Facades\Cache::forget('api_payment_options_list');
+            \Illuminate\Support\Facades\Cache::forget('api_withdraw_methods_list');
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
+
     public function depositRequests()
     {
         return $this->hasMany(DepositRequest::class);

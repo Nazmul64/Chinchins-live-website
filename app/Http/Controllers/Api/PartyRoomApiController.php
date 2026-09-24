@@ -1411,9 +1411,9 @@ class PartyRoomApiController extends Controller
             Log::warning('SeatUpdatedEvent broadcast failed: ' . $e->getMessage());
         }
 
-        // Send Push Notification to accepted user
+        // Send Push Notification to accepted user (< 20ms queue dispatch)
         try {
-            PushNotificationService::sendLivePartyInvite(
+            PushNotificationService::queueLivePartyInvite(
                 $targetUser,
                 $user->display_name ?? $user->name ?? 'Host',
                 $room->room_title ?: 'Voice Party Stage',

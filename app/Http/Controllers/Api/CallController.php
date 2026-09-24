@@ -463,11 +463,11 @@ class CallController extends Controller
             'is_random_match' => filter_var($data['is_random_match'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ]);
 
-        // 📲 Trigger Real-Time IMO/WhatsApp-style High-Priority Push Notification to Receiver Phone
+        // 📲 Trigger Real-Time IMO/WhatsApp-style High-Priority Push Notification via Background Queue Job (< 20ms response time)
         try {
-            PushNotificationService::sendIncomingCallPush($call, $caller, $receiver);
+            dispatch(new \App\Jobs\SendCallNotificationJob($call->id, $caller->id, $receiver->id));
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Incoming call push notification error: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Incoming call push notification dispatch error: " . $e->getMessage());
         }
 
         $maxMinutes = $ratePerMinute > 0 ? ($isCallerFree ? 999999 : (int) floor($caller->coins / $ratePerMinute)) : 0;

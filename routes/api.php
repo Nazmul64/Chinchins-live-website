@@ -834,10 +834,10 @@ Route::get('/payment/gateways', [\App\Http\Controllers\Api\CommonDataController:
 Route::get('/payment-gateways', [\App\Http\Controllers\Api\CommonDataController::class, 'getPaymentGateways']);
 
 Route::prefix('gifts')->group(function () {
-    // 1. Gift Catalog (Store of gifts - 24hr Cache)
-    Route::get('/', [\App\Http\Controllers\Api\CommonDataController::class, 'getGiftsCatalog']);
+    // 1. Gift Catalog (Store of gifts - 24hr Redis Cache)
+    Route::get('/', [\App\Http\Controllers\Api\GiftApiController::class, 'getGifts']);
     Route::get('/catalog', [\App\Http\Controllers\Api\CommonDataController::class, 'getGiftsCatalog']);
-    Route::get('/list', [\App\Http\Controllers\Api\CommonDataController::class, 'getGiftsCatalog']);
+    Route::get('/list', [\App\Http\Controllers\Api\GiftApiController::class, 'getGifts']);
     Route::get('/categories', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
 
     // 2. User's Received Gifts (For Profile Charm Level & Gifts Received Screen)

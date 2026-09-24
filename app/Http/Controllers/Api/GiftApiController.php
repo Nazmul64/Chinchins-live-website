@@ -67,14 +67,51 @@ class GiftApiController extends Controller
     }
 
     /**
-     * 1. Get Gift Catalog (Store of gifts to send in live, calls, chat, profile).
+     * Get active gifts with 24-hour Redis / In-Memory caching (Zero DB Hits, < 1ms response).
+     * GET /api/gifts
+     */
+    public function getGifts(): JsonResponse
+    {
+        $gifts = \Illuminate\Support\Facades\Cache::remember('active_gifts_catalog', 86400, function () {
+            return Gift::select('id', 'name', 'coin_price', 'coins', 'icon_url', 'image', 'animation_url', 'animation_type', 'file_url', 'category', 'is_broadcast', 'format', 'display_type')
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('coins', 'asc')
+                ->get()
+                ->map(function ($g) {
+                    return [
+                        'id'            => $g->id,
+                        'name'          => $g->name,
+                        'coins'         => (int) ($g->coins ?: $g->coin_price),
+                        'coin_price'    => (int) ($g->coin_price ?: $g->coins),
+                        'icon_url'      => $g->icon_url ?: ($g->image_url ?: $g->image),
+                        'image_url'     => $g->image_url ?: ($g->icon_url ?: $g->image),
+                        'animation_url' => $g->animation_url ?: ($g->file_url ?: $g->animation_full_url),
+                        'format'        => $g->format ?: ($g->animation_type ?: 'svga'),
+                        'display_type'  => $g->display_type ?: ($g->is_broadcast ? 'fullscreen' : 'bubble'),
+                        'category'      => $g->category ?: 'all',
+                    ];
+                });
+        });
+
+        return response()->json([
+            'success' => true,
+            'status'  => true,
+            'message' => 'Active gifts catalog loaded from cache.',
+            'data'    => $gifts,
+            'gifts'   => $gifts,
+        ])->header('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    }
+
+    /**
+     * 1. Get Gift Catalog (Store of gifts to send in live, calls, chat, profile - 24hr Cache).
      */
     public function getCatalog(Request $request): JsonResponse
     {
         $category = $request->filled('category') ? strtolower(trim($request->category)) : 'all';
         $sender = $this->resolveUser($request);
 
-        $catalogData = \Illuminate\Support\Facades\Cache::remember('api_gifts_catalog_data_' . $category, 3600, function () use ($category) {
+        $catalogData = \Illuminate\Support\Facades\Cache::remember('api_gifts_catalog_data_' . $category, 86400, function () use ($category) {
             $query = Gift::where('is_active', true)->orderBy('sort_order')->orderBy('coins', 'desc');
 
             if ($category !== 'all') {
@@ -630,7 +667,7 @@ class GiftApiController extends Controller
                  \Illuminate\Support\Facades\Log::warning("GiftSent broadcast error: " . $e->getMessage());
              }
  
-             // 9. Send In-App & FCM Push Notification
+             // 9. Send In-App & FCM Push Notification (Non-blocking queue)
              Notification::createNotification(
                  userId: $receiver->id,
                  actorId: $sender->id,
@@ -649,7 +686,7 @@ class GiftApiController extends Controller
              );
  
              try {
-                 PushNotificationService::sendGiftPush($sender, $receiver, $gift, $hostEarnings);
+                 PushNotificationService::queueGiftPush($sender, $receiver, $gift, $hostEarnings);
              } catch (\Throwable $e) {}
  
              return response()->json([

@@ -92,7 +92,7 @@ class GiftTransactionController extends Controller
 
         // 1. নির্দিষ্ট গিফটের ডাটা ক্যাশ (Redis/Memory) থেকে ইনস্ট্যান্ট রিড (< 1ms)
         $gift = Cache::remember("gift_item_{$giftId}", 86400, function () use ($giftId) {
-            return Gift::select('id', 'name', 'coins', 'coin_price', 'icon_url', 'image', 'animation_url', 'animation_type', 'file_url', 'format')
+            return Gift::select('id', 'name', 'coins', 'coin_price', 'icon_url', 'image', 'animation_url', 'animation_type', 'file_url', 'format', 'display_type', 'is_broadcast')
                 ->find($giftId);
         });
 
@@ -122,8 +122,14 @@ class GiftTransactionController extends Controller
             ], 400);
         }
 
-        // 3. প্রাপকের অ্যাকাউন্টে কয়েন যোগ (Atomic Increment)
+        // 3. প্রাপকের অ্যাকাউন্টে কয়েন ও ওয়ালেট আপডেট (Atomic Increment)
         DB::table('users')->where('id', $receiverId)->increment('coins', (int) floor($totalCoins * 0.50));
+
+        $senderWallet = Wallet::firstOrCreate(['user_id' => $sender->id], ['balance' => (int) $sender->coins]);
+        $senderWallet->decrement('balance', $totalCoins);
+
+        $receiverWallet = Wallet::firstOrCreate(['user_id' => $receiverId], ['balance' => 0, 'earnings' => 0]);
+        $receiverWallet->increment('earnings', $totalCoins);
 
         $remainingCoins = (int) (DB::table('users')->where('id', $sender->id)->value('coins') ?? 0);
 
@@ -132,7 +138,7 @@ class GiftTransactionController extends Controller
         $iconUrl = $gift->icon_url ?: ($gift->image_url ?: $gift->image);
 
         try {
-            broadcast(new LiveGiftSentEvent([
+            $eventPayload = [
                 'room_name'     => $roomName,
                 'stream_id'     => $roomName,
                 'sender_id'     => $sender->id,
@@ -144,10 +150,14 @@ class GiftTransactionController extends Controller
                 'icon_url'      => $iconUrl,
                 'animation_url' => $animationUrl,
                 'file_url'      => $animationUrl,
+                'format'        => $gift->format ?? ($gift->animation_type ?: 'svga'),
+                'display_type'  => $gift->display_type ?? ($gift->is_broadcast ? 'fullscreen' : 'bubble'),
                 'gift_count'    => $giftCount,
                 'quantity'      => $giftCount,
                 'total_coins'   => $totalCoins,
-            ]))->toOthers();
+            ];
+
+            broadcast(new LiveGiftSentEvent($roomName, $eventPayload))->toOthers();
         } catch (\Throwable $e) {
             Log::warning('Gift broadcast error: ' . $e->getMessage());
         }
@@ -164,18 +174,19 @@ class GiftTransactionController extends Controller
         ));
 
         return response()->json([
-            'success'         => true,
-            'status'          => true,
-            'message'         => 'গিফট সফলভাবে পাঠানো হয়েছে',
-            'remaining_coins' => $remainingCoins,
+            'success'           => true,
+            'status'            => true,
+            'message'           => 'Gift sent successfully!',
+            'remaining_coins'   => $remainingCoins,
             'remaining_balance' => $remainingCoins,
-            'data'            => [
-                'remaining_coins' => $remainingCoins,
-                'gift_id'         => $gift->id,
-                'gift_name'       => $gift->name,
-                'total_coins'     => $totalCoins,
-                'icon_url'        => $iconUrl,
-                'animation_url'   => $animationUrl,
+            'data'              => [
+                'remaining_coins'   => $remainingCoins,
+                'remaining_balance' => $remainingCoins,
+                'gift_id'           => $gift->id,
+                'gift_name'         => $gift->name,
+                'total_coins'       => $totalCoins,
+                'icon_url'          => $iconUrl,
+                'animation_url'     => $animationUrl,
             ],
         ]);
     }

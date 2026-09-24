@@ -48,6 +48,20 @@ class CoinPackage extends Model
     ];
 
     /**
+     * Automatic Redis & In-Memory Cache Invalidation.
+     */
+    protected static function booted(): void
+    {
+        $clearCache = function ($pkg) {
+            \Illuminate\Support\Facades\Cache::forget('api_coin_packages_catalog');
+            \Illuminate\Support\Facades\Cache::forget('api_payment_options_list');
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
+
+    /**
      * Total coins calculated: base coins + bonus coins
      */
     public function getTotalCoinsAttribute(): int

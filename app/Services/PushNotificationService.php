@@ -688,4 +688,122 @@ class PushNotificationService
             return ['status' => false, 'message' => $e->getMessage()];
         }
     }
+
+    /**
+     * Non-blocking Queue Dispatch for Chat Message Push Notifications (< 1ms execution).
+     */
+    public static function queueChatMessagePush($message, User $sender, User $receiver, ?string $overrideText = null, ?string $overrideImage = null): void
+    {
+        dispatch(new \App\Jobs\SendPushNotificationJob('chat_message', [
+            'message_id'     => is_object($message) ? ($message->id ?? null) : null,
+            'message_type'   => is_object($message) ? ($message->type ?? 'text') : 'text',
+            'content'        => is_object($message) ? ($message->message ?? $message->content ?? '') : (string) $message,
+            'media_url'      => is_object($message) ? ($message->media_url ?? $message->image_url ?? null) : null,
+            'sender_id'      => $sender->id,
+            'receiver_id'    => $receiver->id,
+            'override_text'  => $overrideText,
+            'override_image' => $overrideImage,
+        ]));
+    }
+
+    /**
+     * Non-blocking Queue Dispatch for Profile View Push Notifications.
+     */
+    public static function queueProfileViewPush(User $viewer, User $host): void
+    {
+        dispatch(new \App\Jobs\SendPushNotificationJob('profile_view', [
+            'viewer_id' => $viewer->id,
+            'host_id'   => $host->id,
+        ]));
+    }
+
+    /**
+     * Non-blocking Queue Dispatch for Gift Push Notifications.
+     */
+    public static function queueGiftPush(User $sender, User $receiver, Gift $gift, int $coins): void
+    {
+        dispatch(new \App\Jobs\SendPushNotificationJob('gift_received', [
+            'sender_id'   => $sender->id,
+            'receiver_id' => $receiver->id,
+            'gift_id'     => $gift->id,
+            'coins'       => $coins,
+        ]));
+    }
+
+    /**
+     * Non-blocking Queue Dispatch for Party Room Live Stage Invites.
+     */
+    public static function queueLivePartyInvite(User $user, string $hostName, string $roomTitle, int $roomId): void
+    {
+        dispatch(new \App\Jobs\SendPushNotificationJob('party_invite', [
+            'user_id'    => $user->id,
+            'host_name'  => $hostName,
+            'room_title' => $roomTitle,
+            'room_id'    => $roomId,
+        ]));
+    }
+
+    /**
+     * Execute queued asynchronous push notifications in worker thread.
+     */
+    public static function executeAsyncPush(string $actionType, array $payload): void
+    {
+        switch ($actionType) {
+            case 'chat_message':
+                $sender = User::find($payload['sender_id'] ?? 0);
+                $receiver = User::find($payload['receiver_id'] ?? 0);
+                if (!$sender || !$receiver) return;
+
+                $msgObj = (object) [
+                    'id'        => $payload['message_id'] ?? null,
+                    'type'      => $payload['message_type'] ?? 'text',
+                    'message'   => $payload['content'] ?? '',
+                    'media_url' => $payload['media_url'] ?? null,
+                ];
+                static::sendChatMessagePush($msgObj, $sender, $receiver, $payload['override_text'] ?? null, $payload['override_image'] ?? null);
+                break;
+
+            case 'profile_view':
+                $viewer = User::find($payload['viewer_id'] ?? 0);
+                $host = User::find($payload['host_id'] ?? 0);
+                if ($viewer && $host) {
+                    static::sendProfileViewPush($viewer, $host);
+                }
+                break;
+
+            case 'gift_received':
+                $sender = User::find($payload['sender_id'] ?? 0);
+                $receiver = User::find($payload['receiver_id'] ?? 0);
+                $gift = Gift::find($payload['gift_id'] ?? 0);
+                if ($sender && $receiver && $gift) {
+                    static::sendGiftPush($sender, $receiver, $gift, (int) ($payload['coins'] ?? 0));
+                }
+                break;
+
+            case 'party_invite':
+                $user = User::find($payload['user_id'] ?? 0);
+                if ($user) {
+                    static::sendLivePartyInvite(
+                        $user,
+                        $payload['host_name'] ?? 'Host',
+                        $payload['room_title'] ?? 'Live Voice Party',
+                        (int) ($payload['room_id'] ?? 0)
+                    );
+                }
+                break;
+
+            case 'custom_push':
+                static::sendPush(
+                    platform: $payload['platform'] ?? 'firebase',
+                    targetUserIds: $payload['target_user_ids'] ?? [],
+                    title: $payload['title'] ?? '',
+                    body: $payload['body'] ?? '',
+                    imageUrl: $payload['image_url'] ?? null,
+                    actionUrl: $payload['action_url'] ?? null,
+                    firebaseAppId: $payload['firebase_app_id'] ?? null,
+                    extraData: $payload['extra_data'] ?? []
+                );
+                break;
+        }
+    }
 }

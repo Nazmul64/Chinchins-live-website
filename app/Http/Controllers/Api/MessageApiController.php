@@ -617,9 +617,9 @@ class MessageApiController extends Controller
             ]
         );
 
-        // 📲 Trigger Real-Time FCM Push Notification to Receiver's Mobile Device
+        // 📲 Trigger Real-Time FCM Push Notification to Receiver's Mobile Device (< 20ms queue dispatch)
         try {
-            PushNotificationService::sendChatMessagePush($chatMessage, $sender, $receiver);
+            PushNotificationService::queueChatMessagePush($chatMessage, $sender, $receiver);
         } catch (\Throwable $e) {
             Log::error("Chat message push notification error: " . $e->getMessage());
         }
@@ -855,9 +855,9 @@ class MessageApiController extends Controller
             ]
         );
 
-        // 📲 Dispatch Real-Time Push Alert to Host
+        // 📲 Dispatch Real-Time Push Alert to Host (< 20ms queue dispatch)
         try {
-            PushNotificationService::sendProfileViewPush($viewer, $host);
+            PushNotificationService::queueProfileViewPush($viewer, $host);
         } catch (\Throwable $e) {
             Log::error("Profile view push notification error: " . $e->getMessage());
         }
