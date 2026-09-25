@@ -80,8 +80,6 @@ class ProfileBaseApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        ProfileBase::seedDefaultBases();
-
         $bases = ProfileBase::where('is_active', true)
             ->orderBy('level', 'asc')
             ->get()
@@ -115,8 +113,6 @@ class ProfileBaseApiController extends Controller
      */
     public function levelStatus(Request $request): JsonResponse
     {
-        ProfileBase::seedDefaultBases();
-
         $user = $this->resolveUser($request);
 
         if (!$user && $request->filled('user_id')) {

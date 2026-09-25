@@ -20,8 +20,6 @@ class CustomerProfileIconApiController extends Controller
         $cacheKey = 'api_customer_profile_icons_v1';
         
         $payload = Cache::remember($cacheKey, 86400, function () {
-            CustomerProfileIcon::seedDefaultIcons();
-
             $icons = CustomerProfileIcon::where('is_active', true)
                 ->orderBy('sort_order', 'asc')
                 ->get();

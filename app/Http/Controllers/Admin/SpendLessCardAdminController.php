@@ -16,8 +16,6 @@ class SpendLessCardAdminController extends Controller
      */
     public function index()
     {
-        SpendLessCard::seedDefaultCards();
-
         $cards = SpendLessCard::orderBy('sort_order', 'asc')->get();
         $totalCards = $cards->count();
         $activeCards = $cards->where('is_active', true)->count();

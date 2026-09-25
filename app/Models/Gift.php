@@ -201,14 +201,11 @@ class Gift extends Model
     }
 
     /**
-     * Seed the 30 strong-motion animated live streaming gifts if table is empty.
+     * Seed default gifts (disabled - gifts are managed manually via Admin Panel).
      */
     public static function seedDefaultGifts(): void
     {
-        if (static::count() >= 30) {
-            return;
-        }
-        (new \Database\Seeders\StrongMotionGiftsSeeder())->run();
+        // No-op: Gifts are created manually via Admin Panel
     }
 
     /**

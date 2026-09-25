@@ -110,10 +110,6 @@ class SpendLessCardApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (!SpendLessCard::exists()) {
-            SpendLessCard::seedDefaultCards();
-        }
-
         $user = $this->resolveUser($request);
 
         $cards = SpendLessCard::where('is_active', true)

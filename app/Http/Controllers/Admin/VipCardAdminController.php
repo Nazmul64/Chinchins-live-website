@@ -17,9 +17,6 @@ class VipCardAdminController extends Controller
      */
     public function index()
     {
-        // Seed default cards if empty or update missing fields
-        VipPrivilegeCard::seedDefaultCards();
-
         $cards = VipPrivilegeCard::orderBy('sort_order', 'asc')->get();
         $totalCards = $cards->count();
         $activeCards = $cards->where('is_active', true)->count();

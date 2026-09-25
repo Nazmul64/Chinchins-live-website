@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\ProfileBase;
 use Illuminate\Database\Seeder;
 
 class ProfileBaseSeeder extends Seeder
@@ -12,6 +11,6 @@ class ProfileBaseSeeder extends Seeder
      */
     public function run(): void
     {
-        ProfileBase::seedDefaultBases();
+        // No-op: Dummy level bases disabled
     }
 }

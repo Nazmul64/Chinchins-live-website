@@ -18,8 +18,6 @@ class BagAdminController extends Controller
      */
     public function index(Request $request)
     {
-        BagItem::seedDefaultItems();
-
         $category = $request->input('category', 'all');
         $search = trim($request->input('search', ''));
 

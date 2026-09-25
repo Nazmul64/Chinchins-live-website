@@ -70,10 +70,6 @@ class BagApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (!BagItem::exists()) {
-            BagItem::seedDefaultItems();
-        }
-
         $user = $this->resolveUser($request);
         if (!$user) {
             return response()->json([
@@ -201,10 +197,6 @@ class BagApiController extends Controller
      */
     public function storeCatalog(Request $request): JsonResponse
     {
-        if (!BagItem::exists()) {
-            BagItem::seedDefaultItems();
-        }
-
         $category = $request->input('category', 'all');
 
         $query = BagItem::where('is_active', true)

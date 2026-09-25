@@ -13,9 +13,6 @@ class CoinPackageController extends Controller
      */
     public function index()
     {
-        if (CoinPackage::count() < 6) {
-            CoinPackage::seedDefaultPackages();
-        }
         $packages = CoinPackage::orderBy('sort_order')->orderBy('id', 'asc')->get();
         return view('admin.coin-packages.index', compact('packages'));
     }

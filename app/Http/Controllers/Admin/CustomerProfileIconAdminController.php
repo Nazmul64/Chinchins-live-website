@@ -15,8 +15,6 @@ class CustomerProfileIconAdminController extends Controller
      */
     public function index()
     {
-        CustomerProfileIcon::seedDefaultIcons();
-
         $icons = CustomerProfileIcon::orderBy('sort_order', 'asc')->get();
         $totalIcons = $icons->count();
         $customUploadedCount = $icons->whereNotNull('icon_path')->count();
