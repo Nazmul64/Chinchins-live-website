@@ -179,8 +179,12 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     // Customer Profile Icons ("Me" Screen Picture & Icons Management)
     Route::prefix('customer-profile-icons')->name('customer-profile-icons.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'store'])->name('store');
+        Route::post('/initialize', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'initializeSlots'])->name('initialize');
         Route::post('/{id}/update', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'update'])->name('update');
+        Route::post('/{id}/toggle-status', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'toggleStatus'])->name('toggle-status');
         Route::post('/{id}/reset', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'resetDefault'])->name('reset');
+        Route::delete('/{id}', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'destroy'])->name('destroy');
         Route::post('/bulk-update', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'bulkUpdate'])->name('bulk-update');
     });
 
