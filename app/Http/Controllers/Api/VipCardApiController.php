@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
 use App\Models\CoinPackage;
 use App\Models\CoinTransaction;

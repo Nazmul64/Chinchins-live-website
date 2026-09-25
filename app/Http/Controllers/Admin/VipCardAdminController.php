@@ -414,6 +414,10 @@ class VipCardAdminController extends Controller
      */
     public function updateFloatingBanner(Request $request)
     {
+        if ($request->isMethod('GET')) {
+            return redirect()->route('admin.vip-cards.index');
+        }
+
         $request->validate([
             'floating_vip_banner_title'  => 'nullable|string|max:100',
             'floating_vip_banner_tag'    => 'nullable|string|max:100',
