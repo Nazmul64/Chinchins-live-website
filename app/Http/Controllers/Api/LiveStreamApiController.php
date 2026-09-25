@@ -104,7 +104,7 @@ class LiveStreamApiController extends Controller
             $grant = new \Agence104\LiveKit\VideoGrant();
             $grant->setRoomJoin(true)
                   ->setRoomName($roomName)
-                  ->setCanPublish(true)
+                  ->setCanPublish($canPublish)
                   ->setCanSubscribe(true)
                   ->setCanPublishData(true);
 
@@ -914,6 +914,19 @@ class LiveStreamApiController extends Controller
 
         try {
             broadcast(new CoHostStatusEvent($streamId, $action, $user))->toOthers();
+            if ($action === 'accept' || $action === 'accepted') {
+                $host = $stream ? $stream->host : $this->resolveUser($request);
+                broadcast(new \App\Events\CoHostJoinedEvent($streamId, [
+                    'host_id'      => $host?->id,
+                    'host_name'    => $host?->display_name ?? $host?->name ?? 'Host',
+                    'host_avatar'  => $host?->avatar_url ?? $host?->avatar,
+                    'guest_id'     => $user->id,
+                    'guest_name'   => $user->display_name ?? $user->name,
+                    'guest_avatar' => $user->avatar_url ?? $user->avatar,
+                    'can_publish'  => true,
+                    'livekit_url'  => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -1272,6 +1285,19 @@ class LiveStreamApiController extends Controller
         try {
             event(new LiveJoinResponded($stream->id, $guestUser->id, $responsePayload));
             broadcast(new CoHostStatusEvent($stream->id, $action, $guestUser))->toOthers();
+            if ($action === 'accept') {
+                $host = $stream->host;
+                broadcast(new \App\Events\CoHostJoinedEvent($stream->id, [
+                    'host_id'      => $host?->id,
+                    'host_name'    => $host?->display_name ?? $host?->name ?? 'Host',
+                    'host_avatar'  => $host?->avatar_url ?? $host?->avatar,
+                    'guest_id'     => $guestUser->id,
+                    'guest_name'   => $guestUser->display_name ?? $guestUser->name,
+                    'guest_avatar' => $guestUser->avatar_url ?? $guestUser->avatar,
+                    'can_publish'  => true,
+                    'livekit_url'  => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([

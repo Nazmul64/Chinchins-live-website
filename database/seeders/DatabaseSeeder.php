@@ -56,5 +56,10 @@ class DatabaseSeeder extends Seeder
         if (method_exists(\App\Models\ProfileBase::class, 'seedDefaultBases')) {
             \App\Models\ProfileBase::seedDefaultBases();
         }
+
+        // 11. Customer Profile Icons (10 Profile Items)
+        if (method_exists(\App\Models\CustomerProfileIcon::class, 'seedDefaultIcons')) {
+            \App\Models\CustomerProfileIcon::seedDefaultIcons();
+        }
     }
 }

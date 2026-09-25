@@ -133,7 +133,7 @@ class LiveStreamController extends Controller
         $grant = new VideoGrant();
         $grant->setRoomJoin(true)
               ->setRoomName($roomName)
-              ->setCanPublish(true)               // টোকেনে পাবলিশ পারমিশন সর্বদা true
+              ->setCanPublish($canPublish)        // viewer: false, host/co-host: true
               ->setCanSubscribe(true)             // সবার কথা ও ভিডিও দেখার জন্য
               ->setCanPublishData(true);          // লাইভ চ্যাটের জন্য Data Packet পারমিশন
 
@@ -357,6 +357,19 @@ class LiveStreamController extends Controller
                 if ($stream) {
                     event(new CoHostAcceptedEvent($stream->id, $guestUser->id, $acceptedPayload));
                     broadcast(new CoHostStatusEvent($stream->id, 'accept', $guestUser))->toOthers();
+                    
+                    // Broadcast dynamic CoHostJoinedEvent with real host & guest info
+                    broadcast(new \App\Events\CoHostJoinedEvent($stream->id, [
+                        'host_id'      => $user->id,
+                        'host_name'    => $user->display_name ?? $user->name,
+                        'host_avatar'  => $user->avatar_url ?? $user->avatar,
+                        'guest_id'     => $guestUser->id,
+                        'guest_name'   => $guestUser->display_name ?? $guestUser->name,
+                        'guest_avatar' => $guestUser->avatar_url ?? $guestUser->avatar,
+                        'can_publish'  => true,
+                        'token'        => $guestToken['token'],
+                        'livekit_url'  => $livekitUrl,
+                    ]))->toOthers();
                 }
             } catch (\Throwable $e) {
                 Log::warning('CoHostRequestAccepted broadcast failed: ' . $e->getMessage());
