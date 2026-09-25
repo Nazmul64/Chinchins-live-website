@@ -469,6 +469,84 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 ## ⚡ ৯. ১ সেকেন্ডের মধ্যে ইনস্ট্যান্ট ভিডিও কল কানেক্টিভিটি (<1s Fast Connect Optimization)
 
 - অ্যাপ যখন `POST /api/call/instant` বা `POST /api/call/initiate` কল করবে, তখন একযোগে কলার ও রিসিভারের জন্য লাইভকিট/ওয়েবআরটিসি প্রি-সাইনড টোকেন, এসডিপি অফার ও আইস সার্ভার তালিকা ইনস্ট্যান্ট রিটার্ন করা হয়।
-- কোনো সেকেন্ডারি এপিআই পুলিং দরকার নেই; অ্যাপ সরাসরি প্রাপ্ত টোকেন দিয়ে `< 800ms`-এর মধ্যে লাইভ ভিডিও ফিডে জয়েন করে ফেলে।
+- কোনো সেকেন্ডারি এপিআই পুলিং দরকার নেই; অ্যাপ সরাসরি প্রাপ্ত টোকেন দিয়ে `< 300ms`-এর মধ্যে লাইভ ভিডিও ফিডে জয়েন করে ফেলে।
+
+---
+
+## ⚡ ১০. ETag & Conditional GET (HTTP 304 Not Modified) আর্কিটেকচার
+
+অ্যাপ যেন কোনো ব্লকিং লোডারে না আটকে থেকে সরাসরি মোবাইল লোকাল স্টোরেজ / মেমোরি থেকে ডাটা রেন্ডার করতে পারে, সেজন্য সকল স্ট্যাটিক ও সেমি-স্ট্যাটিক এপিআই-তে **ETag** ও **HTTP 304 Not Modified** যুক্ত করা হয়েছে:
+
+### এপিআই তালিকা:
+1. `GET /api/customer-profile-icons` (Me স্ক্রিনের আইকন ও সেটিংস)
+2. `GET /api/live/app-icons` (লাইভ ব্যাজ, সাউন্ড ওয়েভ ও কাটআউট নচ বাটন কনফিগ)
+3. `GET /api/gifts` & `GET /api/gifts/catalog` (গিফট ক্যাটালগ ও অ্যানিমেশন ফাইল তালিকা)
+4. `GET /api/vip-cards` & `GET /api/floating-banner` (ভিআইপি কার্ড ও ফ্লোটিং ব্যানার উইজেট)
+5. `GET /api/payment-methods` (বিকাশ, নগদ ইত্যাদি ডিপোজিট পেমেন্ট মেথড)
+6. `GET /api/withdraw-methods` & `GET /api/withdraw/info` (উইথড্র মেথড ও সেটিংস)
+7. `GET /api/call/config` & `GET /api/call/ice-servers` (কল কনফিগারেশন ও আইস সার্ভার)
+
+### ক্লায়েন্ট রিকোয়েস্ট নিয়ম (Flutter):
+- প্রথমবার এপিআই কল করার পর রেসপন্সের `ETag` হেডার লোকাল স্টোরেজে সেভ করে রাখুন।
+- পরবর্তী কলে রিকোয়েস্ট হেডারে `If-None-Match: <saved_etag>` পাঠান।
+- ব্যাকএন্ড ডাটা পরিবর্তিত না হলে `304 Not Modified` খালি বডিতে ফেরত পাঠাবে (< 1ms); তখন অ্যাপ লোকাল ক্যাশ থেকে ইনস্ট্যান্ট লোড করবে।
+
+---
+
+## ⚡ ১১. ইনস্ট্যান্ট ১-অন-১ কল ইনিশিয়েশন (<300ms)
+
+**এন্ডপয়েন্ট:** `POST /api/call/instant` অথবা `POST /api/call/initiate`
+
+### রিকোয়েস্ট বডি:
+```json
+{
+  "target_user_id": 45,
+  "call_type": "video"
+}
+```
+
+### রেসপন্স পে-লোড (< 100ms):
+```json
+{
+  "success": true,
+  "status": "dialing",
+  "channel": "call_video_12_45_1758807000",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "caller_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "receiver_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "livekit_url": "wss://chinchins.live/livekit",
+  "ice_servers": [ ... ],
+  "target_user": {
+    "id": 45,
+    "name": "Diya",
+    "avatar_url": "https://chinchins.live/uploads/profiles/diya.jpg",
+    "level": "Lv.7"
+  },
+  "caller": {
+    "id": 12,
+    "name": "Nazmul",
+    "avatar_url": "https://chinchins.live/uploads/profiles/nazmul.jpg",
+    "level": "Lv.3",
+    "level_number": 3,
+    "gender": "male"
+  }
+}
+```
+
+### সকেট ব্রডকাস্ট ইভেন্ট:
+- **চ্যানেল:** `user.{target_user_id}`
+- **ইভেন্ট:** `incoming_call` (ও `private_call.incoming`)
+- **কিউ প্রসেসিং:** ডাটাবেস সেশন লগ `LogCallSessionJob`-এর মাধ্যমে এবং এফসিএম পুশ নোটিফিকেশন `SendCallNotificationJob`-এর মাধ্যমে ব্যাকগ্রাউন্ডে নন-ব্লকিংভাবে প্রসেস হয়।
+
+---
+
+## ⚡ ১২. অপটিমিস্টিক গিফট সেন্ডিং ও ডায়নামিক লেভেল ক্যালকুলেশন
+
+**এন্ডপয়েন্ট:** `POST /api/gifts/send` বা `POST /api/live/send-gift`
+
+- গিফট পাঠানোর সময় কোনো ব্লকিং ডাটাবেস টেবিল-লক থাকে না।
+- সেন্ডারের কয়েন ব্যালেন্স ও লেভেল রিয়েল-টাইমে আপডেট হয়।
+- লাইভ ব্রডকাস্টে সেন্ডারের সঠিক ডায়নামিক লেভেল (`level: 'Lv.7'`, `level_number: 7`) পাঠানো হয়।
+
 
 

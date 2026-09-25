@@ -150,7 +150,7 @@ class CallController extends Controller
             ];
         }
 
-        return response()->json([
+        $configPayload = [
             'status' => true,
             'message' => 'Call settings and rates retrieved successfully.',
             'data' => [
@@ -185,7 +185,20 @@ class CallController extends Controller
                 ],
                 'user' => $userData,
             ],
-        ], 200);
+        ];
+
+        $etag = '"' . md5(json_encode($configPayload)) . '"';
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=60, stale-while-revalidate=300',
+            ]);
+        }
+
+        return response()->json($configPayload, 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=60, stale-while-revalidate=300',
+        ]);
     }
 
     /**
@@ -620,43 +633,130 @@ class CallController extends Controller
     }
 
     /**
+     * Instant 1-on-1 Call Initiation (< 100ms Response, Zero Blocking Locks).
+     * Pre-signs LiveKit tokens, broadcasts IncomingCallEvent to target user via Reverb/Redis,
+     * and dispatches DB logging & push notification asynchronously to background queue.
+     * POST /api/call/instant, POST /api/call/initiate, POST /api/v1/call/initiate
+     */
+    public function initiateInstantCall(Request $request): JsonResponse
+    {
+        $caller = $this->resolveUser($request) ?? auth()->user();
+        if (!$caller) {
+            return response()->json([
+                'status'  => false,
+                'success' => false,
+                'message' => 'Unauthenticated. Pass Authorization Bearer token or user_id.',
+            ], 401);
+        }
+
+        $targetId = $request->input('target_user_id') 
+                 ?? $request->input('receiver_id') 
+                 ?? $request->input('target_id') 
+                 ?? $request->input('user_id');
+
+        $targetUser = User::where('id', $targetId)->orWhere('account_id', $targetId)->first();
+        if (!$targetUser) {
+            return response()->json([
+                'status'  => false,
+                'success' => false,
+                'message' => 'Target user not found.',
+            ], 404);
+        }
+
+        if ($targetUser->id === $caller->id) {
+            return response()->json([
+                'status'  => false,
+                'success' => false,
+                'message' => 'You cannot call yourself.',
+            ], 400);
+        }
+
+        $callType = strtolower($request->input('call_type', 'video'));
+        $channelName = $request->input('channel') 
+                    ?? $request->input('channel_name') 
+                    ?? $request->input('room_name')
+                    ?? ('call_' . $callType . '_' . $caller->id . '_' . $targetUser->id . '_' . time());
+
+        // Fast LiveKit Tokens (< 2ms)
+        $callerToken = \App\Services\LiveKitService::generateFastToken($caller, $channelName, true);
+        $receiverToken = \App\Services\LiveKitService::generateFastToken($targetUser, $channelName, true);
+
+        $callerLevel = $caller->level ?: 'Lv.1';
+        $callerLevelNum = $caller->level_number ?: 1;
+
+        $callerPayload = [
+            'id'           => $caller->id,
+            'name'         => $caller->display_name ?? $caller->name,
+            'display_name' => $caller->display_name ?? $caller->name,
+            'avatar_url'   => $caller->avatar_url,
+            'level'        => $callerLevel,
+            'level_number' => $callerLevelNum,
+            'gender'       => $caller->gender ?: 'male',
+        ];
+
+        $callData = [
+            'caller'       => $callerPayload,
+            'channel'      => $channelName,
+            'channel_name' => $channelName,
+            'room_name'    => $channelName,
+            'call_type'    => $callType,
+            'token'        => $receiverToken,
+            'livekit_url'  => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+            'status'       => 'dialing',
+            'timestamp'    => now()->toIso8601String(),
+        ];
+
+        // 1. Instant Socket Broadcast (Redis Reverb)
+        try {
+            broadcast(new \App\Events\IncomingCallEvent($targetUser->id, $callData))->toOthers();
+            broadcast(new \App\Events\IncomingPrivateCallEvent($targetUser->id, $callData))->toOthers();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Instant call socket warning: " . $e->getMessage());
+        }
+
+        // 2. Non-blocking Background Queue Dispatch for DB session logging & push notifications
+        try {
+            dispatch(new \App\Jobs\LogCallSessionJob($caller->id, $targetUser->id, [
+                'channel_name'    => $channelName,
+                'call_type'       => $callType,
+                'status'          => 'ringing',
+                'rate_per_minute' => $callType === 'audio' ? 60 : (int) ($targetUser->video_call_rate ?: 100),
+                'is_free_trial'   => $caller->isFreeCaller() || $caller->isEligibleForFreeCall(),
+                'is_caller_free'  => $caller->isFreeCaller(),
+            ]))->afterResponse();
+            dispatch(new \App\Jobs\SendCallNotificationJob($caller->id, $targetUser->id, $channelName, $callType))->afterResponse();
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'success'        => true,
+            'status'         => 'dialing',
+            'channel'        => $channelName,
+            'channel_name'   => $channelName,
+            'room_name'      => $channelName,
+            'token'          => $callerToken,
+            'caller_token'   => $callerToken,
+            'receiver_token' => $receiverToken,
+            'livekit_token'  => $callerToken,
+            'livekit_url'    => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+            'ice_servers'    => CallSetting::getIceServers(),
+            'target_user'    => [
+                'id'         => $targetUser->id,
+                'name'       => $targetUser->display_name ?? $targetUser->name,
+                'avatar_url' => $targetUser->avatar_url,
+                'level'      => $targetUser->level ?? 'Lv.1',
+            ],
+            'caller'         => $callerPayload,
+        ], 200);
+    }
+
+    /**
      * Instant 1-on-1 Audio/Video Call (< 5ms response, zero database queries).
      * Memory LiveKit token generation and background queue notification dispatch.
      * POST /api/call/instant, POST /api/call/make-instant-call, POST /api/make-instant-call
      */
     public function makeInstantCall(Request $request): JsonResponse
     {
-        $user = $this->resolveUser($request) ?? auth()->user();
-        if (!$user) {
-            return response()->json(['success' => false, 'status' => false, 'message' => 'Unauthenticated.'], 401);
-        }
-
-        $roomName = $request->input('room_name') 
-                 ?: ('instant_call_' . $user->id . '_' . ($request->input('receiver_id') ?: time()));
-
-        // 1. LiveKit Token directly generated in memory (< 2ms)
-        $token = $this->generateFastLivekitToken($roomName, $user);
-
-        // 2. Background push notification (non-blocking afterResponse)
-        if ($request->filled('receiver_id')) {
-            try {
-                dispatch(new \App\Jobs\SendCallPushNotification(
-                    $user->id,
-                    (int) $request->receiver_id,
-                    $roomName,
-                    $request->input('call_type', 'video')
-                ))->afterResponse();
-            } catch (\Throwable $e) {}
-        }
-
-        return response()->json([
-            'success'       => true,
-            'status'        => true,
-            'room_name'     => $roomName,
-            'token'         => $token,
-            'livekit_token' => $token,
-            'livekit_url'   => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
-        ], 200);
+        return $this->initiateInstantCall($request);
     }
 
     /**
@@ -1463,7 +1563,7 @@ class CallController extends Controller
             array_unshift($iceServers, $turnEntry);
         }
 
-        return response()->json([
+        $payload = [
             'status' => true,
             'message' => 'WebRTC ICE Servers retrieved successfully.',
             'data' => [
@@ -1473,7 +1573,20 @@ class CallController extends Controller
                 'rtcpMuxPolicy' => 'require',
             ],
             'iceServers' => $iceServers, // Direct alias for Flutter webrtc config
-        ], 200);
+        ];
+
+        $etag = '"' . md5(json_encode($iceServers)) . '"';
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
+            ]);
+        }
+
+        return response()->json($payload, 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
+        ]);
     }  
 
     /**

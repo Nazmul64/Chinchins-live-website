@@ -222,7 +222,7 @@ class VipCardApiController extends Controller
 
         $appConfig = \App\Models\AppSetting::getAppConfig();
 
-        return response()->json([
+        $responsePayload = [
             'status'  => true,
             'message' => 'Premium VIP cards and privileges retrieved successfully.',
             'data'    => [
@@ -234,7 +234,20 @@ class VipCardApiController extends Controller
                 'floating_banner' => $appConfig['floating_vip_banner'] ?? null,
                 'cards'           => $formattedCards,
             ],
-        ], 200);
+        ];
+
+        $etag = '"' . md5(json_encode($responsePayload)) . '"';
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=600, stale-while-revalidate=3600',
+            ]);
+        }
+
+        return response()->json($responsePayload, 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=600, stale-while-revalidate=3600',
+        ]);
     }
 
     /**
@@ -243,25 +256,39 @@ class VipCardApiController extends Controller
      */
     public function getFloatingBanner(Request $request = null): JsonResponse
     {
-        $isEnabled = (bool) (AppSetting::get('floating_vip_banner_enabled', '1') === '1');
-        $title = AppSetting::get('floating_vip_banner_title', 'Extra Gems');
-        $subtitle = AppSetting::get('floating_vip_banner_tag', 'Monthly Card');
-        $imagePath = AppSetting::get('floating_vip_banner_image', 'uploads/floating_action_icons/default_floating_icon.png');
-        $targetAction = AppSetting::get('floating_vip_banner_action', 'OPEN_PREMIUM_VIP');
+        $payload = \Illuminate\Support\Facades\Cache::remember('api_floating_vip_banner_v1', 86400, function () {
+            $isEnabled = (bool) (AppSetting::get('floating_vip_banner_enabled', '1') === '1');
+            $title = AppSetting::get('floating_vip_banner_title', 'Extra Gems');
+            $subtitle = AppSetting::get('floating_vip_banner_tag', 'Monthly Card');
+            $imagePath = AppSetting::get('floating_vip_banner_image', 'uploads/floating_action_icons/default_floating_icon.png');
+            $targetAction = AppSetting::get('floating_vip_banner_action', 'OPEN_PREMIUM_VIP');
+            $imageUrl = !empty($imagePath) ? CoinPackage::resolveAssetUrl($imagePath) : null;
 
-        $imageUrl = !empty($imagePath) ? CoinPackage::resolveAssetUrl($imagePath) : null;
-
-        return response()->json([
-            'success' => true,
-            'status'  => true,
-            'data'    => [
+            return [
                 'is_enabled'    => $isEnabled,
                 'title'         => $title,
                 'subtitle'      => $subtitle,
                 'image_url'     => $imageUrl,
                 'target_action' => $targetAction,
-            ],
-        ], 200);
+            ];
+        });
+
+        $etag = '"' . md5(json_encode($payload)) . '"';
+        if ($request && $request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'status'  => true,
+            'data'    => $payload,
+        ], 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
+        ]);
     }
 
     /**

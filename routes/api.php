@@ -379,9 +379,12 @@ Route::prefix('call')->group(function () {
     Route::post('/make-call', [CallController::class, 'makeCall']);
     Route::post('/make_call', [CallController::class, 'makeCall']);
     Route::post('/start-call', [CallController::class, 'makeCall']);
-    Route::post('/instant', [CallController::class, 'makeInstantCall']);
-    Route::post('/make-instant-call', [CallController::class, 'makeInstantCall']);
-    Route::post('/initiate', [CallController::class, 'initiate']);
+    Route::post('/instant', [CallController::class, 'initiateInstantCall']);
+    Route::post('/instant-call', [CallController::class, 'initiateInstantCall']);
+    Route::post('/make-instant-call', [CallController::class, 'initiateInstantCall']);
+    Route::post('/initiate', [CallController::class, 'initiateInstantCall']);
+    Route::post('/initiate-instant', [CallController::class, 'initiateInstantCall']);
+    Route::post('/initiate-call', [CallController::class, 'initiateInstantCall']);
     Route::match(['get', 'post'], '/incoming', [CallController::class, 'checkIncoming']);
     Route::match(['get', 'post'], '/check-incoming', [CallController::class, 'checkIncoming']);
     Route::match(['get', 'post'], '/active-incoming', [CallController::class, 'checkIncoming']);

@@ -156,10 +156,21 @@ class PaymentController extends Controller
             ];
         });
 
+        $etag = '"' . md5(json_encode($data)) . '"';
+        if (request()->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=3600, stale-while-revalidate=86400',
+            ]);
+        }
+
         return response()->json(array_merge([
             'status' => true,
             'message' => 'Payment methods retrieved successfully.',
-        ], $data), 200)->header('Cache-Control', 'public, max-age=120, stale-while-revalidate=600');
+        ], $data), 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=3600, stale-while-revalidate=86400',
+        ]);
     }
 
     /**

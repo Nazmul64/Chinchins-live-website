@@ -118,13 +118,24 @@ class WithdrawalApiController extends Controller
             });
         });
 
+        $etag = '"' . md5(json_encode($methods)) . '"';
+        if (request()->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'status'  => true,
             'message' => 'Active withdrawal payment methods retrieved successfully.',
             'data'    => $methods,
             'methods' => $methods,
-        ], 200)->header('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+        ], 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
+        ]);
     }
 
     /**
@@ -205,7 +216,7 @@ class WithdrawalApiController extends Controller
             ];
         }
 
-        return response()->json([
+        $payload = [
             'status' => true,
             'message' => 'Withdrawal information and settings retrieved successfully.',
             'data' => [
@@ -223,7 +234,20 @@ class WithdrawalApiController extends Controller
                 'user' => $userBalanceData,
                 'payment_methods' => $paymentMethods,
             ],
-        ], 200);
+        ];
+
+        $etag = '"' . md5(json_encode($config) . '_' . ($user ? $user->coins : 0)) . '"';
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=60, stale-while-revalidate=300',
+            ]);
+        }
+
+        return response()->json($payload, 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=60, stale-while-revalidate=300',
+        ]);
     }
 
     /**

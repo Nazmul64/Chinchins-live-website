@@ -94,13 +94,24 @@ class GiftApiController extends Controller
                 });
         });
 
+        $etag = '"' . md5(json_encode($gifts)) . '"';
+        if (request()->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'status'  => true,
             'message' => 'Active gifts catalog loaded from cache.',
             'data'    => $gifts,
             'gifts'   => $gifts,
-        ])->header('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+        ], 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
+        ]);
     }
 
     /**
@@ -166,6 +177,14 @@ class GiftApiController extends Controller
             ];
         });
 
+        $etag = '"' . md5(json_encode($catalogData)) . '"';
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304)->withHeaders([
+                'ETag'          => $etag,
+                'Cache-Control' => 'public, max-age=3600, stale-while-revalidate=86400',
+            ]);
+        }
+
         return response()->json([
             'status'  => true,
             'message' => 'Gifts catalog loaded successfully.',
@@ -175,7 +194,10 @@ class GiftApiController extends Controller
                     'formatted_coins' => $sender ? Gift::formatCoins($sender->coins) : '0',
                 ],
             ]),
-        ])->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+        ], 200)->withHeaders([
+            'ETag'          => $etag,
+            'Cache-Control' => 'public, max-age=3600, stale-while-revalidate=86400',
+        ]);
     }
 
     /**
@@ -636,23 +658,32 @@ class GiftApiController extends Controller
                  'description'   => "Received {$quantity}x {$gift->name} from {$sender->display_name} (+{$hostEarnings} earnings)",
                  'reference_id'  => $giftTx->id,
              ]);
- 
+
+             $senderLevelStr = $sender->level ?: 'Lv.1';
+             $senderLevelNum = $sender->level_number ?: 1;
+
              // 7. Real-Time Broadcast Payload for Flutter / Web Clients
              $eventData = [
-                 'stream_id'      => $streamId,
-                 'sender_id'      => $sender->id,
-                 'sender_name'    => $sender->display_name ?? $sender->name,
-                 'sender_avatar'  => $sender->avatar_url,
-                 'gift_id'        => $gift->id,
-                 'gift_name'      => $gift->name,
-                 'icon_url'       => $gift->icon_url ?: $gift->image_url,
-                 'file_url'       => $gift->file_url ?: $gift->animation_full_url,
-                 'format'         => $gift->format ?? ($gift->animation_type ?: 'svga'),
-                 'display_type'   => $gift->display_type ?? ($gift->is_broadcast ? 'fullscreen' : 'bubble'),
-                 'quantity'       => $quantity,
-                 'coins_spent'    => $totalCost,
+                 'stream_id'           => $streamId,
+                 'sender_id'           => $sender->id,
+                 'sender_name'         => $sender->display_name ?? $sender->name,
+                 'sender_avatar'       => $sender->avatar_url,
+                 'sender_level'        => $senderLevelStr,
+                 'sender_level_number' => $senderLevelNum,
+                 'level'               => $senderLevelStr,
+                 'level_number'        => $senderLevelNum,
+                 'current_level'       => $senderLevelNum,
+                 'gift_id'             => $gift->id,
+                 'gift_name'           => $gift->name,
+                 'icon_url'            => $gift->icon_url ?: $gift->image_url,
+                 'file_url'            => $gift->file_url ?: $gift->animation_full_url,
+                 'format'              => $gift->format ?? ($gift->animation_type ?: 'svga'),
+                 'display_type'        => $gift->display_type ?? ($gift->is_broadcast ? 'fullscreen' : 'bubble'),
+                 'quantity'            => $quantity,
+                 'coins_spent'         => $totalCost,
+                 'sender_coins_left'   => $senderBalanceAfter,
              ];
- 
+
              // 8. Trigger Laravel Reverb Real-Time Broadcast Event (live-stream.{stream_id} -> gift.received & GiftSent)
              try {
                  broadcast(new LiveGiftSentEvent($streamId, $eventData))->toOthers();
