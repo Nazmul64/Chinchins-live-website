@@ -148,6 +148,14 @@ Route::get('/v1/live/app-icons', [\App\Http\Controllers\Api\LiveAppIconApiContro
 Route::get('/v1/live/card-feed', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getCardFeed']);
 Route::get('/v1/hot', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getCardFeed']);
 
+// 📱 Customer Profile Icons ("Me" Screen 10 Icons & Pictures RESTful API)
+Route::get('/customer-profile-icons', [\App\Http\Controllers\Api\CustomerProfileIconApiController::class, 'index']);
+Route::get('/customer-profile/icons', [\App\Http\Controllers\Api\CustomerProfileIconApiController::class, 'index']);
+Route::get('/v1/customer-profile-icons', [\App\Http\Controllers\Api\CustomerProfileIconApiController::class, 'index']);
+Route::get('/app-icons/profile', [\App\Http\Controllers\Api\CustomerProfileIconApiController::class, 'index']);
+Route::get('/profile/icons', [\App\Http\Controllers\Api\CustomerProfileIconApiController::class, 'index']);
+Route::get('/customer-profile-icons/{key}', [\App\Http\Controllers\Api\CustomerProfileIconApiController::class, 'getByKey']);
+
 // Worldwide Countries List (For Registration, Filter & Country Select)
 Route::get('/countries', [ProfileController::class, 'getCountries']);
 Route::get('/app/countries', [ProfileController::class, 'getCountries']);

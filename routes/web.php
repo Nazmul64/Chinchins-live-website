@@ -176,6 +176,14 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::delete('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'destroy'])->name('profile-bases.destroy')->middleware('permission:level_badges.delete');
     Route::post('/profile-bases/{id}/toggle-status', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'toggleStatus'])->name('profile-bases.toggle-status')->middleware('permission:level_badges.edit');
 
+    // Customer Profile Icons ("Me" Screen Picture & Icons Management)
+    Route::prefix('customer-profile-icons')->name('customer-profile-icons.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'index'])->name('index');
+        Route::post('/{id}/update', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'update'])->name('update');
+        Route::post('/{id}/reset', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'resetDefault'])->name('reset');
+        Route::post('/bulk-update', [\App\Http\Controllers\Admin\CustomerProfileIconAdminController::class, 'bulkUpdate'])->name('bulk-update');
+    });
+
     // My Bag Items & User Inventory Management
     Route::get('/my-bag', [\App\Http\Controllers\Admin\BagAdminController::class, 'index'])->name('my-bag.index')->middleware('permission:bag_items.view');
     Route::post('/my-bag', [\App\Http\Controllers\Admin\BagAdminController::class, 'store'])->name('my-bag.store')->middleware('permission:bag_items.create');

@@ -252,6 +252,15 @@
         </a>
         @endhasPermission
 
+        <!-- Customer Profile Icons (কাস্টমার প্রোফাইল আইকন ও ছবি সেটিং) -->
+        <a href="{{ route('admin.customer-profile-icons.index') }}" class="menu-item {{ request()->routeIs('admin.customer-profile-icons.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-icons" style="color: #ec4899;"></i>
+                <span>Customer Profile Icons</span>
+            </div>
+            <span class="badge bg-pink-subtle text-pink rounded-pill" style="font-size: 10px; padding: 2px 7px; background: rgba(236,72,153,0.15); color: #ec4899;">10 Icons</span>
+        </a>
+
         <!-- Deposit Requests -->
         @hasPermission('deposits.view')
         <a href="{{ route('admin.deposits.index') }}" class="menu-item {{ request()->routeIs('admin.deposits.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
