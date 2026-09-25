@@ -418,46 +418,52 @@ class VipCardAdminController extends Controller
             return redirect()->route('admin.vip-cards.index');
         }
 
-        $request->validate([
-            'floating_vip_banner_title'  => 'nullable|string|max:100',
-            'floating_vip_banner_tag'    => 'nullable|string|max:100',
-            'floating_vip_banner_action' => 'nullable|string|max:100',
-            'floating_banner_file'       => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
-            'floating_widget_image'      => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
-        ]);
+        try {
+            $request->validate([
+                'floating_vip_banner_title'  => 'nullable|string|max:100',
+                'floating_vip_banner_tag'    => 'nullable|string|max:100',
+                'floating_vip_banner_action' => 'nullable|string|max:100',
+                'floating_banner_file'       => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+                'floating_widget_image'      => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            ]);
 
-        AppSetting::set(
-            'floating_vip_banner_enabled',
-            $request->boolean('floating_vip_banner_enabled') ? '1' : '0',
-            'vip',
-            'Show floating Extra Gems VIP banner on Home Screen'
-        );
+            AppSetting::set(
+                'floating_vip_banner_enabled',
+                $request->boolean('floating_vip_banner_enabled') ? '1' : '0',
+                'vip',
+                'Show floating Extra Gems VIP banner on Home Screen'
+            );
 
-        if ($request->filled('floating_vip_banner_title')) {
-            AppSetting::set('floating_vip_banner_title', $request->input('floating_vip_banner_title'), 'vip');
-        }
-
-        if ($request->filled('floating_vip_banner_tag')) {
-            AppSetting::set('floating_vip_banner_tag', $request->input('floating_vip_banner_tag'), 'vip');
-        }
-
-        if ($request->filled('floating_vip_banner_action')) {
-            AppSetting::set('floating_vip_banner_action', $request->input('floating_vip_banner_action'), 'vip');
-        }
-
-        $file = $request->file('floating_widget_image') ?? $request->file('floating_banner_file');
-        if ($file && $file->isValid()) {
-            $dest = public_path('uploads/floating_action_icons');
-            if (!File::exists($dest)) {
-                File::makeDirectory($dest, 0777, true, true);
+            if ($request->filled('floating_vip_banner_title')) {
+                AppSetting::set('floating_vip_banner_title', $request->input('floating_vip_banner_title'), 'vip');
             }
-            $filename = 'extra_gems_' . time() . '.' . $file->getClientOriginalExtension();
-            $file->move($dest, $filename);
-            AppSetting::set('floating_vip_banner_image', 'uploads/floating_action_icons/' . $filename, 'vip');
-        }
 
-        return redirect()->route('admin.vip-cards.index')
-            ->with('success', 'Home screen floating VIP banner updated successfully!');
+            if ($request->filled('floating_vip_banner_tag')) {
+                AppSetting::set('floating_vip_banner_tag', $request->input('floating_vip_banner_tag'), 'vip');
+            }
+
+            if ($request->filled('floating_vip_banner_action')) {
+                AppSetting::set('floating_vip_banner_action', $request->input('floating_vip_banner_action'), 'vip');
+            }
+
+            $file = $request->file('floating_widget_image') ?? $request->file('floating_banner_file');
+            if ($file && $file->isValid()) {
+                $dest = public_path('uploads/floating_action_icons');
+                if (!File::exists($dest)) {
+                    File::makeDirectory($dest, 0775, true, true);
+                }
+                $filename = 'extra_gems_' . time() . '.' . $file->getClientOriginalExtension();
+                $file->move($dest, $filename);
+                AppSetting::set('floating_vip_banner_image', 'uploads/floating_action_icons/' . $filename, 'vip');
+            }
+
+            return redirect()->route('admin.vip-cards.index')
+                ->with('success', 'Home screen floating VIP banner updated successfully!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Floating banner update error: ' . $e->getMessage());
+            return redirect()->route('admin.vip-cards.index')
+                ->with('error', 'Error updating banner: ' . $e->getMessage());
+        }
     }
 
     /**
