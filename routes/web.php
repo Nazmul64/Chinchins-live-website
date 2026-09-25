@@ -151,13 +151,13 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::get('/gifts/logs', [\App\Http\Controllers\Admin\GiftController::class, 'logs'])->name('gifts.logs')->middleware('permission:gifts.view');
 
     // Premium VIP Cards & Floating Home Banner Management
-    Route::get('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'index'])->name('vip-cards.index')->middleware('permission:vip.view|vip_cards.view');
-    Route::post('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'store'])->name('vip-cards.store')->middleware('permission:vip.create|vip_cards.create');
-    Route::match(['PUT', 'POST'], '/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'update'])->name('vip-cards.update')->middleware('permission:vip.edit|vip_cards.edit');
-    Route::delete('/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'destroy'])->name('vip-cards.destroy')->middleware('permission:vip.delete|vip_cards.delete');
-    Route::post('/vip-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'toggleStatus'])->name('vip-cards.toggle-status')->middleware('permission:vip.edit|vip_cards.toggle_status|vip_cards.edit');
-    Route::get('/vip-cards/subscriptions', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'subscriptions'])->name('vip-cards.subscriptions')->middleware('permission:vip.view|vip_cards.view');
-    Route::match(['GET', 'POST'], '/vip-cards/floating-banner', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'updateFloatingBanner'])->name('vip-cards.floating-banner')->middleware('permission:vip.view|vip.edit|vip.floating_banner|vip_cards.view|vip_cards.edit|vip_cards.floating_banner');
+    Route::get('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'index'])->name('vip-cards.index');
+    Route::post('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'store'])->name('vip-cards.store');
+    Route::match(['PUT', 'POST'], '/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'update'])->name('vip-cards.update');
+    Route::delete('/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'destroy'])->name('vip-cards.destroy');
+    Route::post('/vip-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'toggleStatus'])->name('vip-cards.toggle-status');
+    Route::get('/vip-cards/subscriptions', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'subscriptions'])->name('vip-cards.subscriptions');
+    Route::match(['GET', 'POST'], '/vip-cards/floating-banner', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'updateFloatingBanner'])->name('vip-cards.floating-banner');
 
     // Spend Less, Get More Gems Management
     Route::get('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'index'])->name('spend-less-cards.index')->middleware('permission:spend_less.view|spend_less_cards.view');

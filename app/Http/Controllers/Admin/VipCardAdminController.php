@@ -423,8 +423,8 @@ class VipCardAdminController extends Controller
                 'floating_vip_banner_title'  => 'nullable|string|max:100',
                 'floating_vip_banner_tag'    => 'nullable|string|max:100',
                 'floating_vip_banner_action' => 'nullable|string|max:100',
-                'floating_banner_file'       => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
-                'floating_widget_image'      => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+                'floating_banner_file'       => 'nullable|file|max:15360',
+                'floating_widget_image'      => 'nullable|file|max:15360',
             ]);
 
             AppSetting::set(
@@ -450,19 +450,20 @@ class VipCardAdminController extends Controller
             if ($file && $file->isValid()) {
                 $dest = public_path('uploads/floating_action_icons');
                 if (!File::exists($dest)) {
-                    File::makeDirectory($dest, 0775, true, true);
+                    @File::makeDirectory($dest, 0777, true, true);
                 }
-                $filename = 'extra_gems_' . time() . '.' . $file->getClientOriginalExtension();
+                $ext = $file->getClientOriginalExtension() ?: 'png';
+                $filename = 'extra_gems_' . time() . '_' . Str::random(6) . '.' . $ext;
                 $file->move($dest, $filename);
                 AppSetting::set('floating_vip_banner_image', 'uploads/floating_action_icons/' . $filename, 'vip');
             }
 
             return redirect()->route('admin.vip-cards.index')
                 ->with('success', 'Home screen floating VIP banner updated successfully!');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Floating banner update error: ' . $e->getMessage());
             return redirect()->route('admin.vip-cards.index')
-                ->with('error', 'Error updating banner: ' . $e->getMessage());
+                ->with('error', 'Update error: ' . $e->getMessage());
         }
     }
 
