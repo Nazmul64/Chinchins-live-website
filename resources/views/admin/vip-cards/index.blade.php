@@ -84,61 +84,114 @@
         </div>
     </div>
 
+    <!-- Flash Alerts -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0 d-flex align-items-center" role="alert" style="background: #ecfdf5; color: #065f46; border-left: 4px solid #10b981 !important;">
+            <i class="fa-solid fa-circle-check fs-5 me-2 text-success"></i>
+            <div>{{ session('success') }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm mb-4 border-0 d-flex align-items-center" role="alert" style="background: #fef2f2; color: #991b1b; border-left: 4px solid #ef4444 !important;">
+            <i class="fa-solid fa-triangle-exclamation fs-5 me-2 text-danger"></i>
+            <div>{{ session('error') }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     <!-- Home Screen Floating VIP Widget Configuration Card -->
-    <div class="card border-0 shadow-sm rounded-4 mb-4" style="background: #ffffff; border: 1px solid rgba(0,0,0,0.08) !important;">
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="background: #ffffff; border: 1px solid rgba(0,0,0,0.08) !important;">
         <div class="card-header bg-transparent py-3 px-4 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2">
-                <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
-                    <i class="fa-solid fa-cube"></i>
+                <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                    <i class="fa-solid fa-cube fs-6"></i>
                 </div>
                 <div>
                     <h6 class="fw-bold text-dark mb-0">Home Screen Floating VIP Widget ("Extra Gems" / Monthly Card)</h6>
-                    <p class="text-muted mb-0" style="font-size: 12px;">Draggable floating button on the mobile app home screen that navigates users directly to the Premium VIP page.</p>
+                    <p class="text-muted mb-0" style="font-size: 12px;">Draggable floating action icon on mobile app home screen that navigates users directly to the Premium VIP page.</p>
                 </div>
             </div>
-            <span class="badge {{ ($floatingBannerConfig['is_enabled'] ?? true) ? 'bg-success' : 'bg-secondary' }} rounded-pill px-3 py-2">
+            <span class="badge {{ ($floatingBannerConfig['is_enabled'] ?? true) ? 'bg-success' : 'bg-secondary' }} rounded-pill px-3 py-2" id="floatingWidgetBadgeStatus">
                 {{ ($floatingBannerConfig['is_enabled'] ?? true) ? '● Widget Enabled' : '○ Widget Disabled' }}
             </span>
         </div>
         <div class="card-body p-4">
-            <form action="{{ route('admin.vip-cards.floating-banner') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('admin.vip-cards.floating-banner') }}" method="POST" enctype="multipart/form-data" id="floatingBannerForm">
                 @csrf
-                <div class="row g-3 align-items-center">
-                    <div class="col-12 col-md-3 text-center">
-                        <div class="p-3 rounded-4 position-relative d-inline-block shadow-sm" style="background: linear-gradient(135deg, #1e1b4b, #312e81); border: 2px solid #f59e0b; width: 140px;">
-                            <img src="{{ $floatingBannerConfig['image_url'] ?? asset('assets/images/vip/vip_privilege_full_motion.svg') }}" alt="Floating Widget" class="img-fluid rounded-3 mb-2" style="max-height: 80px; object-fit: contain;">
-                            <div class="badge bg-warning text-dark fw-bold rounded-pill px-2 py-1" style="font-size: 10px;">
-                                {{ $floatingBannerConfig['title'] ?? 'Extra Gems' }}
+                <div class="row g-4 align-items-center">
+                    <!-- Live Dynamic Preview Box -->
+                    <div class="col-12 col-lg-3 text-center">
+                        <div class="floating-preview-card p-3 rounded-4 position-relative shadow d-inline-block text-center" style="background: radial-gradient(circle at top, #2e1065, #0f172a); border: 2px solid #f59e0b; width: 170px; min-height: 190px;">
+                            <div class="small fw-bold text-warning mb-2 text-uppercase" style="font-size: 10px; letter-spacing: 0.5px;">
+                                <i class="fa-solid fa-eye me-1"></i> Live App Preview
+                            </div>
+                            <div class="position-relative d-inline-block my-1">
+                                <img id="floatingWidgetPreviewImg" 
+                                     src="{{ $floatingBannerConfig['image_url'] ?? asset('assets/images/vip/vip_privilege_full_motion.svg') }}" 
+                                     alt="Floating Widget Icon" 
+                                     class="img-fluid rounded-3" 
+                                     style="max-height: 90px; max-width: 130px; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(245, 158, 11, 0.4)); transition: all 0.3s ease;">
+                            </div>
+                            <div class="mt-2">
+                                <div class="badge bg-warning text-dark fw-bolder rounded-pill px-2 py-1 shadow-sm" id="floatingPreviewTitle" style="font-size: 11px;">
+                                    {{ $floatingBannerConfig['title'] ?? 'Extra Gems' }}
+                                </div>
+                                <div class="text-white-50 mt-1" id="floatingPreviewTag" style="font-size: 10px; font-weight: 500;">
+                                    {{ $floatingBannerConfig['tag'] ?? 'Monthly Card' }}
+                                </div>
+                            </div>
+                            <div id="newImageNotice" class="badge bg-info text-dark rounded-pill px-2 py-1 mt-2 d-none" style="font-size: 9px;">
+                                <i class="fa-solid fa-sparkles me-1"></i> New Image Selected
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 col-md-9">
+
+                    <!-- Input Fields -->
+                    <div class="col-12 col-lg-9">
                         <div class="row g-3">
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-sm-6 col-md-4">
                                 <label class="form-label fw-semibold" style="font-size: 13px;">Widget Title</label>
-                                <input type="text" name="floating_vip_banner_title" class="form-control" value="{{ $floatingBannerConfig['title'] ?? 'Extra Gems' }}" placeholder="e.g. Extra Gems">
+                                <input type="text" name="floating_vip_banner_title" id="inputFloatingTitle" class="form-control" value="{{ $floatingBannerConfig['title'] ?? 'Extra Gems' }}" placeholder="e.g. Extra Gems">
                             </div>
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-sm-6 col-md-4">
                                 <label class="form-label fw-semibold" style="font-size: 13px;">Tag / Subtitle</label>
-                                <input type="text" name="floating_vip_banner_tag" class="form-control" value="{{ $floatingBannerConfig['tag'] ?? 'Monthly Card' }}" placeholder="e.g. Monthly Card">
+                                <input type="text" name="floating_vip_banner_tag" id="inputFloatingTag" class="form-control" value="{{ $floatingBannerConfig['tag'] ?? 'Monthly Card' }}" placeholder="e.g. Monthly Card">
                             </div>
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-sm-6 col-md-4">
                                 <label class="form-label fw-semibold" style="font-size: 13px;">Target Action</label>
-                                <input type="text" name="floating_vip_banner_action" class="form-control" value="{{ $floatingBannerConfig['action_type'] ?? 'OPEN_PREMIUM_VIP' }}" readonly style="background: #f8fafc;">
+                                <input type="text" name="floating_vip_banner_action" class="form-control" value="{{ $floatingBannerConfig['action_type'] ?? 'OPEN_PREMIUM_VIP' }}" readonly style="background: #f8fafc; font-weight: 600; color: #475569;">
                             </div>
+
                             <div class="col-12 col-md-8">
-                                <label class="form-label fw-semibold" style="font-size: 13px;">Upload Custom Floating Widget Image (PNG / WebP transparent)</label>
-                                <input type="file" name="floating_banner_file" class="form-control" accept="image/*">
+                                <label class="form-label fw-semibold d-flex justify-content-between align-items-center" style="font-size: 13px;">
+                                    <span><i class="fa-solid fa-cloud-arrow-up text-primary me-1"></i> Upload Custom Floating Widget Icon (PNG / WebP / SVG)</span>
+                                    <span class="text-muted small" style="font-size: 11px;">Max: 10MB</span>
+                                </label>
+                                <div class="input-group">
+                                    <input type="file" name="floating_banner_file" id="floatingBannerFileInput" class="form-control" accept="image/png,image/webp,image/jpeg,image/svg+xml">
+                                    <button class="btn btn-outline-secondary d-none" type="button" id="btnResetPreview" title="Reset image preview">
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text text-muted" style="font-size: 11px;">
+                                    <i class="fa-solid fa-circle-info me-1 text-primary"></i> File is saved directly to <code>public/uploads/floating_action_icons/</code> with full domain URL.
+                                </div>
                             </div>
-                            <div class="col-12 col-md-4 d-flex align-items-end">
-                                <div class="form-check form-switch mb-2">
-                                    <input class="form-check-input" type="checkbox" name="floating_vip_banner_enabled" id="floatingVipBannerSwitch" value="1" {{ ($floatingBannerConfig['is_enabled'] ?? true) ? 'checked' : '' }}>
-                                    <label class="form-check-label fw-semibold" for="floatingVipBannerSwitch" style="font-size: 13px;">Enable Floating Widget</label>
+
+                            <div class="col-12 col-md-4 d-flex align-items-center">
+                                <div class="form-check form-switch p-3 rounded-3 w-100" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" name="floating_vip_banner_enabled" id="floatingVipBannerSwitch" value="1" {{ ($floatingBannerConfig['is_enabled'] ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold text-dark" for="floatingVipBannerSwitch" style="font-size: 13px;">Enable Floating Widget</label>
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-3 text-end">
-                            <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold text-dark">
+
+                        <div class="mt-4 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <span class="text-muted small">
+                                <i class="fa-solid fa-mobile-screen me-1"></i> Changes will immediately take effect across all mobile app clients.
+                            </span>
+                            <button type="submit" class="btn btn-warning rounded-pill px-4 py-2 fw-bold text-dark shadow-sm">
                                 <i class="fa-solid fa-floppy-disk me-1"></i> Save Floating Banner Settings
                             </button>
                         </div>
@@ -932,6 +985,74 @@ function openEditCardModal(card) {
 
     new bootstrap.Modal(document.getElementById('vipCardModal')).show();
 }
+
+// ----------------------------------------------------
+// Home Floating VIP Widget Live Preview & Form Binding
+// ----------------------------------------------------
+document.addEventListener('DOMContentLoaded', function () {
+    const fileInput = document.getElementById('floatingBannerFileInput');
+    const previewImg = document.getElementById('floatingWidgetPreviewImg');
+    const resetBtn = document.getElementById('btnResetPreview');
+    const newNotice = document.getElementById('newImageNotice');
+    const originalSrc = previewImg ? previewImg.src : '';
+
+    const inputTitle = document.getElementById('inputFloatingTitle');
+    const previewTitle = document.getElementById('floatingPreviewTitle');
+    const inputTag = document.getElementById('inputFloatingTag');
+    const previewTag = document.getElementById('floatingPreviewTag');
+    const switchToggle = document.getElementById('floatingVipBannerSwitch');
+    const badgeStatus = document.getElementById('floatingWidgetBadgeStatus');
+
+    if (fileInput && previewImg) {
+        fileInput.addEventListener('change', function (e) {
+            const file = e.target.files && e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    previewImg.src = evt.target.result;
+                    previewImg.style.transform = 'scale(1.08)';
+                    setTimeout(() => { previewImg.style.transform = 'scale(1)'; }, 300);
+                    if (resetBtn) resetBtn.classList.remove('d-none');
+                    if (newNotice) newNotice.classList.remove('d-none');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    if (resetBtn && fileInput && previewImg) {
+        resetBtn.addEventListener('click', function () {
+            fileInput.value = '';
+            previewImg.src = originalSrc;
+            resetBtn.classList.add('d-none');
+            if (newNotice) newNotice.classList.add('d-none');
+        });
+    }
+
+    if (inputTitle && previewTitle) {
+        inputTitle.addEventListener('input', function () {
+            previewTitle.textContent = this.value.trim() || 'Extra Gems';
+        });
+    }
+
+    if (inputTag && previewTag) {
+        inputTag.addEventListener('input', function () {
+            previewTag.textContent = this.value.trim() || 'Monthly Card';
+        });
+    }
+
+    if (switchToggle && badgeStatus) {
+        switchToggle.addEventListener('change', function () {
+            if (this.checked) {
+                badgeStatus.className = 'badge bg-success rounded-pill px-3 py-2';
+                badgeStatus.textContent = '● Widget Enabled';
+            } else {
+                badgeStatus.className = 'badge bg-secondary rounded-pill px-3 py-2';
+                badgeStatus.textContent = '○ Widget Disabled';
+            }
+        });
+    }
+});
 </script>
 @endpush
 @endsection
