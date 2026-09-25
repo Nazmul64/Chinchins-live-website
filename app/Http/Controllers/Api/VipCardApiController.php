@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
+use App\Models\CoinPackage;
 use App\Models\CoinTransaction;
 use App\Models\User;
 use App\Models\UserVipCardSubscription;
@@ -236,22 +237,28 @@ class VipCardApiController extends Controller
     }
 
     /**
-     * Get Floating Extra Gems Home Screen Banner configuration.
-     * GET /api/vip-cards/banner or GET /api/premium-vip/banner
+     * Get Floating Home Screen VIP Widget / Action Icon settings.
+     * GET /api/floating-banner, GET /api/floating-action-icon, GET /api/vip-cards/banner
      */
-    public function getFloatingBanner(Request $request): JsonResponse
+    public function getFloatingBanner(Request $request = null): JsonResponse
     {
-        $appConfig = \App\Models\AppSetting::getAppConfig();
+        $isEnabled = (bool) (AppSetting::get('floating_vip_banner_enabled', '1') === '1');
+        $title = AppSetting::get('floating_vip_banner_title', 'Extra Gems');
+        $subtitle = AppSetting::get('floating_vip_banner_tag', 'Monthly Card');
+        $imagePath = AppSetting::get('floating_vip_banner_image', 'uploads/floating_action_icons/default_floating_icon.png');
+        $targetAction = AppSetting::get('floating_vip_banner_action', 'OPEN_PREMIUM_VIP');
+
+        $imageUrl = !empty($imagePath) ? CoinPackage::resolveAssetUrl($imagePath) : null;
+
         return response()->json([
+            'success' => true,
             'status'  => true,
-            'message' => 'Floating VIP banner retrieved successfully.',
-            'data'    => $appConfig['floating_vip_banner'] ?? [
-                'is_enabled'    => true,
-                'title'         => 'Extra Gems',
-                'tag'           => 'Monthly Card',
-                'image_url'     => asset('assets/images/vip/floating_extra_gems.png'),
-                'action_type'   => 'OPEN_PREMIUM_VIP',
-                'target_screen' => '/premium-vip',
+            'data'    => [
+                'is_enabled'    => $isEnabled,
+                'title'         => $title,
+                'subtitle'      => $subtitle,
+                'image_url'     => $imageUrl,
+                'target_action' => $targetAction,
             ],
         ], 200);
     }
@@ -509,6 +516,7 @@ class VipCardApiController extends Controller
             ], 200);
         });
     }
+
 
     /**
      * Admin: Create or Store New VIP Card Package.

@@ -156,6 +156,13 @@ Route::get('/app-icons/profile', [\App\Http\Controllers\Api\CustomerProfileIconA
 Route::get('/profile/icons', [\App\Http\Controllers\Api\CustomerProfileIconApiController::class, 'index']);
 Route::get('/customer-profile-icons/{key}', [\App\Http\Controllers\Api\CustomerProfileIconApiController::class, 'getByKey']);
 
+// 🎈 Home Screen Floating Action Icon / VIP Widget RESTful API
+Route::get('/floating-banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+Route::get('/floating-action-icon', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+Route::get('/floating-widget', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+Route::get('/v1/floating-banner', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+Route::get('/v1/floating-action-icon', [\App\Http\Controllers\Api\VipCardApiController::class, 'getFloatingBanner']);
+
 // Worldwide Countries List (For Registration, Filter & Country Select)
 Route::get('/countries', [ProfileController::class, 'getCountries']);
 Route::get('/app/countries', [ProfileController::class, 'getCountries']);

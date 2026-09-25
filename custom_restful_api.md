@@ -261,8 +261,44 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
-## 🛠️ ৪. এডমিন প্যানেল ইউআরএল ও অ্যাকশনস
+---
 
+## 💎 ৪. হোম স্ক্রিন ফ্লোটিং ভিআইপি অ্যাকশন আইকন ও ব্যানার এপিআই (Home Screen Floating VIP Widget / Action Icon API)
+
+হোম স্ক্রিনে ডানপাশে থাকা ফ্লোটিং বাটন ("Extra Gems" / "Monthly Card") সম্পূর্ণ ডাইনামিক। অ্যাডমিন প্যানেল থেকে যেকোনো সময় আইকন বা ব্যানার ইমেজ আপলোড ও পরিবর্তন করা যাবে। আপলোড করা ফাইল সরাসরি `public/uploads/floating_action_icons/` এ সেভ হয়।
+
+- **Method**: `GET`
+- **Endpoints**: 
+  - `https://chinchins.live/api/floating-banner` *(Primary)*
+  - `https://chinchins.live/api/floating-action-icon`
+  - `https://chinchins.live/api/floating-widget`
+  - `https://chinchins.live/api/vip-cards/banner`
+- **Response Format**:
+```json
+{
+  "success": true,
+  "status": true,
+  "data": {
+    "is_enabled": true,
+    "title": "Extra Gems",
+    "subtitle": "Monthly Card",
+    "image_url": "https://chinchins.live/uploads/floating_action_icons/extra_gems_1727263590.png",
+    "target_action": "OPEN_PREMIUM_VIP"
+  }
+}
+```
+
+### 📱 ফ্লাটার ইমপ্লিমেন্টেশন গাইড (Flutter Implementation):
+1. **ডায়নামিক ইমেজ লোডিং**: অ্যাপ চালু হলে বা হোমস্ক্রিনে `GET /api/floating-banner` কল করে `image_url` থেকে আইকন ক্যাশ করে ফ্লোটিং একশন বাটনে দেখাবে।
+2. **ক্লিক অ্যাকশন**: বাটনে ট্যাপ করলে `target_action === 'OPEN_PREMIUM_VIP'` চেক করে সরাসরি VIP Privilege Cards / Monthly Card বটমশিট বা স্ক্রিনে রিডাইরেক্ট করবে।
+3. **অন/অফ কন্ট্রোল**: `is_enabled: false` হলে অ্যাপে ফ্লোটিং বাটনটি হাইড থাকবে।
+
+---
+
+## 🛠️ ৫. এডমিন প্যানেল ইউআরএল ও অ্যাকশনস
+
+- **VIP Privilege Cards & Floating Widget**: `https://chinchins.live/admin/vip-cards`
 - **Customer Profile Icons**: `https://chinchins.live/admin/customer-profile-icons`
 - **Live Streaming Management**: `https://chinchins.live/admin/live-streams`
 - **Party Rooms Management**: `https://chinchins.live/admin/party-rooms`
+

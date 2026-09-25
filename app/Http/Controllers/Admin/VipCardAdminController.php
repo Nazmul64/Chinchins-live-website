@@ -419,6 +419,7 @@ class VipCardAdminController extends Controller
             'floating_vip_banner_tag'    => 'nullable|string|max:100',
             'floating_vip_banner_action' => 'nullable|string|max:100',
             'floating_banner_file'       => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
+            'floating_widget_image'      => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:5120',
         ]);
 
         AppSetting::set(
@@ -440,15 +441,15 @@ class VipCardAdminController extends Controller
             AppSetting::set('floating_vip_banner_action', $request->input('floating_vip_banner_action'), 'vip');
         }
 
-        if ($request->hasFile('floating_banner_file')) {
-            $dest = public_path('uploads/vip_cards');
+        $file = $request->file('floating_widget_image') ?? $request->file('floating_banner_file');
+        if ($file && $file->isValid()) {
+            $dest = public_path('uploads/floating_action_icons');
             if (!File::exists($dest)) {
                 File::makeDirectory($dest, 0777, true, true);
             }
-            $file = $request->file('floating_banner_file');
-            $filename = 'floating_banner_' . time() . '.' . $file->getClientOriginalExtension();
+            $filename = 'extra_gems_' . time() . '.' . $file->getClientOriginalExtension();
             $file->move($dest, $filename);
-            AppSetting::set('floating_vip_banner_image', 'uploads/vip_cards/' . $filename, 'vip');
+            AppSetting::set('floating_vip_banner_image', 'uploads/floating_action_icons/' . $filename, 'vip');
         }
 
         return redirect()->route('admin.vip-cards.index')
