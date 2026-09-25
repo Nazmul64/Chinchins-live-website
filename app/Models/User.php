@@ -74,6 +74,23 @@ class User extends Authenticatable
         'last_login_at',
         'failed_login_attempts',
         'locked_until',
+        'total_earned_coins',
+        'current_level',
+    ];
+
+    /**
+     * The model's default values for attributes.
+     *
+     * @var array
+     */
+    protected $attributes = [
+        'coins'              => 0,
+        'received_coins'     => 0,
+        'wallet_balance'     => 0,
+        'level'              => 1,
+        'is_active'          => true,
+        'is_locked'          => false,
+        'is_online'          => false,
     ];
 
     /**
@@ -886,8 +903,8 @@ class User extends Authenticatable
              return $this->_cachedProfileBase;
          }
 
-         $earnedCoins = $this->total_earned_coins;
-         $explicitLevel = !empty($this->level) ? (int) $this->level : null;
+         $earnedCoins = (int) ($this->attributes['total_earned_coins'] ?? $this->total_earned_coins ?? $this->coins ?? 0);
+         $explicitLevel = !empty($this->attributes['level']) ? (int) $this->attributes['level'] : null;
 
          $base = ProfileBase::getBaseForCoins($earnedCoins);
          if ($explicitLevel !== null && $explicitLevel > 0) {
@@ -905,7 +922,7 @@ class User extends Authenticatable
       */
      public function getCurrentLevelAttribute(): int
      {
-         return (int) ($this->profile_base?->level ?? ($this->level ?: 0));
+         return (int) ($this->profile_base?->level ?? $this->attributes['current_level'] ?? $this->attributes['level'] ?? 1);
      }
 
      /**
@@ -949,7 +966,10 @@ class User extends Authenticatable
              return $this->_cachedLevelInfo;
          }
 
-         return $this->_cachedLevelInfo = ProfileBase::calculateLevelProgress($this->total_earned_coins, $this->current_level);
+         $earnedCoins = (int) ($this->attributes['total_earned_coins'] ?? $this->total_earned_coins ?? $this->coins ?? 0);
+         $currentLevel = (int) ($this->attributes['current_level'] ?? $this->current_level ?? $this->attributes['level'] ?? 1);
+
+         return $this->_cachedLevelInfo = ProfileBase::calculateLevelProgress($earnedCoins, $currentLevel);
      }
 
      /**
@@ -957,7 +977,7 @@ class User extends Authenticatable
       */
      public function getLevelAttribute(): string
      {
-         $lvl = (int) ($this->attributes['current_level'] ?? $this->level_info['current_level'] ?? 1);
+         $lvl = (int) ($this->attributes['level'] ?? $this->attributes['current_level'] ?? $this->current_level ?? 1);
          return 'Lv.' . max(1, $lvl);
      }
 
@@ -966,7 +986,7 @@ class User extends Authenticatable
       */
      public function getLevelNumberAttribute(): int
      {
-         return max(1, (int) ($this->attributes['current_level'] ?? $this->level_info['current_level'] ?? 1));
+         return max(1, (int) ($this->attributes['level'] ?? $this->attributes['current_level'] ?? $this->current_level ?? 1));
      }
 
     /**
