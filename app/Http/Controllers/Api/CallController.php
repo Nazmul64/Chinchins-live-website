@@ -202,6 +202,83 @@ class CallController extends Controller
     }
 
     /**
+     * Get Currently Online Users for 1-on-1 Matching Screen.
+     * Only returns genuinely active users (is_online == true) with zero fake counts.
+     * GET /api/match/online-users, GET /api/match/online, GET /api/online-users
+     */
+    public function getOnlineMatchUsers(Request $request): JsonResponse
+    {
+        $caller = $this->resolveUser($request);
+        $callerId = $caller?->id;
+
+        $gender = $request->input('gender');
+        $country = $request->input('country');
+        $perPage = min(50, max(1, (int) $request->input('per_page', 20)));
+
+        $query = User::where('is_online', true)
+            ->where('is_active', true)
+            ->where('is_locked', false);
+
+        if ($callerId) {
+            $query->where('id', '!=', $callerId);
+        }
+
+        if (!empty($gender) && $gender !== 'all' && $gender !== 'any') {
+            $query->where('gender', $gender);
+        }
+
+        if (!empty($country) && !in_array(strtoupper($country), ['ALL', 'GLOBAL'])) {
+            $query->where(function ($q) use ($country) {
+                $q->where('country', 'LIKE', "%{$country}%")
+                  ->orWhere('country_code', 'LIKE', "%{$country}%");
+            });
+        }
+
+        $users = $query->orderByDesc('last_seen_at')
+            ->latest('id')
+            ->paginate($perPage);
+
+        $items = collect($users->items())->map(function ($u) {
+            return [
+                'id'              => $u->id,
+                'account_id'      => $u->account_id ?: (string) $u->id,
+                'name'            => $u->display_name ?? $u->name,
+                'display_name'    => $u->display_name ?? $u->name,
+                'avatar_url'      => $u->avatar_url,
+                'cover_photo_url' => $u->cover_photo_url ?: $u->avatar_url,
+                'gender'          => $u->gender ?: 'female',
+                'age'             => $u->display_age,
+                'country'         => $u->country ?: 'Bangladesh',
+                'country_flag'    => $u->country_flag ?: '🇧🇩',
+                'city'            => $u->city ?: 'Dhaka',
+                'is_online'       => true,
+                'is_busy'         => (bool) ($u->is_busy ?? false),
+                'is_verified'     => (bool) ($u->is_verified ?? false),
+                'level'           => $u->level ?: 'Lv.1',
+                'level_number'    => $u->level_number ?: 1,
+                'current_level'   => $u->level_number ?: 1,
+                'video_call_rate' => (int) ($u->video_call_rate ?: 100),
+                'tags'            => $u->tags ?: ['Friendly', 'Verified'],
+            ];
+        });
+
+        return response()->json([
+            'status'       => true,
+            'success'      => true,
+            'message'      => 'Online users for matching loaded successfully.',
+            'total_online' => $users->total(),
+            'data'         => $items,
+            'users'        => $items,
+            'pagination'   => [
+                'current_page' => $users->currentPage(),
+                'last_page'    => $users->lastPage(),
+                'per_page'     => $users->perPage(),
+                'total'        => $users->total(),
+            ],
+        ], 200)->header('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+    }
+
+    /**
      * Random Match / Auto-Connect with an Online Female Host.
      * POST /api/call/random-match (or GET /api/call/match)
      */

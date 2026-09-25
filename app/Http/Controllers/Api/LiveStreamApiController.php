@@ -823,7 +823,9 @@ class LiveStreamApiController extends Controller
 
         $senderId = $user ? $user->id : (int)($request->input('user_id') ?? 0);
         $senderName = $user ? ($user->display_name ?? $user->name ?? 'User') : 'User';
-        $senderAvatar = $user ? $user->avatar_url : null;
+        $senderAvatar = $user?->avatar_url ?: url('assets/images/defaults/avatar.png');
+        $userLevelStr = $user?->level ?: 'Lv.1';
+        $userLevelNum = $user?->level_number ?: 1;
 
         $msgRecord = LiveMessage::create([
             'live_stream_id' => (int) $roomId,
@@ -834,14 +836,25 @@ class LiveStreamApiController extends Controller
             'metadata'       => [
                 'sender_name'   => $senderName,
                 'sender_avatar' => $senderAvatar,
-                'level'         => $user?->level ?: 'Lv.1',
-                'level_number'  => $user?->level_number ?: 1,
+                'level'         => $userLevelStr,
+                'level_number'  => $userLevelNum,
+                'current_level' => $userLevelNum,
                 'gift_data'     => $gift,
             ],
         ]);
 
-        $userLevelStr = $user?->level ?: 'Lv.1';
-        $userLevelNum = $user?->level_number ?: 1;
+        $userPayload = [
+            'id'            => $senderId,
+            'name'          => $senderName,
+            'display_name'  => $senderName,
+            'avatar_url'    => $senderAvatar,
+            'avatar'        => $senderAvatar,
+            'level'         => $userLevelStr,
+            'level_number'  => $userLevelNum,
+            'current_level' => $userLevelNum,
+            'gender'        => $user?->gender ?: 'female',
+            'tags'          => $user?->tags ?: [],
+        ];
 
         $messagePayload = [
             'id'             => $msgRecord->id,
@@ -851,15 +864,7 @@ class LiveStreamApiController extends Controller
             'user_id'        => $senderId,
             'user_name'      => $senderName,
             'user_avatar'    => $senderAvatar,
-            'user'           => [
-                'id'           => $senderId,
-                'name'         => $senderName,
-                'display_name' => $senderName,
-                'avatar_url'   => $senderAvatar,
-                'level'        => $userLevelStr,
-                'level_number' => $userLevelNum,
-                'current_level'=> $userLevelNum,
-            ],
+            'user'           => $userPayload,
             'message'        => $msgRecord->message,
             'type'           => $type,
             'gift_id'        => $giftId,

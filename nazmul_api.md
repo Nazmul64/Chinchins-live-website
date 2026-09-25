@@ -261,8 +261,6 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
----
-
 ## 💎 ৪. হোম স্ক্রিন ফ্লোটিং ভিআইপি অ্যাকশন আইকন ও ব্যানার এপিআই (Home Screen Floating VIP Widget / Action Icon API)
 
 হোম স্ক্রিনে ডানপাশে থাকা ফ্লোটিং বাটন ("Extra Gems" / "Monthly Card") সম্পূর্ণ ডাইনামিক। অ্যাডমিন প্যানেল থেকে যেকোনো সময় আইকন বা ব্যানার ইমেজ আপলোড ও পরিবর্তন করা যাবে। আপলোড করা ফাইল সরাসরি `public/uploads/floating_action_icons/` এ সেভ হয়।
@@ -295,18 +293,67 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
+## 💳 ৫. ডিপোজিট পেমেন্ট মেথড ফিল্টারিং এপিআই (Payment Methods API)
+
+অ্যাডমিন প্যানেলে সক্রিয় (`is_active = true`) থাকা পেমেন্ট মেথডগুলো ছাড়া কোনো ডিফল্ট বা ডামি মেথড রিটার্ন হবে না। কোনো মেথড সক্রিয় না থাকলে খালি অ্যারে `[]` রিটার্ন হবে।
+
+- **Method**: `GET`
+- **Endpoints**: 
+  - `https://chinchins.live/api/payment-methods` *(Primary)*
+  - `https://chinchins.live/api/v1/payment-methods`
+- **Header**: `Accept: application/json`
+- **Response Example (Active Methods Present)**:
+```json
+{
+  "status": true,
+  "success": true,
+  "message": "Payment methods retrieved successfully.",
+  "data": [
+    {
+      "id": 1,
+      "name": "bKash Personal",
+      "method_code": "bkash_personal",
+      "account_type": "Personal",
+      "account_number": "017XXXXXXXX",
+      "icon": "https://chinchins.live/uploads/payment_methods/bkash.png",
+      "instruction": "Send Money to the personal number and enter the Transaction ID.",
+      "is_active": true
+    },
+    {
+      "id": 2,
+      "name": "Nagad Merchant",
+      "method_code": "nagad_merchant",
+      "account_type": "Merchant",
+      "account_number": "018XXXXXXXX",
+      "icon": "https://chinchins.live/uploads/payment_methods/nagad.png",
+      "instruction": "Make payment to merchant number and enter TrxID.",
+      "is_active": true
+    }
+  ]
+}
+```
+- **Response Example (No Active Methods in Admin Panel)**:
+```json
+{
+  "status": true,
+  "success": true,
+  "message": "Payment methods retrieved successfully.",
+  "data": []
+}
+```
+
 ---
 
-## 💬 ৬. লাইভ স্ট্রিম মেসেজ সেন্ডার লেভেল ও ডুপ্লিকেট ইকো ফিক্স (Live Chat Dynamic Level & Deduplication)
+## 💬 ৬. লাইভ স্ট্রিম মেসেজ সেন্ডার লেভেল ও ইউজার ট্যাগ অবজেক্ট (Live Chat Message & Dynamic User Tag Payload)
 
-লাইভ স্ট্রিমে মেসেজ পাঠানোর সময় সেন্ডারের আসল লেভেল (যেমন `Lv.7`, `Lv.3`) ডায়নামিকভাবে `User` প্রোফাইল থেকে ক্যালকুলেট হয়ে চ্যাট পেলোডে যুক্ত হয় এবং `toOthers()` সকেট ব্রডকাস্টিংয়ের মাধ্যমে একই মেসেজ ৩ বার আসার ইকো সম্পূর্ণ বন্ধ করা হয়েছে।
+লাইভ স্ট্রিমে মেসেজ পাঠানোর সময় সেন্ডারের আসল লেভেল (যেমন `Lv.7`, `Lv.3`), সম্পূর্ণ `avatar_url`, `display_name`, `gender`, `tags` ডায়নামিকভাবে `User` প্রোফাইল থেকে ক্যালকুলেট হয়ে চ্যাট পেলোডে যুক্ত হয় এবং `toOthers()` সকেট ব্রডকাস্টিংয়ের মাধ্যমে একই মেসেজ একাধিকবার আসার ইকো সম্পূর্ণ সমাধান করা হয়েছে।
 
 - **Endpoint**: `POST /api/live/send-message` (অথবা `/api/v1/streams/send-message`, `/api/live/message`)
 - **Payload Example**:
 ```json
 {
   "room_id": "45",
-  "message": "Hi"
+  "message": "Hi everyone!"
 }
 ```
 - **Response & Socket Broadcast (`LiveChatMessageEvent`)**:
@@ -325,16 +372,22 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
       "name": "nazmul",
       "display_name": "nazmul",
       "avatar_url": "https://chinchins.live/uploads/avatars/user_101.jpg",
+      "avatar": "https://chinchins.live/uploads/avatars/user_101.jpg",
+      "profile_picture": "https://chinchins.live/uploads/avatars/user_101.jpg",
       "level": "Lv.7",
       "level_number": 7,
-      "current_level": 7
+      "current_level": 7,
+      "gender": "male",
+      "tags": ["VIP", "Top Giver"]
     },
-    "message": "Hi",
+    "message": "Hi everyone!",
     "type": "text",
     "level": "Lv.7",
     "level_number": 7,
     "current_level": 7,
     "user_level": "Lv.7",
+    "gender": "male",
+    "tags": ["VIP", "Top Giver"],
     "created_at": "2026-09-25T19:30:00+06:00"
   }
 }
@@ -342,11 +395,83 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
-## 📸 ৭. হোস্ট অন-কল ব্যাকগ্রাউন্ড ফটো ক্যারোসেল ("I'll back soon...") ও সকেট ইভেন্ট
+## 👥 ৭. অনলাইন ম্যাচিং ব্যবহারকারী তালিকা এপিআই (Online Match Users API)
+
+শুধুমাত্র বর্তমানে সক্রিয় (`is_online == true`, `is_active == true`, `is_locked == false`) ব্যবহারকারীদের ডাটা রিটার্ন করে। কোনো ফেক ডাটাবেস সিডার কাউন্ট পাঠানো হয় না।
+
+- **Method**: `GET`
+- **Endpoints**: 
+  - `https://chinchins.live/api/match/online-users` *(Primary)*
+  - `https://chinchins.live/api/match/online`
+  - `https://chinchins.live/api/online-users`
+  - `https://chinchins.live/api/v1/match/online-users`
+- **Header**: `Authorization: Bearer <user_token>`
+- **Query Params**:
+  - `gender` (optional): `female` / `male` / `all`
+  - `country` (optional): Country name / code
+  - `per_page` (optional): `30`
+  - `page` (optional): `1`
+- **Response Format**:
+```json
+{
+  "status": true,
+  "success": true,
+  "message": "Online matching users retrieved successfully.",
+  "data": [
+    {
+      "id": 204,
+      "name": "Diya",
+      "display_name": "Diya",
+      "avatar_url": "https://chinchins.live/uploads/profiles/diya.jpg",
+      "gender": "female",
+      "age": 22,
+      "country": "Bangladesh",
+      "bio": "Live streamer & artist",
+      "level": "Lv.7",
+      "level_number": 7,
+      "current_level": 7,
+      "is_online": true,
+      "is_busy": false,
+      "video_call_rate": 60,
+      "audio_call_rate": 30,
+      "tags": ["Model", "Singer"]
+    },
+    {
+      "id": 205,
+      "name": "Lali",
+      "display_name": "Lali",
+      "avatar_url": "https://chinchins.live/uploads/profiles/lali.jpg",
+      "gender": "female",
+      "age": 20,
+      "country": "India",
+      "bio": "Hello fans!",
+      "level": "Lv.5",
+      "level_number": 5,
+      "current_level": 5,
+      "is_online": true,
+      "is_busy": false,
+      "video_call_rate": 60,
+      "audio_call_rate": 30,
+      "tags": ["Gamer"]
+    }
+  ],
+  "pagination": {
+    "total": 2,
+    "count": 2,
+    "per_page": 30,
+    "current_page": 1,
+    "total_pages": 1
+  }
+}
+```
+
+---
+
+## 📸 ৮. হোস্ট অন-কল ব্যাকগ্রাউন্ড ফটো ক্যারোসেল ("I'll back soon...") ও সকেট ইভেন্ট
 
 হোস্ট লাইভ স্ট্রিমিং চলাকালীন কোনো প্রাইভেট ১-অন-১ ভিডিও কল রিসিভ করলে লাইভ রুম কেটে যাবে না। ভিডিও ফিড সাময়িকভাবে হোস্টের প্রোফাইল ও গ্যালারি ছবির অটোমেটিক স্লাইডশোতে রূপান্তরিত হবে এবং স্ক্রিনে `"I'll back soon..."` পিল ব্যাজ প্রদর্শিত হবে। রুমের দর্শকরা স্বাভাবিকভাবে টেক্সট চ্যাট চালিয়ে যেতে পারবেন।
 
-### ৭.১ স্ট্যাটাস আপডেট এপিআই
+### ৮.১ স্ট্যাটাস আপডেট এপিআই
 - **Method**: `POST`
 - **Endpoint**: `https://chinchins.live/api/live/{id}/host-call-status` (বা `/api/live/host-call-status`)
 - **Request Body**:
@@ -379,7 +504,7 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
-## 📞 ৮. কল হিস্ট্রি এপিআই (Call History & Logs RESTful API)
+## 📞 ৯. কল হিস্ট্রি এপিআই (Call History & Logs RESTful API)
 
 মেসেজ ও ইনটিমেসি স্ক্রিনের পাশে থাকা "Call History" ট্যাবের জন্য ডেডিকেটেড এপিআই। ব্যবহারকারীর পূর্ববর্তী সকল অডিও/ভিডিও কলের বিস্তারিত তালিকা রিটার্ন করে।
 
@@ -466,14 +591,14 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
-## ⚡ ৯. ১ সেকেন্ডের মধ্যে ইনস্ট্যান্ট ভিডিও কল কানেক্টিভিটি (<1s Fast Connect Optimization)
+## ⚡ ১০. ১ সেকেন্ডের মধ্যে ইনস্ট্যান্ট ভিডিও কল কানেক্টিভিটি (<1s Fast Connect Optimization)
 
 - অ্যাপ যখন `POST /api/call/instant` বা `POST /api/call/initiate` কল করবে, তখন একযোগে কলার ও রিসিভারের জন্য লাইভকিট/ওয়েবআরটিসি প্রি-সাইনড টোকেন, এসডিপি অফার ও আইস সার্ভার তালিকা ইনস্ট্যান্ট রিটার্ন করা হয়।
 - কোনো সেকেন্ডারি এপিআই পুলিং দরকার নেই; অ্যাপ সরাসরি প্রাপ্ত টোকেন দিয়ে `< 300ms`-এর মধ্যে লাইভ ভিডিও ফিডে জয়েন করে ফেলে।
 
 ---
 
-## ⚡ ১০. ETag & Conditional GET (HTTP 304 Not Modified) আর্কিটেকচার
+## ⚡ ১১. ETag & Conditional GET (HTTP 304 Not Modified) আর্কিটেকচার
 
 অ্যাপ যেন কোনো ব্লকিং লোডারে না আটকে থেকে সরাসরি মোবাইল লোকাল স্টোরেজ / মেমোরি থেকে ডাটা রেন্ডার করতে পারে, সেজন্য সকল স্ট্যাটিক ও সেমি-স্ট্যাটিক এপিআই-তে **ETag** ও **HTTP 304 Not Modified** যুক্ত করা হয়েছে:
 
@@ -485,6 +610,7 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 5. `GET /api/payment-methods` (বিকাশ, নগদ ইত্যাদি ডিপোজিট পেমেন্ট মেথড)
 6. `GET /api/withdraw-methods` & `GET /api/withdraw/info` (উইথড্র মেথড ও সেটিংস)
 7. `GET /api/call/config` & `GET /api/call/ice-servers` (কল কনফিগারেশন ও আইস সার্ভার)
+8. `GET /api/match/online-users` (সক্রিয় অনলাইন ম্যাচিং ইউজার তালিকা)
 
 ### ক্লায়েন্ট রিকোয়েস্ট নিয়ম (Flutter):
 - প্রথমবার এপিআই কল করার পর রেসপন্সের `ETag` হেডার লোকাল স্টোরেজে সেভ করে রাখুন।
@@ -493,7 +619,7 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
-## ⚡ ১১. ইনস্ট্যান্ট ১-অন-১ কল ইনিশিয়েশন (<300ms)
+## ⚡ ১২. ইনস্ট্যান্ট ১-অন-১ কল ইনিশিয়েশন (<300ms)
 
 **এন্ডপয়েন্ট:** `POST /api/call/instant` অথবা `POST /api/call/initiate`
 
@@ -540,13 +666,10 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
-## ⚡ ১২. অপটিমিস্টিক গিফট সেন্ডিং ও ডায়নামিক লেভেল ক্যালকুলেশন
+## ⚡ ১৩. অপটিমিস্টিক গিফট সেন্ডিং ও ডায়নামিক লেভেল ক্যালকুলেশন
 
 **এন্ডপয়েন্ট:** `POST /api/gifts/send` বা `POST /api/live/send-gift`
 
 - গিফট পাঠানোর সময় কোনো ব্লকিং ডাটাবেস টেবিল-লক থাকে না।
 - সেন্ডারের কয়েন ব্যালেন্স ও লেভেল রিয়েল-টাইমে আপডেট হয়।
 - লাইভ ব্রডকাস্টে সেন্ডারের সঠিক ডায়নামিক লেভেল (`level: 'Lv.7'`, `level_number: 7`) পাঠানো হয়।
-
-
-

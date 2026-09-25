@@ -368,6 +368,8 @@ Route::prefix('call')->group(function () {
     Route::get('/settings', [CallController::class, 'getConfig']);
     Route::match(['get', 'post'], '/match', [CallController::class, 'randomMatch']);
     Route::match(['get', 'post'], '/random-match', [CallController::class, 'randomMatch']);
+    Route::get('/online-users', [CallController::class, 'getOnlineMatchUsers']);
+    Route::get('/online', [CallController::class, 'getOnlineMatchUsers']);
     
     // Call Balance & Pre-Call Permission Verification (Modal Trigger)
     Route::match(['get', 'post'], '/check-permission', [CallController::class, 'checkPermission']);
@@ -461,9 +463,23 @@ Route::prefix('call')->group(function () {
     // End Call & History
     Route::match(['get', 'post'], '/end', [CallController::class, 'end']);
     Route::match(['get', 'post'], '/finish', [CallController::class, 'end']);
-    Route::match(['get', 'post'], '/hangup', [CallController::class, 'end']);
     Route::get('/history', [CallController::class, 'history']);
 });
+
+// ==========================================
+// 🎯 1-on-1 Matching & Active Online Users APIs
+// ==========================================
+Route::prefix('match')->group(function () {
+    Route::get('/online-users', [CallController::class, 'getOnlineMatchUsers']);
+    Route::get('/online', [CallController::class, 'getOnlineMatchUsers']);
+    Route::match(['get', 'post'], '/random', [CallController::class, 'randomMatch']);
+    Route::match(['get', 'post'], '/user', [CallController::class, 'randomMatch']);
+});
+
+Route::get('/match/online-users', [CallController::class, 'getOnlineMatchUsers']);
+Route::get('/v1/match/online-users', [CallController::class, 'getOnlineMatchUsers']);
+Route::get('/online-users', [CallController::class, 'getOnlineMatchUsers']);
+Route::get('/v1/online-users', [CallController::class, 'getOnlineMatchUsers']);
 
 // ==========================================
 // 🔴 Multi-User Live Streaming, Broadcasting & Co-Hosting APIs (v1 & Standard)
