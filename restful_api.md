@@ -1236,6 +1236,275 @@ pusher.subscribe(
 ```
 - **Websocket Broadcast on Call End:** `private_call.ended` (সরাসরি কলার ও হোস্ট উভয়কে নোটিফাই করে হোস্টের লাইভ ক্যামেরা স্ট্রিম রিস্টোর করা হয়)।
 
+---
+
+## 🏷️ ১১. লাইভ অ্যাপ লাইভ আইকন, ভেরিফাইড ব্যাজ ও হট ফিড এপিআই (Live App Live Icons & Streamer Badges)
+
+মোবাইলে **Hot / Live** ট্যাবে হোস্টদের কার্ড শো করার সময় লাইভ স্ট্যাটাস, সাউন্ড ওয়েভ অ্যানিমেশন, অনলাইন গ্রিন ডট, ভেরিফাইড 'V' ব্যাজ এবং বটম-রাইট নচ কাটআউটে থাকা পালসিং ভিডিও ক্যামেরার সকল ডিটেইলস।
+
+### ১১.১ লাইভ অ্যাপ লাইভ আইকন স্পেসিফিকেশন (Live App Badges & Icon Specs)
+- **Method**: `GET`
+- **URL**: `https://chinchins.live/api/live/app-icons` (বিকল্প: `/api/v1/live/app-icons`, `/api/live/icons`, `/api/live/badges`)
+- **Headers**:
+  ```http
+  Accept: application/json
+  ```
+- **Response**:
+```json
+{
+  "status": true,
+  "success": true,
+  "message": "Live app icons, badges and animation specifications retrieved successfully.",
+  "timestamp": "2026-09-25T08:35:00+06:00",
+  "data": {
+    "live_badge": {
+      "name": "Live Stream Active Badge",
+      "label": "Live",
+      "description": "Capsule badge displayed at top-left of live streamer card with 3 animated jumping equalizer bars",
+      "badge_style": "purple_gradient",
+      "gradient_colors": ["#A855F7", "#EC4899"],
+      "gradient_direction": "to_right",
+      "text_color": "#FFFFFF",
+      "font_size": 11,
+      "font_weight": "bold",
+      "border_radius": 12,
+      "padding": { "horizontal": 8, "vertical": 3 },
+      "has_equalizer_waves": true,
+      "equalizer_bars_count": 3,
+      "animation": {
+        "type": "sound_wave_bars",
+        "bar_color": "#FFFFFF",
+        "bar_width": 2.5,
+        "bar_max_height": 11.0,
+        "bar_min_height": 3.0,
+        "bar_spacing": 1.8,
+        "cycle_duration_ms": 650,
+        "delays_ms": [0, 180, 360]
+      }
+    },
+    "online_badge": {
+      "name": "Online User Badge",
+      "label": "Online",
+      "description": "Semi-transparent dark capsule badge displayed at top-left of online user card with glowing green indicator dot",
+      "badge_style": "glass_dark",
+      "background_color": "rgba(0, 0, 0, 0.45)",
+      "border_color": "rgba(255, 255, 255, 0.15)",
+      "text_color": "#FFFFFF",
+      "font_size": 11,
+      "font_weight": "medium",
+      "border_radius": 12,
+      "padding": { "horizontal": 8, "vertical": 3 },
+      "has_equalizer_waves": false,
+      "has_status_dot": true,
+      "dot_color": "#22C55E",
+      "dot_size": 6,
+      "dot_glow": "0 0 6px rgba(34, 197, 94, 0.8)"
+    },
+    "offline_badge": {
+      "name": "Offline User Badge",
+      "label": "Offline",
+      "badge_style": "glass_subtle",
+      "background_color": "rgba(0, 0, 0, 0.35)",
+      "text_color": "#9CA3AF",
+      "has_status_dot": true,
+      "dot_color": "#9CA3AF",
+      "dot_size": 6
+    },
+    "verified_badge": {
+      "name": "Official Host Verified Badge",
+      "label": "V",
+      "description": "Cyan-blue badge with white checkmark V displayed next to the live badge or username",
+      "badge_type": "verified_v",
+      "background_color": "#38BDF8",
+      "gradient_colors": ["#38BDF8", "#0284C7"],
+      "text_color": "#FFFFFF",
+      "size": 16,
+      "shape": "rounded_circle",
+      "icon_svg_path": "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+    },
+    "action_button": {
+      "name": "Floating Video Call / Live Stream Button",
+      "description": "Purple-magenta gradient circular button nested in the bottom-right corner notch cutout with animated pulse waves when host is live",
+      "icon": "video_camera",
+      "icon_color": "#FFFFFF",
+      "gradient_colors": ["#8B5CF6", "#EC4899"],
+      "button_size": 44,
+      "shape": "notched_floating_circle",
+      "notch_position": "bottom_right",
+      "notch_radius": 26,
+      "animations": {
+        "live": {
+          "is_animated": true,
+          "animation_type": "pulsing_ripple_waves",
+          "scale_range": [1.0, 1.12],
+          "ripple_rings": 2,
+          "ripple_color": "rgba(236, 72, 153, 0.5)",
+          "duration_ms": 1200,
+          "repeat": "infinite"
+        },
+        "online": {
+          "is_animated": false,
+          "animation_type": "static_gradient",
+          "scale": 1.0
+        }
+      }
+    },
+    "card_notch_layout": {
+      "description": "Smooth inward cutout shape on the bottom-right of the user card thumbnail so the video button appears uniquely styled outside/nested",
+      "corner_radius": 16,
+      "notch_corner": "bottom_right",
+      "notch_cutout_radius": 28,
+      "aspect_ratio": "3:4"
+    }
+  }
+}
+```
+
+---
+
+### ১১.২ হট ও লাইভ কার্ড ফিড এপিআই (Hot Streamer & Live Card Feed)
+- **Method**: `GET`
+- **URL**: `https://chinchins.live/api/live/card-feed` (বিকল্প: `/api/v1/live/card-feed`, `/api/hot/feed`, `/api/v1/hot`, `/api/home`, `/api/hot`)
+- **Query Params**:
+  - `page`: int (পৃষ্ঠা নম্বর, ডিফল্ট: 1)
+  - `per_page`: int (প্রতি পৃষ্ঠার রেকর্ড সংখ্যা, ডিফল্ট: 30)
+  - `country`: string (ঐচ্ছিক কান্ট্রি ফিল্টার, যেমন: BD, IN, PK, US, ALL)
+  - `search`: string (নাম বা একাউন্ট আইডি সার্চ)
+- **Headers**:
+  ```http
+  Accept: application/json
+  ```
+- **Response**:
+```json
+{
+  "status": true,
+  "success": true,
+  "message": "Hot streamers and live broadcast cards loaded successfully.",
+  "data": [
+    {
+      "id": 101,
+      "account_id": "84920183",
+      "name": "piya",
+      "display_name": "piya",
+      "avatar_url": "https://chinchins.live/uploads/profiles/piya.jpg",
+      "cover_photo_url": "https://chinchins.live/uploads/profiles/piya_cover.jpg",
+      "country": "Bangladesh",
+      "country_flag": "🇧🇩",
+      "gender": "female",
+      "age": 22,
+      "is_live": true,
+      "is_online": true,
+      "is_verified": true,
+      "online_status": "in_live",
+      "status_text": "Live",
+      "live_badge": {
+        "label": "Live",
+        "type": "live",
+        "is_live": true,
+        "is_online": true,
+        "sound_wave_animation": true,
+        "equalizer_bars_count": 3,
+        "badge_style": "purple_gradient",
+        "gradient_colors": ["#A855F7", "#EC4899"],
+        "dot_color": "#FFFFFF",
+        "has_dot": false
+      },
+      "verified_badge": {
+        "is_verified": true,
+        "badge_type": "verified_v",
+        "label": "V",
+        "color": "#38BDF8",
+        "icon_url": "https://chinchins.live/assets/images/badges/verified_v.png"
+      },
+      "action_button": {
+        "type": "join_live",
+        "icon": "video_camera",
+        "is_live": true,
+        "is_animating": true,
+        "animation_type": "pulsing_ripple",
+        "gradient_colors": ["#8B5CF6", "#EC4899"],
+        "shape": "notched_floating_circle",
+        "notch_position": "bottom_right",
+        "notch_radius": 28
+      },
+      "card_design": {
+        "has_bottom_right_notch": true,
+        "notch_radius": 28,
+        "corner_radius": 16,
+        "button_floating_outside": true
+      },
+      "live_stream": {
+        "id": 45,
+        "room_id": "45",
+        "channel_name": "live_101_1727220000_abcd",
+        "title": "Welcome to my Live Stream!",
+        "viewer_count": 30,
+        "likes_count": 1420,
+        "cover_image_url": "https://chinchins.live/uploads/profiles/piya_cover.jpg"
+      },
+      "video_call_rate": 100,
+      "coins": 50000
+    },
+    {
+      "id": 102,
+      "account_id": "84920184",
+      "name": "Anjali",
+      "display_name": "Anjali",
+      "avatar_url": "https://chinchins.live/uploads/profiles/anjali.jpg",
+      "cover_photo_url": "https://chinchins.live/uploads/profiles/anjali.jpg",
+      "country": "Bangladesh",
+      "country_flag": "🇧🇩",
+      "gender": "female",
+      "age": 20,
+      "is_live": false,
+      "is_online": true,
+      "is_verified": false,
+      "online_status": "online",
+      "status_text": "Online",
+      "live_badge": {
+        "label": "Online",
+        "type": "online",
+        "is_live": false,
+        "is_online": true,
+        "sound_wave_animation": false,
+        "equalizer_bars_count": 3,
+        "badge_style": "glass_dark",
+        "gradient_colors": ["rgba(0,0,0,0.45)", "rgba(0,0,0,0.45)"],
+        "dot_color": "#22C55E",
+        "has_dot": true
+      },
+      "verified_badge": {
+        "is_verified": false,
+        "badge_type": "verified_v",
+        "label": "V",
+        "color": "#38BDF8",
+        "icon_url": "https://chinchins.live/assets/images/badges/verified_v.png"
+      },
+      "action_button": {
+        "type": "video_call",
+        "icon": "video_camera",
+        "is_live": false,
+        "is_animating": false,
+        "animation_type": "none",
+        "gradient_colors": ["#8B5CF6", "#EC4899"],
+        "shape": "notched_floating_circle",
+        "notch_position": "bottom_right",
+        "notch_radius": 28
+      },
+      "card_design": {
+        "has_bottom_right_notch": true,
+        "notch_radius": 28,
+        "corner_radius": 16,
+        "button_floating_outside": true
+      },
+      "live_stream": null,
+      "video_call_rate": 100,
+      "coins": 22000
+    }
+  ]
+}
+```
+
 
 
 

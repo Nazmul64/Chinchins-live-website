@@ -146,6 +146,51 @@ class ProfileController extends Controller
                 'online_status'   => $onlineStatus,
                 'current_status'  => $onlineStatus,
                 'status_text'     => $isLive ? '🔴 In Live Streaming' : $u->status_text,
+                
+                // 🏷️ Top-Left Live / Online Badge Specs
+                'live_badge'      => [
+                    'label'                => $isLive ? 'Live' : ($u->is_online ? 'Online' : 'Offline'),
+                    'type'                 => $isLive ? 'live' : ($u->is_online ? 'online' : 'offline'),
+                    'is_live'              => $isLive,
+                    'is_online'            => (bool) $u->is_online,
+                    'sound_wave_animation' => $isLive, // 3 equalizer bars jump when Live
+                    'equalizer_bars_count' => 3,
+                    'badge_style'          => $isLive ? 'purple_gradient' : ($u->is_online ? 'glass_dark' : 'glass_subtle'),
+                    'gradient_colors'      => $isLive ? ['#A855F7', '#EC4899'] : ['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.45)'],
+                    'dot_color'            => $isLive ? '#FFFFFF' : ($u->is_online ? '#22C55E' : '#9CA3AF'),
+                    'has_dot'              => !$isLive,
+                ],
+
+                // 🛡️ Top Verified Badge Specs
+                'verified_badge'  => [
+                    'is_verified'          => (bool) $u->is_verified,
+                    'badge_type'           => 'verified_v',
+                    'label'                => 'V',
+                    'color'                => '#38BDF8',
+                    'icon_url'             => url('assets/images/badges/verified_v.png'),
+                ],
+
+                // 🎥 Bottom-Right Floating Video Action Button Specs
+                'action_button'   => [
+                    'type'                 => $isLive ? 'join_live' : 'video_call',
+                    'icon'                 => 'video_camera',
+                    'is_live'              => $isLive,
+                    'is_animating'         => $isLive, // Pulsing wave ripple animation
+                    'animation_type'       => $isLive ? 'pulsing_ripple' : 'none',
+                    'gradient_colors'      => ['#8B5CF6', '#EC4899'],
+                    'shape'                => 'notched_floating_circle',
+                    'notch_position'       => 'bottom_right',
+                    'notch_radius'         => 28,
+                ],
+
+                // 📐 Card Notched Layout Specs
+                'card_design'     => [
+                    'has_bottom_right_notch' => true,
+                    'notch_radius'           => 28,
+                    'corner_radius'          => 16,
+                    'button_floating_outside'=> true,
+                ],
+
                 'last_active_at'  => $u->last_seen_at ? $u->last_seen_at->toIso8601String() : null,
                 'is_busy'         => (bool) ($u->is_busy || $isLive),
                 'is_free_caller'  => (bool) $u->is_free_caller,

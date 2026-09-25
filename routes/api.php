@@ -120,7 +120,7 @@ Route::get('/app/terms-of-service', [\App\Http\Controllers\Api\AppUpdateApiContr
 Route::get('/terms-of-service', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
 Route::get('/terms', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
 
-// Public Home Feed & Streamers List (Live from Database for Hot & Home Screens)
+// 🔴 Public Home Feed & Streamers List (Live from Database for Hot & Home Screens)
 Route::get('/home', [ProfileController::class, 'index']);
 Route::get('/users', [ProfileController::class, 'index']);
 Route::get('/streamers', [ProfileController::class, 'index']);
@@ -131,12 +131,22 @@ Route::get('/live/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::cl
 Route::get('/home/streamers', [ProfileController::class, 'index']);
 Route::get('/home/hot', [ProfileController::class, 'index']);
 Route::get('/hot', [ProfileController::class, 'index']);
+Route::get('/hot/feed', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getCardFeed']);
 Route::get('/hot/streamers', [ProfileController::class, 'index']);
 Route::get('/hosts', [ProfileController::class, 'index']);
 Route::get('/hosts/online', [ProfileController::class, 'index']);
 Route::get('/stream/users', [ProfileController::class, 'index']);
 Route::get('/stream/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/stream/streamers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+
+// 🏷️ Live App Icon & Live Stream Badges Specifications API (Sound waves equalizer, Verified badge, Notched camera action button)
+Route::get('/live/app-icons', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getAppIcons']);
+Route::get('/live/icons', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getAppIcons']);
+Route::get('/live/badges', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getAppIcons']);
+Route::get('/live/card-feed', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getCardFeed']);
+Route::get('/v1/live/app-icons', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getAppIcons']);
+Route::get('/v1/live/card-feed', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getCardFeed']);
+Route::get('/v1/hot', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getCardFeed']);
 
 // Worldwide Countries List (For Registration, Filter & Country Select)
 Route::get('/countries', [ProfileController::class, 'getCountries']);
