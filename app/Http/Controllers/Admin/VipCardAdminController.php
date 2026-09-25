@@ -280,8 +280,12 @@ class VipCardAdminController extends Controller
     /**
      * Update an existing VIP Card package.
      */
-    public function update(Request $request, int $id)
+    public function update(Request $request, $id)
     {
+        if ($id === 'floating-banner' || $id === 'save-floating-banner') {
+            return $this->updateFloatingBanner($request);
+        }
+
         $card = VipPrivilegeCard::findOrFail($id);
 
         $request->validate([
@@ -421,29 +425,39 @@ class VipCardAdminController extends Controller
         try {
             $request->validate([
                 'floating_vip_banner_title'  => 'nullable|string|max:100',
+                'widget_title'               => 'nullable|string|max:100',
                 'floating_vip_banner_tag'    => 'nullable|string|max:100',
+                'tag_subtitle'               => 'nullable|string|max:100',
                 'floating_vip_banner_action' => 'nullable|string|max:100',
+                'target_action'              => 'nullable|string|max:100',
                 'floating_banner_file'       => 'nullable|file|max:15360',
                 'floating_widget_image'      => 'nullable|file|max:15360',
             ]);
 
+            $isEnabled = $request->has('enable_floating_widget')
+                ? $request->boolean('enable_floating_widget')
+                : ($request->has('floating_vip_banner_enabled') ? $request->boolean('floating_vip_banner_enabled') : true);
+
             AppSetting::set(
                 'floating_vip_banner_enabled',
-                $request->boolean('floating_vip_banner_enabled') ? '1' : '0',
+                $isEnabled ? '1' : '0',
                 'vip',
                 'Show floating Extra Gems VIP banner on Home Screen'
             );
 
-            if ($request->filled('floating_vip_banner_title')) {
-                AppSetting::set('floating_vip_banner_title', $request->input('floating_vip_banner_title'), 'vip');
+            $title = $request->input('widget_title') ?? $request->input('floating_vip_banner_title');
+            if (!empty($title)) {
+                AppSetting::set('floating_vip_banner_title', trim($title), 'vip');
             }
 
-            if ($request->filled('floating_vip_banner_tag')) {
-                AppSetting::set('floating_vip_banner_tag', $request->input('floating_vip_banner_tag'), 'vip');
+            $tag = $request->input('tag_subtitle') ?? $request->input('floating_vip_banner_tag');
+            if (!empty($tag)) {
+                AppSetting::set('floating_vip_banner_tag', trim($tag), 'vip');
             }
 
-            if ($request->filled('floating_vip_banner_action')) {
-                AppSetting::set('floating_vip_banner_action', $request->input('floating_vip_banner_action'), 'vip');
+            $action = $request->input('target_action') ?? $request->input('floating_vip_banner_action');
+            if (!empty($action)) {
+                AppSetting::set('floating_vip_banner_action', trim($action), 'vip');
             }
 
             $file = $request->file('floating_widget_image') ?? $request->file('floating_banner_file');
@@ -465,6 +479,14 @@ class VipCardAdminController extends Controller
             return redirect()->route('admin.vip-cards.index')
                 ->with('error', 'Update error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Dedicated save alias for floating banner.
+     */
+    public function saveFloatingBanner(Request $request)
+    {
+        return $this->updateFloatingBanner($request);
     }
 
     /**

@@ -152,20 +152,20 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
 
     // Premium VIP Cards & Floating Home Banner Management
     Route::get('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'index'])->name('vip-cards.index');
-    Route::post('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'store'])->name('vip-cards.store');
-    Route::match(['PUT', 'POST'], '/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'update'])->name('vip-cards.update');
-    Route::delete('/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'destroy'])->name('vip-cards.destroy');
-    Route::post('/vip-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'toggleStatus'])->name('vip-cards.toggle-status');
-    Route::get('/vip-cards/subscriptions', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'subscriptions'])->name('vip-cards.subscriptions');
     Route::match(['GET', 'POST'], '/vip-cards/floating-banner', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'updateFloatingBanner'])->name('vip-cards.floating-banner');
+    Route::get('/vip-cards/subscriptions', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'subscriptions'])->name('vip-cards.subscriptions');
+    Route::post('/vip-cards', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'store'])->name('vip-cards.store');
+    Route::match(['PUT', 'POST'], '/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'update'])->whereNumber('id')->name('vip-cards.update');
+    Route::delete('/vip-cards/{id}', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'destroy'])->whereNumber('id')->name('vip-cards.destroy');
+    Route::post('/vip-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\VipCardAdminController::class, 'toggleStatus'])->whereNumber('id')->name('vip-cards.toggle-status');
 
     // Spend Less, Get More Gems Management
     Route::get('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'index'])->name('spend-less-cards.index')->middleware('permission:spend_less.view|spend_less_cards.view');
-    Route::post('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'store'])->name('spend-less-cards.store')->middleware('permission:spend_less.create|spend_less_cards.create');
-    Route::match(['PUT', 'POST'], '/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'update'])->name('spend-less-cards.update')->middleware('permission:spend_less.edit|spend_less_cards.edit');
-    Route::delete('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'destroy'])->name('spend-less-cards.destroy')->middleware('permission:spend_less.delete|spend_less_cards.delete');
-    Route::post('/spend-less-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'toggleStatus'])->name('spend-less-cards.toggle-status')->middleware('permission:spend_less.edit|spend_less_cards.toggle_status|spend_less_cards.edit');
     Route::get('/spend-less-cards/subscriptions', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'subscriptions'])->name('spend-less-cards.subscriptions')->middleware('permission:spend_less.view|spend_less_cards.view');
+    Route::post('/spend-less-cards', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'store'])->name('spend-less-cards.store')->middleware('permission:spend_less.create|spend_less_cards.create');
+    Route::match(['PUT', 'POST'], '/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'update'])->whereNumber('id')->name('spend-less-cards.update')->middleware('permission:spend_less.edit|spend_less_cards.edit');
+    Route::delete('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'destroy'])->whereNumber('id')->name('spend-less-cards.destroy')->middleware('permission:spend_less.delete|spend_less_cards.delete');
+    Route::post('/spend-less-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'toggleStatus'])->whereNumber('id')->name('spend-less-cards.toggle-status')->middleware('permission:spend_less.edit|spend_less_cards.toggle_status|spend_less_cards.edit');
 
     // Profile Bases & Level Badges Management
     Route::get('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'index'])->name('profile-bases.index')->middleware('permission:badges.view|level_badges.view');
