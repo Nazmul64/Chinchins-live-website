@@ -341,7 +341,9 @@ Route::get('/withdrawals/{id}', [\App\Http\Controllers\Api\WithdrawalApiControll
 // 📡 WebRTC Signaling & Call Management (Laravel Reverb / P2P)
 // ==========================================
 Route::prefix('calls')->group(function () {
-    Route::get('/', [WebRTCCallController::class, 'index']);             // Call history
+    Route::get('/', [CallController::class, 'history']);                  // Call history
+    Route::get('/history', [CallController::class, 'history']);           // Call history
+    Route::get('/logs', [CallController::class, 'history']);              // Call logs
     Route::get('/ice-servers', [CallController::class, 'getIceServers']); // WebRTC ICE Servers
     Route::post('/', [WebRTCCallController::class, 'store']);            // Create / Initiate Call
     Route::get('/{call}', [WebRTCCallController::class, 'show']);        // Call details
@@ -588,6 +590,9 @@ Route::prefix('v1/stream')->group(function () {
     Route::post('/seat-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'requestSeat']);
     Route::post('/accept-request', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'respondJoinRequest']);
     Route::post('/kick-guest', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'kickGuest']);
+    Route::match(['get', 'post'], '/{id}/host-call-status', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'setHostCallStatus']);
+    Route::match(['get', 'post'], '/host-call-status', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'setHostCallStatus']);
+    Route::match(['get', 'post'], '/{id}/host-status', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'setHostCallStatus']);
 });
 
 // ==========================================

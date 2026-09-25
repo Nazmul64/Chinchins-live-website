@@ -295,10 +295,180 @@ broadcast(new \App\Events\CoHostJoinedEvent($roomId, [
 
 ---
 
-## 🛠️ ৫. এডমিন প্যানেল ইউআরএল ও অ্যাকশনস
+---
 
-- **VIP Privilege Cards & Floating Widget**: `https://chinchins.live/admin/vip-cards`
-- **Customer Profile Icons**: `https://chinchins.live/admin/customer-profile-icons`
-- **Live Streaming Management**: `https://chinchins.live/admin/live-streams`
-- **Party Rooms Management**: `https://chinchins.live/admin/party-rooms`
+## 💬 ৬. লাইভ স্ট্রিম মেসেজ সেন্ডার লেভেল ও ডুপ্লিকেট ইকো ফিক্স (Live Chat Dynamic Level & Deduplication)
+
+লাইভ স্ট্রিমে মেসেজ পাঠানোর সময় সেন্ডারের আসল লেভেল (যেমন `Lv.7`, `Lv.3`) ডায়নামিকভাবে `User` প্রোফাইল থেকে ক্যালকুলেট হয়ে চ্যাট পেলোডে যুক্ত হয় এবং `toOthers()` সকেট ব্রডকাস্টিংয়ের মাধ্যমে একই মেসেজ ৩ বার আসার ইকো সম্পূর্ণ বন্ধ করা হয়েছে।
+
+- **Endpoint**: `POST /api/live/send-message` (অথবা `/api/v1/streams/send-message`, `/api/live/message`)
+- **Payload Example**:
+```json
+{
+  "room_id": "45",
+  "message": "Hi"
+}
+```
+- **Response & Socket Broadcast (`LiveChatMessageEvent`)**:
+```json
+{
+  "status": "success",
+  "success": true,
+  "data": {
+    "id": 1052,
+    "room_id": "45",
+    "user_id": 101,
+    "user_name": "nazmul",
+    "user_avatar": "https://chinchins.live/uploads/avatars/user_101.jpg",
+    "user": {
+      "id": 101,
+      "name": "nazmul",
+      "display_name": "nazmul",
+      "avatar_url": "https://chinchins.live/uploads/avatars/user_101.jpg",
+      "level": "Lv.7",
+      "level_number": 7,
+      "current_level": 7
+    },
+    "message": "Hi",
+    "type": "text",
+    "level": "Lv.7",
+    "level_number": 7,
+    "current_level": 7,
+    "user_level": "Lv.7",
+    "created_at": "2026-09-25T19:30:00+06:00"
+  }
+}
+```
+
+---
+
+## 📸 ৭. হোস্ট অন-কল ব্যাকগ্রাউন্ড ফটো ক্যারোসেল ("I'll back soon...") ও সকেট ইভেন্ট
+
+হোস্ট লাইভ স্ট্রিমিং চলাকালীন কোনো প্রাইভেট ১-অন-১ ভিডিও কল রিসিভ করলে লাইভ রুম কেটে যাবে না। ভিডিও ফিড সাময়িকভাবে হোস্টের প্রোফাইল ও গ্যালারি ছবির অটোমেটিক স্লাইডশোতে রূপান্তরিত হবে এবং স্ক্রিনে `"I'll back soon..."` পিল ব্যাজ প্রদর্শিত হবে। রুমের দর্শকরা স্বাভাবিকভাবে টেক্সট চ্যাট চালিয়ে যেতে পারবেন।
+
+### ৭.১ স্ট্যাটাস আপডেট এপিআই
+- **Method**: `POST`
+- **Endpoint**: `https://chinchins.live/api/live/{id}/host-call-status` (বা `/api/live/host-call-status`)
+- **Request Body**:
+```json
+{
+  "room_id": "45",
+  "is_on_call": true
+}
+```
+- **Response & Real-Time Socket Broadcast (`LiveHostOnCallEvent`)**:
+  - **চ্যানেল**: `live-room.{roomId}`, `presence-live-stream.{roomId}`, `live.{roomId}`
+  - **ইভেন্ট নেম**: `LiveHostOnCallEvent`
+```json
+{
+  "event": "LiveHostOnCallEvent",
+  "room_id": "45",
+  "host_id": 101,
+  "host_name": "Diya",
+  "is_on_call": true,
+  "status": "busy_on_call",
+  "back_soon_text": "I'll back soon...",
+  "gallery_photos": [
+    "https://chinchins.live/uploads/profiles/diya_1.jpg",
+    "https://chinchins.live/uploads/profiles/diya_cover.jpg",
+    "https://chinchins.live/uploads/profiles/diya_gallery_2.jpg"
+  ],
+  "timestamp": "2026-09-25T19:35:00+06:00"
+}
+```
+
+---
+
+## 📞 ৮. কল হিস্ট্রি এপিআই (Call History & Logs RESTful API)
+
+মেসেজ ও ইনটিমেসি স্ক্রিনের পাশে থাকা "Call History" ট্যাবের জন্য ডেডিকেটেড এপিআই। ব্যবহারকারীর পূর্ববর্তী সকল অডিও/ভিডিও কলের বিস্তারিত তালিকা রিটার্ন করে।
+
+- **Method**: `GET`
+- **Endpoints**: 
+  - `https://chinchins.live/api/calls/history` *(Primary)*
+  - `https://chinchins.live/api/call/history`
+  - `https://chinchins.live/api/call-logs`
+  - `https://chinchins.live/api/v1/calls/history`
+- **Header**: `Authorization: Bearer <user_token>`
+- **Query Params**: `page=1`, `per_page=30`
+- **Response Format**:
+```json
+{
+  "status": true,
+  "success": true,
+  "message": "Call history retrieved successfully.",
+  "data": [
+    {
+      "id": 102,
+      "call_session_id": "call_65fe8a12",
+      "channel_name": "call_102",
+      "call_type": "video",
+      "call_type_label": "[Video]",
+      "is_caller": true,
+      "direction": "outgoing",
+      "status": "completed",
+      "status_label": "Completed",
+      "duration_seconds": 165,
+      "duration_formatted": "02:45",
+      "coins_spent": 50,
+      "coins_earned": 0,
+      "created_at": "2026-09-25T08:17:00Z",
+      "formatted_date": "2026/09/25 08:17",
+      "time_ago": "2 hours ago",
+      "other_user": {
+        "id": 204,
+        "name": "Diya",
+        "display_name": "Diya",
+        "avatar_url": "https://chinchins.live/uploads/profiles/diya.jpg",
+        "gender": "female",
+        "level": "Lv.7",
+        "level_number": 7,
+        "is_online": true,
+        "video_rate": 60
+      }
+    },
+    {
+      "id": 101,
+      "call_session_id": "call_65fe8901",
+      "channel_name": "call_101",
+      "call_type": "video",
+      "call_type_label": "[Video]",
+      "is_caller": false,
+      "direction": "incoming",
+      "status": "completed",
+      "status_label": "Completed",
+      "duration_seconds": 120,
+      "duration_formatted": "02:00",
+      "coins_spent": 0,
+      "coins_earned": 80,
+      "created_at": "2026-09-25T08:05:00Z",
+      "formatted_date": "2026/09/25 08:05",
+      "time_ago": "2 hours ago",
+      "other_user": {
+        "id": 205,
+        "name": "Lali",
+        "display_name": "Lali",
+        "avatar_url": "https://chinchins.live/uploads/profiles/lali.jpg",
+        "gender": "female",
+        "level": "Lv.5",
+        "level_number": 5,
+        "is_online": true,
+        "video_rate": 60
+      }
+    }
+  ],
+  "current_page": 1,
+  "last_page": 1,
+  "per_page": 30,
+  "total": 2
+}
+```
+
+---
+
+## ⚡ ৯. ১ সেকেন্ডের মধ্যে ইনস্ট্যান্ট ভিডিও কল কানেক্টিভিটি (<1s Fast Connect Optimization)
+
+- অ্যাপ যখন `POST /api/call/instant` বা `POST /api/call/initiate` কল করবে, তখন একযোগে কলার ও রিসিভারের জন্য লাইভকিট/ওয়েবআরটিসি প্রি-সাইনড টোকেন, এসডিপি অফার ও আইস সার্ভার তালিকা ইনস্ট্যান্ট রিটার্ন করা হয়।
+- কোনো সেকেন্ডারি এপিআই পুলিং দরকার নেই; অ্যাপ সরাসরি প্রাপ্ত টোকেন দিয়ে `< 800ms`-এর মধ্যে লাইভ ভিডিও ফিডে জয়েন করে ফেলে।
+
 

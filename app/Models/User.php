@@ -952,6 +952,23 @@ class User extends Authenticatable
          return $this->_cachedLevelInfo = ProfileBase::calculateLevelProgress($this->total_earned_coins, $this->current_level);
      }
 
+     /**
+      * Accessor for formatted user level (e.g. 'Lv.7', 'Lv.3').
+      */
+     public function getLevelAttribute(): string
+     {
+         $lvl = (int) ($this->attributes['current_level'] ?? $this->level_info['current_level'] ?? 1);
+         return 'Lv.' . max(1, $lvl);
+     }
+
+     /**
+      * Accessor for numeric level integer.
+      */
+     public function getLevelNumberAttribute(): int
+     {
+         return max(1, (int) ($this->attributes['current_level'] ?? $this->level_info['current_level'] ?? 1));
+     }
+
     /**
      * Accessor for user age with fallback.
      */

@@ -834,10 +834,14 @@ class LiveStreamApiController extends Controller
             'metadata'       => [
                 'sender_name'   => $senderName,
                 'sender_avatar' => $senderAvatar,
-                'level'         => $user?->level ?: 'Lv1',
+                'level'         => $user?->level ?: 'Lv.1',
+                'level_number'  => $user?->level_number ?: 1,
                 'gift_data'     => $gift,
             ],
         ]);
+
+        $userLevelStr = $user?->level ?: 'Lv.1';
+        $userLevelNum = $user?->level_number ?: 1;
 
         $messagePayload = [
             'id'             => $msgRecord->id,
@@ -849,16 +853,22 @@ class LiveStreamApiController extends Controller
             'user_avatar'    => $senderAvatar,
             'user'           => [
                 'id'           => $senderId,
+                'name'         => $senderName,
                 'display_name' => $senderName,
                 'avatar_url'   => $senderAvatar,
-                'level'        => $user?->level ?: 'Lv1',
+                'level'        => $userLevelStr,
+                'level_number' => $userLevelNum,
+                'current_level'=> $userLevelNum,
             ],
             'message'        => $msgRecord->message,
             'type'           => $type,
             'gift_id'        => $giftId,
             'gift_data'      => $gift,
             'gift'           => $gift,
-            'level'          => $user?->level ?: 'Lv1',
+            'level'          => $userLevelStr,
+            'level_number'   => $userLevelNum,
+            'current_level'  => $userLevelNum,
+            'user_level'     => $userLevelStr,
             'created_at'     => $msgRecord->created_at->toIso8601String(),
             'timestamp'      => $msgRecord->created_at->toIso8601String(),
         ];
@@ -873,6 +883,64 @@ class LiveStreamApiController extends Controller
             'success' => true,
             'message' => 'Live message sent successfully.',
             'data'    => $messagePayload,
+        ], 200);
+    }
+
+    /**
+     * Set Host On-Call / Busy Status during Live Stream ("I'll back soon..." Photo Carousel).
+     * POST /api/live/{id}/host-call-status, POST /api/live/host-call-status
+     */
+    public function setHostCallStatus(Request $request, $id = null): JsonResponse
+    {
+        $user = $this->resolveUser($request);
+        $streamId = $id ?? $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id');
+
+        $stream = LiveStream::with('host')->where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+        if (!$stream) {
+            return response()->json(['status' => false, 'message' => 'Live stream not found.'], 404);
+        }
+
+        $isOnCall = $request->boolean('is_on_call', true);
+        $status = $isOnCall ? 'busy_on_call' : 'live';
+
+        // Gather host gallery pictures & cover photos
+        $host = $stream->host;
+        $galleryPhotos = [];
+        if ($host) {
+            if ($host->avatar_url) $galleryPhotos[] = $host->avatar_url;
+            if ($host->cover_photo_url) $galleryPhotos[] = $host->cover_photo_url;
+            if (!empty($host->gallery_images) && is_array($host->gallery_images)) {
+                foreach ($host->gallery_images as $img) {
+                    $galleryPhotos[] = url($img);
+                }
+            }
+        }
+        if (empty($galleryPhotos)) {
+            $galleryPhotos[] = url('assets/images/defaults/avatar.png');
+        }
+        $galleryPhotos = array_values(array_unique($galleryPhotos));
+
+        $payload = [
+            'event'          => 'LiveHostOnCallEvent',
+            'room_id'        => (string) $stream->id,
+            'host_id'        => $stream->host_id,
+            'host_name'      => $host?->display_name ?? $host?->name ?? 'Host',
+            'is_on_call'     => $isOnCall,
+            'status'         => $status,
+            'back_soon_text' => "I'll back soon...",
+            'gallery_photos' => $galleryPhotos,
+            'timestamp'      => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new \App\Events\LiveHostOnCallEvent((string) $stream->id, $payload))->toOthers();
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => $isOnCall ? 'Host status updated to On-Call (Showing background photo carousel).' : 'Host status resumed to Live.',
+            'data'    => $payload,
         ], 200);
     }
 

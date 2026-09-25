@@ -1824,62 +1824,95 @@ class CallController extends Controller
     }
 
     /**
-     * Get User's Call History (calls made and received).
-     * GET /api/call/history
+     * Get User's Call History / Logs.
+     * GET /api/call/history, GET /api/calls/history, GET /api/call-logs, GET /api/v1/calls/history
      */
     public function history(Request $request): JsonResponse
     {
-        $user = $this->resolveUser($request);
+        $user = $this->resolveUser($request) ?? auth()->user();
 
         if (!$user) {
             return response()->json([
-                'status' => false,
-                'message' => 'Unauthenticated.',
+                'status'  => false,
+                'success' => false,
+                'message' => 'Unauthenticated. Please provide a valid Bearer token.',
             ], 401);
         }
 
+        $perPage = (int) $request->input('per_page', 30);
         $calls = CallSession::with(['caller', 'receiver'])
             ->where(function ($q) use ($user) {
                 $q->where('caller_id', $user->id)
                   ->orWhere('receiver_id', $user->id);
             })
-            ->latest()
-            ->paginate(20);
+            ->latest('id')
+            ->paginate($perPage);
 
         $formattedItems = collect($calls->items())->map(function ($c) use ($user) {
-            $isCaller = ($c->caller_id === $user->id);
+            $isCaller = ((int) $c->caller_id === (int) $user->id);
             $partner = $isCaller ? $c->receiver : $c->caller;
 
+            $durationSec = (int) ($c->duration_seconds ?? $c->duration ?? 0);
+            $minutes = floor($durationSec / 60);
+            $seconds = $durationSec % 60;
+            $durationFormatted = sprintf('%02d:%02d', $minutes, $seconds);
+
+            $callType = strtolower($c->call_type ?? 'video');
+            $callTypeLabel = ($callType === 'audio') ? '[Audio]' : '[Video]';
+            $dateFormatted = $c->created_at ? $c->created_at->format('Y/m/d H:i') : now()->format('Y/m/d H:i');
+
+            $partnerData = $partner ? [
+                'id'           => $partner->id,
+                'account_id'   => $partner->account_id,
+                'name'         => $partner->display_name ?? $partner->name ?? 'User',
+                'display_name' => $partner->display_name ?? $partner->name ?? 'User',
+                'avatar_url'   => $partner->avatar_url ?? url('assets/images/defaults/avatar.png'),
+                'gender'       => $partner->gender ?: 'female',
+                'level'        => $partner->level ?? 'Lv.1',
+                'level_number' => $partner->level_number ?? 1,
+                'is_online'    => (bool) ($partner->is_online ?? false),
+                'video_rate'   => (int) ($partner->video_call_rate ?? 60),
+            ] : null;
+
             return [
-                'id' => $c->id,
-                'call_type' => $c->call_type,
-                'is_outgoing' => $isCaller,
-                'status' => $c->status,
-                'duration_seconds' => (int) $c->duration_seconds,
-                'formatted_duration' => $c->formatted_duration,
-                'is_free_trial' => (bool) $c->is_free_trial,
-                'coins_spent' => $isCaller ? (int) $c->coins_deducted : 0,
-                'coins_earned' => !$isCaller ? (int) $c->host_earned_coins : 0,
-                'created_at' => $c->created_at->toIso8601String(),
-                'partner' => $partner ? [
-                    'id' => $partner->id,
-                    'account_id' => $partner->account_id,
-                    'display_name' => $partner->display_name,
-                    'avatar_url' => $partner->avatar_url,
-                    'gender' => $partner->gender ?: 'female',
-                ] : null,
+                'id'                 => $c->id,
+                'call_session_id'    => $c->call_session_id ?? (string) $c->id,
+                'channel_name'       => $c->channel_name ?? "call_{$c->id}",
+                'call_type'          => $callType,
+                'call_type_label'    => $callTypeLabel,
+                'is_caller'          => $isCaller,
+                'is_outgoing'        => $isCaller,
+                'direction'          => $isCaller ? 'outgoing' : 'incoming',
+                'status'             => $c->status ?? 'ended',
+                'status_label'       => ucfirst($c->status ?? 'ended'),
+                'duration_seconds'   => $durationSec,
+                'formatted_duration' => $durationFormatted,
+                'duration_formatted' => $durationFormatted,
+                'is_free_trial'      => (bool) $c->is_free_trial,
+                'coins_spent'        => $isCaller ? (int) $c->coins_deducted : 0,
+                'coins_earned'       => !$isCaller ? (int) $c->host_earned_coins : 0,
+                'created_at'         => $c->created_at ? $c->created_at->toIso8601String() : null,
+                'formatted_date'     => $dateFormatted,
+                'time_ago'           => $c->created_at ? $c->created_at->diffForHumans() : '',
+                'partner'            => $partnerData,
+                'other_user'         => $partnerData,
             ];
         });
 
         return response()->json([
-            'status' => true,
-            'message' => 'Call history retrieved successfully.',
-            'data' => $formattedItems,
+            'status'        => true,
+            'success'       => true,
+            'message'       => 'Call history retrieved successfully.',
+            'data'          => $formattedItems,
             'current_coins' => (int) $user->coins,
-            'pagination' => [
+            'current_page'  => $calls->currentPage(),
+            'last_page'     => $calls->lastPage(),
+            'per_page'      => $calls->perPage(),
+            'total'         => $calls->total(),
+            'pagination'    => [
                 'current_page' => $calls->currentPage(),
-                'last_page' => $calls->lastPage(),
-                'total' => $calls->total(),
+                'last_page'    => $calls->lastPage(),
+                'total'        => $calls->total(),
             ],
         ], 200);
     }
