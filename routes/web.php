@@ -176,6 +176,12 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::delete('/profile-bases/{id}', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'destroy'])->name('profile-bases.destroy')->middleware('permission:badges.delete|level_badges.delete');
     Route::post('/profile-bases/{id}/toggle-status', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'toggleStatus'])->name('profile-bases.toggle-status')->middleware('permission:badges.edit|level_badges.edit');
 
+    // Period Rank Badges Management (Daily, Weekly, Monthly)
+    Route::get('/rank-badges', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'index'])->name('rank-badges.index');
+    Route::post('/rank-badges', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'store'])->name('rank-badges.store');
+    Route::post('/rank-badges/{id}/toggle', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'toggleStatus'])->name('rank-badges.toggle');
+    Route::delete('/rank-badges/{id}', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'destroy'])->name('rank-badges.destroy');
+
 
     // Customer Profile Icons ("Me" Screen Picture & Icons Management)
     Route::prefix('customer-profile-icons')->name('customer-profile-icons.')->group(function () {

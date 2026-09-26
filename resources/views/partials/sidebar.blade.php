@@ -35,6 +35,8 @@
         try { $pendingResellerWithCount = \App\Models\ResellerWithdrawal::where('status', 'pending')->count(); } catch (\Throwable $e) {}
         try { $unreadUserSupportCount = \App\Models\UserAdminSupportMessage::where('sender_type', 'user')->where('is_read_by_admin', false)->count(); } catch (\Throwable $e) {}
         try { $activeLiveStreamsCount = \App\Models\LiveStream::where('status', 'live')->count(); } catch (\Throwable $e) {}
+        $activePeriodBadgesCount = 0;
+        try { $activePeriodBadgesCount = \App\Models\PeriodRankBadge::where('is_active', true)->count(); } catch (\Throwable $e) {}
     @endphp
 
     <div class="sidebar-menu">
@@ -251,6 +253,17 @@
             @endif
         </a>
         @endhasPermission
+
+        <!-- Period Rank Badges (Daily, Weekly, Monthly) -->
+        <a href="{{ route('admin.rank-badges.index') }}" class="menu-item {{ request()->routeIs('admin.rank-badges.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-award" style="color: #f59e0b;"></i>
+                <span>Rank Badges & Frames</span>
+            </div>
+            @if(isset($activePeriodBadgesCount) && $activePeriodBadgesCount > 0)
+                <span class="badge rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(245,158,11,0.15); color: #f59e0b;">{{ $activePeriodBadgesCount }} Badges</span>
+            @endif
+        </a>
 
         <!-- Customer Profile Icons (কাস্টমার প্রোফাইল আইকন ও ছবি সেটিং) -->
         <a href="{{ route('admin.customer-profile-icons.index') }}" class="menu-item {{ request()->routeIs('admin.customer-profile-icons.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">

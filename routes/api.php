@@ -1353,3 +1353,32 @@ Route::get('/party/tags', [\App\Http\Controllers\Api\PartyRoomApiController::cla
 Route::get('/party-rooms/tags', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getTags']);
 Route::get('/party-room/tags', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getTags']);
 
+// ==========================================
+// 🏆 Daily, Weekly & Monthly Rank Badges & Frames (Hive Local Cache Sync)
+// ==========================================
+Route::get('/app/rank-badges-config', function () {
+    $badges = \Illuminate\Support\Facades\Cache::rememberForever('app_period_rank_badges', function () {
+        return \App\Models\PeriodRankBadge::where('is_active', true)
+            ->orderBy('period_type')
+            ->orderBy('rank_position')
+            ->get()
+            ->groupBy('period_type');
+    });
+
+    return response()->json([
+        'success' => true,
+        'status' => true,
+        'data' => [
+            'daily' => $badges['daily'] ?? [],
+            'weekly' => $badges['weekly'] ?? [],
+            'monthly' => $badges['monthly'] ?? [],
+        ]
+    ]);
+});
+Route::get('/rank-badges-config', function () {
+    return redirect('/api/app/rank-badges-config');
+});
+Route::get('/ranks/badges-config', function () {
+    return redirect('/api/app/rank-badges-config');
+});
+
