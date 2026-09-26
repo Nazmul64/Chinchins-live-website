@@ -1382,3 +1382,7 @@ Route::get('/ranks/badges-config', function () {
     return redirect('/api/app/rank-badges-config');
 });
 
+// 👑 Leaderboard Rankings API (SVIP, Rich, Charm - Daily, Weekly, Monthly)
+Route::get('/ranks/leaderboard', [\App\Http\Controllers\Api\LeaderboardApiController::class, 'getLeaderboard']);
+Route::get('/leaderboard', [\App\Http\Controllers\Api\LeaderboardApiController::class, 'getLeaderboard']);
+
