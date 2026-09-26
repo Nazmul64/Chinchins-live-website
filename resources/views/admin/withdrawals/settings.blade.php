@@ -76,16 +76,28 @@
                                 <small class="text-muted" id="maxBdtHelper">Maximum coins allowed per single withdrawal request.</small>
                             </div>
 
-                            <!-- Commission Percent -->
+                            <!-- User Commission Percent -->
                             <div class="col-12 col-md-6">
                                 <label class="form-label fw-bold text-dark" style="font-size: 13px;">
-                                    <i class="fa-solid fa-percent text-purple me-1" style="color: #8b5cf6;"></i> Platform Commission / Fee (%)
+                                    <i class="fa-solid fa-user text-purple me-1" style="color: #8b5cf6;"></i> User Withdrawal Commission (%)
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light" style="font-weight: bold; color: #8b5cf6;">%</span>
                                     <input type="number" step="0.1" name="commission_percent" id="inputCommission" class="form-control" value="{{ $config['commission_percent'] }}" min="0" max="100" required style="border-radius: 0 8px 8px 0; font-weight: 600;">
                                 </div>
-                                <small class="text-muted">Deducted from gross BDT before sending payout to user.</small>
+                                <small class="text-muted">Deducted from regular user cashouts (set to 0% for no fee).</small>
+                            </div>
+
+                            <!-- Seller / Reseller Commission Percent -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                    <i class="fa-solid fa-store text-warning me-1" style="color: #f59e0b;"></i> Seller / Reseller Commission (%)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light" style="font-weight: bold; color: #f59e0b;">%</span>
+                                    <input type="number" step="0.1" name="seller_commission_percent" id="inputSellerCommission" class="form-control" value="{{ $config['seller_commission_percent'] ?? 2.5 }}" min="0" max="100" required style="border-radius: 0 8px 8px 0; font-weight: 600;">
+                                </div>
+                                <small class="text-muted">Deducted from Seller / Coin Agent cashouts (set to 0% for no fee).</small>
                             </div>
 
                             <!-- Conversion Rate: Coins to BDT -->

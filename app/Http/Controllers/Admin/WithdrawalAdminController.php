@@ -76,22 +76,23 @@ class WithdrawalAdminController extends Controller
                 return back()->with('error', 'Associated user not found.');
             }
 
-            // Check if user still has enough coins to deduct
-            if ($user->coins < $withdraw->coins) {
-                return back()->with('error', "Cannot approve: User only has {$user->coins} coins, but withdrawal requires {$withdraw->coins} coins.");
-            }
+            // If not already held in escrow, deduct now
+            if (!$withdraw->is_held) {
+                if ($user->beans_balance < $withdraw->coins && $user->coins < $withdraw->coins) {
+                    return back()->with('error', "Cannot approve: User only has {$user->beans_balance} beans/coins, but withdrawal requires {$withdraw->coins}.");
+                }
 
-            // 1. Deduct coins from user balance & record in CoinTransaction ledger
-            $deducted = $user->deductCoins(
-                (int) $withdraw->coins,
-                'withdraw',
-                "Withdrawal to {$withdraw->payment_method_name} ({$withdraw->account_number}) - Req #{$withdraw->id}",
-                "withdraw_#{$withdraw->id}"
-            );
+                $deducted = $user->deductBeans(
+                    (int) $withdraw->coins,
+                    'withdraw',
+                    "Withdrawal to {$withdraw->payment_method_name} ({$withdraw->account_number}) - Req #{$withdraw->id}",
+                    "withdraw_#{$withdraw->id}"
+                );
 
-            if (!$deducted) {
-                DB::rollBack();
-                return back()->with('error', 'Failed to deduct coins from user wallet.');
+                if (!$deducted) {
+                    DB::rollBack();
+                    return back()->with('error', 'Failed to deduct balance from user wallet.');
+                }
             }
 
             // 2. Mark withdrawal request as approved
@@ -105,7 +106,7 @@ class WithdrawalAdminController extends Controller
             $withdraw->save();
 
             DB::commit();
-            return back()->with('success', "Withdrawal of " . number_format($withdraw->coins) . " Coins (৳" . number_format($withdraw->net_payable_amount, 2) . " BDT) for {$user->display_name} has been Approved and Deducted!");
+            return back()->with('success', "Withdrawal of " . number_format($withdraw->coins) . " Beans/Coins (৳" . number_format($withdraw->net_payable_amount, 2) . " BDT) for {$user->display_name} has been Approved!");
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Error approving withdrawal: ' . $e->getMessage());
@@ -113,7 +114,7 @@ class WithdrawalAdminController extends Controller
     }
 
     /**
-     * Reject a withdrawal request (Coins are not deducted).
+     * Reject a withdrawal request and refund held beans.
      */
     public function reject(Request $request, $id)
     {
@@ -123,13 +124,32 @@ class WithdrawalAdminController extends Controller
             return back()->with('error', "This withdrawal request has already been {$withdraw->status}.");
         }
 
-        $withdraw->status = 'rejected';
-        $withdraw->rejected_at = now();
-        $withdraw->approved_by = Auth::id();
-        $withdraw->admin_note = $request->input('admin_note') ?: 'Rejected by administrator';
-        $withdraw->save();
+        DB::beginTransaction();
+        try {
+            $user = $withdraw->user;
 
-        return back()->with('success', "Withdrawal request #{$withdraw->id} was rejected.");
+            // Refund held beans back to user balance if they were locked
+            if ($withdraw->is_held && $user) {
+                $user->addBeans(
+                    (int) $withdraw->coins,
+                    'withdraw_refund',
+                    "Refund for rejected withdrawal request #{$withdraw->id}",
+                    "withdraw_refund_#{$withdraw->id}"
+                );
+            }
+
+            $withdraw->status = 'rejected';
+            $withdraw->rejected_at = now();
+            $withdraw->approved_by = Auth::id();
+            $withdraw->admin_note = $request->input('admin_note') ?: 'Rejected by administrator';
+            $withdraw->save();
+
+            DB::commit();
+            return back()->with('success', "Withdrawal request #{$withdraw->id} was rejected" . ($withdraw->is_held ? " and {$withdraw->coins} Beans refunded to user." : "."));
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error rejecting withdrawal: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -144,27 +164,36 @@ class WithdrawalAdminController extends Controller
     }
 
     /**
-     * Update Withdrawal Configuration settings.
+     * Update Withdrawal Configuration settings (User & Seller Commissions).
      */
     public function updateSettings(Request $request)
     {
         $request->validate([
-            'is_withdraw_enabled' => 'nullable|boolean',
-            'min_withdraw_coins' => 'required|integer|min:1',
-            'max_withdraw_coins' => 'required|integer|min:1|gte:min_withdraw_coins',
-            'commission_percent' => 'required|numeric|min:0|max:100',
-            'rate_coins' => 'required|integer|min:1',
-            'rate_bdt' => 'required|numeric|min:0.01',
-            'notice' => 'nullable|string|max:1000',
+            'is_withdraw_enabled'        => 'nullable|boolean',
+            'min_withdraw_coins'         => 'required|integer|min:1',
+            'max_withdraw_coins'         => 'required|integer|min:1|gte:min_withdraw_coins',
+            'commission_percent'         => 'required|numeric|min:0|max:100',
+            'seller_commission_percent'  => 'nullable|numeric|min:0|max:100',
+            'rate_coins'                 => 'required|integer|min:1',
+            'rate_bdt'                   => 'required|numeric|min:0.01',
+            'notice'                     => 'nullable|string|max:1000',
         ]);
+
+        $sellerComm = $request->input('seller_commission_percent', '2.50');
 
         WithdrawalSetting::set('is_withdraw_enabled', $request->boolean('is_withdraw_enabled') ? '1' : '0', 'Enable or disable withdrawal feature globally');
         WithdrawalSetting::set('min_withdraw_coins', $request->input('min_withdraw_coins'), 'Minimum coins required for single withdrawal');
         WithdrawalSetting::set('max_withdraw_coins', $request->input('max_withdraw_coins'), 'Maximum coins allowed for single withdrawal');
-        WithdrawalSetting::set('commission_percent', $request->input('commission_percent'), 'Commission percentage deducted on withdrawal');
+        WithdrawalSetting::set('commission_percent', $request->input('commission_percent'), 'Commission percentage deducted on user withdrawal');
+        WithdrawalSetting::set('seller_commission_percent', $sellerComm, 'Commission percentage deducted on seller/reseller withdrawal');
         WithdrawalSetting::set('rate_coins', $request->input('rate_coins'), 'Coins quantity for rate calculation');
         WithdrawalSetting::set('rate_bdt', $request->input('rate_bdt'), 'BDT value for rate calculation');
         WithdrawalSetting::set('notice', $request->input('notice') ?: '', 'Notice / instructions displayed to users on withdraw screen');
+
+        // Sync with ResellerSetting for sellers
+        if (class_exists('\App\Models\ResellerSetting')) {
+            \App\Models\ResellerSetting::set('withdraw_commission_rate', $sellerComm);
+        }
 
         // Update payment methods withdrawal support if submitted
         if ($request->has('methods') && is_array($request->input('methods'))) {
@@ -179,7 +208,7 @@ class WithdrawalAdminController extends Controller
             }
         }
 
-        return back()->with('success', 'Withdrawal settings and commission rates updated successfully!');
+        return back()->with('success', 'Withdrawal settings, User & Seller commission rates updated successfully!');
     }
 
     /**

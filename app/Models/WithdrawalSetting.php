@@ -26,6 +26,7 @@ class WithdrawalSetting extends Model
             'min_withdraw_coins' => '1000',
             'max_withdraw_coins' => '100000',
             'commission_percent' => '5.00',
+            'seller_commission_percent' => '2.50',
             'rate_coins' => '100', // e.g. 100 Coins = 10 BDT (i.e. 10 Coins = 1 BDT)
             'rate_bdt' => '10.00',
             'rate_per_bdt' => '10.00', // Calculated: rate_coins / rate_bdt
@@ -96,6 +97,7 @@ class WithdrawalSetting extends Model
                 'min_withdraw_coins' => (int) ($merged['min_withdraw_coins'] ?? 1000),
                 'max_withdraw_coins' => (int) ($merged['max_withdraw_coins'] ?? 100000),
                 'commission_percent' => (float) ($merged['commission_percent'] ?? 5.00),
+                'seller_commission_percent' => (float) ($merged['seller_commission_percent'] ?? 2.50),
                 'rate_coins' => $rateCoins,
                 'rate_bdt' => $rateBdt,
                 'rate_per_bdt' => $ratePerBdt,

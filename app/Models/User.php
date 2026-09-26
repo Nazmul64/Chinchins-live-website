@@ -520,6 +520,86 @@ class User extends Authenticatable
     }
 
     /**
+     * Get user's withdrawable beans balance.
+     */
+    public function getBeansBalanceAttribute(): int
+    {
+        if (isset($this->received_coins) && (int)$this->received_coins > 0) {
+            return (int) $this->received_coins;
+        }
+        $wallet = $this->wallet;
+        if ($wallet && (int)$wallet->earnings > 0) {
+            return (int) $wallet->earnings;
+        }
+        return (int) ($this->coins ?? 0);
+    }
+
+    /**
+     * Deduct / Hold beans for withdrawal request.
+     */
+    public function deductBeans(int $amount, string $type = 'withdraw_hold', ?string $description = null, ?string $referenceId = null): bool
+    {
+        $currentBeans = $this->beans_balance;
+        if ($currentBeans < $amount) {
+            return false;
+        }
+
+        if (isset($this->received_coins) && (int)$this->received_coins >= $amount) {
+            $this->decrement('received_coins', $amount);
+            $wallet = $this->getOrCreateWallet();
+            if ($wallet->earnings >= $amount) {
+                $wallet->decrement('earnings', $amount);
+            }
+        } else {
+            $this->decrement('coins', $amount);
+            $wallet = $this->getOrCreateWallet();
+            if ($wallet->balance >= $amount) {
+                $wallet->decrement('balance', $amount);
+            }
+        }
+
+        $this->refresh();
+
+        $this->coinTransactions()->create([
+            'type' => $type,
+            'amount' => -$amount,
+            'balance_after' => $this->beans_balance,
+            'description' => $description ?: "Held {$amount} beans for withdrawal",
+            'reference_id' => $referenceId,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Refund held beans back to user balance on withdrawal rejection.
+     */
+    public function addBeans(int $amount, string $type = 'withdraw_refund', ?string $description = null, ?string $referenceId = null): self
+    {
+        if (isset($this->received_coins)) {
+            $this->increment('received_coins', $amount);
+            $wallet = $this->getOrCreateWallet();
+            $wallet->increment('earnings', $amount);
+        } else {
+            $this->increment('coins', $amount);
+            $wallet = $this->getOrCreateWallet();
+            $wallet->increment('balance', $amount);
+        }
+
+        $this->refresh();
+
+        $this->coinTransactions()->create([
+            'type' => $type,
+            'amount' => $amount,
+            'balance_after' => $this->beans_balance,
+            'description' => $description ?: "Refunded {$amount} beans",
+            'reference_id' => $referenceId,
+        ]);
+
+        return $this;
+    }
+
+    /**
      * Auto generate unique 10-12 digit Account ID on creation.
      */
     protected static function booted(): void

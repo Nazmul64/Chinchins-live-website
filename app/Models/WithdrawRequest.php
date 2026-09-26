@@ -25,6 +25,7 @@ class WithdrawRequest extends Model
         'status',
         'transaction_id',
         'admin_note',
+        'is_held',
         'approved_by',
         'approved_at',
         'rejected_at',
@@ -37,6 +38,7 @@ class WithdrawRequest extends Model
         'commission_percent' => 'decimal:2',
         'commission_amount' => 'decimal:2',
         'net_payable_amount' => 'decimal:2',
+        'is_held' => 'boolean',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
     ];

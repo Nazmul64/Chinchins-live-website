@@ -96,12 +96,64 @@ class WithdrawalApiController extends Controller
      * Get active withdrawal payment methods with 24-hour Redis caching (Zero DB Hits, < 1ms response).
      * GET /api/withdraw-methods, GET /api/withdraw/methods
      */
-    public function getMethods(): JsonResponse
+    public function getMethods(Request $request): JsonResponse
     {
-        $methods = \Illuminate\Support\Facades\Cache::remember('active_withdraw_methods', 86400, function () {
+        $user = $this->resolveUser($request);
+        $config = WithdrawalSetting::getAllConfig();
+
+        $methods = \Illuminate\Support\Facades\Cache::remember('active_withdraw_methods', 3600, function () {
             $records = PaymentMethod::where('is_active', true)
                 ->orderBy('sort_order', 'asc')
                 ->get();
+
+            if ($records->isEmpty()) {
+                return [
+                    [
+                        'id'           => 1,
+                        'name'         => 'bKash Personal',
+                        'code'         => 'bkash',
+                        'account_type' => 'Personal',
+                        'icon'         => asset('assets/images/bkash.png'),
+                        'icon_url'     => asset('assets/images/bkash.png'),
+                        'min_withdraw' => 50.00,
+                        'max_withdraw' => 50000.00,
+                        'instructions' => 'Enter your 11-digit personal bKash mobile number.',
+                    ],
+                    [
+                        'id'           => 2,
+                        'name'         => 'Nagad Personal',
+                        'code'         => 'nagad',
+                        'account_type' => 'Personal',
+                        'icon'         => asset('assets/images/nagad.png'),
+                        'icon_url'     => asset('assets/images/nagad.png'),
+                        'min_withdraw' => 50.00,
+                        'max_withdraw' => 50000.00,
+                        'instructions' => 'Enter your 11-digit personal Nagad mobile number.',
+                    ],
+                    [
+                        'id'           => 3,
+                        'name'         => 'Rocket Personal',
+                        'code'         => 'rocket',
+                        'account_type' => 'Personal',
+                        'icon'         => asset('assets/images/rocket.png'),
+                        'icon_url'     => asset('assets/images/rocket.png'),
+                        'min_withdraw' => 50.00,
+                        'max_withdraw' => 50000.00,
+                        'instructions' => 'Enter your 12-digit personal Rocket account number.',
+                    ],
+                    [
+                        'id'           => 4,
+                        'name'         => 'Bank Transfer',
+                        'code'         => 'bank',
+                        'account_type' => 'Bank',
+                        'icon'         => asset('assets/images/bank.png'),
+                        'icon_url'     => asset('assets/images/bank.png'),
+                        'min_withdraw' => 500.00,
+                        'max_withdraw' => 100000.00,
+                        'instructions' => 'Enter Bank Name, Branch, Account Holder Name & Account Number.',
+                    ],
+                ];
+            }
 
             return $records->map(function ($pm) {
                 return [
@@ -118,24 +170,16 @@ class WithdrawalApiController extends Controller
             });
         });
 
-        $etag = '"' . md5(json_encode($methods)) . '"';
-        if (request()->header('If-None-Match') === $etag) {
-            return response()->json(null, 304)->withHeaders([
-                'ETag'          => $etag,
-                'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
-            ]);
-        }
-
         return response()->json([
-            'success' => true,
-            'status'  => true,
-            'message' => 'Active withdrawal payment methods retrieved successfully.',
-            'data'    => $methods,
-            'methods' => $methods,
-        ], 200)->withHeaders([
-            'ETag'          => $etag,
-            'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
-        ]);
+            'success'            => true,
+            'status'             => true,
+            'message'            => 'Active withdrawal payment methods retrieved successfully.',
+            'data'               => $methods,
+            'methods'            => $methods,
+            'beans_balance'      => $user ? $user->beans_balance : 0,
+            'coins_balance'      => $user ? (int) $user->coins : 0,
+            'config'             => $config,
+        ], 200);
     }
 
     /**
@@ -365,55 +409,57 @@ class WithdrawalApiController extends Controller
 
         $data = $this->getRequestData($request);
 
-        // 2. Validate input parameters
-        $validator = Validator::make($data, [
-            'coins' => 'required|numeric|min:1',
+        // 2. Extract beans / coins requested
+        $amountBeans = (int) ($data['amount_beans'] ?? $data['coins'] ?? $data['amount'] ?? $request->input('amount_beans') ?? $request->input('coins') ?? $request->input('amount') ?? 0);
+
+        // 3. Validate input parameters
+        $validator = Validator::make(array_merge($data, ['amount_beans' => $amountBeans]), [
+            'amount_beans'      => 'required|integer|min:1',
             'payment_method_id' => 'nullable',
-            'payment_method' => 'nullable|string', // e.g. 'bkash', 'nagad', 'bKash Personal'
-            'account_number' => 'required|string|max:50',
-            'account_type' => 'nullable|string|max:30', // 'Personal', 'Agent', etc.
-            'user_note' => 'nullable|string|max:500',
+            'payment_method'    => 'nullable|string', // e.g. 'bkash', 'nagad', 'rocket', 'bank'
+            'account_number'    => 'required|string|max:50',
+            'account_type'      => 'nullable|string|max:30', // 'Personal', 'Agent', etc.
+            'user_note'         => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => false,
-                'message' => 'Validation failed. Please check input parameters.',
-                'errors' => $validator->errors(),
+                'status'  => false,
+                'message' => $validator->errors()->first(),
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
-        $coins = (int) ($data['coins'] ?? $request->input('coins'));
-
-        // 3. Validate Minimum & Maximum Coins Limit
-        if ($coins < $config['min_withdraw_coins']) {
+        // 4. Validate Minimum & Maximum Limit
+        if ($amountBeans < $config['min_withdraw_coins']) {
             return response()->json([
-                'status' => false,
-                'message' => "Minimum withdrawal limit is {$config['min_withdraw_coins']} Coins (৳" . number_format($config['min_withdraw_bdt'], 2) . ").",
+                'status'  => false,
+                'message' => "Minimum withdrawal limit is {$config['min_withdraw_coins']} Beans (৳" . number_format($config['min_withdraw_bdt'], 2) . ").",
             ], 422);
         }
 
-        if ($coins > $config['max_withdraw_coins']) {
+        if ($amountBeans > $config['max_withdraw_coins']) {
             return response()->json([
-                'status' => false,
-                'message' => "Maximum withdrawal limit is {$config['max_withdraw_coins']} Coins (৳" . number_format($config['max_withdraw_bdt'], 2) . ").",
+                'status'  => false,
+                'message' => "Maximum withdrawal limit is {$config['max_withdraw_coins']} Beans (৳" . number_format($config['max_withdraw_bdt'], 2) . ").",
             ], 422);
         }
 
-        // 4. Validate User Balance
-        if ($user->coins < $coins) {
+        // 5. Validate User Beans Balance
+        $currentBeans = $user->beans_balance;
+        if ($currentBeans < $amountBeans) {
             return response()->json([
-                'status' => false,
-                'message' => "Insufficient coin balance. Your current balance is " . number_format($user->coins) . " coins, but requested " . number_format($coins) . " coins.",
-                'data' => [
-                    'current_coins' => (int) $user->coins,
-                    'requested_coins' => $coins,
-                    'shortfall_coins' => $coins - (int) $user->coins,
+                'status'  => false,
+                'message' => "Insufficient beans balance. Your current balance is " . number_format($currentBeans) . " beans, but requested " . number_format($amountBeans) . " beans.",
+                'data'    => [
+                    'current_beans'   => $currentBeans,
+                    'requested_beans' => $amountBeans,
+                    'shortfall'       => $amountBeans - $currentBeans,
                 ],
             ], 422);
         }
 
-        // 5. Match Payment Method
+        // 6. Match Payment Method
         $paymentMethod = null;
         $pmId = $data['payment_method_id'] ?? $request->input('payment_method_id');
         $pmCode = $data['payment_method'] ?? $request->input('payment_method');
@@ -424,59 +470,78 @@ class WithdrawalApiController extends Controller
         if (!empty($pmId)) {
             $paymentMethod = PaymentMethod::find($pmId);
         } elseif (!empty($pmCode)) {
-            $paymentMethod = PaymentMethod::where('code', strtolower($pmCode))
+            $paymentMethod = PaymentMethod::where('code', strtolower(trim($pmCode)))
                 ->orWhere('name', 'like', "%{$pmCode}%")
                 ->first();
         }
 
-        $methodName = $paymentMethod ? $paymentMethod->name : ($pmCode ?: 'bKash / Nagad');
+        $methodName = $paymentMethod ? $paymentMethod->name : (ucfirst($pmCode ?: 'bKash'));
         $accountType = $accType ?: ($paymentMethod ? $paymentMethod->account_type : 'Personal');
 
-        // 6. Calculate amounts and commission
+        // 7. Calculate amounts and platform commission
         $ratePerBdt = $config['rate_per_bdt'] > 0 ? $config['rate_per_bdt'] : 10.00;
         $commissionPercent = (float) $config['commission_percent'];
 
-        $grossAmount = round($coins / $ratePerBdt, 2);
+        $grossAmount = round($amountBeans / $ratePerBdt, 2);
         $commissionAmount = round($grossAmount * ($commissionPercent / 100), 2);
         $netPayableAmount = round($grossAmount - $commissionAmount, 2);
 
-        // 7. Create Withdrawal Request (Status: pending)
+        // 8. Escrow / Lock user's beans balance immediately
+        $locked = $user->deductBeans(
+            $amountBeans,
+            'withdraw_hold',
+            "Held {$amountBeans} Beans for withdrawal to {$methodName} ({$accountNum})",
+            "withdraw_pending_" . time()
+        );
+
+        if (!$locked) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unable to lock beans balance for withdrawal. Please try again.',
+            ], 422);
+        }
+
+        // 9. Create Withdrawal Request (Status: pending, is_held: true)
         $withdraw = WithdrawRequest::create([
-            'user_id' => $user->id,
-            'payment_method_id' => $paymentMethod?->id,
+            'user_id'             => $user->id,
+            'payment_method_id'   => $paymentMethod?->id,
             'payment_method_name' => $methodName,
-            'coins' => $coins,
-            'rate_per_bdt' => $ratePerBdt,
-            'gross_amount' => $grossAmount,
-            'commission_percent' => $commissionPercent,
-            'commission_amount' => $commissionAmount,
-            'net_payable_amount' => $netPayableAmount,
-            'account_number' => trim((string) $accountNum),
-            'account_type' => $accountType,
-            'user_note' => $userNote,
-            'status' => 'pending',
+            'coins'               => $amountBeans,
+            'rate_per_bdt'        => $ratePerBdt,
+            'gross_amount'        => $grossAmount,
+            'commission_percent'  => $commissionPercent,
+            'commission_amount'   => $commissionAmount,
+            'net_payable_amount'  => $netPayableAmount,
+            'account_number'      => trim((string) $accountNum),
+            'account_type'        => $accountType,
+            'user_note'           => $userNote,
+            'status'              => 'pending',
+            'is_held'             => true,
         ]);
 
         return response()->json([
-            'status' => true,
-            'message' => 'Withdrawal request submitted successfully! It is now pending admin approval. Once approved, coins will be deducted from your wallet and payment sent to your account.',
-            'data' => [
-                'withdraw_id' => $withdraw->id,
-                'coins' => $withdraw->coins,
-                'formatted_coins' => number_format($withdraw->coins) . ' Coins',
-                'gross_amount' => (float) $withdraw->gross_amount,
-                'formatted_gross_amount' => '৳' . number_format($withdraw->gross_amount, 2),
-                'commission_percent' => (float) $withdraw->commission_percent,
-                'commission_amount' => (float) $withdraw->commission_amount,
-                'formatted_commission_amount' => '৳' . number_format($withdraw->commission_amount, 2),
-                'net_payable_amount' => (float) $withdraw->net_payable_amount,
+            'status'  => true,
+            'success' => true,
+            'message' => 'Withdrawal request submitted successfully! Your beans have been held in escrow and sent to admin for payout approval.',
+            'data'    => [
+                'withdraw_id'                  => $withdraw->id,
+                'amount_beans'                 => $withdraw->coins,
+                'coins'                        => $withdraw->coins,
+                'formatted_beans'              => number_format($withdraw->coins) . ' Beans',
+                'gross_amount'                 => (float) $withdraw->gross_amount,
+                'formatted_gross_amount'       => '৳' . number_format($withdraw->gross_amount, 2),
+                'commission_percent'           => (float) $withdraw->commission_percent,
+                'commission_amount'            => (float) $withdraw->commission_amount,
+                'formatted_commission_amount'  => '৳' . number_format($withdraw->commission_amount, 2),
+                'net_payable_amount'           => (float) $withdraw->net_payable_amount,
                 'formatted_net_payable_amount' => '৳' . number_format($withdraw->net_payable_amount, 2),
-                'payment_method' => $withdraw->payment_method_name,
-                'account_number' => $withdraw->account_number,
-                'account_type' => $withdraw->account_type,
-                'status' => $withdraw->status,
-                'user_current_coins' => (int) $user->coins,
-                'created_at' => $withdraw->created_at->toIso8601String(),
+                'payment_method'               => $withdraw->payment_method_name,
+                'account_number'               => $withdraw->account_number,
+                'account_type'                 => $withdraw->account_type,
+                'status'                       => $withdraw->status,
+                'is_held'                      => true,
+                'remaining_beans_balance'      => $user->beans_balance,
+                'created_at'                   => $withdraw->created_at->toIso8601String(),
             ],
         ], 201);
     }
@@ -503,8 +568,10 @@ class WithdrawalApiController extends Controller
 
         return response()->json([
             'status' => true,
+            'success' => true,
             'message' => 'Withdrawal history retrieved successfully.',
             'data' => $withdraws->items(),
+            'beans_balance' => $user->beans_balance,
             'current_coins' => (int) $user->coins,
             'pagination' => [
                 'current_page' => $withdraws->currentPage(),

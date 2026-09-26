@@ -192,6 +192,13 @@ class LivePrivateCallApiController extends Controller
             Log::error("IncomingPrivateCallEvent broadcast error: " . $e->getMessage());
         }
 
+        // 📲 High-Priority VoIP FCM Data Push to Host (Wakes host device during live stream)
+        try {
+            dispatch(new \App\Jobs\SendCallNotificationJob($call->id, $caller->id, $host->id));
+        } catch (\Throwable $e) {
+            Log::error("LivePrivateCall VoIP push notification error: " . $e->getMessage());
+        }
+
         return response()->json([
             'success'         => true,
             'status'          => true,

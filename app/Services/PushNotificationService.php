@@ -527,6 +527,18 @@ class PushNotificationService
                                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                                 ],
                             ],
+                            'apns' => [
+                                'headers' => [
+                                    'apns-priority'  => $priority === 'high' ? '10' : '5',
+                                    'apns-push-type' => $isCall ? 'voip' : 'alert',
+                                ],
+                                'payload' => [
+                                    'aps' => [
+                                        'content-available' => 1,
+                                        'sound'             => $isCall ? 'call_ringtone.caf' : 'default',
+                                    ],
+                                ],
+                            ],
                         ],
                     ];
 
@@ -561,9 +573,10 @@ class PushNotificationService
         if ($serverKey) {
             try {
                 $payload = [
-                    'registration_ids' => array_values($tokens),
-                    'priority'         => $priority,
-                    'notification'     => [
+                    'registration_ids'  => array_values($tokens),
+                    'priority'          => 'high',
+                    'content_available' => true,
+                    'notification'      => [
                         'title'        => $title,
                         'body'         => $body,
                         'image'        => $imageUrl ?: null,
@@ -571,16 +584,18 @@ class PushNotificationService
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         'badge'        => '1',
                     ],
-                    'data'             => array_merge($data, [
-                        'title'        => $title,
-                        'body'         => $body,
-                        'is_call'      => $isCall ? 'true' : 'false',
-                        'action_url'   => $actionUrl ?: '',
-                        'image_url'    => $imageUrl ?: '',
+                    'data'              => array_merge($data, [
+                        'title'             => $title,
+                        'body'              => $body,
+                        'is_call'           => $isCall ? 'true' : 'false',
+                        'priority'          => 'high',
+                        'content_available' => 'true',
+                        'action_url'        => $actionUrl ?: '',
+                        'image_url'         => $imageUrl ?: '',
                     ]),
-                    'android'          => [
-                        'priority'     => 'high',
-                        'ttl'          => $isCall ? '45s' : '86400s',
+                    'android'           => [
+                        'priority' => 'high',
+                        'ttl'      => $isCall ? '45s' : '86400s',
                         'notification' => [
                             'channel_id' => $isCall ? 'chinchins_call_channel' : 'chinchins_messages_channel',
                             'sound'      => $isCall ? 'call_ringtone' : 'default',

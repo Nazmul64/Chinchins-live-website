@@ -643,4 +643,150 @@ class ResellerApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Transfer failed: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Submit Seller / Reseller Withdrawal Request.
+     * POST /api/seller/withdraw, POST /api/reseller/withdraw
+     */
+    public function apiSubmitWithdrawal(Request $request): JsonResponse
+    {
+        $reseller = $this->resolveReseller($request);
+        if (!$reseller) {
+            return response()->json(['status' => false, 'message' => 'Seller/Reseller authentication required.'], 401);
+        }
+
+        $minWithdraw = (int) \App\Models\ResellerSetting::get('min_withdraw', '1000');
+        $maxWithdraw = (int) \App\Models\ResellerSetting::get('max_withdraw', '100000');
+        $commissionRate = (float) \App\Models\ResellerSetting::get('withdraw_commission_rate', '2.50');
+        $coinsPerBdt = (float) \App\Models\ResellerSetting::get('coins_per_bdt', '10.00');
+
+        $request->validate([
+            'coins_amount'   => "required|integer|min:{$minWithdraw}|max:{$maxWithdraw}",
+            'payment_method' => 'required|string|max:50',
+            'account_number' => 'required|string|max:50',
+            'account_name'   => 'nullable|string|max:100',
+            'notes'          => 'nullable|string|max:500',
+        ]);
+
+        $coins = (int) $request->coins_amount;
+
+        if ($reseller->coins_balance < $coins) {
+            return response()->json([
+                'status'  => false,
+                'message' => "Insufficient coin balance. You have " . number_format($reseller->coins_balance) . " coins, requested " . number_format($coins) . ".",
+                'data'    => [
+                    'current_balance' => (int) $reseller->coins_balance,
+                    'requested_coins' => $coins,
+                ],
+            ], 422);
+        }
+
+        $grossBdt = round($coins / ($coinsPerBdt ?: 10.00), 2);
+        $commissionBdt = round($grossBdt * ($commissionRate / 100), 2);
+        $netBdt = max(0, round($grossBdt - $commissionBdt, 2));
+
+        DB::beginTransaction();
+        try {
+            // Deduct coins from reseller balance and hold
+            $reseller->coins_balance -= $coins;
+            $reseller->save();
+
+            $withdrawal = \App\Models\ResellerWithdrawal::create([
+                'reseller_id'           => $reseller->id,
+                'payment_method'        => $request->payment_method,
+                'account_number'        => $request->account_number,
+                'account_name'          => $request->account_name ?: $reseller->name,
+                'coins_amount'          => $coins,
+                'gross_bdt'             => $grossBdt,
+                'commission_percentage' => $commissionRate,
+                'commission_amount'     => $commissionBdt,
+                'net_bdt'               => $netBdt,
+                'reseller_notes'        => $request->notes,
+                'status'                => 'pending',
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => true,
+                'success' => true,
+                'message' => "Withdrawal request of " . number_format($coins) . " coins (৳" . number_format($netBdt, 2) . ") submitted successfully! Pending admin payout.",
+                'data'    => [
+                    'withdrawal_id'            => $withdrawal->id,
+                    'coins_amount'             => $withdrawal->coins_amount,
+                    'gross_bdt'                => (float) $withdrawal->gross_bdt,
+                    'commission_percentage'    => (float) $withdrawal->commission_percentage,
+                    'commission_amount'        => (float) $withdrawal->commission_amount,
+                    'net_bdt'                  => (float) $withdrawal->net_bdt,
+                    'payment_method'           => $withdrawal->payment_method,
+                    'account_number'           => $withdrawal->account_number,
+                    'status'                   => $withdrawal->status,
+                    'reseller_remaining_coins' => (int) $reseller->coins_balance,
+                    'created_at'               => $withdrawal->created_at->toIso8601String(),
+                ],
+            ], 201);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['status' => false, 'message' => 'Withdrawal failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get Seller / Reseller Withdrawal History.
+     * GET /api/seller/withdraw-history, GET /api/reseller/withdraw-history
+     */
+    public function apiWithdrawalHistory(Request $request): JsonResponse
+    {
+        $reseller = $this->resolveReseller($request);
+        if (!$reseller) {
+            return response()->json(['status' => false, 'message' => 'Seller/Reseller authentication required.'], 401);
+        }
+
+        $withdrawals = \App\Models\ResellerWithdrawal::where('reseller_id', $reseller->id)
+            ->latest()
+            ->paginate(20);
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => 'Seller withdrawal history retrieved successfully.',
+            'data'    => $withdrawals->items(),
+            'current_coins' => (int) $reseller->coins_balance,
+            'pagination' => [
+                'current_page' => $withdrawals->currentPage(),
+                'last_page'    => $withdrawals->lastPage(),
+                'total'        => $withdrawals->total(),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get Seller Withdrawal Methods & Limits.
+     * GET /api/seller/withdraw-methods, GET /api/reseller/withdraw-methods
+     */
+    public function apiWithdrawalMethods(Request $request): JsonResponse
+    {
+        $reseller = $this->resolveReseller($request);
+
+        $minWithdraw = (int) \App\Models\ResellerSetting::get('min_withdraw', '1000');
+        $maxWithdraw = (int) \App\Models\ResellerSetting::get('max_withdraw', '100000');
+        $commissionRate = (float) \App\Models\ResellerSetting::get('withdraw_commission_rate', '2.50');
+        $coinsPerBdt = (float) \App\Models\ResellerSetting::get('coins_per_bdt', '10.00');
+
+        $methods = \App\Models\PaymentMethod::where('is_active', true)->orderBy('sort_order')->get(['id', 'name', 'code', 'account_type', 'icon', 'instructions']);
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => 'Seller withdrawal config & methods retrieved.',
+            'data'    => [
+                'min_withdraw_coins'       => $minWithdraw,
+                'max_withdraw_coins'       => $maxWithdraw,
+                'commission_percentage'    => $commissionRate,
+                'coins_per_bdt'            => $coinsPerBdt,
+                'reseller_coins_balance'   => $reseller ? (int) $reseller->coins_balance : 0,
+                'payment_methods'          => $methods,
+            ],
+        ], 200);
+    }
 }

@@ -1314,3 +1314,42 @@ Route::get('/fcm/check', [\App\Http\Controllers\Api\FirebaseApiController::class
 Route::post('/fcm/test-push', [\App\Http\Controllers\Api\FirebaseApiController::class, 'testPush']);
 Route::post('/fcm/test', [\App\Http\Controllers\Api\FirebaseApiController::class, 'testPush']);
 
+// ==========================================
+// 💰 User & Seller Withdrawal System APIs
+// ==========================================
+
+// 1. User Wallet & Beans Withdrawal Endpoints
+Route::post('/wallet/withdraw', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+Route::get('/wallet/withdraw-history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
+Route::get('/wallet/withdraw-methods', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getMethods']);
+Route::get('/wallet/withdraw', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+
+// Aliases for /withdraw
+Route::prefix('withdraw')->group(function () {
+    Route::get('/info', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+    Route::get('/config', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getInfo']);
+    Route::get('/methods', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getMethods']);
+    Route::post('/calculate', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'calculate']);
+    Route::post('/submit', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+    Route::post('/request', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'submit']);
+    Route::get('/history', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'history']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'show']);
+});
+Route::get('/withdraw-methods', [\App\Http\Controllers\Api\WithdrawalApiController::class, 'getMethods']);
+
+// 2. Seller / Reseller Withdrawal Endpoints
+Route::post('/seller/withdraw', [\App\Http\Controllers\Api\ResellerApiController::class, 'apiSubmitWithdrawal']);
+Route::get('/seller/withdraw-history', [\App\Http\Controllers\Api\ResellerApiController::class, 'apiWithdrawalHistory']);
+Route::get('/seller/withdraw-methods', [\App\Http\Controllers\Api\ResellerApiController::class, 'apiWithdrawalMethods']);
+
+Route::post('/reseller/withdraw', [\App\Http\Controllers\Api\ResellerApiController::class, 'apiSubmitWithdrawal']);
+Route::get('/reseller/withdraw-history', [\App\Http\Controllers\Api\ResellerApiController::class, 'apiWithdrawalHistory']);
+Route::get('/reseller/withdraw-methods', [\App\Http\Controllers\Api\ResellerApiController::class, 'apiWithdrawalMethods']);
+
+// ==========================================
+// 🎙️ Dynamic Party Room Tags (Database-backed)
+// ==========================================
+Route::get('/party/tags', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getTags']);
+Route::get('/party-rooms/tags', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getTags']);
+Route::get('/party-room/tags', [\App\Http\Controllers\Api\PartyRoomApiController::class, 'getTags']);
+

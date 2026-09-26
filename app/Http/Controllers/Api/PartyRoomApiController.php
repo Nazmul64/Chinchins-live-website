@@ -267,6 +267,26 @@ class PartyRoomApiController extends Controller
     }
 
     /**
+     * Get dynamic active party room tags from database (Zero hardcode).
+     * GET /api/party/tags, GET /api/party-rooms/tags, GET /api/party-room/tags
+     */
+    public function getTags(): JsonResponse
+    {
+        $tags = \App\Models\PartyTag::where('is_active', true)
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get(['id', 'name', 'slug', 'icon', 'color']);
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => 'Active party tags retrieved successfully from database.',
+            'data'    => $tags,
+            'tags'    => $tags,
+        ], 200);
+    }
+
+    /**
      * Create / Host a New Party Room (Voice Party or Video Party).
      * POST /api/party-rooms/create
      */

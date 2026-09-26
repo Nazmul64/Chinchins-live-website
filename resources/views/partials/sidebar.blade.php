@@ -274,32 +274,43 @@
         </a>
         @endhasPermission
 
-        <!-- Withdrawal Requests & Settings -->
+        <!-- Withdraw (User & Seller Withdrawal Management) -->
         @hasPermission('withdrawals.view')
-        <div class="menu-item-group {{ request()->routeIs('admin.withdrawals.*') ? 'active open' : '' }}">
-            <button type="button" class="menu-item menu-dropdown-toggle {{ request()->routeIs('admin.withdrawals.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+        @php
+            $isWithdrawMenuOpen = request()->routeIs('admin.withdrawals.*') || request()->routeIs('admin.resellers.withdrawals*');
+            $totalPendingWithdraws = ($pendingWithCount ?? 0) + ($pendingResellerWithCount ?? 0);
+        @endphp
+        <div class="menu-item-group {{ $isWithdrawMenuOpen ? 'active open' : '' }}">
+            <button type="button" class="menu-item menu-dropdown-toggle {{ $isWithdrawMenuOpen ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
                 <div class="menu-item-left">
-                    <i class="fa-solid fa-hand-holding-dollar" style="color: #3b82f6;"></i>
-                    <span>Withdrawals</span>
+                    <i class="fa-solid fa-money-bill-transfer" style="color: #10b981;"></i>
+                    <span>Withdraw</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
-                    @if($pendingWithCount > 0)
-                        <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $pendingWithCount }}</span>
+                    @if($totalPendingWithdraws > 0)
+                        <span class="badge bg-danger rounded-pill" style="font-size: 11px; padding: 2px 7px;">{{ $totalPendingWithdraws }}</span>
                     @endif
                     <i class="fa-solid fa-chevron-right menu-arrow"></i>
                 </div>
             </button>
-            <div class="submenu" style="{{ request()->routeIs('admin.withdrawals.*') ? 'display: block;' : '' }}">
+            <div class="submenu" style="{{ $isWithdrawMenuOpen ? 'display: block;' : '' }}">
                 <a href="{{ route('admin.withdrawals.index') }}" class="submenu-item {{ request()->routeIs('admin.withdrawals.index') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
-                    <span>All Requests</span>
-                    @if($pendingWithCount > 0)
+                    <span>User Withdraw Request</span>
+                    @if(($pendingWithCount ?? 0) > 0)
                         <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">{{ $pendingWithCount }}</span>
                     @endif
                 </a>
-                <a href="{{ route('admin.withdrawals.settings') }}" class="submenu-item {{ request()->routeIs('admin.withdrawals.settings') ? 'active' : '' }}">
+                <a href="{{ route('admin.resellers.withdrawals') }}" class="submenu-item {{ request()->routeIs('admin.resellers.withdrawals*') ? 'active' : '' }}">
                     <span class="submenu-bullet"></span>
-                    <span>Withdraw Settings</span>
+                    <span>Seller Withdraw</span>
+                    @if(($pendingResellerWithCount ?? 0) > 0)
+                        <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 10px; padding: 1px 6px;">{{ $pendingResellerWithCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('admin.withdrawals.settings') }}" class="submenu-item {{ request()->routeIs('admin.withdrawals.settings*') ? 'active' : '' }}">
+                    <span class="submenu-bullet"></span>
+                    <span>Withdraw Commission Setup</span>
                 </a>
             </div>
         </div>

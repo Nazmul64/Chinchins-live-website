@@ -560,6 +560,30 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Log::error("Incoming call push notification dispatch error: " . $e->getMessage());
         }
 
+        // 📡 High-Priority VoIP Real-Time Socket Signal to Host/Receiver Private Channel (private-user.{host_id})
+        try {
+            $callData = [
+                'event'                 => 'call.incoming',
+                'call_id'               => $call->id,
+                'channel_name'          => $channelName,
+                'channel'               => $channelName,
+                'call_type'             => $callType,
+                'caller_id'             => $caller->id,
+                'caller_account_id'     => $caller->account_id ?: (string) $caller->id,
+                'caller_name'           => $caller->display_name ?: $caller->name,
+                'caller_avatar'         => $caller->avatar_url ?: $caller->profile_image,
+                'rate_per_minute'       => $ratePerMinute,
+                'is_free_trial'         => $isEligibleForFree,
+                'free_duration_seconds' => $freeDuration,
+                'status'                => 'ringing',
+                'created_at'            => now()->toIso8601String(),
+            ];
+            broadcast(new \App\Events\IncomingCallEvent($receiver->id, $callData));
+            broadcast(new \App\Events\IncomingPrivateCallEvent($receiver->id, $callData));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Real-time call socket broadcast error: " . $e->getMessage());
+        }
+
         $maxMinutes = $ratePerMinute > 0 ? ($isCallerFree ? 999999 : (int) floor($caller->coins / $ratePerMinute)) : 0;
 
         return response()->json([
