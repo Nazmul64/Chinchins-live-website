@@ -178,11 +178,17 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
 
     // Period Rank Badges Management (Daily, Weekly, Monthly)
     Route::get('/rank-badges', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'index'])->name('rank-badges.index');
+    Route::get('/rank_badges', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'index']);
     Route::post('/rank-badges', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'store'])->name('rank-badges.store');
-    Route::post('/rank-badges/background', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'uploadBackground'])->name('rank-badges.background');
-    Route::post('/rank-badges/remove-background', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'removeBackground'])->name('rank-badges.remove-background');
+    Route::post('/rank_badges', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'store']);
+    Route::match(['GET', 'POST'], '/rank-badges/background', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'uploadBackground'])->name('rank-badges.background');
+    Route::match(['GET', 'POST'], '/rank_badges/background', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'uploadBackground']);
+    Route::match(['GET', 'POST'], '/rank-badges/remove-background', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'removeBackground'])->name('rank-badges.remove-background');
+    Route::match(['GET', 'POST'], '/rank_badges/remove-background', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'removeBackground']);
     Route::post('/rank-badges/{id}/toggle', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'toggleStatus'])->name('rank-badges.toggle');
+    Route::post('/rank_badges/{id}/toggle', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'toggleStatus']);
     Route::delete('/rank-badges/{id}', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'destroy'])->name('rank-badges.destroy');
+    Route::delete('/rank_badges/{id}', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'destroy']);
 
 
     // Customer Profile Icons ("Me" Screen Picture & Icons Management)
