@@ -395,32 +395,196 @@ Content-Type: application/json
 
 ---
 
-### 4.8 In-Call Real-Time Chat & Gifts
+### 4.9 Universal Dynamic Active Gifts API (Zero-Latency In-Memory Cache)
 
-#### `POST /api/call/send-message`
-**Request:**
-```http
-POST /api/call/send-message
-Authorization: Bearer {token}
-Content-Type: application/json
+#### `GET /api/gifts/active` or `GET /api/gifts`
+Fetches all active gifts uploaded from the Admin Panel (`public/uploads/gifts/`) with full icons and SVGA/Lottie animations.
 
+**Response (`200 OK`):**
+```json
 {
-  "call_session_id": "call_12_105_1727443920",
-  "message": "Hi, can you hear me clearly?"
+  "success": true,
+  "status": true,
+  "message": "Active gifts loaded successfully",
+  "data": [
+    {
+      "id": 1,
+      "name": "Rose Flower",
+      "slug": "rose-flower",
+      "coins": 10,
+      "coin_price": 10,
+      "icon_url": "https://chinchins.live/uploads/gifts/rose.png",
+      "image_url": "https://chinchins.live/uploads/gifts/rose.png",
+      "animation_url": "https://chinchins.live/uploads/gifts/rose_anim.svga",
+      "animation_asset_url": "https://chinchins.live/uploads/gifts/rose_anim.svga",
+      "file_url": "https://chinchins.live/uploads/gifts/rose_anim.svga",
+      "format": "svga",
+      "animation_type": "svga",
+      "display_type": "bubble",
+      "category": "romantic",
+      "is_active": true,
+      "is_broadcast": false
+    },
+    {
+      "id": 2,
+      "name": "Luxury Sports Car",
+      "slug": "luxury-sports-car",
+      "coins": 5000,
+      "coin_price": 5000,
+      "icon_url": "https://chinchins.live/uploads/gifts/sports_car.png",
+      "animation_url": "https://chinchins.live/uploads/gifts/sports_car_3d.svga",
+      "format": "svga",
+      "display_type": "fullscreen",
+      "category": "luxury",
+      "is_active": true,
+      "is_broadcast": true
+    }
+  ]
 }
 ```
 
-#### `POST /api/call/send-gift`
+---
+
+### 4.10 Universal Send Gift API (Calls, Chat, Live Stream, Voice Rooms)
+
+#### `POST /api/gifts/send` or `POST /api/gift/send`
+Deducts coins from the sender, credits earnings/diamonds to the recipient, logs transaction, and broadcasts `GiftReceivedEvent` to the recipient's private socket channel.
+
 **Request:**
 ```http
-POST /api/call/send-gift
+POST /api/gifts/send
 Authorization: Bearer {token}
 Content-Type: application/json
 
 {
-  "call_session_id": "call_12_105_1727443920",
-  "gift_id": 12,
-  "quantity": 1
+  "receiver_id": 105,
+  "gift_id": 2,
+  "quantity": 1,
+  "context": "live_call",
+  "call_session_id": "call_12_105_1727443920"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "status": true,
+  "message": "Gift sent successfully!",
+  "remaining_balance": 9020,
+  "gift": {
+    "sender_id": 12,
+    "sender_name": "Nazmul Hossain",
+    "sender_avatar": "https://chinchins.live/uploads/profile/avatar_12.jpg",
+    "sender_level": "Lv.2",
+    "sender_level_number": 2,
+    "gift_id": 2,
+    "gift_name": "Luxury Sports Car",
+    "icon_url": "https://chinchins.live/uploads/gifts/sports_car.png",
+    "file_url": "https://chinchins.live/uploads/gifts/sports_car_3d.svga",
+    "format": "svga",
+    "display_type": "fullscreen",
+    "quantity": 1,
+    "coins_spent": 5000,
+    "sender_coins_left": 9020
+  },
+  "data": {
+    "transaction_id": 481,
+    "remaining_balance": 9020,
+    "gift": { ... }
+  }
+}
+```
+
+---
+
+### 4.11 User Profile Dynamic Picture Base Wrapping & Real Likes Counters
+
+#### `GET /api/profile/me` or `GET /api/user/profile/{id}`
+Returns complete user profile data with dynamically calculated Level Base Frame (`avatar_frame_url`), `level_info`, and 100% database-driven likes counters (`i_like`, `like_me`).
+
+**Response (`200 OK`):**
+```json
+{
+  "status": true,
+  "success": true,
+  "data": {
+    "id": 12,
+    "name": "Nazmul Hossain",
+    "coins": 14020,
+    "my_gems": 14020,
+    "beans": 0,
+    "beans_central": 0,
+    "current_level": 2,
+    "level": "Lv.2",
+    "level_number": 2,
+    "avatar_frame_url": "https://chinchins.live/uploads/bases/level_2_frame.png",
+    "base_frame_url": "https://chinchins.live/uploads/bases/level_2_frame.png",
+    "rank_badge_frame_url": "https://chinchins.live/uploads/rank_badges/rank_gold_frame.png",
+    "rank_badge_icon_url": "https://chinchins.live/uploads/rank_badges/rank_gold_icon.png",
+    "i_like": 1,
+    "like_me": 6,
+    "i_like_count": 1,
+    "like_me_count": 6,
+    "likes": {
+      "total_likes": 6,
+      "formatted_likes": "6",
+      "i_like": 1,
+      "like_me": 6
+    },
+    "level_info": {
+      "current_level": 2,
+      "level_name": "Level 2",
+      "earned_coins": 14020,
+      "coins_for_current_level": 1100,
+      "coins_for_next_level": 5000,
+      "progress_percentage": 100.0,
+      "avatar_frame_url": "https://chinchins.live/uploads/bases/level_2_frame.png",
+      "badge_color": "#f59e0b",
+      "badge_icon": "crown"
+    }
+  }
+}
+```
+
+---
+
+### 4.12 Real-Time Leaderboard Rankings (SVIP, Rich, Charm)
+
+#### `GET /api/ranks/leaderboard?category=rich&period=daily`
+Returns real-time rankings with dynamic level labels, diamonds consumed, and rank badge frames.
+
+**Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "status": true,
+  "meta": {
+    "category": "rich",
+    "period": "daily",
+    "period_label": "Today",
+    "countdown_seconds": 68787,
+    "total_ranked": 6
+  },
+  "rankings": [
+    {
+      "rank": 1,
+      "user_id": 12,
+      "account_id": "40985974",
+      "name": "Nazmul Hossain",
+      "display_name": "Nazmul Hossain",
+      "avatar_url": "https://chinchins.live/uploads/profile/avatar_12.jpg",
+      "level": "Lv.2",
+      "level_number": 2,
+      "current_level": 2,
+      "country": "Bangladesh",
+      "country_flag": "🇧🇩",
+      "consume": 14000,
+      "consume_formatted": "14K",
+      "diamonds": 14000,
+      "badge_icon_url": "https://chinchins.live/uploads/rank_badges/rank_1_gold.png",
+      "avatar_frame_url": "https://chinchins.live/uploads/rank_badges/gold_crown_frame.png"
+    }
+  ]
 }
 ```
 
@@ -445,10 +609,13 @@ Content-Type: application/json
 
 - [x] **Channel Subscriptions:** On login, subscribe to `private-user.${currentUser.id}` via `pusher_channels_flutter` or `laravel_echo`.
 - [x] **Incoming Call Listener:** Bind to `call.incoming` / `incoming_call`. Display full-screen ringing UI or floating bottom sheet (if currently in live stream).
+- [x] **Gift Real-Time Listener:** Bind to `gift.received` on `private-user.${currentUser.id}` and `live-stream.${roomId}` to play SVGA/Lottie flying animations instantly.
+- [x] **Avatar Frame Wrapping:** When rendering circular avatars, check if `user.avatar_frame_url` or `user.base_frame_url` is not null. Render it as a slightly larger concentric overlay around the circular image.
+- [x] **Dynamic Likes & Levels:** Use `user.i_like` for "I Like" tab and `user.like_me` for "Like Me" tab. Use `user.level` (`Lv.1`, `Lv.2`) for user level badges.
 - [x] **Call Dismissal Listener:** Bind to `call.ended` and `call.rejected`. Immediately close the call screen/modal and stop the ringtone audio player.
-- [x] **No Hardcoded Levels:** Display user levels using `user.current_level` or `user.level` (`Lv.1`, `Lv.5`, etc.) received directly from API responses.
 - [x] **LiveKit SDK Connection:** On `call.accepted`, connect to `LiveKitClient.connect(livekitUrl, livekitToken)`.
 
 ---
 
 *Authored and verified for Chinchins Live Production Backend & Mobile App release.*
+

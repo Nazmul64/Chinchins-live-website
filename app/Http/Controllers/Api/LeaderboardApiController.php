@@ -113,20 +113,31 @@ class LeaderboardApiController extends Controller
                 }
 
                 $badgeConfig = $configuredBadges->get($rank);
+                $avatarFrame = $badgeConfig?->avatar_frame_url ?: $user->avatar_frame_url ?: $user->base_frame_url;
 
                 $rankings[] = [
-                    'rank'               => $rank,
-                    'user_id'            => $user->id,
-                    'account_id'         => $user->account_id ?? (string) (100000 + $user->id),
-                    'name'               => $user->display_name ?? $user->name ?? 'User_' . $user->id,
-                    'avatar'             => $user->avatar ? (str_starts_with($user->avatar, 'http') ? $user->avatar : asset($user->avatar)) : asset('assets/images/defaults/avatar-male.png'),
-                    'level'              => (int) ($user->level ?? 1),
-                    'country'            => $user->country ?? 'BD',
-                    'country_flag'       => $user->country_flag ?? '🇧🇩',
-                    'consume'            => (int) $item->total_consume,
-                    'consume_formatted'  => self::formatNumber((int) $item->total_consume),
-                    'badge_icon_url'     => $badgeConfig ? $badgeConfig->badge_icon_url : null,
-                    'avatar_frame_url'   => $badgeConfig ? $badgeConfig->avatar_frame_url : null,
+                    'rank'                 => $rank,
+                    'user_id'              => $user->id,
+                    'id'                   => $user->id,
+                    'account_id'           => $user->account_id ?? (string) (100000 + $user->id),
+                    'name'                 => $user->display_name ?? $user->name ?? 'User_' . $user->id,
+                    'display_name'         => $user->display_name ?? $user->name ?? 'User_' . $user->id,
+                    'avatar'               => $user->avatar_url ?: asset('assets/images/defaults/avatar-male.png'),
+                    'avatar_url'           => $user->avatar_url ?: asset('assets/images/defaults/avatar-male.png'),
+                    'level'                => $user->level ?: 'Lv.1',
+                    'level_number'         => $user->level_number ?: 1,
+                    'current_level'        => $user->current_level ?: 1,
+                    'display_level'        => $user->display_level ?: 'Lv.1',
+                    'country'              => $user->country ?? 'BD',
+                    'country_flag'         => $user->country_flag ?? '🇧🇩',
+                    'consume'              => (int) $item->total_consume,
+                    'consume_formatted'    => self::formatNumber((int) $item->total_consume),
+                    'diamonds'             => (int) $item->total_consume,
+                    'badge_icon_url'       => $badgeConfig ? $badgeConfig->badge_icon_url : null,
+                    'avatar_frame_url'     => $avatarFrame,
+                    'base_frame_url'       => $user->base_frame_url ?: $avatarFrame,
+                    'rank_badge_frame_url' => $badgeConfig?->avatar_frame_url ?: $user->rank_badge_frame_url,
+                    'rank_badge_icon_url'  => $badgeConfig?->badge_icon_url ?: $user->rank_badge_icon_url,
                 ];
                 $rank++;
             }
@@ -145,20 +156,31 @@ class LeaderboardApiController extends Controller
             foreach ($realUsers as $u) {
                 $badgeConfig = $configuredBadges->get($rank);
                 $coinsScore = (int) $u->coins;
+                $avatarFrame = $badgeConfig?->avatar_frame_url ?: $u->avatar_frame_url ?: $u->base_frame_url;
 
                 $rankings[] = [
-                    'rank'               => $rank,
-                    'user_id'            => $u->id,
-                    'account_id'         => $u->account_id ?? (string) (100000 + $u->id),
-                    'name'               => $u->display_name ?? $u->name ?? 'User_' . $u->id,
-                    'avatar'             => $u->avatar ? (str_starts_with($u->avatar, 'http') ? $u->avatar : asset($u->avatar)) : asset('assets/images/defaults/avatar-male.png'),
-                    'level'              => (int) ($u->level ?? 1),
-                    'country'            => $u->country ?? 'Bangladesh',
-                    'country_flag'       => $u->country_flag ?? '🇧🇩',
-                    'consume'            => $coinsScore,
-                    'consume_formatted'  => self::formatNumber($coinsScore),
-                    'badge_icon_url'     => $badgeConfig ? $badgeConfig->badge_icon_url : null,
-                    'avatar_frame_url'   => $badgeConfig ? $badgeConfig->avatar_frame_url : null,
+                    'rank'                 => $rank,
+                    'user_id'              => $u->id,
+                    'id'                   => $u->id,
+                    'account_id'           => $u->account_id ?? (string) (100000 + $u->id),
+                    'name'                 => $u->display_name ?? $u->name ?? 'User_' . $u->id,
+                    'display_name'         => $u->display_name ?? $u->name ?? 'User_' . $u->id,
+                    'avatar'               => $u->avatar_url ?: asset('assets/images/defaults/avatar-male.png'),
+                    'avatar_url'           => $u->avatar_url ?: asset('assets/images/defaults/avatar-male.png'),
+                    'level'                => $u->level ?: 'Lv.1',
+                    'level_number'         => $u->level_number ?: 1,
+                    'current_level'        => $u->current_level ?: 1,
+                    'display_level'        => $u->display_level ?: 'Lv.1',
+                    'country'              => $u->country ?? 'Bangladesh',
+                    'country_flag'         => $u->country_flag ?? '🇧🇩',
+                    'consume'              => $coinsScore,
+                    'consume_formatted'    => self::formatNumber($coinsScore),
+                    'diamonds'             => $coinsScore,
+                    'badge_icon_url'       => $badgeConfig ? $badgeConfig->badge_icon_url : null,
+                    'avatar_frame_url'     => $avatarFrame,
+                    'base_frame_url'       => $u->base_frame_url ?: $avatarFrame,
+                    'rank_badge_frame_url' => $badgeConfig?->avatar_frame_url ?: $u->rank_badge_frame_url,
+                    'rank_badge_icon_url'  => $badgeConfig?->badge_icon_url ?: $u->rank_badge_icon_url,
                 ];
                 $rank++;
             }

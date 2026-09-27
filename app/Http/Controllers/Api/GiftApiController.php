@@ -67,51 +67,58 @@ class GiftApiController extends Controller
     }
 
     /**
+     * Get active gifts cached in memory (Zero DB Hits).
+     * GET /api/gifts/active or GET /api/gifts
+     */
+    public function getActiveGifts(): JsonResponse
+    {
+        $gifts = \Illuminate\Support\Facades\Cache::rememberForever('active_app_gifts', function () {
+            return Gift::where('is_active', true)
+                ->orderBy('coin_price', 'asc')
+                ->orderBy('coins', 'asc')
+                ->get()
+                ->map(function ($g) {
+                    $icon = $g->icon_url ?: ($g->image_url ?: $g->image);
+                    $anim = $g->animation_url ?: ($g->file_url ?: $g->animation_full_url);
+                    return [
+                        'id'                  => $g->id,
+                        'name'                => $g->name,
+                        'slug'                => $g->slug,
+                        'coins'               => (int) ($g->coins ?: $g->coin_price),
+                        'coin_price'          => (int) ($g->coin_price ?: $g->coins),
+                        'icon_url'            => $icon,
+                        'image_url'           => $icon,
+                        'image'               => $icon,
+                        'animation_url'       => $anim,
+                        'animation_asset_url' => $anim,
+                        'file_url'            => $anim,
+                        'format'              => $g->format ?: ($g->animation_type ?: 'svga'),
+                        'animation_type'      => $g->animation_type ?: ($g->format ?: 'svga'),
+                        'display_type'        => $g->display_type ?: ($g->is_broadcast ? 'fullscreen' : 'bubble'),
+                        'category'            => $g->category ?: 'all',
+                        'is_active'           => (bool) $g->is_active,
+                        'is_broadcast'        => (bool) $g->is_broadcast,
+                        'badge'               => $g->badge,
+                    ];
+                });
+        });
+
+        return response()->json([
+            'success' => true,
+            'status'  => true,
+            'message' => 'Active gifts loaded successfully',
+            'data'    => $gifts,
+            'gifts'   => $gifts,
+        ]);
+    }
+
+    /**
      * Get active gifts with 24-hour Redis / In-Memory caching (Zero DB Hits, < 1ms response).
      * GET /api/gifts
      */
     public function getGifts(): JsonResponse
     {
-        $gifts = \Illuminate\Support\Facades\Cache::remember('active_gifts_catalog', 86400, function () {
-            return Gift::select('id', 'name', 'coin_price', 'coins', 'icon_url', 'image', 'animation_url', 'animation_type', 'file_url', 'category', 'is_broadcast', 'format', 'display_type')
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('coins', 'asc')
-                ->get()
-                ->map(function ($g) {
-                    return [
-                        'id'            => $g->id,
-                        'name'          => $g->name,
-                        'coins'         => (int) ($g->coins ?: $g->coin_price),
-                        'coin_price'    => (int) ($g->coin_price ?: $g->coins),
-                        'icon_url'      => $g->icon_url ?: ($g->image_url ?: $g->image),
-                        'image_url'     => $g->image_url ?: ($g->icon_url ?: $g->image),
-                        'animation_url' => $g->animation_url ?: ($g->file_url ?: $g->animation_full_url),
-                        'format'        => $g->format ?: ($g->animation_type ?: 'svga'),
-                        'display_type'  => $g->display_type ?: ($g->is_broadcast ? 'fullscreen' : 'bubble'),
-                        'category'      => $g->category ?: 'all',
-                    ];
-                });
-        });
-
-        $etag = '"' . md5(json_encode($gifts)) . '"';
-        if (request()->header('If-None-Match') === $etag) {
-            return response()->json(null, 304)->withHeaders([
-                'ETag'          => $etag,
-                'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
-            ]);
-        }
-
-        return response()->json([
-            'success' => true,
-            'status'  => true,
-            'message' => 'Active gifts catalog loaded from cache.',
-            'data'    => $gifts,
-            'gifts'   => $gifts,
-        ], 200)->withHeaders([
-            'ETag'          => $etag,
-            'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
-        ]);
+        return $this->getActiveGifts();
     }
 
     /**
@@ -684,7 +691,13 @@ class GiftApiController extends Controller
                  'sender_coins_left'   => $senderBalanceAfter,
              ];
 
-             // 8. Trigger Laravel Reverb Real-Time Broadcast Event (live-stream.{stream_id} -> gift.received & GiftSent)
+             // 8. Trigger Laravel Reverb Real-Time Broadcast Event (GiftReceivedEvent, LiveGiftSentEvent, GiftSent)
+             try {
+                 broadcast(new \App\Events\GiftReceivedEvent($receiver->id, $eventData))->toOthers();
+             } catch (\Throwable $e) {
+                 \Illuminate\Support\Facades\Log::warning("GiftReceivedEvent broadcast error: " . $e->getMessage());
+             }
+
              try {
                  broadcast(new LiveGiftSentEvent($streamId, $eventData))->toOthers();
              } catch (\Throwable $e) {

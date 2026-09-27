@@ -140,6 +140,11 @@ class User extends Authenticatable
         'badge_color',
         'badge_icon',
         'profile_base',
+        'i_like',
+        'like_me',
+        'i_like_count',
+        'like_me_count',
+        'likes_count',
     ];
 
     /**
@@ -973,25 +978,29 @@ class User extends Authenticatable
              return $this->_cachedTotalEarnedCoins;
          }
 
-         // 1. Direct wallet earnings if preloaded or available
-         if ($this->relationLoaded('wallet')) {
-             $walletEarnings = (int) ($this->wallet?->earnings ?? 0);
-             if ($walletEarnings > 0) {
-                 return $this->_cachedTotalEarnedCoins = $walletEarnings;
-             }
+         $earned = (int) ($this->attributes['total_earned_coins'] ?? 0);
+         $userCoins = (int) ($this->attributes['coins'] ?? 0);
+         $receivedCoins = (int) ($this->attributes['received_coins'] ?? 0);
+
+         // 1. Direct wallet earnings or balance
+         $walletEarnings = 0;
+         $walletBalance = 0;
+         if ($this->relationLoaded('wallet') && $this->wallet) {
+             $walletEarnings = (int) ($this->wallet->earnings ?? 0);
+             $walletBalance = (int) ($this->wallet->balance ?? 0);
+         }
+
+         $highestCoinCount = max($earned, $userCoins, $receivedCoins, $walletEarnings, $walletBalance);
+         if ($highestCoinCount > 0) {
+             return $this->_cachedTotalEarnedCoins = $highestCoinCount;
          }
 
          // 2. If user has an explicit level configured, use that base requirement instantly
-         if (!empty($this->level) && (int) $this->level > 0) {
-             $base = ProfileBase::getBaseForLevel((int) $this->level);
+         if (!empty($this->attributes['level']) && (int) $this->attributes['level'] > 0) {
+             $base = ProfileBase::getBaseForLevel((int) $this->attributes['level']);
              if ($base && $base->required_coins > 0) {
                  return $this->_cachedTotalEarnedCoins = (int) $base->required_coins;
              }
-         }
-
-         // 3. Fast fallback: check gifts if preloaded
-         if ($this->relationLoaded('receivedGifts')) {
-             return $this->_cachedTotalEarnedCoins = (int) $this->receivedGifts->sum('coin_value');
          }
 
          return $this->_cachedTotalEarnedCoins = 0;
@@ -1006,8 +1015,8 @@ class User extends Authenticatable
              return $this->_cachedProfileBase;
          }
 
-         $earnedCoins = (int) ($this->attributes['total_earned_coins'] ?? $this->total_earned_coins ?? $this->coins ?? 0);
-         $explicitLevel = !empty($this->attributes['level']) ? (int) $this->attributes['level'] : null;
+         $earnedCoins = $this->total_earned_coins;
+         $explicitLevel = !empty($this->attributes['level']) ? (int) $this->attributes['level'] : (!empty($this->attributes['current_level']) ? (int) $this->attributes['current_level'] : null);
 
          $base = ProfileBase::getBaseForCoins($earnedCoins);
          if ($explicitLevel !== null && $explicitLevel > 0) {
@@ -1017,7 +1026,7 @@ class User extends Authenticatable
              }
          }
 
-         return $this->_cachedProfileBase = ($base ?? ProfileBase::getBaseForLevel(0));
+         return $this->_cachedProfileBase = ($base ?? ProfileBase::getBaseForLevel(1) ?? ProfileBase::getBaseForLevel(0));
      }
 
      /**
@@ -1026,6 +1035,38 @@ class User extends Authenticatable
      public function getCurrentLevelAttribute(): int
      {
          return (int) ($this->profile_base?->level ?? $this->attributes['current_level'] ?? $this->attributes['level'] ?? 1);
+     }
+
+     /**
+      * Accessor for Likes given by this user (I Like).
+      */
+     public function getILikeAttribute(): int
+     {
+         return (int) $this->likesGiven()->sum('likes_count') ?: (int) $this->likesGiven()->count();
+     }
+
+     /**
+      * Accessor for Likes received by this user (Like Me).
+      */
+     public function getLikeMeAttribute(): int
+     {
+         return (int) $this->likesReceived()->sum('likes_count') ?: (int) $this->likesReceived()->count();
+     }
+
+     /**
+      * Accessor for total likes received.
+      */
+     public function getLikesReceivedCountAttribute(): int
+     {
+         return $this->getLikeMeAttribute();
+     }
+
+     /**
+      * Accessor for total likes given.
+      */
+     public function getLikesGivenCountAttribute(): int
+     {
+         return $this->getILikeAttribute();
      }
 
      /**

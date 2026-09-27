@@ -298,6 +298,22 @@ Route::get('/coins/transactions', [PaymentController::class, 'getTransactions'])
 Route::post('/wallet/convert-earnings', [PaymentController::class, 'convertEarningsToCoins']);
 Route::post('/gifts/convert-to-balance', [PaymentController::class, 'convertEarningsToCoins']);
 
+// ==========================================
+// 🎁 Universal Dynamic Gifts & Real-Time Sync APIs
+// ==========================================
+Route::get('/gifts/active', [\App\Http\Controllers\Api\GiftApiController::class, 'getActiveGifts']);
+Route::get('/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'getActiveGifts']);
+Route::get('/gifts/catalog', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
+Route::get('/gifts/received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+Route::get('/gifts/received/{id}', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);
+Route::get('/gifts/top-fans', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
+Route::get('/gifts/top-fans/{id}', [\App\Http\Controllers\Api\GiftApiController::class, 'getTopFans']);
+Route::post('/gifts/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+Route::post('/gift/send', [\App\Http\Controllers\Api\GiftApiController::class, 'sendGift']);
+Route::post('/gifts/send-like', [\App\Http\Controllers\Api\GiftApiController::class, 'sendLike']);
+Route::post('/gifts/like', [\App\Http\Controllers\Api\GiftApiController::class, 'sendLike']);
+
+
 // Coin Package Instant Purchase Flow
 Route::post('/coins/purchase', [PaymentController::class, 'purchaseCoinPackage']);
 Route::post('/coins/buy', [PaymentController::class, 'purchaseCoinPackage']);
