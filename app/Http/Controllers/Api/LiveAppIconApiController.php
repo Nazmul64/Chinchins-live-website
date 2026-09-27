@@ -148,7 +148,7 @@ class LiveAppIconApiController extends Controller
      */
     public function getCardFeed(Request $request): JsonResponse
     {
-        $showOfflineSetting = AppSetting::get('show_offline_users', '0');
+        $showOfflineSetting = AppSetting::get('show_offline_users', '1');
         $canShowOffline = filter_var($showOfflineSetting, FILTER_VALIDATE_BOOLEAN) || $showOfflineSetting === '1' || $showOfflineSetting === 'true';
 
         $query = User::with(['kycVerification', 'wallet'])
@@ -156,7 +156,11 @@ class LiveAppIconApiController extends Controller
             ->where('is_locked', false);
 
         if (!$canShowOffline && !$request->has('include_offline') && !$request->has('search')) {
-            $query->where('is_online', true);
+            $query->where(function ($q) {
+                $q->where('is_online', true)
+                  ->orWhere('online_status', 'online')
+                  ->orWhere('last_seen_at', '>=', now()->subHours(24));
+            });
         }
 
         // Country filter

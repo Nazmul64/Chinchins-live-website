@@ -120,6 +120,11 @@ class AuthController extends Controller
                 'tags'            => $tags,
                 'video_call_rate' => $request->input('video_call_rate', 100),
                 'is_active'       => true,
+                'is_online'       => true,
+                'online_status'   => 'online',
+                'current_status'  => 'online',
+                'last_active_at'  => now(),
+                'last_seen_at'    => now(),
                 'level'           => 1,
                 'charm_level'     => 1,
                 'fcm_token'       => $fcmToken ?: null,
@@ -248,7 +253,14 @@ class AuthController extends Controller
         $fcmToken = trim((string) ($request->input('fcm_token') ?: $request->input('device_token') ?: $request->input('push_token', '')));
         $deviceType = $request->input('device_type', $user->device_type ?: 'android');
 
-        $updateData = ['is_active' => true];
+        $updateData = [
+            'is_active'      => true,
+            'is_online'      => true,
+            'online_status'  => 'online',
+            'current_status' => 'online',
+            'last_active_at' => now(),
+            'last_seen_at'   => now(),
+        ];
         if (!empty($fcmToken)) {
             $updateData['fcm_token'] = $fcmToken;
             $updateData['device_token'] = $fcmToken;

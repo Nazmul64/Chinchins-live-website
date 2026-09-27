@@ -18,7 +18,7 @@ class UserDiscoveryController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $showOfflineSetting = AppSetting::get('show_offline_users', '0');
+        $showOfflineSetting = AppSetting::get('show_offline_users', '1');
         $allowOffline = filter_var($showOfflineSetting, FILTER_VALIDATE_BOOLEAN) || $showOfflineSetting === '1' || $showOfflineSetting === 'true';
 
         $query = User::select([
@@ -44,14 +44,16 @@ class UserDiscoveryController extends Controller
             'video_call_rate',
             'coins',
             'created_at',
-        ]);
+        ])
+        ->where('is_active', true)
+        ->where('is_locked', false);
 
-        if (!$allowOffline) {
+        if (!$allowOffline && !$request->has('include_offline')) {
             $query->where(function ($q) {
                 $q->where('is_online', true)
                   ->orWhere('online_status', 'online')
-                  ->orWhere('last_seen_at', '>=', now()->subMinutes(5))
-                  ->orWhere('last_active_at', '>=', now()->subMinutes(5));
+                  ->orWhere('last_seen_at', '>=', now()->subHours(24))
+                  ->orWhere('last_active_at', '>=', now()->subHours(24));
             });
         }
 
@@ -60,6 +62,7 @@ class UserDiscoveryController extends Controller
         
         $users = $query->orderBy('is_online', 'desc')
                       ->orderBy('last_seen_at', 'desc')
+                      ->orderBy('id', 'desc')
                       ->paginate($perPage);
 
         $userIds = collect($users->items())->pluck('id')->toArray();

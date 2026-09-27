@@ -76,18 +76,22 @@ class ProfileController extends Controller
             });
         }
 
-        // Check Admin Setting for Offline User Visibility
-        $showOfflineSetting = \App\Models\AppSetting::get('show_offline_users', '0');
-        $canShowOffline = filter_var($showOfflineSetting, FILTER_VALIDATE_BOOLEAN);
+        // Check Admin Setting for Offline User Visibility (Default 1 so all active registered users are shown)
+        $showOfflineSetting = \App\Models\AppSetting::get('show_offline_users', '1');
+        $canShowOffline = filter_var($showOfflineSetting, FILTER_VALIDATE_BOOLEAN) || $showOfflineSetting === '1' || $showOfflineSetting === 'true';
 
         if (!$canShowOffline && !$request->has('include_offline') && !$request->has('search')) {
-            $query->where('is_online', true);
+            $query->where(function ($q) {
+                $q->where('is_online', true)
+                  ->orWhere('online_status', 'online')
+                  ->orWhere('last_seen_at', '>=', now()->subHours(24));
+            });
         }
 
-        // Order: Online users first, then by last active timestamp
+        // Order: Online users first, then by last active timestamp, then newest registered
         $query->orderByDesc('is_online')
               ->orderByDesc('last_seen_at')
-              ->latest();
+              ->orderByDesc('id');
 
         $perPage = (int) $request->input('per_page', 30);
         $users = $query->paginate($perPage);
