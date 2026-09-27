@@ -245,59 +245,133 @@ AppBar(
 
 ---
 
-## ৫. লাইভ স্ট্রিম এক্সিট ও ক্লোজ হ্যান্ডলিং (Live Stream Auto-Termination)
+---
 
-হোস্ট লাইভ স্ক্রিন থেকে ব্যাক করলে বা ক্লোজ করলে অবিলম্বে সার্ভারে `POST /api/stream/end` কল করতে হবে:
+## ৫. লাইভ এন্ড সকেট ব্রডকাস্ট (Live Stream Zero-Latency Global Feed Dismissal)
 
-```dart
-Future<void> terminateLiveStream(String roomId) async {
-  try {
-    final response = await http.post(
-      Uri.parse('https://chinchins.live/api/stream/end'),
-      headers: {
-        'Authorization': 'Bearer $userAuthToken',
-        'Accept': 'application/json',
-      },
-      body: {
-        'room_id': roomId,
-      },
-    );
-    print('Live Stream terminated: ${response.body}');
-  } catch (e) {
-    print('Error terminating live stream: $e');
-  }
+### ব্যাকএন্ড ব্রডকাস্ট এপিআই (`POST /api/live/{id}/end` বা `POST /api/stream/end`):
+```http
+POST /api/live/{id}/end HTTP/1.1
+Host: chinchins.live
+Authorization: Bearer <HOST_BEARER_TOKEN>
+Content-Type: application/json
+
+{
+  "room_id": "123"
 }
 ```
 
-Flutter-এ `WillPopScope` বা `PopScope` দিয়ে হ্যান্ডলিং:
+### সার্ভার ইভেন্ট ব্রডকাস্ট (`LiveStreamEndedEvent`):
+```php
+broadcast(new \App\Events\LiveStreamEndedEvent($streamId))->toOthers();
+```
+- **Broadcast Channels:** `global-live-feed`, `live-stream`, `live.{streamId}`, `presence-live.{streamId}`
+- **Event Name:** `LiveStreamEndedEvent`
+
+### Flutter ক্লায়েন্ট পুশার / রিভাব সকেট লিসেনিং (0 সেকেন্ডে ফিড থেকে রিমুভ):
 ```dart
-@override
-Widget build(BuildContext context) {
-  return PopScope(
-    canPop: false,
-    onPopInvokedWithResult: (didPop, result) async {
-      if (didPop) return;
-      
-      // কনফার্মেশন ও স্বয়ংক্রিয়ভাবে লাইভ বন্ধ
-      final shouldLeave = await _showExitConfirmDialog();
-      if (shouldLeave == true) {
-        await terminateLiveStream(widget.roomId);
-        if (mounted) Navigator.of(context).pop();
-      }
+import 'package:laravel_echo/laravel_echo.dart';
+
+// গ্লোবাল লাইভ ফিড চ্যানেলে সাবস্ক্রাইব করুন
+echo.channel('global-live-feed').listen('.LiveStreamEndedEvent', (event) {
+  final endedStreamId = event['stream_id']?.toString() ?? event['room_id']?.toString();
+  print('🔴 Live Stream ended globally: $endedStreamId');
+
+  // হোম ফিডের লাইভ লিস্ট থেকে রুমটি সাথে সাথে রিমুভ করুন
+  setState(() {
+    activeLiveStreams.removeWhere((stream) => stream.id.toString() == endedStreamId);
+  });
+});
+```
+
+---
+
+## ৬. চ্যাট হিস্ট্রি, ইউজার রিয়েল লেভেল ও ডায়নামিক অটো গ্রিটিংস (`GET /api/chat/messages/{targetUserId}`)
+
+মেসেঞ্জার ওপেন করার পর চ্যাট হিস্ট্রি এপিআই কল করা হয়।
+
+### এপিআই এন্ডপয়েন্ট:
+`GET /api/chat/messages/{targetUserId}` অথবা `GET /api/messages/{targetUserId}`
+
+### ফিচারসমূহ:
+1. **খাঁটি ডাটাবেস লেভেল (`current_level`):** ইউজারের প্রকৃত অর্জিত লেভেল (`current_level`: 1, `level`: "Lv.1") এবং ব্যাজ কালার/আইকন রিটার্ন করে।
+2. **ডায়নামিক অটো গ্রিটিংস (Auto Greetings):** নতুন কোনো ইউজার প্রথমবার কোনো হোস্টের চ্যাটে ঢুকলে হোস্টের প্রোফাইল সেটিংস থেকে কনফিগার করা অটোমেটিক গ্রিটিংস মেসেজ স্বয়ংক্রিয়ভাবে ডাটাবেসে প্রথম মেসেজ হিসেবে ইনসার্ট ও রিটার্ন হয়। কোনো হার্ডকোডেড টেক্সট রেসপন্সে পাঠানো হয় না।
+
+### রিকোয়েস্ট:
+```http
+GET /api/chat/messages/40985974 HTTP/1.1
+Host: chinchins.live
+Authorization: Bearer <USER_BEARER_TOKEN>
+Accept: application/json
+```
+
+### রেসপন্স (Response Payload):
+```json
+{
+  "status": true,
+  "message": "Messages retrieved successfully.",
+  "data": {
+    "chat_partner": {
+      "id": 40985974,
+      "account_id": "40985974",
+      "name": "nazmul Hossain",
+      "avatar_url": "https://chinchins.live/uploads/profiles/avatar_123.jpg",
+      "avatar_frame_url": "https://chinchins.live/uploads/ranks/frames/daily_rich_frame1_1790481576.png",
+      "base_frame_url": "https://chinchins.live/uploads/bases/profile_base_1_1790479123.png",
+      "rank_badge_frame_url": "https://chinchins.live/uploads/ranks/frames/daily_rich_frame1_1790481576.png",
+      "rank_badge_icon_url": "https://chinchins.live/uploads/ranks/badges/daily_rich_rank1_1790481576.png",
+      "is_online": true,
+      "is_busy": false,
+      "video_call_rate": 1800,
+      "level": "Lv.1",
+      "display_level": "Lv.1",
+      "current_level": 1,
+      "level_number": 1,
+      "badge_color": "#f59e0b",
+      "badge_icon": "crown",
+      "country": "Bangladesh",
+      "country_flag": "🇧🇩",
+      "age": 22,
+      "gender": "female",
+      "gender_icon": "♀",
+      "bio": "Welcome to my official stream! Feel free to say hi ❤️",
+      "greeting_message": "Welcome to my official stream! Feel free to say hi ❤️",
+      "is_blocked_by_me": false,
+      "is_blocked_by_them": false
     },
-    child: Scaffold( ... ),
-  );
+    "free_messages_remaining": 5,
+    "user_coins": 14120,
+    "message_cost_after_free": 5,
+    "messages": [
+      {
+        "id": 1052,
+        "sender_id": 40985974,
+        "receiver_id": 894721,
+        "message": "Welcome to my official stream! Feel free to say hi ❤️",
+        "type": "text",
+        "is_read": false,
+        "created_at": "2026-09-27T10:25:00.000000Z"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "last_page": 1,
+      "total": 1
+    }
+  }
 }
 ```
 
 ---
 
-## ৬. সংক্ষেপে চেকলিস্ট (Developer Checklist)
+## ৭. সংক্ষেপে চেকলিস্ট (Developer Checklist)
 
 | ধাপ | ফিচার | স্ট্যাটাস |
 | :--- | :--- | :--- |
 | **১** | `Me` প্রোফাইল স্ক্রিনে `user.avatar_frame_url` দিয়ে অ্যাভাটারের ওপর ফ্রেম রেন্ডার করা | সম্পন্ন |
 | **২** | হোম স্ক্রিনে `Hot` ট্যাবে ট্রফি আইকন হাইড এবং `Live` ট্যাবে ভিজিবল রাখা | সম্পন্ন |
 | **৩** | লিডারবোর্ড স্ক্রিনে টপ ১, ২, ৩ ইউজারের অ্যাভাটার ফ্রেম ডিসপ্লে করা | সম্পন্ন |
-| **৪** | হোস্ট লাইভ ত্যাগ করলে সাথে সাথে ব্যাকএন্ডে `ended` স্ট্যাটাস সিঙ্ক হওয়া | সম্পন্ন |
-| **৫** | Hive ক্যাশিং ব্যবহার করে ০ সেকেন্ড ল্যাটেন্সিতে প্রোফাইল লোড করা | সম্পন্ন |
+| **৪** | হোস্ট লাইভ ত্যাগ করলে সাথে সাথে ব্যাকএন্ডে `LiveStreamEndedEvent` ব্রডকাস্ট ও `ended` স্ট্যাটাস সিঙ্ক | সম্পন্ন |
+| **৫** | চ্যাট ওপেন করলে হোস্টের খাঁটি ডাটাবেস লেভেল (`current_level`) এবং অটো গ্রিটিংস মেসেজ লোড | সম্পন্ন |
+| **৬** | Hive ক্যাশিং ব্যবহার করে ০ সেকেন্ড ল্যাটেন্সিতে প্রোফাইল লোড করা | সম্পন্ন |
+

@@ -505,11 +505,16 @@ Route::match(['get', 'post'], '/live-stream/start', [\App\Http\Controllers\Api\L
 Route::match(['get', 'post'], '/live/create', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
 Route::match(['get', 'post'], '/live/broadcast', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'startLive']);
 Route::match(['get', 'post'], '/stream/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
-Route::match(['get', 'post'], '/live-stream/join', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'joinLive']);
 Route::match(['get', 'post'], '/stream/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
 Route::match(['get', 'post'], '/live-stream/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
+Route::match(['get', 'post'], '/live/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
+Route::match(['get', 'post'], '/live/{id}/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
+Route::match(['get', 'post'], '/live-stream/{id}/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
+Route::match(['get', 'post'], '/stream/{id}/end', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'endLive']);
 Route::match(['get', 'post'], '/stream/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
 Route::match(['get', 'post'], '/live-stream/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+Route::match(['get', 'post'], '/live/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
+Route::match(['get', 'post'], '/live/{id}/leave', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'leaveLive']);
 
 Route::post('/live/like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
 Route::post('/live/send-like', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'sendLike']);
@@ -881,6 +886,8 @@ Route::prefix('chat')->group(function () {
     Route::match(['get', 'post'], '/check-permission', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
     Route::match(['get', 'post'], '/can-message', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
     Route::match(['get', 'post'], '/can-chat', [\App\Http\Controllers\Api\MessageApiController::class, 'checkPermission']);
+    Route::get('/messages/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
+    Route::get('/{userId}/messages', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
     Route::get('/user/{userId}', [\App\Http\Controllers\Api\MessageApiController::class, 'getMessages'])->whereNumber('userId');
     Route::post('/send-hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);
     Route::post('/hi', [\App\Http\Controllers\Api\MessageApiController::class, 'sendHiGreeting']);

@@ -556,7 +556,11 @@ class LiveStreamApiController extends Controller
         // Broadcast event to all connected viewers and guests & global lobby
         try {
             event(new LiveStreamEnded($stream->id, $summary));
+            event(new \App\Events\LiveStreamEndedEvent($stream->id, $summary));
             event(new \App\Events\StreamStatusChangedEvent($stream->id, 'ended', $summary));
+            if (function_exists('broadcast')) {
+                broadcast(new \App\Events\LiveStreamEndedEvent($stream->id, $summary))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([

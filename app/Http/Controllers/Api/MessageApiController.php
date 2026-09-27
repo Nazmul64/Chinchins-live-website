@@ -225,6 +225,23 @@ class MessageApiController extends Controller
             ], 404);
         }
 
+        // 1. If this is the very first time entering this chat, insert host's dynamic configured auto greeting
+        $existingMessageCount = ChatMessage::between($currentUser->id, $otherUser->id)->count();
+        $greeting = $otherUser->greeting_message 
+                 ?: $otherUser->auto_greeting 
+                 ?: $otherUser->introduction 
+                 ?: \App\Models\AppSetting::get('default_auto_greeting', \App\Models\AppSetting::get('default_chat_greeting', ''));
+
+        if ($existingMessageCount === 0 && $currentUser->id !== $otherUser->id && !empty(trim($greeting))) {
+            ChatMessage::create([
+                'sender_id'   => $otherUser->id,
+                'receiver_id' => $currentUser->id,
+                'message'     => trim($greeting),
+                'type'        => 'text',
+                'is_read'     => false,
+            ]);
+        }
+
         // Mark incoming unread messages as read
         ChatMessage::where('sender_id', $otherUser->id)
             ->where('receiver_id', $currentUser->id)
@@ -246,26 +263,33 @@ class MessageApiController extends Controller
         $isBlockedByMe = $currentUser->hasBlocked($otherUser->id);
         $isBlockedByThem = $otherUser->hasBlocked($currentUser->id);
 
-        $level = $otherUser->level ?: 'Lv. 1';
+        $realLevelNumber = (int) ($otherUser->current_level ?: (is_numeric($otherUser->level) ? $otherUser->level : preg_replace('/[^0-9]/', '', (string)$otherUser->level)) ?: 1);
+        $displayLevel = 'Lv.' . $realLevelNumber;
         $country = $otherUser->country ?: 'Bangladesh';
         $flag = $otherUser->country_flag ?: '🇧🇩';
         $age = $otherUser->display_age;
         $gender = strtolower($otherUser->gender ?: 'female');
         $genderIcon = $gender === 'male' ? '♂' : '♀';
         $genderText = ucfirst($gender);
-        $greeting = $otherUser->introduction ?: 'Hey handsome! Thanks for visiting my profile ❤️';
 
         $chatPartner = [
             'id'                     => $otherUser->id,
             'account_id'             => $otherUser->account_id,
             'name'                   => $otherUser->display_name,
             'avatar_url'             => $otherUser->avatar_url,
+            'avatar_frame_url'       => $otherUser->avatar_frame_url,
+            'base_frame_url'         => $otherUser->base_frame_url,
+            'rank_badge_frame_url'   => $otherUser->rank_badge_frame_url,
+            'rank_badge_icon_url'    => $otherUser->rank_badge_icon_url,
             'is_online'              => (bool) $otherUser->is_online,
             'is_busy'                => (bool) $otherUser->is_busy,
             'video_call_rate'        => (int) ($otherUser->video_call_rate ?: 1800),
-            'level'                  => $level,
-            'level_number'           => (int) preg_replace('/[^0-9]/', '', $level) ?: 1,
-            'level_badge_url'        => $otherUser->level_info['badge_image_url'] ?? asset('uploads/bases/badge_level_1.svg'),
+            'level'                  => $displayLevel,
+            'display_level'          => $displayLevel,
+            'current_level'          => $realLevelNumber,
+            'level_number'           => $realLevelNumber,
+            'level_info'             => $otherUser->level_info,
+            'level_badge_url'        => $otherUser->level_info['avatar_frame_url'] ?? $otherUser->avatar_frame_url,
             'badge_color'            => $otherUser->badge_color,
             'badge_icon'             => $otherUser->badge_icon,
             'country'                => $country,
@@ -280,13 +304,13 @@ class MessageApiController extends Controller
             'header_card'            => [
                 'name'               => $otherUser->display_name,
                 'star_icon'          => '⭐',
-                'level'              => $level,
+                'level'              => $displayLevel,
                 'country_flag'       => $flag,
                 'country_name'       => $country,
                 'age'                => $age,
                 'gender_text'        => $genderText,
                 'gender_icon'        => $genderIcon,
-                'summary_text'       => "{$flag} {$country} • {$age} yrs • {$genderIcon} {$genderText} • {$level}",
+                'summary_text'       => "{$flag} {$country} • {$age} yrs • {$genderIcon} {$genderText} • {$displayLevel}",
                 'greeting_text'      => $greeting,
             ],
             'menu_options'           => [
