@@ -160,15 +160,41 @@ Accept: application/json
       "badge_icon_url": null,
       "avatar_frame_url": null
     }
-  ]
+  ],
+  "theme": {
+    "background_image_url": "https://chinchins.live/uploads/rank_badges/rank_leaderboard_bg.png",
+    "is_background_enabled": true,
+    "accent_color": "#E11D48",
+    "theme_name": "red_stage_neon"
+  },
+  "background_image_url": "https://chinchins.live/uploads/rank_badges/rank_leaderboard_bg.png"
 }
 ```
 
 ---
 
-### এপিআই ২: ব্যাজ ও ফ্রেম কনফিগারেশন (Hive Local Cache Sync)
+### এপিআই ২: ব্যাজ ও ফ্রেম কনফিগারেশন + স্ক্রিন ব্যাকগ্রাউন্ড থিম (Hive Local Cache Sync)
 - **এন্ডপয়েন্ট:** `GET /api/app/rank-badges-config`
-- **উদ্দেশ্য:** অ্যাপ ওপেন হলে ব্যাকগ্রাউন্ডে কল হবে এবং অ্যাডমিন প্যানেল থেকে আপলোড করা সমস্ত ব্যাজ ও ফ্রেমের মেটাডাটা লোকাল মেমোরিতে (Hive) ক্যাশ করবে।
+- **উদ্দেশ্য:** অ্যাপ ওপেন হলে ব্যাকগ্রাউন্ডে কল হবে এবং অ্যাডমিন প্যানেল থেকে আপলোড করা সমস্ত ব্যাজ, ফ্রেম এবং স্টেজ ব্যাকগ্রাউন্ড ইমেজের মেটাডাটা লোকাল মেমোরিতে (Hive) ক্যাশ করবে।
+
+```json
+{
+  "success": true,
+  "status": true,
+  "theme": {
+    "background_image_url": "https://chinchins.live/uploads/rank_badges/rank_leaderboard_bg.png",
+    "is_background_enabled": true,
+    "accent_color": "#E11D48",
+    "theme_name": "red_stage_neon"
+  },
+  "background_image_url": "https://chinchins.live/uploads/rank_badges/rank_leaderboard_bg.png",
+  "data": {
+    "daily": [],
+    "weekly": [],
+    "monthly": []
+  }
+}
+```
 
 ---
 
@@ -198,6 +224,7 @@ class _RankLeaderboardScreenState extends State<RankLeaderboardScreen> {
   Map<String, dynamic>? metaData;
   Map<String, dynamic>? myRankData;
   List<dynamic> rankings = [];
+  String? bgImageUrl;
 
   int countdownSeconds = 0;
   Timer? _countdownTimer;
@@ -218,7 +245,7 @@ class _RankLeaderboardScreenState extends State<RankLeaderboardScreen> {
     setState(() => isLoading = true);
     try {
       final dio = Dio();
-      final url = 'https://your-domain.com/api/ranks/leaderboard?category=$selectedCategory&period=$selectedPeriod';
+      final url = 'https://chinchins.live/api/ranks/leaderboard?category=$selectedCategory&period=$selectedPeriod';
       final response = await dio.get(url);
 
       if (response.statusCode == 200 && response.data['success'] == true) {
@@ -226,6 +253,7 @@ class _RankLeaderboardScreenState extends State<RankLeaderboardScreen> {
           metaData = response.data['meta'];
           myRankData = response.data['my_rank'];
           rankings = response.data['rankings'] ?? [];
+          bgImageUrl = response.data['theme']?['background_image_url'] ?? response.data['background_image_url'];
           countdownSeconds = (metaData?['countdown_seconds'] ?? 0).toInt();
           isLoading = false;
         });
@@ -283,12 +311,23 @@ class _RankLeaderboardScreenState extends State<RankLeaderboardScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-          // Period Selector Pills (Daily, Weekly, Monthly)
-          _buildPeriodSelector(),
-          const SizedBox(height: 14),
+      body: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF141416),
+          image: (bgImageUrl != null && bgImageUrl!.isNotEmpty)
+              ? DecorationImage(
+                  image: CachedNetworkImageProvider(bgImageUrl!),
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                )
+              : null,
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            // Period Selector Pills (Daily, Weekly, Monthly)
+            _buildPeriodSelector(),
+            const SizedBox(height: 14),
 
           // Countdown Timer & Period Label
           Padding(
@@ -361,8 +400,9 @@ class _RankLeaderboardScreenState extends State<RankLeaderboardScreen> {
           _buildBottomUserStatusBar(),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCategoryTab(String title, String key) {
     final bool isSelected = selectedCategory == key;
