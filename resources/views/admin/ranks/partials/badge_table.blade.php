@@ -94,7 +94,10 @@
                                 </button>
                             </form>
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editBadgeModal{{ $badge->id }}" title="Edit Badge" style="border-radius: 8px;">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
                             <form action="{{ route('admin.rank-badges.destroy', $badge->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this {{ $period }} rank badge?');">
                                 @csrf
                                 @method('DELETE')
@@ -102,6 +105,117 @@
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </form>
+
+                            <!-- Edit Badge Modal -->
+                            <div class="modal fade text-start" id="editBadgeModal{{ $badge->id }}" tabindex="-1" aria-labelledby="editBadgeModalLabel{{ $badge->id }}" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered modal-lg">
+                                    <div class="modal-content border-0 shadow" style="border-radius: 14px; overflow: hidden;">
+                                        <div class="modal-header text-white" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-bottom: none;">
+                                            <h5 class="modal-title fw-bold" id="editBadgeModalLabel{{ $badge->id }}">
+                                                <i class="fa-solid fa-pen-to-square text-warning me-2"></i> Edit {{ ucfirst($badge->period_type) }} Rank #{{ $badge->rank_position }} Badge
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <form action="{{ route('admin.rank-badges.update', $badge->id) }}" method="POST" enctype="multipart/form-data">
+                                            @csrf
+                                            @method('PUT')
+                                            <div class="modal-body p-4">
+                                                <div class="row g-3">
+                                                    <!-- Badge Name -->
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold text-dark" style="font-size: 13px;">Badge Name <span class="text-danger">*</span></label>
+                                                        <input type="text" name="badge_name" class="form-control" value="{{ $badge->badge_name }}" required style="border-radius: 8px;">
+                                                        <small class="text-muted">Descriptive title shown in app leaderboards.</small>
+                                                    </div>
+
+                                                    <!-- Period Type -->
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold text-dark" style="font-size: 13px;">Period Type <span class="text-danger">*</span></label>
+                                                        <select name="period_type" class="form-select" required style="border-radius: 8px;">
+                                                            <option value="daily" {{ $badge->period_type === 'daily' ? 'selected' : '' }}>Daily (প্রতিদিনের র্যাংক)</option>
+                                                            <option value="weekly" {{ $badge->period_type === 'weekly' ? 'selected' : '' }}>Weekly (সাপ্তাহিক র্যাংক)</option>
+                                                            <option value="monthly" {{ $badge->period_type === 'monthly' ? 'selected' : '' }}>Monthly (মাসিক র্যাংক)</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <!-- Category -->
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold text-dark" style="font-size: 13px;">Category <span class="text-danger">*</span></label>
+                                                        <select name="category" class="form-select" required style="border-radius: 8px;">
+                                                            <option value="rich" {{ $badge->category === 'rich' ? 'selected' : '' }}>Rich (সর্বোচ্চ খরচকারী / Gifter)</option>
+                                                            <option value="charm" {{ $badge->category === 'charm' ? 'selected' : '' }}>Charm (সর্বোচ্চ আকর্ষণীয় / Host Earner)</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <!-- Rank Position -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-bold text-dark" style="font-size: 13px;">Rank Position <span class="text-danger">*</span></label>
+                                                        <input type="number" name="rank_position" min="1" max="100" class="form-control" value="{{ $badge->rank_position }}" required style="border-radius: 8px;">
+                                                        <small class="text-muted">1 = 1st, 2 = 2nd, etc.</small>
+                                                    </div>
+
+                                                    <!-- Min Required Coins -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-bold text-dark" style="font-size: 13px;">Min Coins <span class="text-danger">*</span></label>
+                                                        <input type="number" name="min_required_coins" min="0" class="form-control" value="{{ $badge->min_required_coins }}" required style="border-radius: 8px;">
+                                                        <small class="text-muted">Threshold to earn</small>
+                                                    </div>
+
+                                                    <!-- Status Switch -->
+                                                    <div class="col-12">
+                                                        <div class="form-check form-switch">
+                                                            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="badgeActiveSwitch{{ $badge->id }}" {{ $badge->is_active ? 'checked' : '' }}>
+                                                            <label class="form-check-label fw-semibold text-dark" for="badgeActiveSwitch{{ $badge->id }}" style="font-size: 13px;">Active & Visible in Flutter App</label>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Badge Icon File -->
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                                            <i class="fa-solid fa-image text-primary me-1"></i> Change Badge Icon (Max 50MB)
+                                                        </label>
+                                                        <input type="file" name="badge_icon" class="form-control" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" style="border-radius: 8px;" onchange="previewFile(this, 'edit_badge_preview_{{ $badge->id }}')">
+                                                        <small class="text-muted d-block mt-1">Leave empty to keep current icon. (PNG/WEBP/GIF up to 50MB)</small>
+                                                        <div class="mt-2 text-center p-2 border rounded" style="background: #f8fafc; height: 95px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                                            @if($badge->badge_icon)
+                                                                <img id="edit_badge_preview_{{ $badge->id }}" src="{{ asset($badge->badge_icon) }}" alt="Badge Preview" style="max-height: 70px; max-width: 100%;">
+                                                                <small class="text-muted mt-1" style="font-size: 10px;">Current Icon</small>
+                                                            @else
+                                                                <img id="edit_badge_preview_{{ $badge->id }}" src="" alt="Badge Preview" style="max-height: 70px; max-width: 100%; display: none;">
+                                                                <span id="edit_badge_preview_{{ $badge->id }}_placeholder" class="text-muted" style="font-size: 12px;">No badge icon</span>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Avatar Frame File -->
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold text-dark" style="font-size: 13px;">
+                                                            <i class="fa-solid fa-circle-notch text-warning me-1"></i> Change Avatar Frame (Max 50MB)
+                                                        </label>
+                                                        <input type="file" name="avatar_frame" class="form-control" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" style="border-radius: 8px;" onchange="previewFile(this, 'edit_frame_preview_{{ $badge->id }}')">
+                                                        <small class="text-muted d-block mt-1">Leave empty to keep current frame. (PNG/WEBP/GIF up to 50MB)</small>
+                                                        <div class="mt-2 text-center p-2 border rounded" style="background: #f8fafc; height: 95px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                                            @if($badge->avatar_frame)
+                                                                <img id="edit_frame_preview_{{ $badge->id }}" src="{{ asset($badge->avatar_frame) }}" alt="Frame Preview" style="max-height: 70px; max-width: 100%;">
+                                                                <small class="text-muted mt-1" style="font-size: 10px;">Current Frame</small>
+                                                            @else
+                                                                <img id="edit_frame_preview_{{ $badge->id }}" src="" alt="Frame Preview" style="max-height: 70px; max-width: 100%; display: none;">
+                                                                <span id="edit_frame_preview_{{ $badge->id }}_placeholder" class="text-muted" style="font-size: 12px;">No frame assigned (Optional)</span>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light" style="border-top: 1px solid #e2e8f0;">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+                                                <button type="submit" class="btn btn-primary" style="border-radius: 8px; font-weight: 600; background: linear-gradient(135deg, #3b82f6, #2563eb); border: none;">
+                                                    <i class="fa-solid fa-floppy-disk me-1"></i> Save Changes
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                 @endforeach

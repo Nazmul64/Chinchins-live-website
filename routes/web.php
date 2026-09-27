@@ -186,7 +186,8 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::match(['GET', 'POST'], '/rank-badges/remove-background', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'removeBackground'])->name('rank-badges.remove-background');
     Route::match(['GET', 'POST'], '/rank_badges/remove-background', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'removeBackground']);
     Route::post('/rank-badges/{id}/toggle', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'toggleStatus'])->name('rank-badges.toggle');
-    Route::post('/rank_badges/{id}/toggle', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'toggleStatus']);
+    Route::match(['PUT', 'POST'], '/rank-badges/{id}', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'update'])->name('rank-badges.update');
+    Route::match(['PUT', 'POST'], '/rank_badges/{id}', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'update']);
     Route::delete('/rank-badges/{id}', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'destroy'])->name('rank-badges.destroy');
     Route::delete('/rank_badges/{id}', [\App\Http\Controllers\Admin\RankBadgeAdminController::class, 'destroy']);
 

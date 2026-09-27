@@ -294,10 +294,10 @@
                         <!-- Badge Icon File -->
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark" style="font-size: 13px;">
-                                <i class="fa-solid fa-image text-primary me-1"></i> Badge Icon (PNG / WEBP) <span class="text-danger">*</span>
+                                <i class="fa-solid fa-image text-primary me-1"></i> Badge Icon (PNG / WEBP / GIF / SVG) <span class="text-danger">*</span>
                             </label>
-                            <input type="file" name="badge_icon" class="form-control" accept="image/png,image/webp" required style="border-radius: 8px;" onchange="previewFile(this, 'badge_preview')">
-                            <small class="text-muted d-block mt-1">Saves to: <code>public/uploads/ranks/badges/</code></small>
+                            <input type="file" name="badge_icon" class="form-control" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" required style="border-radius: 8px;" onchange="previewFile(this, 'badge_preview')">
+                            <small class="text-muted d-block mt-1">Saves to: <code>public/uploads/ranks/badges/</code> (Max 50MB)</small>
                             <div class="mt-2 text-center p-2 border rounded" style="background: #f8fafc; height: 90px; display: flex; align-items: center; justify-content: center;">
                                 <img id="badge_preview" src="" alt="Badge Preview" style="max-height: 75px; max-width: 100%; display: none;">
                                 <span id="badge_preview_placeholder" class="text-muted" style="font-size: 12px;">No badge icon selected</span>
@@ -309,8 +309,8 @@
                             <label class="form-label fw-bold text-dark" style="font-size: 13px;">
                                 <i class="fa-solid fa-circle-notch text-warning me-1"></i> Avatar Frame (Optional)
                             </label>
-                            <input type="file" name="avatar_frame" class="form-control" accept="image/png,image/webp" style="border-radius: 8px;" onchange="previewFile(this, 'frame_preview')">
-                            <small class="text-muted d-block mt-1">Saves to: <code>public/uploads/ranks/frames/</code></small>
+                            <input type="file" name="avatar_frame" class="form-control" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" style="border-radius: 8px;" onchange="previewFile(this, 'frame_preview')">
+                            <small class="text-muted d-block mt-1">Saves to: <code>public/uploads/ranks/frames/</code> (Max 50MB)</small>
                             <div class="mt-2 text-center p-2 border rounded" style="background: #f8fafc; height: 90px; display: flex; align-items: center; justify-content: center;">
                                 <img id="frame_preview" src="" alt="Frame Preview" style="max-height: 75px; max-width: 100%; display: none;">
                                 <span id="frame_preview_placeholder" class="text-muted" style="font-size: 12px;">No frame selected (Optional)</span>

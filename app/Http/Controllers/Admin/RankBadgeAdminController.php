@@ -185,6 +185,77 @@ class RankBadgeAdminController extends Controller
     }
 
     /**
+     * Update an existing Rank Badge & Avatar Frame.
+     */
+    public function update(Request $request, $id)
+    {
+        $badge = PeriodRankBadge::findOrFail($id);
+
+        $request->validate([
+            'badge_name'         => 'required|string|max:100',
+            'period_type'        => 'required|in:daily,weekly,monthly',
+            'category'           => 'required|in:rich,charm',
+            'rank_position'      => 'required|integer|min:1|max:100',
+            'min_required_coins' => 'required|numeric|min:0',
+            'badge_icon'         => 'nullable|file|mimes:png,webp,gif,jpeg,jpg,svg|max:51200',
+            'avatar_frame'       => 'nullable|file|mimes:png,webp,gif,jpeg,jpg,svg|max:51200',
+        ]);
+
+        $badge->badge_name = $request->badge_name;
+        $badge->period_type = $request->period_type;
+        $badge->category = $request->category;
+        $badge->rank_position = (int) $request->rank_position;
+        $badge->min_required_coins = (int) $request->min_required_coins;
+
+        if ($request->has('is_active')) {
+            $badge->is_active = (bool) $request->is_active;
+        }
+
+        // Upload badge icon: public/uploads/ranks/badges/
+        if ($request->hasFile('badge_icon') && $request->file('badge_icon')->isValid()) {
+            $file = $request->file('badge_icon');
+            $badgeDir = public_path('uploads/ranks/badges');
+            if (!File::exists($badgeDir)) {
+                File::makeDirectory($badgeDir, 0777, true, true);
+            }
+
+            // Remove old icon if exists
+            if ($badge->badge_icon && File::exists(public_path($badge->badge_icon))) {
+                @unlink(public_path($badge->badge_icon));
+            }
+
+            $badgeName = $request->period_type . '_' . $request->category . '_rank' . $request->rank_position . '_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move($badgeDir, $badgeName);
+            $badge->badge_icon = 'uploads/ranks/badges/' . $badgeName;
+        }
+
+        // Upload avatar frame: public/uploads/ranks/frames/
+        if ($request->hasFile('avatar_frame') && $request->file('avatar_frame')->isValid()) {
+            $file = $request->file('avatar_frame');
+            $frameDir = public_path('uploads/ranks/frames');
+            if (!File::exists($frameDir)) {
+                File::makeDirectory($frameDir, 0777, true, true);
+            }
+
+            // Remove old frame if exists
+            if ($badge->avatar_frame && File::exists(public_path($badge->avatar_frame))) {
+                @unlink(public_path($badge->avatar_frame));
+            }
+
+            $frameName = $request->period_type . '_' . $request->category . '_frame' . $request->rank_position . '_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move($frameDir, $frameName);
+            $badge->avatar_frame = 'uploads/ranks/frames/' . $frameName;
+        }
+
+        $badge->save();
+
+        // Clear cache so app immediately loads updated data into local memory
+        Cache::forget('app_period_rank_badges');
+
+        return back()->with('success', ucfirst($badge->period_type) . ' Rank #' . $badge->rank_position . ' badge updated successfully!');
+    }
+
+    /**
      * Toggle badge active status.
      */
     public function toggleStatus($id)
