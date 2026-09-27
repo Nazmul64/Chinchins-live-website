@@ -789,7 +789,6 @@ Route::prefix('live')->group(function () {
     Route::match(['get', 'post'], '/kick', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
 });
 
-// Direct root-level LiveKit and Live Co-Host Routes
 Route::post('/live/get-token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
 Route::post('/live/request-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
 Route::post('/live/accept-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'acceptJoin']);
@@ -800,6 +799,15 @@ Route::post('/live/accept-request', [\App\Http\Controllers\Api\LiveStreamControl
 Route::match(['get', 'post'], '/live/kick-guest', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
 Route::post('/live/send-message', [\App\Http\Controllers\Api\LiveStreamController::class, 'sendMessage']);
 Route::post('/live/token', [\App\Http\Controllers\Api\LiveStreamController::class, 'getRoomToken']);
+
+// Dynamic URL parameter routes for Live Stream Co-Host Join Requests
+Route::post('/live/stream/{stream_id}/request-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'requestJoin']);
+Route::post('/live/stream/{stream_id}/respond-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'respondRequest']);
+Route::post('/live/stream/{stream_id}/accept-join', [\App\Http\Controllers\Api\LiveStreamController::class, 'acceptJoin']);
+Route::match(['get', 'post'], '/live/stream/{stream_id}/join-requests', [\App\Http\Controllers\Api\LiveStreamController::class, 'getJoinRequests']);
+Route::post('/live/stream/{stream_id}/leave-cohost', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
+Route::match(['get', 'post'], '/live/stream/{stream_id}/kick-guest', [\App\Http\Controllers\Api\LiveStreamController::class, 'kickGuest']);
+
 
 
 

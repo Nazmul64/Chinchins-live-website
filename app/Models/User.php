@@ -176,7 +176,7 @@ class User extends Authenticatable
      */
     public function activeLiveStream()
     {
-        return $this->hasOne(LiveStream::class, 'host_id')->whereIn('status', ['live', 'active'])->latestOfMany();
+        return $this->hasOne(LiveStream::class, 'host_id')->whereIn('live_streams.status', ['live', 'active'])->latestOfMany();
     }
 
     /**

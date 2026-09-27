@@ -27,8 +27,11 @@ class LiveJoinResponded implements ShouldBroadcastNow
     public function broadcastOn()
     {
         return [
-            new PresenceChannel('presence-live.' . $this->liveStreamId),
+            new \Illuminate\Broadcasting\PrivateChannel('user.' . $this->guestUserId),
+            new \Illuminate\Broadcasting\PrivateChannel('private-user.' . $this->guestUserId),
             new Channel('user.' . $this->guestUserId),
+            new Channel('live_stream.' . $this->liveStreamId),
+            new PresenceChannel('presence-live.' . $this->liveStreamId),
         ];
     }
 

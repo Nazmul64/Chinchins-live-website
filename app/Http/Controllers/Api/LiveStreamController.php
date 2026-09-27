@@ -177,17 +177,17 @@ class LiveStreamController extends Controller
      * 2. Viewer Request to Join as Co-Host
      * POST /api/live/request-join
      */
-    public function requestJoin(Request $request): JsonResponse
+    public function requestJoin(Request $request, $streamId = null): JsonResponse
     {
         $user = $this->resolveUser($request) ?? auth()->user();
         if (!$user) {
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
-        $roomId = $request->input('room_id') ?? $request->input('room_name') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $roomId = $streamId ?? $request->route('stream_id') ?? $request->input('room_id') ?? $request->input('room_name') ?? $request->input('live_stream_id') ?? $request->input('id');
         $stream = LiveStream::with('host')->where('id', $roomId)->orWhere('channel_name', $roomId)->first();
 
-        if (!$stream || $stream->status !== 'live') {
+        if (!$stream || !in_array($stream->status, ['live', 'active'])) {
             return response()->json(['status' => false, 'message' => 'Live stream is not active.'], 404);
         }
 
@@ -257,7 +257,7 @@ class LiveStreamController extends Controller
      * 3. Host Accept or Reject Co-Host Request
      * POST /api/live/respond-request
      */
-    public function respondRequest(Request $request): JsonResponse
+    public function respondRequest(Request $request, $streamId = null): JsonResponse
     {
         $host = $this->resolveUser($request) ?? auth()->user();
         $requestId = $request->input('request_id');
@@ -268,11 +268,13 @@ class LiveStreamController extends Controller
             $joinReq = LiveJoinRequest::with(['liveStream', 'user'])->find($requestId);
         }
 
-        if (!$joinReq && $request->filled('user_id')) {
-            $targetUserId = $request->input('user_id');
-            $roomId = $request->input('room_id') ?? $request->input('live_stream_id');
-            $joinReqQuery = LiveJoinRequest::with(['liveStream', 'user'])
-                ->where('user_id', $targetUserId);
+        if (!$joinReq) {
+            $targetUserId = $request->input('user_id') ?? $request->input('guest_user_id');
+            $roomId = $streamId ?? $request->route('stream_id') ?? $request->input('room_id') ?? $request->input('live_stream_id');
+            $joinReqQuery = LiveJoinRequest::with(['liveStream', 'user']);
+            if ($targetUserId) {
+                $joinReqQuery->where('user_id', $targetUserId);
+            }
             if ($roomId) {
                 $joinReqQuery->where(function($q) use ($roomId) {
                     $q->where('live_stream_id', $roomId)
@@ -289,6 +291,9 @@ class LiveStreamController extends Controller
         $stream = $joinReq->liveStream;
         $guestUser = $joinReq->user;
         $roomName = $stream ? ($stream->channel_name ?: (string) $stream->id) : 'live_room';
+        if (!$host && $stream) {
+            $host = $stream->host;
+        }
 
         $guestToken = null;
 
@@ -360,9 +365,9 @@ class LiveStreamController extends Controller
                     
                     // Broadcast dynamic CoHostJoinedEvent with real host & guest info
                     broadcast(new \App\Events\CoHostJoinedEvent($stream->id, [
-                        'host_id'      => $user->id,
-                        'host_name'    => $user->display_name ?? $user->name,
-                        'host_avatar'  => $user->avatar_url ?? $user->avatar,
+                        'host_id'      => $host ? $host->id : $stream->host_id,
+                        'host_name'    => $host ? ($host->display_name ?? $host->name) : 'Host',
+                        'host_avatar'  => $host ? ($host->avatar_url ?? $host->avatar) : null,
                         'guest_id'     => $guestUser->id,
                         'guest_name'   => $guestUser->display_name ?? $guestUser->name,
                         'guest_avatar' => $guestUser->avatar_url ?? $guestUser->avatar,
@@ -473,14 +478,14 @@ class LiveStreamController extends Controller
      * 5. Get List of Co-Host Join Requests for Host
      * GET/POST /api/live/join-requests
      */
-    public function getJoinRequests(Request $request): JsonResponse
+    public function getJoinRequests(Request $request, $streamId = null): JsonResponse
     {
         $host = $this->resolveUser($request) ?? auth()->user();
         if (!$host) {
             return response()->json(['status' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
-        $roomId = $request->input('room_id') ?? $request->input('room_name') ?? $request->input('live_stream_id') ?? $request->input('id');
+        $roomId = $streamId ?? $request->route('stream_id') ?? $request->input('room_id') ?? $request->input('room_name') ?? $request->input('live_stream_id') ?? $request->input('id');
         $stream = LiveStream::where('id', $roomId)->orWhere('channel_name', $roomId)->first();
 
         if (!$stream) {
@@ -531,12 +536,12 @@ class LiveStreamController extends Controller
      * 6. Host Kicks / Removes a Co-Host
      * POST /api/live/kick-guest
      */
-    public function kickGuest(Request $request): JsonResponse
+    public function kickGuest(Request $request, $streamId = null): JsonResponse
     {
         $host = $this->resolveUser($request) ?? auth()->user();
         $guestUserId = $request->input('guest_user_id') ?? $request->input('user_id');
         $requestId = $request->input('request_id');
-        $roomId = $request->input('room_id') ?? $request->input('live_stream_id');
+        $roomId = $streamId ?? $request->route('stream_id') ?? $request->input('room_id') ?? $request->input('live_stream_id');
 
         $stream = LiveStream::where('id', $roomId)->orWhere('channel_name', $roomId)->first();
         if (!$stream && $host) {

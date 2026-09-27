@@ -605,15 +605,185 @@ Returns real-time rankings with dynamic level labels, diamonds consumed, and ran
 
 ---
 
-## 6. Flutter Client Integration Checklist
+## 7. Live Stream Co-Host / Audience Join Request System & Hand-Raise Flow
 
-- [x] **Channel Subscriptions:** On login, subscribe to `private-user.${currentUser.id}` via `pusher_channels_flutter` or `laravel_echo`.
-- [x] **Incoming Call Listener:** Bind to `call.incoming` / `incoming_call`. Display full-screen ringing UI or floating bottom sheet (if currently in live stream).
-- [x] **Gift Real-Time Listener:** Bind to `gift.received` on `private-user.${currentUser.id}` and `live-stream.${roomId}` to play SVGA/Lottie flying animations instantly.
-- [x] **Avatar Frame Wrapping:** When rendering circular avatars, check if `user.avatar_frame_url` or `user.base_frame_url` is not null. Render it as a slightly larger concentric overlay around the circular image.
-- [x] **Dynamic Likes & Levels:** Use `user.i_like` for "I Like" tab and `user.like_me` for "Like Me" tab. Use `user.level` (`Lv.1`, `Lv.2`) for user level badges.
-- [x] **Call Dismissal Listener:** Bind to `call.ended` and `call.rejected`. Immediately close the call screen/modal and stop the ringtone audio player.
-- [x] **LiveKit SDK Connection:** On `call.accepted`, connect to `LiveKitClient.connect(livekitUrl, livekitToken)`.
+### 7.1 Architecture & Flow Overview
+When a viewer wants to go live on-screen with the host:
+1. **Hand-Raise Action:** Viewer clicks the **Hand Raise Button** (✋) in the live room bottom action bar.
+2. **Send Request API:** Mobile client sends `POST /api/live/stream/{stream_id}/request-join`.
+3. **Host Notification:** Host receives real-time socket event `live_join.requested` on `private-user.{host_id}` and `presence-live.{stream_id}`.
+4. **Host Decision API:** Host accepts or rejects via `POST /api/live/stream/{stream_id}/respond-join`.
+5. **Token Generation & Broadcast:** On `accept`, backend assigns role `co_host`, creates LiveKit token with `can_publish: true`, and broadcasts `live_join.responded` / `co_host.accepted` / `co_host.joined`.
+6. **Live Multi-Video Grid:** Viewer connects to LiveKit Room using the publisher token and publishes camera/mic stream alongside host.
+
+### 7.2 Endpoints Specification
+
+#### A. Send Join Request (Viewer / Audience)
+- **Endpoint:** `POST /api/live/stream/{stream_id}/request-join`
+- **Headers:** `Authorization: Bearer <user_jwt_token>`
+- **Payload:**
+  ```json
+  {
+    "host_id": 12
+  }
+  ```
+- **Success Response (200 OK):**
+  ```json
+  {
+    "status": true,
+    "message": "Co-host request sent to host successfully",
+    "data": {
+      "request_id": 45,
+      "room_id": "1",
+      "room_name": "live_stream_1",
+      "live_stream_id": 1,
+      "host_id": 12,
+      "user_id": 99,
+      "name": "GuestUser",
+      "avatar": "https://chinchins.live/storage/avatars/guest.jpg",
+      "status": "pending",
+      "created_at": "2026-09-27T21:40:00+06:00"
+    }
+  }
+  ```
+
+#### B. Respond to Join Request (Host Action)
+- **Endpoint:** `POST /api/live/stream/{stream_id}/respond-join` (or `POST /api/live/respond-request`)
+- **Headers:** `Authorization: Bearer <host_jwt_token>`
+- **Payload:**
+  ```json
+  {
+    "request_id": 45,
+    "user_id": 99,
+    "action": "accept" 
+  }
+  ```
+  *(Action can be `"accept"` or `"reject"`)*
+- **Success Response (200 OK on Accept):**
+  ```json
+  {
+    "status": true,
+    "message": "Co-host request accepted successfully",
+    "data": {
+      "request_id": 45,
+      "room_id": "1",
+      "room_name": "live_stream_1",
+      "guest_user_id": 99,
+      "status": "accepted",
+      "action": "accept",
+      "can_publish": true,
+      "guest_token": {
+        "token": "eyJhbGciOi...",
+        "livekit_token": "eyJhbGciOi...",
+        "room_name": "live_stream_1",
+        "role": "co_host",
+        "can_publish": true,
+        "livekit_url": "wss://chinchins.live/livekit"
+      }
+    }
+  }
+  ```
+
+#### C. Get Pending Join Requests List (Host)
+- **Endpoint:** `GET /api/live/stream/{stream_id}/join-requests` (or `GET /api/live/join-requests`)
+- **Headers:** `Authorization: Bearer <host_jwt_token>`
+- **Success Response:**
+  ```json
+  {
+    "status": true,
+    "message": "Join requests retrieved successfully",
+    "room_id": "1",
+    "data": [
+      {
+        "request_id": 45,
+        "user_id": 99,
+        "status": "pending",
+        "user_name": "Rahim",
+        "display_name": "Rahim",
+        "avatar_url": "https://chinchins.live/storage/avatars/rahim.jpg",
+        "level": "Lv.5",
+        "gender": "male",
+        "created_at": "2026-09-27T21:39:10+06:00"
+      }
+    ]
+  }
+  ```
+
+#### D. Leave / Remove Co-Host
+- **Endpoint:** `POST /api/live/stream/{stream_id}/leave-cohost` (or `POST /api/live/kick-guest`)
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Payload:** `{"guest_user_id": 99}`
+
+---
+
+### 7.3 Flutter UI Integration Guide (Hand-Raise Button)
+
+In the Audience Live View bottom bar (as shown in the UI screenshot, highlighted red area):
+```dart
+// Placement: Inside the bottom bar Row, between the Chat Input button and Gift button
+Row(
+  children: [
+    // 1. Chat input button (Left)
+    ChatIconButton(onTap: () => openLiveChatBottomSheet()),
+    
+    const SizedBox(width: 8),
+
+    // 2. ✋ Hand Raise Button (New Co-Host Request)
+    if (!isHost && !isCoHost)
+      GestureDetector(
+        onTap: () async {
+          final res = await ApiService.post('/live/stream/${stream.id}/request-join', {
+            'host_id': stream.hostId,
+          });
+          if (res['status'] == true) {
+            showToast('Join request sent to host!');
+          }
+        },
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white24, width: 1),
+          ),
+          child: const Icon(Icons.front_hand_rounded, color: Colors.amber, size: 22),
+        ),
+      ),
+
+    const Spacer(),
+
+    // 3. Gift Button
+    GiftIconButton(onTap: () => openGiftDialog()),
+
+    const SizedBox(width: 8),
+
+    // 4. Follow Button
+    FollowButton(hostId: stream.hostId),
+  ],
+)
+```
+
+---
+
+## 8. 1-on-1 Call Stability & Full-Duplex Audio/Video Sync
+
+1. **Ringing Persistence:**
+   - Call status stays in `ringing` in the `calls` table and Redis until either party responds.
+   - Caller receives `call.ringing` socket signal.
+2. **Accept Call & Media Activation:**
+   - On `POST /api/call/accept`, backend sets `status = 'accepted'` (or `'connected'`).
+   - Generates LiveKit token for both Caller and Receiver with `canPublish: true`, `canSubscribe: true`.
+   - Fires `call.accepted` event with LiveKit JWT token on both `private-user.{caller_id}` and `private-user.{receiver_id}`.
+   - Both clients initialize LiveKit room session:
+     ```dart
+     await room.connect(livekitUrl, livekitToken);
+     await room.localParticipant?.setCameraEnabled(true);
+     await room.localParticipant?.setMicrophoneEnabled(true);
+     ```
+3. **No Auto-Disconnect / Call Drops:**
+   - Heartbeat `/api/call/heartbeat` keeps active call alive without premature timeouts.
+   - Calling `/api/call/end` sets `status = 'completed'` and broadcasts `call.ended` to cleanly release audio/video hardware.
 
 ---
 

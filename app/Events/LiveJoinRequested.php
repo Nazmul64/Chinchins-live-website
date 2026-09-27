@@ -27,8 +27,11 @@ class LiveJoinRequested implements ShouldBroadcastNow
     public function broadcastOn()
     {
         return [
-            new PresenceChannel('presence-live.' . $this->liveStreamId),
+            new \Illuminate\Broadcasting\PrivateChannel('user.' . $this->hostId),
+            new \Illuminate\Broadcasting\PrivateChannel('private-user.' . $this->hostId),
             new Channel('user.' . $this->hostId),
+            new Channel('live_stream.' . $this->liveStreamId),
+            new PresenceChannel('presence-live.' . $this->liveStreamId),
         ];
     }
 
