@@ -1042,7 +1042,11 @@ class User extends Authenticatable
       */
      public function getILikeAttribute(): int
      {
-         return (int) $this->likesGiven()->sum('likes_count') ?: (int) $this->likesGiven()->count();
+         try {
+             return (int) ($this->likesGiven()->sum('likes_count') ?: $this->likesGiven()->count() ?: 0);
+         } catch (\Throwable $e) {
+             return 0;
+         }
      }
 
      /**
@@ -1050,7 +1054,27 @@ class User extends Authenticatable
       */
      public function getLikeMeAttribute(): int
      {
-         return (int) $this->likesReceived()->sum('likes_count') ?: (int) $this->likesReceived()->count();
+         try {
+             return (int) ($this->likesReceived()->sum('likes_count') ?: $this->likesReceived()->count() ?: 0);
+         } catch (\Throwable $e) {
+             return 0;
+         }
+     }
+
+     /**
+      * Accessor for i_like_count.
+      */
+     public function getILikeCountAttribute(): int
+     {
+         return $this->getILikeAttribute();
+     }
+
+     /**
+      * Accessor for like_me_count.
+      */
+     public function getLikeMeCountAttribute(): int
+     {
+         return $this->getLikeMeAttribute();
      }
 
      /**
@@ -1067,6 +1091,14 @@ class User extends Authenticatable
      public function getLikesGivenCountAttribute(): int
      {
          return $this->getILikeAttribute();
+     }
+
+     /**
+      * Accessor for total likes_count.
+      */
+     public function getLikesCountAttribute(): int
+     {
+         return $this->getLikeMeAttribute();
      }
 
      /**
@@ -1440,6 +1472,14 @@ class User extends Authenticatable
      * Likes received by this user.
      */
     public function likesReceived()
+    {
+        return $this->hasMany(UserLike::class, 'user_id');
+    }
+
+    /**
+     * Default likes relationship alias.
+     */
+    public function likes()
     {
         return $this->hasMany(UserLike::class, 'user_id');
     }
