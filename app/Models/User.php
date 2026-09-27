@@ -167,6 +167,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Currently active Live Stream (if user is streaming as host).
+     */
+    public function activeLiveStream()
+    {
+        return $this->hasOne(LiveStream::class, 'host_id')->whereIn('status', ['live', 'active'])->latestOfMany();
+    }
+
+    /**
+     * All Live Streams hosted by user.
+     */
+    public function liveStreams()
+    {
+        return $this->hasMany(LiveStream::class, 'host_id')->latest();
+    }
+
+
+    /**
      * Instance memoization caches for high-performance sub-millisecond serialization.
      */
     protected ?string $_cachedKycStatus = null;

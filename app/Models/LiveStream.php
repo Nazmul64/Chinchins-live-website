@@ -91,6 +91,37 @@ class LiveStream extends Model
         return $this->hasMany(LiveMessage::class, 'live_stream_id');
     }
 
+    protected $appends = [
+        'cover_image_url',
+        'room_name',
+        'room_id',
+        'user_id',
+    ];
+
+    /**
+     * Helper alias for room_name.
+     */
+    public function getRoomNameAttribute(): ?string
+    {
+        return $this->channel_name;
+    }
+
+    /**
+     * Helper alias for room_id.
+     */
+    public function getRoomIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
+    /**
+     * Helper alias for user_id.
+     */
+    public function getUserIdAttribute(): ?int
+    {
+        return $this->host_id;
+    }
+
     /**
      * Helper to get full cover image URL.
      */
@@ -105,3 +136,4 @@ class LiveStream extends Model
         return url(ltrim($this->cover_image, '/'));
     }
 }
+

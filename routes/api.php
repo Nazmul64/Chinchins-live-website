@@ -120,6 +120,15 @@ Route::get('/app/terms-of-service', [\App\Http\Controllers\Api\AppUpdateApiContr
 Route::get('/terms-of-service', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
 Route::get('/terms', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getTermsOfService']);
 
+// 🔴 Public Dynamic User Feed (Unlimited & Scalable from 1 to 1,000,000+ Users with Pagination)
+Route::get('/feed/users', [\App\Http\Controllers\Api\UserFeedController::class, 'getAllUsersFeed']);
+Route::get('/users/feed', [\App\Http\Controllers\Api\UserFeedController::class, 'getAllUsersFeed']);
+Route::get('/all-users-feed', [\App\Http\Controllers\Api\UserFeedController::class, 'getAllUsersFeed']);
+Route::get('/feed/global', [\App\Http\Controllers\Api\UserFeedController::class, 'getGlobalFeed']);
+Route::get('/global-feed', [\App\Http\Controllers\Api\UserFeedController::class, 'getGlobalFeed']);
+Route::get('/v1/users/feed', [\App\Http\Controllers\Api\UserFeedController::class, 'getAllUsersFeed']);
+Route::get('/v1/feed/users', [\App\Http\Controllers\Api\UserFeedController::class, 'getAllUsersFeed']);
+
 // 🔴 Public Home Feed & Streamers List (Live from Database for Hot & Home Screens)
 Route::get('/home', [ProfileController::class, 'index']);
 Route::get('/users', [ProfileController::class, 'index']);
@@ -138,6 +147,7 @@ Route::get('/hosts/online', [ProfileController::class, 'index']);
 Route::get('/stream/users', [ProfileController::class, 'index']);
 Route::get('/stream/hosts', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
 Route::get('/stream/streamers', [\App\Http\Controllers\Api\LiveStreamApiController::class, 'getActiveLives']);
+
 
 // 🏷️ Live App Icon & Live Stream Badges Specifications API (Sound waves equalizer, Verified badge, Notched camera action button)
 Route::get('/live/app-icons', [\App\Http\Controllers\Api\LiveAppIconApiController::class, 'getAppIcons']);

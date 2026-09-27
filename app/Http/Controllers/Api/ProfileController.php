@@ -535,9 +535,15 @@ class ProfileController extends Controller
         $realLikesReceived = (int) $totalLikes;
         $videoRate = (int) ($user->video_call_rate ?: 100);
 
+        $liveRoom = $activeLiveStream ? $activeLiveStream->channel_name : null;
+        $liveToken = ($isLive && $liveRoom) ? \App\Services\LiveKitService::generateFastToken($user, $liveRoom, false) : null;
+
         $freshUser = $user->fresh();
         $userArray = $freshUser ? $freshUser->toArray() : $user->toArray();
         $userArray['is_live'] = (bool) $isLive;
+        $userArray['live_room'] = $liveRoom;
+        $userArray['live_room_id'] = $liveRoom;
+        $userArray['live_token'] = $liveToken;
         $userArray['coins'] = $realCoins;
         $userArray['diamonds'] = $realDiamonds;
         $userArray['received_coins'] = $realDiamonds;
@@ -550,12 +556,20 @@ class ProfileController extends Controller
         $userArray['beans_central'] = $realDiamonds;
 
         return response()->json([
-            'status' => true,
-            'success' => true,
-            'is_live' => (bool) $isLive,
+            'status'       => true,
+            'success'      => true,
+            'is_live'      => (bool) $isLive,
+            'live_room'    => $liveRoom,
+            'live_room_id' => $liveRoom,
+            'live_token'   => $liveToken,
             'data'   => [
+                'id'                    => $user->id,
+                'name'                  => $user->display_name,
                 'user'                  => $userArray,
                 'is_live'               => (bool) $isLive,
+                'live_room'             => $liveRoom,
+                'live_room_id'          => $liveRoom,
+                'live_token'            => $liveToken,
                 'coins'                 => $realCoins,
                 'diamonds'              => $realDiamonds,
                 'received_coins'        => $realDiamonds,

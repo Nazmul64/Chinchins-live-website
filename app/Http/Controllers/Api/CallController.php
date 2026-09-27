@@ -497,10 +497,11 @@ class CallController extends Controller
         if (!$isCallerFree && !$isEligibleForFree && $caller->coins < $ratePerMinute) {
             $modalData = $this->buildRechargeModalData($caller, $receiver, $ratePerMinute, $callType);
             return response()->json([
+                'success'             => false,
                 'status'              => false,
                 'can_call'            => false,
                 'code'                => 'INSUFFICIENT_BALANCE',
-                'message'             => "Insufficient coin balance. You need at least {$ratePerMinute} coins for 1 minute of {$callType} call. Your balance is {$caller->coins} coins.",
+                'message'             => 'Insufficient coins to make this call',
                 'user_balance'        => (int) $caller->coins,
                 'user_gems'           => (int) $caller->coins,
                 'wallet_label'        => 'My Gems',
@@ -515,7 +516,7 @@ class CallController extends Controller
                 'target_user'         => $modalData['target_user'],
                 'redirect_to_deposit' => true,
                 'deposit_url'         => '/deposit',
-            ], 200); // Return 200 to prevent Flutter auth interceptor from triggering logout
+            ], 402);
         }
 
         $freeDuration = $isEligibleForFree ? (int) $config['free_call_duration_seconds'] : 0;
@@ -688,6 +689,23 @@ class CallController extends Controller
         }
 
         $callType = strtolower($request->input('call_type', 'video'));
+        $requiredCallRate = ($callType === 'audio') ? 60 : (int) ($receiver->video_call_rate ?: 100);
+        $isCallerFree = $caller->isFreeCaller();
+        $isEligibleForFree = $isCallerFree || $caller->isEligibleForFreeCall();
+
+        // Check if caller has enough coins (unless free caller or eligible for free trial)
+        if (!$isCallerFree && !$isEligibleForFree && $caller->coins < $requiredCallRate) {
+            return response()->json([
+                'success'        => false,
+                'status'         => false,
+                'code'           => 'INSUFFICIENT_BALANCE',
+                'message'        => 'Insufficient coins to make this call',
+                'required_coins' => $requiredCallRate,
+                'current_coins'  => (int) $caller->coins,
+                'redirect_to_deposit' => true,
+            ], 402);
+        }
+
         $roomName = $request->input('room_name') ?: ('call_' . $callType . '_' . $caller->id . '_' . $receiver->id . '_' . time());
 
         // 1. In-memory fast LiveKit token generation (< 2ms)
@@ -709,10 +727,10 @@ class CallController extends Controller
             'channel_name'          => $roomName,
             'call_type'             => $callType,
             'status'                => 'ringing',
-            'rate_per_minute'       => $callType === 'audio' ? 60 : (int) ($receiver->video_call_rate ?: 100),
-            'is_free_trial'         => $caller->isFreeCaller() || $caller->isEligibleForFreeCall(),
-            'charged_user_id'       => $caller->isFreeCaller() ? $receiver->id : $caller->id,
-            'free_duration_seconds' => ($caller->isFreeCaller() || $caller->isEligibleForFreeCall()) ? 30 : 0,
+            'rate_per_minute'       => $requiredCallRate,
+            'is_free_trial'         => $isEligibleForFree,
+            'charged_user_id'       => $isCallerFree ? $receiver->id : $caller->id,
+            'free_duration_seconds' => $isEligibleForFree ? 30 : 0,
         ]);
 
         // 3. Instant Socket Broadcast to Receiver (even if live, do not block)
@@ -827,6 +845,23 @@ class CallController extends Controller
         }
 
         $callType = strtolower($request->input('call_type', 'video'));
+        $requiredCallRate = ($callType === 'audio') ? 60 : (int) ($targetUser->video_call_rate ?: 100);
+        $isCallerFree = $caller->isFreeCaller();
+        $isEligibleForFree = $isCallerFree || $caller->isEligibleForFreeCall();
+
+        // Check if caller has enough coins (unless free caller or eligible for free trial)
+        if (!$isCallerFree && !$isEligibleForFree && $caller->coins < $requiredCallRate) {
+            return response()->json([
+                'success'        => false,
+                'status'         => false,
+                'code'           => 'INSUFFICIENT_BALANCE',
+                'message'        => 'Insufficient coins to make this call',
+                'required_coins' => $requiredCallRate,
+                'current_coins'  => (int) $caller->coins,
+                'redirect_to_deposit' => true,
+            ], 402);
+        }
+
         $channelName = $request->input('channel') 
                     ?? $request->input('channel_name') 
                     ?? $request->input('room_name')

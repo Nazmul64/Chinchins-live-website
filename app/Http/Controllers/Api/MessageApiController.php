@@ -188,6 +188,11 @@ class MessageApiController extends Controller
                 }
             }
 
+            $activeLive = \App\Models\LiveStream::where('host_id', $contact->id)->whereIn('status', ['live', 'active'])->latest()->first();
+            $isLive = !empty($activeLive);
+            $liveRoom = $activeLive ? $activeLive->channel_name : null;
+            $liveToken = ($isLive && $liveRoom) ? \App\Services\LiveKitService::generateFastToken($contact, $liveRoom, false) : null;
+
             $diffMins = $lastMessage ? (int) round($lastMessage->created_at->diffInMinutes(now())) : 0;
             $partnerInfo = [
                 'id'           => $contact->id,
@@ -200,6 +205,10 @@ class MessageApiController extends Controller
                 'level'        => $contact->level ?: 'Lv1',
                 'is_online'    => (bool) $contact->is_online,
                 'is_busy'      => (bool) $contact->is_busy,
+                'is_live'      => $isLive,
+                'live_room'    => $liveRoom,
+                'live_room_id' => $liveRoom,
+                'live_token'   => $liveToken,
             ];
 
             $conversations[] = [
@@ -213,6 +222,10 @@ class MessageApiController extends Controller
                 'partner'         => $partnerInfo,
                 'is_online'       => (bool) $contact->is_online,
                 'is_busy'         => (bool) $contact->is_busy,
+                'is_live'         => $isLive,
+                'live_room'       => $liveRoom,
+                'live_room_id'    => $liveRoom,
+                'live_token'      => $liveToken,
                 'unread_count'    => $unreadCount,
                 'last_message'    => [
                     'text'            => $preview,
