@@ -118,7 +118,7 @@ class CustomerProfileIconAdminController extends Controller
             'badge_color'  => 'nullable|string|max:50',
             'target_route' => 'nullable|string|max:100',
             'sort_order'   => 'nullable|integer',
-            'icon_image'   => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:5120',
+            'icon_image'   => 'nullable|file|mimes:png,jpg,jpeg,webp,svg,gif|max:51200',
             'is_active'    => 'nullable|boolean',
         ]);
 
