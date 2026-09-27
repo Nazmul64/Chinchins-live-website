@@ -1365,12 +1365,24 @@ Route::get('/app/rank-badges-config', function () {
             ->groupBy('period_type');
     });
 
+    $rankBgImage = \App\Models\AppSetting::get('rank_screen_bg_image', 'uploads/rank_badges/rank_leaderboard_bg.png');
+    $rankBgEnabled = (bool) filter_var(\App\Models\AppSetting::get('rank_screen_bg_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+    $rankThemeColor = \App\Models\AppSetting::get('rank_screen_theme_color', '#E11D48');
+    $rankBgUrl = ($rankBgEnabled && !empty($rankBgImage)) ? (str_starts_with($rankBgImage, 'http') ? $rankBgImage : asset($rankBgImage)) : null;
+
     return response()->json([
         'success' => true,
         'status' => true,
+        'theme' => [
+            'background_image_url'  => $rankBgUrl,
+            'is_background_enabled' => $rankBgEnabled,
+            'accent_color'          => $rankThemeColor,
+            'theme_name'            => 'red_stage_neon',
+        ],
+        'background_image_url' => $rankBgUrl,
         'data' => [
-            'daily' => $badges['daily'] ?? [],
-            'weekly' => $badges['weekly'] ?? [],
+            'daily'   => $badges['daily'] ?? [],
+            'weekly'  => $badges['weekly'] ?? [],
             'monthly' => $badges['monthly'] ?? [],
         ]
     ]);

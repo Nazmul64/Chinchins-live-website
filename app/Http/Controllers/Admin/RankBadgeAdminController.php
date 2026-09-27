@@ -38,7 +38,74 @@ class RankBadgeAdminController extends Controller
             'active'  => PeriodRankBadge::where('is_active', true)->count(),
         ];
 
-        return view('admin.ranks.badges', compact('dailyBadges', 'weeklyBadges', 'monthlyBadges', 'stats'));
+        $rankBgImage = \App\Models\AppSetting::get('rank_screen_bg_image', 'uploads/rank_badges/rank_leaderboard_bg.png');
+        $rankBgEnabled = (bool) filter_var(\App\Models\AppSetting::get('rank_screen_bg_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+        $rankThemeColor = \App\Models\AppSetting::get('rank_screen_theme_color', '#E11D48');
+        $rankBgUrl = $rankBgImage ? (str_starts_with($rankBgImage, 'http') ? $rankBgImage : asset($rankBgImage)) : null;
+
+        return view('admin.ranks.badges', compact(
+            'dailyBadges',
+            'weeklyBadges',
+            'monthlyBadges',
+            'stats',
+            'rankBgImage',
+            'rankBgEnabled',
+            'rankThemeColor',
+            'rankBgUrl'
+        ));
+    }
+
+    /**
+     * Upload / Update Leaderboard Screen Background Image.
+     */
+    public function uploadBackground(Request $request)
+    {
+        $request->validate([
+            'background_image' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:10240',
+            'theme_color'      => 'nullable|string|max:20',
+            'is_enabled'       => 'nullable|in:0,1',
+        ]);
+
+        if ($request->hasFile('background_image')) {
+            $file = $request->file('background_image');
+            $uploadDir = public_path('uploads/rank_badges');
+            if (!File::exists($uploadDir)) {
+                File::makeDirectory($uploadDir, 0777, true, true);
+            }
+
+            $fileName = 'rank_bg_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $fileName);
+            $relativePath = 'uploads/rank_badges/' . $fileName;
+
+            \App\Models\AppSetting::set('rank_screen_bg_image', $relativePath, 'rank_badges', 'Rank leaderboard screen background image');
+        }
+
+        if ($request->has('is_enabled')) {
+            \App\Models\AppSetting::set('rank_screen_bg_enabled', $request->input('is_enabled', '1'), 'rank_badges', 'Enable rank screen custom background');
+        }
+
+        if ($request->filled('theme_color')) {
+            \App\Models\AppSetting::set('rank_screen_theme_color', $request->input('theme_color'), 'rank_badges', 'Rank screen accent theme color');
+        }
+
+        \App\Models\AppSetting::clearCache();
+        Cache::forget('app_period_rank_badges');
+
+        return back()->with('success', 'Rank Leaderboard screen background image & theme updated successfully!');
+    }
+
+    /**
+     * Reset / Remove Leaderboard Background Image.
+     */
+    public function removeBackground()
+    {
+        \App\Models\AppSetting::set('rank_screen_bg_image', '', 'rank_badges', 'Rank leaderboard screen background image');
+        \App\Models\AppSetting::set('rank_screen_bg_enabled', '0', 'rank_badges', 'Enable rank screen custom background');
+
+        \App\Models\AppSetting::clearCache();
+        Cache::forget('app_period_rank_badges');
+
+        return back()->with('success', 'Rank screen background image reset to default.');
     }
 
     /**

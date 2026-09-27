@@ -105,6 +105,71 @@
         </div>
     </div>
 
+    <!-- Rank Screen Background Image & Stage Theme Card -->
+    <div class="card border-0 mb-4" style="border-radius: 12px; background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+        <div class="card-body p-4">
+            <div class="row align-items-center g-4">
+                <div class="col-12 col-lg-5">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge" style="background: linear-gradient(135deg, #e11d48, #be123c); font-size: 11px; padding: 5px 10px;">APP LEADERBOARD THEME</span>
+                        <span class="text-success fw-bold" style="font-size: 12px;"><i class="fa-solid fa-circle-check me-1"></i> {{ $rankBgEnabled ? 'Active' : 'Disabled' }}</span>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Leaderboard Screen Background & Stage Theme</h5>
+                    <p class="text-muted mb-3" style="font-size: 13px; line-height: 1.5;">
+                        Configure the high-resolution luxury stage background image and neon glow lighting theme displayed behind the Daily, Weekly & Monthly leaderboard ranks on Flutter app.
+                    </p>
+                    
+                    <form action="{{ route('admin.rank-badges.background') }}" method="POST" enctype="multipart/form-data" class="d-flex flex-column gap-3">
+                        @csrf
+                        <div>
+                            <label class="form-label fw-semibold text-dark" style="font-size: 13px;">Upload New Background Image</label>
+                            <input type="file" name="background_image" class="form-control" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="border-radius: 8px; font-size: 13px;">
+                            <small class="text-muted" style="font-size: 11px;">Recommended: 1080x1920 (Portrait) or 1920x1080 Stage Neon Wallpaper. Saved to <code>public/uploads/rank_badges/</code></small>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_enabled" value="1" id="rankBgEnabledSwitch" {{ $rankBgEnabled ? 'checked' : '' }}>
+                                <label class="form-check-label fw-semibold" for="rankBgEnabledSwitch" style="font-size: 13px;">Enable Custom Background in App</label>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 mt-1">
+                            <button type="submit" class="btn btn-primary" style="border-radius: 8px; font-weight: 600; font-size: 13px; background: linear-gradient(135deg, #e11d48, #be123c); border: none;">
+                                <i class="fa-solid fa-cloud-arrow-up me-1"></i> Save Background & Theme
+                            </button>
+                            @if(!empty($rankBgImage))
+                            <button type="submit" formaction="{{ route('admin.rank-badges.remove-background') }}" class="btn btn-outline-danger" style="border-radius: 8px; font-size: 13px;" onclick="return confirm('Reset background to default?')">
+                                <i class="fa-solid fa-trash me-1"></i> Reset
+                            </button>
+                            @endif
+                        </div>
+                    </form>
+                </div>
+
+                <div class="col-12 col-lg-7">
+                    <div class="p-3 rounded-3" style="background: #0f172a; border: 1px solid #1e293b;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-white-50 fw-semibold" style="font-size: 12px;"><i class="fa-solid fa-eye me-1 text-warning"></i> Current App Stage Background Preview</span>
+                            <span class="badge bg-dark border border-secondary text-white" style="font-size: 11px;">Path: {{ $rankBgImage ?: 'Default Dark' }}</span>
+                        </div>
+                        <div class="position-relative rounded-3 overflow-hidden" style="max-height: 200px; height: 180px; background: #000000; border: 1px solid rgba(255,255,255,0.1);">
+                            @if(!empty($rankBgUrl))
+                                <img src="{{ $rankBgUrl }}?v={{ time() }}" alt="Rank Screen Background" class="w-100 h-100" style="object-fit: cover; object-position: center;">
+                                <div class="position-absolute bottom-0 start-0 w-100 p-2 d-flex justify-content-between align-items-center" style="background: linear-gradient(transparent, rgba(0,0,0,0.85));">
+                                    <span class="text-white fw-bold" style="font-size: 12px;"><i class="fa-solid fa-trophy text-warning me-1"></i> Top 1-3 Stage Glow Active</span>
+                                    <a href="{{ $rankBgUrl }}" target="_blank" class="btn btn-xs btn-outline-light py-1 px-2" style="font-size: 11px; border-radius: 6px;">View Full Image</a>
+                                </div>
+                            @else
+                                <div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size: 13px;">
+                                    <i class="fa-solid fa-image me-2"></i> No custom background set (App default gradient will be used)
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- API Info Card for Mobile App Sync -->
     <div class="card border-0 mb-4" style="border-radius: 12px; background: linear-gradient(135deg, #1e293b, #0f172a); color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
         <div class="card-body p-4">
@@ -116,14 +181,13 @@
                     <div>
                         <h5 class="fw-bold mb-1">Flutter Mobile App Fast Offline & Instant Hive Sync</h5>
                         <p class="mb-0 text-white-50" style="font-size: 13px;">
-                            Endpoint: <code class="text-warning px-2 py-1 rounded" style="background: rgba(0,0,0,0.3); font-size: 13px;">GET /api/app/rank-badges-config</code>
-                            — Data is cached with atomic invalidation whenever badges are added or updated.
+                            Config Endpoint: <code class="text-warning px-2 py-1 rounded" style="background: rgba(0,0,0,0.3); font-size: 13px;">GET /api/app/rank-badges-config</code> | Real Leaderboard: <code class="text-info px-2 py-1 rounded" style="background: rgba(0,0,0,0.3); font-size: 13px;">GET /api/ranks/leaderboard</code>
                         </p>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <button class="btn btn-sm btn-outline-warning text-nowrap" onclick="copyApiUrl()">
-                        <i class="fa-solid fa-copy me-1"></i> Copy API URL
+                        <i class="fa-solid fa-copy me-1"></i> Copy Config URL
                     </button>
                 </div>
             </div>

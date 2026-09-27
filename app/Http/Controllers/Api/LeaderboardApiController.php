@@ -132,14 +132,47 @@ class LeaderboardApiController extends Controller
             }
         }
 
-        // If no real transactions yet in dev/staging, provide smart simulated preview records
+        // If no gift transactions yet in this period, fetch real registered users ordered by coins/level
         if (empty($rankings)) {
-            $rankings = $this->getPreviewMockRankings($period, $category, $configuredBadges);
+            $realUsers = User::where('is_active', true)
+                ->where('is_locked', false)
+                ->orderByDesc('coins')
+                ->orderByDesc('level')
+                ->orderByDesc('id')
+                ->take($limit)
+                ->get();
+
+            foreach ($realUsers as $u) {
+                $badgeConfig = $configuredBadges->get($rank);
+                $coinsScore = (int) $u->coins;
+
+                $rankings[] = [
+                    'rank'               => $rank,
+                    'user_id'            => $u->id,
+                    'account_id'         => $u->account_id ?? (string) (100000 + $u->id),
+                    'name'               => $u->display_name ?? $u->name ?? 'User_' . $u->id,
+                    'avatar'             => $u->avatar ? (str_starts_with($u->avatar, 'http') ? $u->avatar : asset($u->avatar)) : asset('assets/images/defaults/avatar-male.png'),
+                    'level'              => (int) ($u->level ?? 1),
+                    'country'            => $u->country ?? 'Bangladesh',
+                    'country_flag'       => $u->country_flag ?? '🇧🇩',
+                    'consume'            => $coinsScore,
+                    'consume_formatted'  => self::formatNumber($coinsScore),
+                    'badge_icon_url'     => $badgeConfig ? $badgeConfig->badge_icon_url : null,
+                    'avatar_frame_url'   => $badgeConfig ? $badgeConfig->avatar_frame_url : null,
+                ];
+                $rank++;
+            }
         }
 
         // Current logged-in user ranking information
         $currentUserId = auth('sanctum')->id() ?? $request->query('user_id');
         $myRankInfo = $this->calculateMyRank($currentUserId, $rankings);
+
+        // App stage background & theme configuration
+        $rankBgImage = \App\Models\AppSetting::get('rank_screen_bg_image', 'uploads/rank_badges/rank_leaderboard_bg.png');
+        $rankBgEnabled = (bool) filter_var(\App\Models\AppSetting::get('rank_screen_bg_enabled', '1'), FILTER_VALIDATE_BOOLEAN);
+        $rankThemeColor = \App\Models\AppSetting::get('rank_screen_theme_color', '#E11D48');
+        $rankBgUrl = ($rankBgEnabled && !empty($rankBgImage)) ? (str_starts_with($rankBgImage, 'http') ? $rankBgImage : asset($rankBgImage)) : null;
 
         return response()->json([
             'success' => true,
@@ -152,6 +185,13 @@ class LeaderboardApiController extends Controller
                 'countdown_human'   => $this->formatCountdown($countdownSeconds),
                 'total_ranked'      => count($rankings),
             ],
+            'theme'   => [
+                'background_image_url'  => $rankBgUrl,
+                'is_background_enabled' => $rankBgEnabled,
+                'accent_color'          => $rankThemeColor,
+                'theme_name'            => 'red_stage_neon',
+            ],
+            'background_image_url' => $rankBgUrl,
             'my_rank'   => $myRankInfo,
             'rankings'  => $rankings,
         ]);
@@ -237,46 +277,5 @@ class LeaderboardApiController extends Controller
         $secs = $seconds % 60;
 
         return sprintf('%dd %02d:%02d:%02d', $days, $hours, $minutes, $secs);
-    }
-
-    /**
-     * Preview mock rankings matching user's screenshots
-     */
-    private function getPreviewMockRankings($period, $category, $configuredBadges)
-    {
-        $multiplier = ($period === 'monthly') ? 40 : (($period === 'weekly') ? 10 : 1);
-        $baseScores = [
-            ['name' => '💕 🇮🇳 ABHI 🇮🇳 ...', 'consume' => 31800000 * $multiplier, 'level' => 12, 'country' => 'IN', 'flag' => '🇮🇳'],
-            ['name' => 'X-Factor',            'consume' => 21200000 * $multiplier, 'level' => 9,  'country' => 'IN', 'flag' => '🇮🇳'],
-            ['name' => 'Guest_COc4hV',        'consume' => 18300000 * $multiplier, 'level' => 8,  'country' => 'SA', 'flag' => '🇸🇦'],
-            ['name' => 'SAM',                 'consume' => 12800000 * $multiplier, 'level' => 7,  'country' => 'AE', 'flag' => '🇦🇪'],
-            ['name' => 'Mehran',              'consume' => 11700000 * $multiplier, 'level' => 9,  'country' => 'PK', 'flag' => '🇵🇰'],
-            ['name' => '❤️ 🇳🇬 Sahil 🇳🇬 ❤️',    'consume' => 9690000 * $multiplier,  'level' => 7,  'country' => 'NG', 'flag' => '🇳🇬'],
-            ['name' => 'MD Fayaz',            'consume' => 9400000 * $multiplier,  'level' => 5,  'country' => 'BD', 'flag' => '🇧🇩'],
-            ['name' => 'Azzad 🤴',            'consume' => 9040000 * $multiplier,  'level' => 8,  'country' => 'BD', 'flag' => '🇧🇩'],
-        ];
-
-        $rankings = [];
-        foreach ($baseScores as $i => $item) {
-            $rank = $i + 1;
-            $badgeConfig = $configuredBadges->get($rank);
-
-            $rankings[] = [
-                'rank'               => $rank,
-                'user_id'            => 100 + $rank,
-                'account_id'         => (string) (743264900 + $rank),
-                'name'               => $item['name'],
-                'avatar'             => asset('assets/images/defaults/avatar-male.png'),
-                'level'              => $item['level'],
-                'country'            => $item['country'],
-                'country_flag'       => $item['flag'],
-                'consume'            => $item['consume'],
-                'consume_formatted'  => self::formatNumber($item['consume']),
-                'badge_icon_url'     => $badgeConfig ? $badgeConfig->badge_icon_url : null,
-                'avatar_frame_url'   => $badgeConfig ? $badgeConfig->avatar_frame_url : null,
-            ];
-        }
-
-        return $rankings;
     }
 }
