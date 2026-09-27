@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\Call;
+use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -14,21 +14,43 @@ class CallAccepted implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public Call $call)
+    public mixed $call;
+    public int $callId;
+    public int $callerId;
+    public int $receiverId;
+    public string $roomId;
+    public ?string $receiverName;
+
+    public function __construct(mixed $call)
     {
-        if (!$this->call->relationLoaded('receiver')) {
-            $this->call->load('receiver');
+        $this->call = $call;
+        $this->callId = (int) (is_object($call) ? ($call->id ?? 0) : (is_array($call) ? ($call['id'] ?? 0) : $call));
+        $this->callerId = (int) (is_object($call) ? ($call->caller_id ?? 0) : (is_array($call) ? ($call['caller_id'] ?? 0) : 0));
+        $this->receiverId = (int) (is_object($call) ? ($call->receiver_id ?? 0) : (is_array($call) ? ($call['receiver_id'] ?? 0) : 0));
+        $this->roomId = (string) (is_object($call) ? ($call->room_id ?? $call->channel_name ?? '') : (is_array($call) ? ($call['room_id'] ?? $call['channel_name'] ?? '') : ''));
+
+        $receiver = null;
+        if (is_object($call) && method_exists($call, 'relationLoaded') && $call->relationLoaded('receiver') && $call->receiver) {
+            $receiver = $call->receiver;
+        } elseif ($this->receiverId > 0) {
+            $receiver = User::find($this->receiverId);
         }
+
+        $this->receiverName = $receiver ? ($receiver->display_name ?: $receiver->name) : 'User';
     }
 
     /**
-     * Broadcast to caller's private channel.
+     * Broadcast to caller's private channel and public fallback channel.
      */
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel('user.' . $this->call->caller_id),
-        ];
+        $channels = [];
+        if ($this->callerId > 0) {
+            $channels[] = new PrivateChannel('user.' . $this->callerId);
+            $channels[] = new PrivateChannel('private-user.' . $this->callerId);
+            $channels[] = new Channel('user.' . $this->callerId);
+        }
+        return $channels;
     }
 
     /**
@@ -46,13 +68,17 @@ class CallAccepted implements ShouldBroadcastNow
     {
         return [
             'event'         => 'call.accepted',
-            'call_id'       => $this->call->id,
-            'room_id'       => $this->call->room_id,
-            'caller_id'     => $this->call->caller_id,
-            'receiver_id'   => $this->call->receiver_id,
-            'receiver_name' => $this->call->receiver?->name ?? $this->call->receiver?->display_name ?? 'User',
+            'action'        => 'call_accepted',
+            'call_id'       => $this->callId,
+            'id'            => $this->callId,
+            'room_id'       => $this->roomId,
+            'channel_name'  => $this->roomId,
+            'caller_id'     => $this->callerId,
+            'receiver_id'   => $this->receiverId,
+            'receiver_name' => $this->receiverName,
             'status'        => 'accepted',
-            'answered_at'   => $this->call->answered_at?->toIso8601String(),
+            'answered_at'   => now()->toIso8601String(),
         ];
     }
 }
+

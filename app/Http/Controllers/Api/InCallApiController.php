@@ -102,8 +102,7 @@ class InCallApiController extends Controller
 
         // Auto-resolve receiver from active CallSession if not directly provided
         if (empty($receiverId) && !empty($callSessionId)) {
-            $session = \App\Models\CallSession::where('call_session_id', $callSessionId)
-                ->orWhere('id', $callSessionId)
+            $session = \App\Models\CallSession::where('id', $callSessionId)
                 ->orWhere('channel_name', $callSessionId)
                 ->first();
             if ($session && $sender) {
@@ -246,8 +245,7 @@ class InCallApiController extends Controller
 
         // Auto-resolve receiver from active CallSession if not directly provided
         if (empty($receiverId) && !empty($callSessionId)) {
-            $session = \App\Models\CallSession::where('call_session_id', $callSessionId)
-                ->orWhere('id', $callSessionId)
+            $session = \App\Models\CallSession::where('id', $callSessionId)
                 ->orWhere('channel_name', $callSessionId)
                 ->first();
             if ($session && $sender) {

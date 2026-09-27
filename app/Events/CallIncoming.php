@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\Call;
+use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -14,22 +14,51 @@ class CallIncoming implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public Call $call)
+    public mixed $call;
+    public int $callId;
+    public int $callerId;
+    public int $receiverId;
+    public string $callType;
+    public string $roomId;
+    public string $status;
+    public ?string $callerName;
+    public ?string $callerAvatar;
+
+    public function __construct(mixed $call, int|string|null $callerId = null, int|string|null $receiverId = null)
     {
-        // Eager load caller if not already loaded
-        if (!$this->call->relationLoaded('caller')) {
-            $this->call->load('caller');
+        $this->call = $call;
+
+        $this->callId = (int) (is_object($call) ? ($call->id ?? 0) : (is_array($call) ? ($call['id'] ?? $call['call_id'] ?? 0) : $call));
+        $this->callerId = (int) ($callerId ?: (is_object($call) ? ($call->caller_id ?? 0) : (is_array($call) ? ($call['caller_id'] ?? 0) : 0)));
+        $this->receiverId = (int) ($receiverId ?: (is_object($call) ? ($call->receiver_id ?? 0) : (is_array($call) ? ($call['receiver_id'] ?? 0) : 0)));
+        $this->callType = (string) (is_object($call) ? ($call->call_type ?? 'video') : (is_array($call) ? ($call['call_type'] ?? 'video') : 'video'));
+        $this->roomId = (string) (is_object($call) ? ($call->room_id ?? $call->channel_name ?? '') : (is_array($call) ? ($call['room_id'] ?? $call['channel_name'] ?? '') : ''));
+        $this->status = (string) (is_object($call) ? ($call->status ?? 'ringing') : (is_array($call) ? ($call['status'] ?? 'ringing') : 'ringing'));
+
+        // Load caller info
+        $caller = null;
+        if (is_object($call) && method_exists($call, 'relationLoaded') && $call->relationLoaded('caller') && $call->caller) {
+            $caller = $call->caller;
+        } elseif ($this->callerId > 0) {
+            $caller = User::find($this->callerId);
         }
+
+        $this->callerName = $caller ? ($caller->display_name ?: $caller->name) : 'User';
+        $this->callerAvatar = $caller ? ($caller->avatar_url ?: $caller->avatar) : null;
     }
 
     /**
-     * Broadcast to receiver's private channel.
+     * Broadcast to receiver's private channel and public fallback channel.
      */
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel('user.' . $this->call->receiver_id),
-        ];
+        $channels = [];
+        if ($this->receiverId > 0) {
+            $channels[] = new PrivateChannel('user.' . $this->receiverId);
+            $channels[] = new PrivateChannel('private-user.' . $this->receiverId);
+            $channels[] = new Channel('user.' . $this->receiverId);
+        }
+        return $channels;
     }
 
     /**
@@ -47,15 +76,26 @@ class CallIncoming implements ShouldBroadcastNow
     {
         return [
             'event'         => 'call.incoming',
-            'call_id'       => $this->call->id,
-            'caller_id'     => $this->call->caller_id,
-            'caller_name'   => $this->call->caller?->name ?? $this->call->caller?->display_name ?? 'User',
-            'caller_avatar' => $this->call->caller?->avatar_url ?? $this->call->caller?->avatar ?? null,
-            'receiver_id'   => $this->call->receiver_id,
-            'call_type'     => $this->call->call_type,
-            'room_id'       => $this->call->room_id,
-            'status'        => $this->call->status,
-            'created_at'    => $this->call->created_at?->toIso8601String(),
+            'action'        => 'incoming_call',
+            'call_id'       => $this->callId,
+            'id'            => $this->callId,
+            'caller_id'     => $this->callerId,
+            'caller_name'   => $this->callerName,
+            'caller_avatar' => $this->callerAvatar,
+            'caller'        => [
+                'id'           => $this->callerId,
+                'name'         => $this->callerName,
+                'display_name' => $this->callerName,
+                'avatar_url'   => $this->callerAvatar,
+            ],
+            'receiver_id'   => $this->receiverId,
+            'call_type'     => $this->callType,
+            'room_id'       => $this->roomId,
+            'channel_name'  => $this->roomId,
+            'status'        => $this->status,
+            'created_at'    => now()->toIso8601String(),
+            'timestamp'     => now()->toIso8601String(),
         ];
     }
 }
+

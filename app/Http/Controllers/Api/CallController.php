@@ -2644,8 +2644,7 @@ class CallController extends Controller
 
         $session = null;
         if ($callSessionId) {
-            $session = CallSession::where('call_session_id', $callSessionId)
-                ->orWhere('id', $callSessionId)
+            $session = CallSession::where('id', $callSessionId)
                 ->orWhere('channel_name', $callSessionId)
                 ->first();
         }
@@ -2782,8 +2781,7 @@ class CallController extends Controller
 
         $query = CallMessage::query();
         if ($sessionId) {
-            $session = CallSession::where('call_session_id', $sessionId)
-                ->orWhere('id', $sessionId)
+            $session = CallSession::where('id', $sessionId)
                 ->orWhere('channel_name', $sessionId)
                 ->first();
 
@@ -2898,8 +2896,8 @@ class CallController extends Controller
         $callSessionId = $data['call_session_id'] ?? $data['call_id'] ?? null;
 
         if ($callSessionId) {
-            CallSession::where('call_session_id', $callSessionId)
-                ->orWhere('id', $callSessionId)
+            CallSession::where('id', $callSessionId)
+                ->orWhere('channel_name', $callSessionId)
                 ->update(['updated_at' => now()]);
         }
 

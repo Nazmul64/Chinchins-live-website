@@ -1167,8 +1167,9 @@ class User extends Authenticatable
       */
      public function getLevelNumberAttribute(): int
      {
-         return max(1, (int) ($this->attributes['level'] ?? $this->attributes['current_level'] ?? $this->current_level ?? 1));
+         return max(1, (int) ($this->attributes['level'] ?? $this->attributes['current_level'] ?? 1));
      }
+
 
     /**
      * Accessor for user age with fallback.
