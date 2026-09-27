@@ -605,6 +605,150 @@ Returns real-time rankings with dynamic level labels, diamonds consumed, and ran
 
 ---
 
+## 6. Complete 1-on-1 Video & Audio Call Lifecycle (For Flutter App Developer)
+
+### 6.1 Call Lifecycle Diagram
+```
+Caller (Flutter)                      Laravel Server                      Receiver (Flutter)
+     |                                      |                                      |
+     |--- 1. POST /api/call/initiate ------>|                                      |
+     |    (receiver_id, call_type)          |--- 2. WebSocket: call.incoming ----->|
+     |                                      |    (Channel: private-user.{id})      | (Ringing UI shown)
+     |<-- 3. Returns session & ringing -----|                                      |
+     |                                      |                                      |
+     |                                      |<-- 4. POST /api/call/accept ---------|
+     |                                      |    (call_id / session_id)            |
+     |<-- 5. WebSocket: call.accepted ------|--- 5. WebSocket: call.accepted ----->|
+     |    (LiveKit Token + URL)             |    (LiveKit Token + URL)             |
+     |                                      |                                      |
+     |==== 6. LiveKit Media Stream (Both publish Audio/Video tracks simultaneously) ===|
+     |                                      |                                      |
+     |--- 7. POST /api/call/end ----------->|                                      |
+     |<-- 8. WebSocket: call.ended ---------|--- 8. WebSocket: call.ended -------->|
+```
+
+### 6.2 1-on-1 Call Endpoints Specification
+
+#### A. Initiate Call (Caller)
+- **Endpoint:** `POST /api/call/initiate` (or `POST /api/call/send`)
+- **Headers:** `Authorization: Bearer <caller_token>`
+- **Request Body:**
+  ```json
+  {
+    "receiver_id": 12,
+    "call_type": "video"
+  }
+  ```
+  *(Note: `call_type` can be `"video"` or `"audio"`)*
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "status": true,
+    "success": true,
+    "message": "Call initiated successfully",
+    "call_id": 105,
+    "session_id": 105,
+    "room_name": "call_video_99_12_1727452800_abcd",
+    "channel_name": "call_video_99_12_1727452800_abcd",
+    "rate_per_minute": 20,
+    "user_balance": 1500,
+    "data": {
+      "call_id": 105,
+      "session_id": 105,
+      "room_name": "call_video_99_12_1727452800_abcd",
+      "caller_id": 99,
+      "receiver_id": 12,
+      "call_type": "video",
+      "status": "ringing"
+    }
+  }
+  ```
+- **Insufficient Coins Response (`402 Payment Required`):**
+  ```json
+  {
+    "status": false,
+    "code": "INSUFFICIENT_BALANCE",
+    "message": "Insufficient coins to make this call",
+    "show_recharge_modal": true,
+    "user_balance": 5,
+    "required_coins": 20
+  }
+  ```
+
+#### B. Receiver Incoming Call Socket Listener
+Receiver listens on their private user channel:
+- **Pusher Channel:** `private-user.${currentUserId}`
+- **Event Names:** `call.incoming` / `incoming_call` / `App\Events\CallIncoming`
+- **Socket Payload Received:**
+  ```json
+  {
+    "call_id": 105,
+    "session_id": 105,
+    "channel_name": "call_video_99_12_1727452800_abcd",
+    "room_name": "call_video_99_12_1727452800_abcd",
+    "call_type": "video",
+    "caller_id": 99,
+    "caller_name": "Nazmul",
+    "caller_avatar": "https://chinchins.live/storage/avatars/nazmul.jpg",
+    "rate_per_minute": 20,
+    "status": "ringing"
+  }
+  ```
+
+#### C. Accept Call (Receiver)
+- **Endpoint:** `POST /api/call/accept`
+- **Headers:** `Authorization: Bearer <receiver_token>`
+- **Request Body:**
+  ```json
+  {
+    "call_id": 105,
+    "session_id": 105
+  }
+  ```
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "status": true,
+    "success": true,
+    "message": "Call accepted successfully",
+    "data": {
+      "call_id": 105,
+      "session_id": 105,
+      "room_name": "call_video_99_12_1727452800_abcd",
+      "status": "accepted",
+      "livekit_url": "wss://chinchins.live/livekit",
+      "livekit_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+  }
+  ```
+
+#### D. Reject Call (Receiver)
+- **Endpoint:** `POST /api/call/reject`
+- **Headers:** `Authorization: Bearer <receiver_token>`
+- **Request Body:** `{"call_id": 105}`
+- **Broadcast:** Triggers `call.rejected` on `private-user.{caller_id}`.
+
+#### E. End Call (Either Caller or Receiver)
+- **Endpoint:** `POST /api/call/end`
+- **Headers:** `Authorization: Bearer <user_token>`
+- **Request Body:**
+  ```json
+  {
+    "call_id": 105,
+    "session_id": 105,
+    "duration_seconds": 125
+  }
+  ```
+- **Broadcast:** Triggers `call.ended` on both parties' private channels.
+
+#### F. Call Active Heartbeat (Every 30s during active call)
+- **Endpoint:** `POST /api/call/heartbeat`
+- **Headers:** `Authorization: Bearer <user_token>`
+- **Request Body:** `{"call_id": 105, "session_id": 105}`
+
+---
+
 ## 7. Live Stream Co-Host / Audience Join Request System & Hand-Raise Flow
 
 ### 7.1 Architecture & Flow Overview
@@ -718,7 +862,7 @@ When a viewer wants to go live on-screen with the host:
 
 ### 7.3 Flutter UI Integration Guide (Hand-Raise Button)
 
-In the Audience Live View bottom bar (as shown in the UI screenshot, highlighted red area):
+In the Audience Live View bottom bar (as shown in the UI screenshot, between Chat input and Gift buttons):
 ```dart
 // Placement: Inside the bottom bar Row, between the Chat Input button and Gift button
 Row(
@@ -766,24 +910,36 @@ Row(
 
 ---
 
-## 8. 1-on-1 Call Stability & Full-Duplex Audio/Video Sync
+## 8. Flutter LiveKit & WebSockets Connection Checklist
 
-1. **Ringing Persistence:**
-   - Call status stays in `ringing` in the `calls` table and Redis until either party responds.
-   - Caller receives `call.ringing` socket signal.
-2. **Accept Call & Media Activation:**
-   - On `POST /api/call/accept`, backend sets `status = 'accepted'` (or `'connected'`).
-   - Generates LiveKit token for both Caller and Receiver with `canPublish: true`, `canSubscribe: true`.
-   - Fires `call.accepted` event with LiveKit JWT token on both `private-user.{caller_id}` and `private-user.{receiver_id}`.
-   - Both clients initialize LiveKit room session:
-     ```dart
-     await room.connect(livekitUrl, livekitToken);
-     await room.localParticipant?.setCameraEnabled(true);
-     await room.localParticipant?.setMicrophoneEnabled(true);
-     ```
-3. **No Auto-Disconnect / Call Drops:**
-   - Heartbeat `/api/call/heartbeat` keeps active call alive without premature timeouts.
-   - Calling `/api/call/end` sets `status = 'completed'` and broadcasts `call.ended` to cleanly release audio/video hardware.
+### 8.1 LiveKit SDK Setup (`livekit_client`)
+```dart
+import 'package:livekit_client/livekit_client.dart';
+
+final room = Room();
+final listener = room.createListener();
+
+// Connect using Token from backend
+await room.connect(
+  'wss://chinchins.live/livekit',
+  livekitToken,
+  roomOptions: const RoomOptions(
+    adaptiveStream: true,
+    dynacast: true,
+  ),
+);
+
+// Publish local audio & video
+await room.localParticipant?.setCameraEnabled(true);
+await room.localParticipant?.setMicrophoneEnabled(true);
+```
+
+### 8.2 WebSocket & Pusher Config Matrix
+- **Host:** `chinchins.live` (or VPS IP)
+- **Port:** `6001` (WS) / `443` (WSS SSL)
+- **Scheme:** `https` / `wss`
+- **Auth Endpoint:** `https://chinchins.live/api/broadcasting/auth`
+- **Auth Headers:** `Authorization: Bearer <user_token>`
 
 ---
 
