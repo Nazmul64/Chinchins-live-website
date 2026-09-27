@@ -76,6 +76,7 @@ class User extends Authenticatable
         'locked_until',
         'total_earned_coins',
         'current_level',
+        'avatar_frame',
     ];
 
     /**
@@ -129,11 +130,16 @@ class User extends Authenticatable
         'speaking_languages',
         'avatar_frame_url',
         'base_frame_url',
+        'frame_url',
+        'active_avatar_frame_url',
+        'rank_badge_frame_url',
+        'rank_badge_icon_url',
         'total_earned_coins',
         'current_level',
         'level_info',
         'badge_color',
         'badge_icon',
+        'profile_base',
     ];
 
     /**
@@ -1010,7 +1016,24 @@ class User extends Authenticatable
       */
      public function getAvatarFrameUrlAttribute(): ?string
      {
-         return $this->profile_base?->base_frame_image_url;
+         // 1. Direct custom equipped avatar frame
+         if (!empty($this->attributes['avatar_frame'])) {
+             return static::resolveImageUrl($this->attributes['avatar_frame']);
+         }
+
+         // 2. Active Period Rank Badge Frame (Daily, Weekly, Monthly)
+         $rankFrame = $this->rank_badge_frame_url;
+         if (!empty($rankFrame)) {
+             return $rankFrame;
+         }
+
+         // 3. Level Base Frame (ProfileBase Level 1-10+)
+         $levelFrame = $this->profile_base?->base_frame_image_url;
+         if (!empty($levelFrame)) {
+             return $levelFrame;
+         }
+
+         return null;
      }
 
      /**
@@ -1018,7 +1041,68 @@ class User extends Authenticatable
       */
      public function getBaseFrameUrlAttribute(): ?string
      {
+         return $this->profile_base?->base_frame_image_url ?: $this->getAvatarFrameUrlAttribute();
+     }
+
+     /**
+      * Alias for Frame URL.
+      */
+     public function getFrameUrlAttribute(): ?string
+     {
          return $this->getAvatarFrameUrlAttribute();
+     }
+
+     /**
+      * Alias for Active Avatar Frame URL.
+      */
+     public function getActiveAvatarFrameUrlAttribute(): ?string
+     {
+         return $this->getAvatarFrameUrlAttribute();
+     }
+
+     /**
+      * Accessor for active Period Rank Badge Frame URL (if user holds a rank badge).
+      */
+     public function getRankBadgeFrameUrlAttribute(): ?string
+     {
+         $badge = $this->getActivePeriodRankBadge();
+         return $badge?->avatar_frame_url;
+     }
+
+     /**
+      * Accessor for active Period Rank Badge Icon URL (if user holds a rank badge).
+      */
+     public function getRankBadgeIconUrlAttribute(): ?string
+     {
+         $badge = $this->getActivePeriodRankBadge();
+         return $badge?->badge_icon_url;
+     }
+
+     /**
+      * Resolve user's active Period Rank Badge from in-memory cache.
+      */
+     public function getActivePeriodRankBadge(): ?PeriodRankBadge
+     {
+         $allBadges = PeriodRankBadge::allCachedBadges();
+         if ($allBadges->isEmpty()) {
+             return null;
+         }
+
+         $userCoins = (int) ($this->attributes['coins'] ?? $this->coins ?? 0);
+         $totalEarned = (int) ($this->attributes['total_earned_coins'] ?? $this->total_earned_coins ?? $userCoins);
+
+         // Check if user qualifies for any configured rank badge (Rich / Charm)
+         $matchingBadge = $allBadges->first(function ($badge) use ($userCoins, $totalEarned) {
+             if (!$badge->is_active) {
+                 return false;
+             }
+             if ($badge->rank_position == 1 && ($userCoins >= $badge->min_required_coins || $totalEarned >= $badge->min_required_coins)) {
+                 return true;
+             }
+             return false;
+         });
+
+         return $matchingBadge ?? $allBadges->firstWhere('is_active', true);
      }
 
      /**

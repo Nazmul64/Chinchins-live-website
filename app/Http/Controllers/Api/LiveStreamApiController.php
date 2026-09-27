@@ -477,15 +477,36 @@ class LiveStreamApiController extends Controller
         $user = $this->resolveUser($request);
         $streamId = $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id') ?? $request->input('channel_name');
 
-        $stream = LiveStream::where('id', $streamId)
-            ->orWhere('channel_name', $streamId)
-            ->first();
+        $stream = null;
+        if (!empty($streamId)) {
+            $stream = LiveStream::where('id', $streamId)
+                ->orWhere('channel_name', $streamId)
+                ->first();
+        }
+
+        // Fallback: If streamId is missing but user is authenticated host with an active stream
+        if (!$stream && $user) {
+            $stream = LiveStream::where('host_id', $user->id)
+                ->whereIn('status', ['live', 'active'])
+                ->latest()
+                ->first();
+        }
 
         if (!$stream) {
+            // Check if user has any active streams to cleanup anyway
+            if ($user) {
+                LiveStream::where('host_id', $user->id)
+                    ->whereIn('status', ['live', 'active'])
+                    ->update([
+                        'status'   => 'ended',
+                        'ended_at' => now(),
+                    ]);
+            }
+
             return response()->json([
-                'status'  => false,
-                'message' => 'Live stream not found.',
-            ], 404);
+                'status'  => true,
+                'message' => 'No active live stream found to end.',
+            ], 200);
         }
 
         if ($user && $stream->host_id !== $user->id && !$user->isSuperAdmin()) {
@@ -499,6 +520,15 @@ class LiveStreamApiController extends Controller
             'status'   => 'ended',
             'ended_at' => now(),
         ]);
+
+        // Cleanup any other lingering active streams for this host
+        LiveStream::where('host_id', $stream->host_id)
+            ->whereIn('status', ['live', 'active'])
+            ->where('id', '!=', $stream->id)
+            ->update([
+                'status'   => 'ended',
+                'ended_at' => now(),
+            ]);
 
         // Update all participants left_at
         LiveParticipant::where('live_stream_id', $stream->id)->whereNull('left_at')->update(['left_at' => now()]);
@@ -697,9 +727,21 @@ class LiveStreamApiController extends Controller
         $user = $this->resolveUser($request);
         $streamId = $id ?? $request->input('room_id') ?? $request->input('live_stream_id') ?? $request->input('id');
 
-        $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+        $stream = null;
+        if (!empty($streamId)) {
+            $stream = LiveStream::where('id', $streamId)->orWhere('channel_name', $streamId)->first();
+        }
+
+        if (!$stream && $user) {
+            $stream = LiveStream::where('host_id', $user->id)->whereIn('status', ['live', 'active'])->latest()->first();
+        }
 
         if ($stream && $user) {
+            // If the person leaving is the HOST, end the live stream completely
+            if ($stream->host_id === $user->id) {
+                return $this->endLive($request);
+            }
+
             LiveParticipant::where('live_stream_id', $stream->id)
                 ->where('user_id', $user->id)
                 ->update(['left_at' => now()]);

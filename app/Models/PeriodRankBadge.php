@@ -33,36 +33,51 @@ class PeriodRankBadge extends Model
         'avatar_frame_url',
     ];
 
-    public function users()
+    const CACHE_KEY_ACTIVE = 'app_period_rank_badges';
+    protected static ?\Illuminate\Support\Collection $_staticCachedBadges = null;
+
+    protected static function booted(): void
     {
-        return $this->belongsToMany(User::class, 'user_period_badges', 'badge_id', 'user_id')
-                    ->withPivot('awarded_date', 'is_equipped')
-                    ->withTimestamps();
+        static::saved(function () {
+            static::clearBadgesCache();
+        });
+
+        static::deleted(function () {
+            static::clearBadgesCache();
+        });
     }
 
-    public function getBadgeIconUrlAttribute(): ?string
+    public static function clearBadgesCache(): void
     {
-        if (empty($this->badge_icon)) {
-            return null;
-        }
-
-        if (str_starts_with($this->badge_icon, 'http://') || str_starts_with($this->badge_icon, 'https://')) {
-            return $this->badge_icon;
-        }
-
-        return asset($this->badge_icon);
+        static::$_staticCachedBadges = null;
+        \Illuminate\Support\Facades\Cache::forget(static::CACHE_KEY_ACTIVE);
     }
 
-    public function getAvatarFrameUrlAttribute(): ?string
+    public static function allCachedBadges(): \Illuminate\Support\Collection
     {
-        if (empty($this->avatar_frame)) {
-            return null;
+        if (static::$_staticCachedBadges !== null) {
+            return static::$_staticCachedBadges;
         }
 
-        if (str_starts_with($this->avatar_frame, 'http://') || str_starts_with($this->avatar_frame, 'https://')) {
-            return $this->avatar_frame;
-        }
+        static::$_staticCachedBadges = \Illuminate\Support\Facades\Cache::remember(
+            static::CACHE_KEY_ACTIVE,
+            3600,
+            function () {
+                return static::where('is_active', true)
+                    ->orderBy('rank_position', 'asc')
+                    ->get();
+            }
+        );
 
-        return asset($this->avatar_frame);
+        return static::$_staticCachedBadges;
+    }
+
+    public static function getBadgeForRank(string $period = 'daily', string $category = 'rich', int $rank = 1): ?self
+    {
+        $badges = static::allCachedBadges();
+        return $badges->where('period_type', strtolower($period))
+            ->where('category', strtolower($category))
+            ->where('rank_position', $rank)
+            ->first();
     }
 }
