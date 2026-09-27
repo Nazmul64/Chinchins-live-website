@@ -186,6 +186,9 @@ Route::get('/me', [ProfileController::class, 'show']);
 
 // Public User Profile Route (view any profile by 8-digit Account ID or primary key ID)
 Route::get('/profile/{id}', [ProfileController::class, 'show']);
+Route::get('/user/profile/{id}', [ProfileController::class, 'show']);
+Route::get('/v1/user/profile/{id}', [ProfileController::class, 'show']);
+Route::get('/v1/profile/{id}', [ProfileController::class, 'show']);
 
 // Profile & Media Management Endpoints (Supports Bearer Token or User ID Fallback, Always Returns JSON)
 Route::prefix('profile')->group(function () {
@@ -914,8 +917,11 @@ Route::get('/report/reasons', [\App\Http\Controllers\Api\MessageApiController::c
 Route::post('/upload/chat-media', [\App\Http\Controllers\Api\MessageApiController::class, 'uploadMedia']);
 
 // ==========================================
-// 👁️ Profile View Tracking, Auto-Callback & Visitors List
+// 👁️ Profile View Tracking, Auto-Greetings & Visitors List
 // ==========================================
+Route::post('/user/profile-visit', [\App\Http\Controllers\Api\MessageApiController::class, 'trackProfileVisit']);
+Route::post('/profile-visit', [\App\Http\Controllers\Api\MessageApiController::class, 'trackProfileVisit']);
+Route::post('/profile/{id}/visit', [\App\Http\Controllers\Api\MessageApiController::class, 'trackProfileVisit']);
 Route::post('/profile/{id}/view', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
 Route::post('/profile/view', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);
 Route::post('/user/view-profile', [\App\Http\Controllers\Api\MessageApiController::class, 'recordProfileView']);

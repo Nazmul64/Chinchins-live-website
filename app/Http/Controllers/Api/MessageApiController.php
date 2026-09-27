@@ -85,19 +85,22 @@ class MessageApiController extends Controller
             ], 401);
         }
 
-        // Get distinct user IDs that user interacted with
-        $sentTo = ChatMessage::where('sender_id', $user->id)->pluck('receiver_id');
-        $receivedFrom = ChatMessage::where('receiver_id', $user->id)->pluck('sender_id');
-        $contactIds = $sentTo->merge($receivedFrom)->unique()->values();
+        // Get distinct user IDs that user interacted with (from ChatMessage, Message, DirectMessage)
+        $sentChat = ChatMessage::where('sender_id', $user->id)->pluck('receiver_id');
+        $recvChat = ChatMessage::where('receiver_id', $user->id)->pluck('sender_id');
+        $sentMsg = \App\Models\Message::where('sender_id', $user->id)->pluck('receiver_id');
+        $recvMsg = \App\Models\Message::where('receiver_id', $user->id)->pluck('sender_id');
+        $sentDirect = \App\Models\DirectMessage::where('sender_id', $user->id)->pluck('receiver_id');
+        $recvDirect = \App\Models\DirectMessage::where('receiver_id', $user->id)->pluck('sender_id');
 
-        // If no prior chat messages, fetch active hosts as initial suggestions
-        if ($contactIds->isEmpty()) {
-            $suggestedHosts = User::where('id', '!=', $user->id)
-                ->where('is_active', true)
-                ->take(10)
-                ->get();
-            $contactIds = $suggestedHosts->pluck('id');
-        }
+        $contactIds = $sentChat->merge($recvChat)
+            ->merge($sentMsg)
+            ->merge($recvMsg)
+            ->merge($sentDirect)
+            ->merge($recvDirect)
+            ->unique()
+            ->reject(fn($id) => (int)$id === (int)$user->id || empty($id))
+            ->values();
 
         $conversations = [];
         $totalUnreadCount = 0;
@@ -106,17 +109,46 @@ class MessageApiController extends Controller
             $contact = User::find($contactId);
             if (!$contact) continue;
 
-            $lastMessage = ChatMessage::where(function ($q) use ($user, $contactId) {
+            // Fetch latest message across models
+            $lastChat = ChatMessage::where(function ($q) use ($user, $contactId) {
                 $q->where('sender_id', $user->id)->where('receiver_id', $contactId);
             })->orWhere(function ($q) use ($user, $contactId) {
                 $q->where('sender_id', $contactId)->where('receiver_id', $user->id);
-            })->latest()->first();
+            })->latest('created_at')->first();
 
-            $unreadCount = ChatMessage::where('sender_id', $contactId)
+            $lastMsg = \App\Models\Message::where(function ($q) use ($user, $contactId) {
+                $q->where('sender_id', $user->id)->where('receiver_id', $contactId);
+            })->orWhere(function ($q) use ($user, $contactId) {
+                $q->where('sender_id', $contactId)->where('receiver_id', $user->id);
+            })->latest('created_at')->first();
+
+            $lastDirect = \App\Models\DirectMessage::where(function ($q) use ($user, $contactId) {
+                $q->where('sender_id', $user->id)->where('receiver_id', $contactId);
+            })->orWhere(function ($q) use ($user, $contactId) {
+                $q->where('sender_id', $contactId)->where('receiver_id', $user->id);
+            })->latest('created_at')->first();
+
+            // Pick the newest message
+            $candidates = array_filter([$lastChat, $lastMsg, $lastDirect]);
+            if (empty($candidates)) continue;
+
+            usort($candidates, fn($a, $b) => $b->created_at <=> $a->created_at);
+            $lastMessage = $candidates[0];
+
+            $unreadCountChat = ChatMessage::where('sender_id', $contactId)
+                ->where('receiver_id', $user->id)
+                ->where('is_read', false)
+                ->count();
+            $unreadCountMsg = \App\Models\Message::where('sender_id', $contactId)
+                ->where('receiver_id', $user->id)
+                ->where('is_read', false)
+                ->count();
+            $unreadCountDirect = \App\Models\DirectMessage::where('sender_id', $contactId)
                 ->where('receiver_id', $user->id)
                 ->where('is_read', false)
                 ->count();
 
+            $unreadCount = max($unreadCountChat, $unreadCountMsg, $unreadCountDirect);
             $totalUnreadCount += $unreadCount;
 
             $preview = 'Start chatting';
@@ -124,62 +156,81 @@ class MessageApiController extends Controller
             $timestamp = 'Recently';
 
             if ($lastMessage) {
-                $previewType = $lastMessage->type;
-                if ($lastMessage->type === 'video_call') {
+                $previewType = $lastMessage->type ?? 'text';
+                if ($previewType === 'video_call') {
                     $preview = '[Video Call]';
-                } elseif ($lastMessage->type === 'audio_call') {
+                } elseif ($previewType === 'audio_call') {
                     $preview = '[Audio Call]';
-                } elseif ($lastMessage->type === 'image' || $lastMessage->type === 'profile_picture') {
+                } elseif ($previewType === 'image' || $previewType === 'profile_picture') {
                     $preview = '[Image]';
-                } elseif ($lastMessage->type === 'voice') {
+                } elseif ($previewType === 'voice') {
                     $preview = '[Voice Note]';
-                } elseif ($lastMessage->type === 'emoji') {
+                } elseif ($previewType === 'emoji') {
                     $preview = $lastMessage->message ?: '😊';
                 } else {
                     $preview = $lastMessage->message ?: 'Message';
                 }
 
-                if ($lastMessage->created_at->isToday()) {
-                    $diffMins = (int) round($lastMessage->created_at->diffInMinutes(now()));
+                $createdAt = $lastMessage->created_at ?: now();
+                if ($createdAt->isToday()) {
+                    $diffMins = (int) round($createdAt->diffInMinutes(now()));
                     if ($diffMins <= 1) {
                         $timestamp = 'Just now';
                     } elseif ($diffMins < 60) {
                         $timestamp = "{$diffMins} mins ago";
                     } else {
-                        $timestamp = $lastMessage->created_at->format('H:i');
+                        $timestamp = $createdAt->format('H:i');
                     }
-                } elseif ($lastMessage->created_at->isYesterday()) {
+                } elseif ($createdAt->isYesterday()) {
                     $timestamp = 'Yesterday';
                 } else {
-                    $timestamp = $lastMessage->created_at->format('M d');
+                    $timestamp = $createdAt->format('M d');
                 }
             }
 
             $diffMins = $lastMessage ? (int) round($lastMessage->created_at->diffInMinutes(now())) : 0;
+            $partnerInfo = [
+                'id'           => $contact->id,
+                'account_id'   => $contact->account_id,
+                'name'         => $contact->display_name ?? $contact->name ?? 'User',
+                'display_name' => $contact->display_name ?? $contact->name ?? 'User',
+                'avatar'       => $contact->avatar_url,
+                'avatar_url'   => $contact->avatar_url,
+                'gender'       => $contact->gender ?: 'female',
+                'level'        => $contact->level ?: 'Lv1',
+                'is_online'    => (bool) $contact->is_online,
+                'is_busy'      => (bool) $contact->is_busy,
+            ];
 
             $conversations[] = [
                 'user_id'         => $contact->id,
                 'account_id'      => $contact->account_id,
-                'name'            => $contact->display_name,
+                'name'            => $contact->display_name ?? $contact->name,
+                'display_name'    => $contact->display_name ?? $contact->name,
                 'avatar_url'      => $contact->avatar_url,
+                'avatar'          => $contact->avatar_url,
+                'user'            => $partnerInfo,
+                'partner'         => $partnerInfo,
                 'is_online'       => (bool) $contact->is_online,
                 'is_busy'         => (bool) $contact->is_busy,
                 'unread_count'    => $unreadCount,
                 'last_message'    => [
                     'text'            => $preview,
+                    'message'         => $preview,
                     'type'            => $previewType,
                     'time'            => $timestamp,
                     'time_formatted'  => $timestamp,
                     'time_ago'        => $timestamp,
                     'minutes_ago'     => $diffMins,
-                    'media_url'       => $lastMessage ? $lastMessage->media_url : null,
+                    'media_url'       => $lastMessage ? ($lastMessage->media_url ?? $lastMessage->attachment_path ?? null) : null,
                     'created_at'      => $lastMessage ? $lastMessage->created_at->toIso8601String() : null,
                 ],
+                'last_message_at' => $lastMessage ? $lastMessage->created_at->toIso8601String() : null,
                 'video_call_rate' => (int) ($contact->video_call_rate ?: 100),
             ];
         }
 
-        // Sort by latest message date if available (latest on top)
+        // Sort by latest message date descending (latest on top)
         usort($conversations, function ($a, $b) {
             $tA = $a['last_message']['created_at'] ?? '';
             $tB = $b['last_message']['created_at'] ?? '';
@@ -191,6 +242,7 @@ class MessageApiController extends Controller
 
         return response()->json([
             'status'  => true,
+            'success' => true,
             'message' => 'Conversations loaded successfully.',
             'data'    => [
                 'total_unread_badge'      => $totalUnreadCount,
@@ -199,6 +251,7 @@ class MessageApiController extends Controller
                 'user_coins'              => (int) $user->coins,
                 'conversations'           => $conversations,
             ],
+            'conversations' => $conversations,
         ], 200);
     }
 
@@ -953,6 +1006,114 @@ class MessageApiController extends Controller
                 ],
             ],
         ], 200);
+    }
+
+    /**
+     * Auto-Greetings Engine on Profile Visit
+     * When user views another host/girl's profile (POST /api/user/profile-visit),
+     * auto insert greeting into messages table and broadcast NewMessageEvent.
+     * POST /api/user/profile-visit, POST /api/profile-visit
+     */
+    public function trackProfileVisit(Request $request): JsonResponse
+    {
+        $visitor = $this->resolveUser($request) ?? auth()->user() ?? auth('sanctum')->user();
+        $visitorId = $visitor?->id ?? auth()->id() ?? auth('sanctum')->id();
+        $hostId = $request->input('host_id') 
+               ?? $request->input('target_user_id') 
+               ?? $request->input('user_id') 
+               ?? $request->route('id');
+
+        if (!$visitorId || !$hostId || (int)$visitorId === (int)$hostId) {
+            return response()->json(['success' => true]);
+        }
+
+        $host = User::find($hostId) ?? User::where('account_id', $hostId)->first();
+        if (!$host) {
+            return response()->json(['success' => false, 'message' => 'Host not found'], 404);
+        }
+        $hostId = $host->id;
+
+        // Record profile visit in profile_views table
+        try {
+            ProfileView::create([
+                'viewer_id' => $visitorId,
+                'host_id'   => $hostId,
+                'viewed_at' => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
+        // ২৪ ঘণ্টার মধ্যে আগে মেসেজ না গিয়ে থাকলে অটো-গ্রিটিংস ফায়ার করুন
+        $alreadySent = \App\Models\Message::where('sender_id', $hostId)
+            ->where('receiver_id', $visitorId)
+            ->where('created_at', '>=', now()->subDay())
+            ->exists();
+
+        if (!$alreadySent) {
+            $alreadySentChat = ChatMessage::where('sender_id', $hostId)
+                ->where('receiver_id', $visitorId)
+                ->where('created_at', '>=', now()->subDay())
+                ->exists();
+            $alreadySent = $alreadySent || $alreadySentChat;
+        }
+
+        $createdMessage = null;
+
+        if (!$alreadySent) {
+            $autoText = "Hi baby, how are you? আমি ফ্রি আছি, তুমি কি আমার সাথে কথা বলতে চাও?";
+            $message = \App\Models\Message::create([
+                'sender_id'   => $hostId,
+                'receiver_id' => $visitorId,
+                'message'     => $autoText,
+                'type'        => 'text',
+                'is_read'     => false,
+            ]);
+
+            // Sync with ChatMessage & Conversation for unified inbox
+            try {
+                ChatMessage::create([
+                    'sender_id'   => $hostId,
+                    'receiver_id' => $visitorId,
+                    'type'        => 'text',
+                    'message'     => $autoText,
+                    'is_read'     => false,
+                    'is_free'     => true,
+                    'coin_cost'   => 0,
+                ]);
+
+                $u1 = min($hostId, $visitorId);
+                $u2 = max($hostId, $visitorId);
+                $conv = \App\Models\Conversation::firstOrCreate(
+                    ['user_one' => $u1, 'user_two' => $u2]
+                );
+                $conv->update([
+                    'last_message'    => $autoText,
+                    'last_message_at' => now(),
+                ]);
+            } catch (\Throwable $e) {}
+
+            // রিয়েল-টাইম সকেটে ভিজিটরের কাছে পুশ করুন:
+            try {
+                broadcast(new \App\Events\NewMessageEvent($message))->toOthers();
+                event(new \App\Events\MessageSentEvent($message));
+            } catch (\Throwable $e) {
+                Log::warning("Auto greeting broadcast warning: " . $e->getMessage());
+            }
+
+            $createdMessage = $message;
+        }
+
+        return response()->json([
+            'success'       => true,
+            'status'        => true,
+            'message'       => 'Profile visit tracked successfully.',
+            'auto_greeting' => $createdMessage ? [
+                'id'          => $createdMessage->id,
+                'sender_id'   => $hostId,
+                'receiver_id' => $visitorId,
+                'message'     => $createdMessage->message,
+                'created_at'  => $createdMessage->created_at->toIso8601String(),
+            ] : null,
+        ]);
     }
 
     /**

@@ -696,7 +696,39 @@ class CallController extends Controller
             'free_duration_seconds' => ($caller->isFreeCaller() || $caller->isEligibleForFreeCall()) ? 30 : 0,
         ]);
 
-        // 3. Background Queued Push Notification (dispatched after response to avoid UI block)
+        // 3. Instant Socket Broadcast to Receiver (even if live, do not block)
+        $receiverToken = $this->generateFastLivekitToken($roomName, $receiver);
+        $callData = [
+            'id'           => $call->id,
+            'call_id'      => $call->id,
+            'channel'      => $roomName,
+            'channel_name' => $roomName,
+            'room_name'    => $roomName,
+            'call_type'    => $callType,
+            'token'        => $receiverToken,
+            'livekit_url'  => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+            'status'       => 'ringing',
+            'caller'       => [
+                'id'           => $caller->id,
+                'account_id'   => $caller->account_id,
+                'display_name' => $caller->display_name,
+                'name'         => $caller->display_name,
+                'avatar_url'   => $caller->avatar_url,
+                'level'        => $caller->level ?: 'Lv1',
+                'gender'       => $caller->gender ?: 'male',
+            ],
+            'timestamp'    => now()->toIso8601String(),
+        ];
+
+        try {
+            broadcast(new \App\Events\IncomingCallEvent($receiver->id, $callData))->toOthers();
+            broadcast(new \App\Events\IncomingPrivateCallEvent($receiver->id, $callData))->toOthers();
+            event(new \App\Events\CallIncoming($call, $caller->id, $receiver->id));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("makeCall socket warning: " . $e->getMessage());
+        }
+
+        // 4. Background Queued Push Notification (dispatched after response to avoid UI block)
         try {
             dispatch(new \App\Jobs\SendCallNotificationJob(
                 $call->id,
@@ -1944,7 +1976,7 @@ class CallController extends Controller
         $startedAt = $call->started_at ?: $call->created_at;
         $durationSeconds = (int) ($data['duration_seconds'] ?? max(0, $endedAt->diffInSeconds($startedAt)));
 
-        $call->status = 'ended';
+        $call->status = 'completed';
         $call->ended_at = $endedAt;
         $call->duration_seconds = $durationSeconds;
         $call->save();
@@ -1952,17 +1984,22 @@ class CallController extends Controller
         // Reset online status back to online and clear busy flag
         if ($call->caller) {
             $call->caller->update(['online_status' => 'online', 'is_busy' => false]);
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->caller->id}:is_busy");
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->caller->id}:current_call");
         }
         if ($call->receiver) {
             $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->receiver->id}:is_busy");
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->receiver->id}:current_call");
         }
 
-        // Broadcast real-time CallEnded event and 'bye' signal to the other party so their screen terminates immediately
+        // Broadcast real-time CallEnded and CallEndedEvent to both parties so server doesn't re-dial
         try {
             $senderId = $user?->id ?: $call->caller_id;
             $receiverId = ($senderId === $call->caller_id) ? $call->receiver_id : $call->caller_id;
 
             event(new \App\Events\CallEnded($call, (int)$senderId, (int)$receiverId, $durationSeconds));
+            event(new \App\Events\CallEndedEvent($call, (int)$senderId, (int)$receiverId, $durationSeconds));
 
             \App\Models\CallSignal::create([
                 'call_session_id' => $call->id,
@@ -1975,6 +2012,7 @@ class CallController extends Controller
                     'reason' => 'user_hangup',
                     'ended_by' => $senderId,
                     'duration_seconds' => $durationSeconds,
+                    'status' => 'completed',
                 ],
                 'is_read' => false,
             ]);
@@ -2006,7 +2044,9 @@ class CallController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => 'Call session ended successfully. Chat conversation updated with host avatar.',
+            'success' => true,
+            'call_status' => 'completed',
+            'message' => 'Call session ended and marked completed successfully. Real-time disconnect broadcasted.',
             'data' => [
                 'call_id' => $call->id,
                 'call_type' => $call->call_type,

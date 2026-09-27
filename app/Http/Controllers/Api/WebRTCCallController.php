@@ -295,20 +295,22 @@ class WebRTCCallController extends Controller
         $targetUserId = ($callInstance->caller_id === $user->id) ? $callInstance->receiver_id : $callInstance->caller_id;
 
         $callInstance->update([
-            'status'   => 'ended',
+            'status'   => 'completed',
             'ended_at' => now(),
             'ended_by' => $user->id,
         ]);
 
-        // Broadcast call.ended to the other user
+        // Broadcast CallEnded and CallEndedEvent to both parties
         try {
             event(new CallEnded($callInstance, $user->id, $targetUserId));
+            event(new \App\Events\CallEndedEvent($callInstance, $user->id, $targetUserId));
         } catch (\Throwable $e) {}
 
         return response()->json([
-            'success' => true,
-            'call_id' => $callInstance->id,
-            'status'  => 'ended',
+            'success'     => true,
+            'call_id'     => $callInstance->id,
+            'status'      => 'completed',
+            'call_status' => 'completed',
         ]);
     }
 

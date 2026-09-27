@@ -69,46 +69,108 @@ class ChatController extends Controller
      */
     public function getConversations(Request $request): JsonResponse
     {
-        $user = $this->resolveUser($request);
+        $user = $this->resolveUser($request) ?? auth()->user() ?? auth('sanctum')->user();
         if (!$user) {
-            return response()->json(['status' => 'error', 'message' => 'Unauthenticated.'], 401);
+            return response()->json(['status' => false, 'success' => false, 'message' => 'Unauthenticated.'], 401);
         }
 
         $userId = $user->id;
 
-        $conversations = Conversation::where('user_one', $userId)
-            ->orWhere('user_two', $userId)
-            ->with([
-                'userOne:id,account_id,name,display_name,avatar,gender,level,is_online',
-                'userTwo:id,account_id,name,display_name,avatar,gender,level,is_online'
-            ])
-            ->orderByDesc('last_message_at')
-            ->orderByDesc('updated_at')
-            ->get()
-            ->map(function ($conv) use ($userId) {
-                $otherUser = ($conv->user_one == $userId) ? $conv->userTwo : $conv->userOne;
-                return [
-                    'conversation_id' => $conv->id,
-                    'user'            => $otherUser ? [
-                        'id'           => $otherUser->id,
-                        'account_id'   => $otherUser->account_id,
-                        'name'         => $otherUser->display_name ?? $otherUser->name,
-                        'display_name' => $otherUser->display_name ?? $otherUser->name,
-                        'avatar'       => $otherUser->avatar_url,
-                        'avatar_url'   => $otherUser->avatar_url,
-                        'gender'       => $otherUser->gender ?: 'unknown',
-                        'level'        => $otherUser->level ?: 'Lv1',
-                        'is_online'    => (bool) $otherUser->is_online,
-                    ] : null,
-                    'last_message'    => $conv->last_message,
-                    'last_message_at' => $conv->last_message_at ? $conv->last_message_at->toIso8601String() : null,
-                ];
-            });
+        // Collect all distinct users with whom active user had interactions (Conversation, Message, ChatMessage, DirectMessage)
+        $convUsers1 = Conversation::where('user_one', $userId)->pluck('user_two');
+        $convUsers2 = Conversation::where('user_two', $userId)->pluck('user_one');
+        $sentChat = \App\Models\ChatMessage::where('sender_id', $userId)->pluck('receiver_id');
+        $recvChat = \App\Models\ChatMessage::where('receiver_id', $userId)->pluck('sender_id');
+        $sentMsg = \App\Models\Message::where('sender_id', $userId)->pluck('receiver_id');
+        $recvMsg = \App\Models\Message::where('receiver_id', $userId)->pluck('sender_id');
+
+        $contactIds = $convUsers1->merge($convUsers2)
+            ->merge($sentChat)
+            ->merge($recvChat)
+            ->merge($sentMsg)
+            ->merge($recvMsg)
+            ->unique()
+            ->reject(fn($id) => (int)$id === (int)$userId || empty($id))
+            ->values();
+
+        $conversations = [];
+
+        foreach ($contactIds as $contactId) {
+            $otherUser = User::find($contactId);
+            if (!$otherUser) continue;
+
+            $u1 = min($userId, $contactId);
+            $u2 = max($userId, $contactId);
+            $conv = Conversation::where('user_one', $u1)->where('user_two', $u2)->first();
+
+            // Find latest message across models
+            $lastChat = \App\Models\ChatMessage::where(function ($q) use ($userId, $contactId) {
+                $q->where('sender_id', $userId)->where('receiver_id', $contactId);
+            })->orWhere(function ($q) use ($userId, $contactId) {
+                $q->where('sender_id', $contactId)->where('receiver_id', $userId);
+            })->latest('created_at')->first();
+
+            $lastMsg = \App\Models\Message::where(function ($q) use ($userId, $contactId) {
+                $q->where('sender_id', $userId)->where('receiver_id', $contactId);
+            })->orWhere(function ($q) use ($userId, $contactId) {
+                $q->where('sender_id', $contactId)->where('receiver_id', $userId);
+            })->latest('created_at')->first();
+
+            $lastDirect = DirectMessage::where('conversation_id', $conv?->id)->latest('created_at')->first();
+
+            $candidates = array_filter([$lastChat, $lastMsg, $lastDirect]);
+            $lastMessageText = $conv?->last_message ?: 'Start chatting';
+            $lastMessageAt = $conv?->last_message_at ? $conv->last_message_at->toIso8601String() : null;
+
+            if (!empty($candidates)) {
+                usort($candidates, fn($a, $b) => $b->created_at <=> $a->created_at);
+                $newest = $candidates[0];
+                $lastMessageText = $newest->message ?: $lastMessageText;
+                $lastMessageAt = $newest->created_at ? $newest->created_at->toIso8601String() : $lastMessageAt;
+            }
+
+            $unreadCountChat = \App\Models\ChatMessage::where('sender_id', $contactId)->where('receiver_id', $userId)->where('is_read', false)->count();
+            $unreadCountMsg = \App\Models\Message::where('sender_id', $contactId)->where('receiver_id', $userId)->where('is_read', false)->count();
+            $unreadCountDirect = DirectMessage::where('conversation_id', $conv?->id)->where('receiver_id', $userId)->where('is_read', false)->count();
+            $unreadCount = max($unreadCountChat, $unreadCountMsg, $unreadCountDirect);
+
+            $partnerData = [
+                'id'           => $otherUser->id,
+                'account_id'   => $otherUser->account_id,
+                'name'         => $otherUser->display_name ?? $otherUser->name,
+                'display_name' => $otherUser->display_name ?? $otherUser->name,
+                'avatar'       => $otherUser->avatar_url,
+                'avatar_url'   => $otherUser->avatar_url,
+                'gender'       => $otherUser->gender ?: 'female',
+                'level'        => $otherUser->level ?: 'Lv1',
+                'is_online'    => (bool) $otherUser->is_online,
+                'is_busy'      => (bool) $otherUser->is_busy,
+            ];
+
+            $conversations[] = [
+                'conversation_id' => $conv?->id ?: $otherUser->id,
+                'user_id'         => $otherUser->id,
+                'user'            => $partnerData,
+                'partner'         => $partnerData,
+                'unread_count'    => $unreadCount,
+                'last_message'    => $lastMessageText,
+                'last_message_at' => $lastMessageAt,
+            ];
+        }
+
+        // Sort by last message date descending
+        usort($conversations, function ($a, $b) {
+            $tA = $a['last_message_at'] ?? '';
+            $tB = $b['last_message_at'] ?? '';
+            return strcmp($tB, $tA);
+        });
 
         return response()->json([
-            'status'  => 'success',
-            'data'    => $conversations,
-            'message' => 'Conversations retrieved successfully.'
+            'status'        => true,
+            'success'       => true,
+            'data'          => $conversations,
+            'conversations' => $conversations,
+            'message'       => 'Conversations retrieved successfully.'
         ], 200);
     }
 

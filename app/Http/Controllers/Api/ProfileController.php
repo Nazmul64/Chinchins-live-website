@@ -519,13 +519,14 @@ class ProfileController extends Controller
         $followersCount = \App\Models\UserFollow::where('user_id', $user->id)->count();
         $followingCount = \App\Models\UserFollow::where('follower_id', $user->id)->count();
 
-        // Check if user is currently Live Streaming for header live preview
+        // Check if user is currently Live Streaming from Redis/Cache and active LiveStream record
+        $isLiveCached = (bool) (\Illuminate\Support\Facades\Cache::get("user:{$user->id}:is_live") || \Illuminate\Support\Facades\Cache::get("user_is_live_{$user->id}"));
         $activeLiveStream = \App\Models\LiveStream::where('host_id', $user->id)
             ->whereIn('status', ['live', 'active'])
             ->latest()
             ->first();
 
-        $isLive = !empty($activeLiveStream);
+        $isLive = $isLiveCached || !empty($activeLiveStream);
         $onlineStatus = $isLive ? 'in_live' : ($user->current_status ?? $user->online_status ?? ($user->is_online ? 'online' : 'offline'));
         $canCall = !$isLive && $user->is_online && !$user->is_busy;
 
@@ -536,6 +537,7 @@ class ProfileController extends Controller
 
         $freshUser = $user->fresh();
         $userArray = $freshUser ? $freshUser->toArray() : $user->toArray();
+        $userArray['is_live'] = (bool) $isLive;
         $userArray['coins'] = $realCoins;
         $userArray['diamonds'] = $realDiamonds;
         $userArray['received_coins'] = $realDiamonds;
@@ -549,8 +551,11 @@ class ProfileController extends Controller
 
         return response()->json([
             'status' => true,
+            'success' => true,
+            'is_live' => (bool) $isLive,
             'data'   => [
                 'user'                  => $userArray,
+                'is_live'               => (bool) $isLive,
                 'coins'                 => $realCoins,
                 'diamonds'              => $realDiamonds,
                 'received_coins'        => $realDiamonds,
@@ -561,10 +566,30 @@ class ProfileController extends Controller
                 'gems'                  => $realCoins,
                 'beans'                 => $realDiamonds,
                 'beans_central'         => $realDiamonds,
-                'is_live'               => $isLive,
                 'online_status'         => $onlineStatus,
                 'current_status'        => $onlineStatus,
                 'status_text'           => $isLive ? '🔴 In Live Streaming' : $user->status_text,
+                'live_badge'            => [
+                    'label'                => $isLive ? 'Live' : ($user->is_online ? 'Online' : 'Offline'),
+                    'type'                 => $isLive ? 'live' : ($user->is_online ? 'online' : 'offline'),
+                    'is_live'              => (bool) $isLive,
+                    'is_online'            => (bool) $user->is_online,
+                    'sound_wave_animation' => (bool) $isLive,
+                    'equalizer_bars_count' => 3,
+                    'badge_style'          => $isLive ? 'purple_gradient' : ($user->is_online ? 'glass_dark' : 'glass_subtle'),
+                    'gradient_colors'      => $isLive ? ['#A855F7', '#EC4899'] : ['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.45)'],
+                    'dot_color'            => $isLive ? '#FFFFFF' : ($user->is_online ? '#22C55E' : '#9CA3AF'),
+                    'has_dot'              => !$isLive,
+                ],
+                'action_button'         => [
+                    'type'                 => $isLive ? 'join_live' : 'video_call',
+                    'icon'                 => 'video_camera',
+                    'is_live'              => (bool) $isLive,
+                    'is_animating'         => (bool) $isLive,
+                    'animation_type'       => $isLive ? 'pulsing_ripple' : 'none',
+                    'gradient_colors'      => ['#8B5CF6', '#EC4899'],
+                    'shape'                => 'notched_floating_circle',
+                ],
                 'can_call'              => $canCall,
                 'can_video_call'        => $canCall,
                 'call_button_mode'      => $isLive ? 'watch_live' : 'video_call',

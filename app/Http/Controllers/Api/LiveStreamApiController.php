@@ -425,6 +425,10 @@ class LiveStreamApiController extends Controller
             ],
         ];
 
+        // Cache live state for fast zero-latency Redis verification
+        \Illuminate\Support\Facades\Cache::put("user:{$host->id}:is_live", true, now()->addHours(6));
+        \Illuminate\Support\Facades\Cache::put("user_is_live_{$host->id}", true, now()->addHours(6));
+
         // 1. Broadcast to global lobby so all phones update their Live tab in real time without refreshing
         try {
             event(new \App\Events\StreamStatusChangedEvent($liveStream->id, 'live', $streamPayload));
@@ -533,7 +537,14 @@ class LiveStreamApiController extends Controller
         // Update all participants left_at
         LiveParticipant::where('live_stream_id', $stream->id)->whereNull('left_at')->update(['left_at' => now()]);
 
-        // Reset host status back to available
+        // Reset host status back to available and clear live cache
+        \Illuminate\Support\Facades\Cache::forget("user:{$stream->host_id}:is_live");
+        \Illuminate\Support\Facades\Cache::forget("user_is_live_{$stream->host_id}");
+        if ($user) {
+            \Illuminate\Support\Facades\Cache::forget("user:{$user->id}:is_live");
+            \Illuminate\Support\Facades\Cache::forget("user_is_live_{$user->id}");
+        }
+
         if ($stream->host) {
             $stream->host->update([
                 'online_status'  => 'online',
