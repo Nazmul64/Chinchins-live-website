@@ -51,19 +51,32 @@ class LogCallSessionJob implements ShouldQueue
             $isFreeTrial = (bool) ($this->sessionAttributes['is_free_trial'] ?? false);
             $freeDuration = (int) ($this->sessionAttributes['free_duration_seconds'] ?? 0);
 
-            CallSession::create([
-                'caller_id'             => $this->callerId,
-                'receiver_id'           => $this->receiverId,
-                'channel_name'          => $channelName,
-                'call_type'             => $callType,
-                'status'                => $this->sessionAttributes['status'] ?? 'ringing',
-                'rate_per_minute'       => $ratePerMinute,
-                'is_free_trial'         => $isFreeTrial,
-                'is_caller_free'        => (bool) ($this->sessionAttributes['is_caller_free'] ?? false),
-                'charged_user_id'       => $this->callerId,
-                'free_duration_seconds' => $freeDuration,
-                'is_random_match'       => (bool) ($this->sessionAttributes['is_random_match'] ?? false),
-            ]);
+            CallSession::firstOrCreate(
+                ['channel_name' => $channelName],
+                [
+                    'caller_id'             => $this->callerId,
+                    'receiver_id'           => $this->receiverId,
+                    'call_type'             => $callType,
+                    'status'                => $this->sessionAttributes['status'] ?? 'ringing',
+                    'rate_per_minute'       => $ratePerMinute,
+                    'is_free_trial'         => $isFreeTrial,
+                    'is_caller_free'        => (bool) ($this->sessionAttributes['is_caller_free'] ?? false),
+                    'charged_user_id'       => $this->callerId,
+                    'free_duration_seconds' => $freeDuration,
+                    'is_random_match'       => (bool) ($this->sessionAttributes['is_random_match'] ?? false),
+                ]
+            );
+
+            \App\Models\Call::firstOrCreate(
+                ['room_id' => $channelName],
+                [
+                    'caller_id'   => $this->callerId,
+                    'receiver_id' => $this->receiverId,
+                    'call_type'   => $callType,
+                    'status'      => $this->sessionAttributes['status'] ?? 'ringing',
+                    'started_at'  => now(),
+                ]
+            );
         } catch (\Throwable $e) {
             Log::error("LogCallSessionJob failed: " . $e->getMessage());
         }

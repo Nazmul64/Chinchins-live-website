@@ -473,24 +473,6 @@ class CallController extends Controller
             ], 400);
         }
 
-        // 🛑 Check if receiver is currently busy talking to someone else or in live broadcast
-        if (!$receiver->is_available || $receiver->isBusy()) {
-            return response()->json([
-                'status'   => false,
-                'can_call' => false,
-                'code'     => 'USER_BUSY',
-                'is_busy'  => true,
-                'message'  => "{$receiver->display_name} is currently busy in another call or live broadcast.",
-                'receiver' => [
-                    'id'           => $receiver->id,
-                    'account_id'   => $receiver->account_id,
-                    'display_name' => $receiver->display_name,
-                    'avatar'       => $receiver->avatar_url,
-                    'is_busy'      => true,
-                ],
-            ], 400);
-        }
-
         $config = CallSetting::getAllConfig();
         if (!$config['is_call_enabled']) {
             return response()->json([
@@ -539,18 +521,29 @@ class CallController extends Controller
         $freeDuration = $isEligibleForFree ? (int) $config['free_call_duration_seconds'] : 0;
         $channelName = 'call_' . $callType . '_' . $caller->id . '_' . $receiver->id . '_' . time() . '_' . Str::random(4);
 
-        $call = CallSession::create([
-            'caller_id' => $caller->id,
+        // 1. Insert into calls table synchronously
+        $callModel = \App\Models\Call::create([
+            'caller_id'   => $caller->id,
             'receiver_id' => $receiver->id,
-            'channel_name' => $channelName,
-            'call_type' => $callType,
-            'status' => 'ringing',
-            'rate_per_minute' => $ratePerMinute,
-            'is_free_trial' => $isEligibleForFree,
-            'is_caller_free' => $isCallerFree,
-            'charged_user_id' => $isCallerFree ? $receiver->id : $caller->id,
+            'call_type'   => $callType,
+            'status'      => 'ringing',
+            'room_id'     => $channelName,
+            'started_at'  => now(),
+        ]);
+
+        // 2. Insert into call_sessions table for billing & split sync
+        $call = CallSession::create([
+            'caller_id'             => $caller->id,
+            'receiver_id'           => $receiver->id,
+            'channel_name'          => $channelName,
+            'call_type'             => $callType,
+            'status'                => 'ringing',
+            'rate_per_minute'       => $ratePerMinute,
+            'is_free_trial'         => $isEligibleForFree,
+            'is_caller_free'        => $isCallerFree,
+            'charged_user_id'       => $isCallerFree ? $receiver->id : $caller->id,
             'free_duration_seconds' => $freeDuration,
-            'is_random_match' => filter_var($data['is_random_match'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'is_random_match'       => filter_var($data['is_random_match'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ]);
 
         // 📲 Trigger Real-Time IMO/WhatsApp-style High-Priority Push Notification via Background Queue Job (< 20ms response time)
@@ -564,22 +557,36 @@ class CallController extends Controller
         try {
             $callData = [
                 'event'                 => 'call.incoming',
-                'call_id'               => $call->id,
+                'call_id'               => $callModel->id,
+                'id'                    => $callModel->id,
+                'session_id'            => $call->id,
                 'channel_name'          => $channelName,
                 'channel'               => $channelName,
+                'room_name'             => $channelName,
                 'call_type'             => $callType,
                 'caller_id'             => $caller->id,
                 'caller_account_id'     => $caller->account_id ?: (string) $caller->id,
                 'caller_name'           => $caller->display_name ?: $caller->name,
                 'caller_avatar'         => $caller->avatar_url ?: $caller->profile_image,
+                'caller'                => [
+                    'id'           => $caller->id,
+                    'account_id'   => $caller->account_id,
+                    'display_name' => $caller->display_name,
+                    'name'         => $caller->display_name,
+                    'avatar_url'   => $caller->avatar_url,
+                    'level'        => $caller->level ?: 'Lv1',
+                    'gender'       => $caller->gender ?: 'male',
+                ],
                 'rate_per_minute'       => $ratePerMinute,
                 'is_free_trial'         => $isEligibleForFree,
                 'free_duration_seconds' => $freeDuration,
                 'status'                => 'ringing',
                 'created_at'            => now()->toIso8601String(),
+                'timestamp'             => now()->toIso8601String(),
             ];
-            broadcast(new \App\Events\IncomingCallEvent($receiver->id, $callData));
-            broadcast(new \App\Events\IncomingPrivateCallEvent($receiver->id, $callData));
+            broadcast(new \App\Events\IncomingCallEvent($receiver->id, $callData))->toOthers();
+            broadcast(new \App\Events\IncomingPrivateCallEvent($receiver->id, $callData))->toOthers();
+            event(new \App\Events\CallIncoming($call, $caller->id, $receiver->id));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("Real-time call socket broadcast error: " . $e->getMessage());
         }
@@ -588,11 +595,14 @@ class CallController extends Controller
 
         return response()->json([
             'status' => true,
+            'success' => true,
             'message' => $isEligibleForFree 
                 ? "Free trial call initiated! Ringing receiver... You have {$freeDuration} seconds of free preview calling."
                 : "Call initiated! Ringing receiver...",
             'data' => [
-                'call_id' => $call->id,
+                'call_id' => $callModel->id,
+                'id' => $callModel->id,
+                'session_id' => $call->id,
                 'channel_name' => $channelName,
                 'call_type' => $callType,
                 'status' => 'ringing',
@@ -683,7 +693,16 @@ class CallController extends Controller
         // 1. In-memory fast LiveKit token generation (< 2ms)
         $token = $this->generateFastLivekitToken($roomName, $caller);
 
-        // 2. Fast DB record creation
+        // 2. Fast DB record creation in calls and call_sessions
+        $callModel = \App\Models\Call::create([
+            'caller_id'   => $caller->id,
+            'receiver_id' => $receiver->id,
+            'call_type'   => $callType,
+            'status'      => 'ringing',
+            'room_id'     => $roomName,
+            'started_at'  => now(),
+        ]);
+
         $call = CallSession::create([
             'caller_id'             => $caller->id,
             'receiver_id'           => $receiver->id,
@@ -699,8 +718,9 @@ class CallController extends Controller
         // 3. Instant Socket Broadcast to Receiver (even if live, do not block)
         $receiverToken = $this->generateFastLivekitToken($roomName, $receiver);
         $callData = [
-            'id'           => $call->id,
-            'call_id'      => $call->id,
+            'id'           => $callModel->id,
+            'call_id'      => $callModel->id,
+            'session_id'   => $call->id,
             'channel'      => $roomName,
             'channel_name' => $roomName,
             'room_name'    => $roomName,
@@ -748,7 +768,9 @@ class CallController extends Controller
             'token'         => $token,
             'livekit_token' => $token,
             'livekit_url'   => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
-            'call_id'       => $call->id,
+            'call_id'       => $callModel->id,
+            'id'            => $callModel->id,
+            'session_id'    => $call->id,
             'call_type'     => $callType,
             'caller'        => [
                 'id'           => $caller->id,
@@ -768,7 +790,7 @@ class CallController extends Controller
     /**
      * Instant 1-on-1 Call Initiation (< 100ms Response, Zero Blocking Locks).
      * Pre-signs LiveKit tokens, broadcasts IncomingCallEvent to target user via Reverb/Redis,
-     * and dispatches DB logging & push notification asynchronously to background queue.
+     * inserts into calls table and dispatches DB logging & push notification.
      * POST /api/call/instant, POST /api/call/initiate, POST /api/v1/call/initiate
      */
     public function initiateInstantCall(Request $request): JsonResponse
@@ -827,7 +849,34 @@ class CallController extends Controller
             'gender'       => $caller->gender ?: 'male',
         ];
 
+        // 1. Synchronously insert into calls table
+        $callModel = \App\Models\Call::create([
+            'caller_id'   => $caller->id,
+            'receiver_id' => $targetUser->id,
+            'call_type'   => $callType,
+            'status'      => 'ringing',
+            'room_id'     => $channelName,
+            'started_at'  => now(),
+        ]);
+
+        // 2. Synchronously insert into call_sessions table
+        $callSession = CallSession::create([
+            'caller_id'             => $caller->id,
+            'receiver_id'           => $targetUser->id,
+            'channel_name'          => $channelName,
+            'call_type'             => $callType,
+            'status'                => 'ringing',
+            'rate_per_minute'       => $callType === 'audio' ? 60 : (int) ($targetUser->video_call_rate ?: 100),
+            'is_free_trial'         => $caller->isFreeCaller() || $caller->isEligibleForFreeCall(),
+            'is_caller_free'        => $caller->isFreeCaller(),
+            'charged_user_id'       => $caller->id,
+            'free_duration_seconds' => ($caller->isFreeCaller() || $caller->isEligibleForFreeCall()) ? 30 : 0,
+        ]);
+
         $callData = [
+            'id'           => $callModel->id,
+            'call_id'      => $callModel->id,
+            'session_id'   => $callSession->id,
             'caller'       => $callerPayload,
             'channel'      => $channelName,
             'channel_name' => $channelName,
@@ -835,34 +884,30 @@ class CallController extends Controller
             'call_type'    => $callType,
             'token'        => $receiverToken,
             'livekit_url'  => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
-            'status'       => 'dialing',
+            'status'       => 'ringing',
             'timestamp'    => now()->toIso8601String(),
         ];
 
-        // 1. Instant Socket Broadcast (Redis Reverb)
+        // 3. Instant Socket Broadcast (Redis Reverb)
         try {
             broadcast(new \App\Events\IncomingCallEvent($targetUser->id, $callData))->toOthers();
             broadcast(new \App\Events\IncomingPrivateCallEvent($targetUser->id, $callData))->toOthers();
+            event(new \App\Events\CallIncoming($callSession, $caller->id, $targetUser->id));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Instant call socket warning: " . $e->getMessage());
         }
 
-        // 2. Non-blocking Background Queue Dispatch for DB session logging & push notifications
+        // 4. Background Push Notification
         try {
-            dispatch(new \App\Jobs\LogCallSessionJob($caller->id, $targetUser->id, [
-                'channel_name'    => $channelName,
-                'call_type'       => $callType,
-                'status'          => 'ringing',
-                'rate_per_minute' => $callType === 'audio' ? 60 : (int) ($targetUser->video_call_rate ?: 100),
-                'is_free_trial'   => $caller->isFreeCaller() || $caller->isEligibleForFreeCall(),
-                'is_caller_free'  => $caller->isFreeCaller(),
-            ]))->afterResponse();
             dispatch(new \App\Jobs\SendCallNotificationJob($caller->id, $targetUser->id, $channelName, $callType))->afterResponse();
         } catch (\Throwable $e) {}
 
         return response()->json([
             'success'        => true,
             'status'         => 'dialing',
+            'call_id'        => $callModel->id,
+            'id'             => $callModel->id,
+            'session_id'     => $callSession->id,
             'channel'        => $channelName,
             'channel_name'   => $channelName,
             'room_name'      => $channelName,
@@ -1177,6 +1222,14 @@ class CallController extends Controller
         }
         $call->save();
 
+        // Update calls table record
+        try {
+            \App\Models\Call::where('room_id', $call->channel_name)->orWhere('id', $call->id)->update([
+                'status'      => 'accepted',
+                'answered_at' => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         // Update online status of caller & receiver to in_call and mark busy
         if ($call->caller) {
             $call->caller->update(['online_status' => 'in_call', 'is_busy' => true]);
@@ -1336,6 +1389,14 @@ class CallController extends Controller
         $call->ended_at = now();
         $call->save();
 
+        try {
+            \App\Models\Call::where('room_id', $call->channel_name)->orWhere('id', $call->id)->update([
+                'status'   => 'rejected',
+                'ended_at' => now(),
+                'ended_by' => $call->receiver_id,
+            ]);
+        } catch (\Throwable $e) {}
+
         // Restore online status and clear busy flag
         if ($call->caller) {
             $call->caller->update(['online_status' => 'online', 'is_busy' => false]);
@@ -1396,6 +1457,14 @@ class CallController extends Controller
         $call->status = 'cancelled';
         $call->ended_at = now();
         $call->save();
+
+        try {
+            \App\Models\Call::where('room_id', $call->channel_name)->orWhere('id', $call->id)->update([
+                'status'   => 'cancelled',
+                'ended_at' => now(),
+                'ended_by' => $call->caller_id,
+            ]);
+        } catch (\Throwable $e) {}
 
         // Restore online status and clear busy flag
         if ($call->caller) {
@@ -1980,6 +2049,14 @@ class CallController extends Controller
         $call->ended_at = $endedAt;
         $call->duration_seconds = $durationSeconds;
         $call->save();
+
+        try {
+            \App\Models\Call::where('room_id', $call->channel_name)->orWhere('id', $call->id)->update([
+                'status'   => 'ended',
+                'ended_at' => $endedAt,
+                'ended_by' => $user?->id ?: $call->caller_id,
+            ]);
+        } catch (\Throwable $e) {}
 
         // Reset online status back to online and clear busy flag
         if ($call->caller) {

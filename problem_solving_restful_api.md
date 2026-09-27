@@ -461,4 +461,85 @@ Authorization: Bearer {user_access_token}
 | `NewMessageEvent` | `private-user.{id}` / `chat.{id}` | `NewMessageEvent` / `message.sent` | `id`, `sender_id`, `message`, `sender` details |
 
 ---
+
+## 9. Call Initiation & `calls` Table Synchronous Insertion
+
+### Endpoint:
+- `POST /api/call/initiate`
+- `POST /api/call/instant`
+- `POST /api/calls/make`
+
+When a call is initiated:
+1. Validates `receiver_id` (or `user_id`/`host_id`) and `call_type` (`video`/`audio`).
+2. Synchronously creates and inserts a record in both the `calls` table and the `call_sessions` table:
+   - `calls.caller_id` = authenticated user ID
+   - `calls.receiver_id` = host / receiver user ID
+   - `calls.call_type` = `video` or `audio`
+   - `calls.status` = `pending`
+   - `calls.room_id` = generated channel/room name
+3. Instantly broadcasts `IncomingCallEvent` / `IncomingPrivateCallEvent` on the receiver's socket channels (`private-user.{host_id}` and `user.{host_id}`).
+
+#### Request Body:
+```json
+{
+  "receiver_id": 202,
+  "call_type": "video"
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "status": true,
+  "success": true,
+  "message": "Call initiated successfully.",
+  "data": {
+    "call_id": 1055,
+    "call_session_id": "1055",
+    "channel_name": "call_video_101_202_1727421200",
+    "room_id": "call_video_101_202_1727421200",
+    "call_type": "video",
+    "status": "pending",
+    "token": "livekit_or_agora_token_string",
+    "receiver": {
+      "id": 202,
+      "name": "Nusrat Jahan",
+      "avatar_url": "https://chinchins.live/storage/avatars/host_202.jpg"
+    }
+  }
+}
+```
+
+---
+
+## 10. LiveKit Server Setup & Maintenance on Ubuntu VPS
+
+### Check LiveKit Service Status:
+```bash
+sudo systemctl status livekit-server
+```
+
+### Start & Enable LiveKit Service (if stopped/disabled):
+```bash
+sudo systemctl start livekit-server
+sudo systemctl enable livekit-server
+```
+
+### View LiveKit Server Logs:
+```bash
+sudo journalctl -u livekit-server -f
+```
+
+### If Running in Docker:
+```bash
+# Check running containers
+sudo docker ps
+
+# If LiveKit container is stopped, restart it:
+sudo docker start livekit
+# Or docker compose
+cd /opt/livekit && sudo docker compose up -d
+```
+
+---
 **✅ All Backend Requirements Completed & Tested for Chinchins Live.**

@@ -141,15 +141,51 @@ class WebRTCCallController extends Controller
             'started_at'  => now(),
         ]);
 
+        // Also create CallSession
+        try {
+            CallSession::create([
+                'caller_id'             => $user->id,
+                'receiver_id'           => $receiverId,
+                'channel_name'          => $roomId,
+                'call_type'             => $callType,
+                'status'                => 'calling',
+                'rate_per_minute'       => 100,
+                'is_free_trial'         => false,
+                'charged_user_id'       => $user->id,
+                'free_duration_seconds' => 0,
+            ]);
+        } catch (\Throwable $e) {}
+
         // Load caller details for event payload
         $call->load(['caller', 'receiver']);
 
-        // Broadcast call.incoming event to receiver's private channel (private-user.{receiverId})
+        // Broadcast call.incoming and IncomingCallEvent to receiver's private channel (private-user.{receiverId})
         try {
             event(new CallIncoming($call));
-        } catch (\Throwable $e) {
-            // Log or continue gracefully
-        }
+            $callData = [
+                'event'        => 'call.incoming',
+                'id'           => $call->id,
+                'call_id'      => $call->id,
+                'channel_name' => $roomId,
+                'channel'      => $roomId,
+                'room_name'    => $roomId,
+                'call_type'    => $callType,
+                'caller_id'    => $user->id,
+                'caller'       => [
+                    'id'           => $user->id,
+                    'account_id'   => $user->account_id,
+                    'display_name' => $user->display_name ?? $user->name,
+                    'name'         => $user->display_name ?? $user->name,
+                    'avatar_url'   => $user->avatar_url,
+                    'level'        => $user->level ?: 'Lv1',
+                    'gender'       => $user->gender ?: 'male',
+                ],
+                'status'       => 'calling',
+                'timestamp'    => now()->toIso8601String(),
+            ];
+            broadcast(new \App\Events\IncomingCallEvent($receiverId, $callData))->toOthers();
+            broadcast(new \App\Events\IncomingPrivateCallEvent($receiverId, $callData))->toOthers();
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'success' => true,
