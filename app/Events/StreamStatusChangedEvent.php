@@ -38,13 +38,24 @@ class StreamStatusChangedEvent implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new Channel('stream-lobby'),
             new Channel('live-feed'),
+            new Channel('global-live-feed'),
             new Channel('lives'),
+            new Channel('live-streams'),
             new Channel('presence-stream-lobby'),
             new Channel('presence-live-lobby'),
         ];
+
+        if ($this->streamId) {
+            $channels[] = new Channel('live-stream.' . $this->streamId);
+            $channels[] = new Channel('presence-stream.' . $this->streamId);
+            $channels[] = new Channel('live.' . $this->streamId);
+            $channels[] = new Channel('live-room.' . $this->streamId);
+        }
+
+        return $channels;
     }
 
     /**

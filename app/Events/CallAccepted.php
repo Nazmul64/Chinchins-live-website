@@ -40,15 +40,25 @@ class CallAccepted implements ShouldBroadcastNow
     }
 
     /**
-     * Broadcast to caller's private channel and public fallback channel.
+     * Broadcast to caller's private channel, public fallback channel, and call session channels.
      */
     public function broadcastOn(): array
     {
         $channels = [];
         if ($this->callerId > 0) {
             $channels[] = new PrivateChannel('user.' . $this->callerId);
-            $channels[] = new PrivateChannel('private-user.' . $this->callerId);
             $channels[] = new Channel('user.' . $this->callerId);
+            $channels[] = new Channel('chat.' . $this->callerId);
+        }
+        if (!empty($this->roomId)) {
+            $channels[] = new PrivateChannel('call.' . $this->roomId);
+            $channels[] = new Channel('call.' . $this->roomId);
+            $channels[] = new Channel('presence-call.' . $this->roomId);
+        }
+        if ($this->callId > 0) {
+            $channels[] = new PrivateChannel('call.' . $this->callId);
+            $channels[] = new Channel('call.' . $this->callId);
+            $channels[] = new Channel('presence-call.' . $this->callId);
         }
         return $channels;
     }

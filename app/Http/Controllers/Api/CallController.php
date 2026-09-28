@@ -1268,9 +1268,44 @@ class CallController extends Controller
         // Update online status of caller & receiver to in_call and mark busy
         if ($call->caller) {
             $call->caller->update(['online_status' => 'in_call', 'is_busy' => true]);
+            \Illuminate\Support\Facades\Cache::put("user:{$call->caller->id}:is_busy", true, now()->addHours(2));
         }
         if ($call->receiver) {
             $call->receiver->update(['online_status' => 'in_call', 'is_busy' => true]);
+            \Illuminate\Support\Facades\Cache::put("user:{$call->receiver->id}:is_busy", true, now()->addHours(2));
+        }
+
+        // Broadcast CallAccepted and PrivateCallAcceptedEvent to Caller & Session Channels
+        try {
+            $callPayload = [
+                'event'         => 'call.accepted',
+                'action'        => 'call_accepted',
+                'call_id'       => $call->id,
+                'id'            => $call->id,
+                'room_id'       => $call->channel_name,
+                'channel_name'  => $call->channel_name,
+                'caller_id'     => $call->caller_id,
+                'receiver_id'   => $call->receiver_id,
+                'status'        => 'connected',
+                'call_status'   => 'connected',
+                'started_at'    => $call->started_at ? $call->started_at->toIso8601String() : now()->toIso8601String(),
+                'timestamp'     => now()->toIso8601String(),
+            ];
+
+            event(new \App\Events\CallAccepted($call));
+            broadcast(new \App\Events\PrivateCallAcceptedEvent($call->caller_id, $callPayload))->toOthers();
+
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name'    => $call->channel_name,
+                'sender_id'       => $call->receiver_id,
+                'receiver_id'     => $call->caller_id,
+                'type'            => 'accepted',
+                'payload'         => $callPayload,
+                'is_read'         => false,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Call accept broadcast warning: " . $e->getMessage());
         }
 
         return response()->json([
@@ -1435,25 +1470,53 @@ class CallController extends Controller
         // Restore online status and clear busy flag
         if ($call->caller) {
             $call->caller->update(['online_status' => 'online', 'is_busy' => false]);
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->caller->id}:is_busy");
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->caller->id}:current_call");
         }
         if ($call->receiver) {
             $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->receiver->id}:is_busy");
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->receiver->id}:current_call");
         }
 
         // Broadcast real-time rejection event to caller so ringing stops immediately on caller phone
         try {
             event(new \App\Events\CallRejected($call, 'declined'));
+            event(new \App\Events\CallEnded($call, (int)$call->receiver_id, (int)$call->caller_id, 0));
+            event(new \App\Events\CallEndedEvent($call, (int)$call->receiver_id, (int)$call->caller_id, 0));
+
+            $rejectPayload = [
+                'event'        => 'call.rejected',
+                'action'       => 'call_rejected',
+                'call_id'      => $call->id,
+                'id'           => $call->id,
+                'room_id'      => $call->channel_name,
+                'channel_name' => $call->channel_name,
+                'caller_id'    => $call->caller_id,
+                'receiver_id'  => $call->receiver_id,
+                'status'       => 'rejected',
+                'call_status'  => 'rejected',
+                'reason'       => 'declined',
+                'timestamp'    => now()->toIso8601String(),
+            ];
+            broadcast(new \App\Events\PrivateCallRejectedEvent($call->caller_id, $rejectPayload))->toOthers();
+
             \App\Models\CallSignal::create([
                 'call_session_id' => $call->id,
                 'channel_name'    => $call->channel_name,
                 'sender_id'       => $call->receiver_id,
                 'receiver_id'     => $call->caller_id,
                 'type'            => 'rejected',
-                'payload'         => [
-                    'action'  => 'call_rejected',
-                    'call_id' => $call->id,
-                    'reason'  => 'declined',
-                ],
+                'payload'         => $rejectPayload,
+                'is_read'         => false,
+            ]);
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name'    => $call->channel_name,
+                'sender_id'       => $call->receiver_id,
+                'receiver_id'     => $call->caller_id,
+                'type'            => 'bye',
+                'payload'         => $rejectPayload,
                 'is_read'         => false,
             ]);
         } catch (\Throwable $e) {}
@@ -1504,25 +1567,53 @@ class CallController extends Controller
         // Restore online status and clear busy flag
         if ($call->caller) {
             $call->caller->update(['online_status' => 'online', 'is_busy' => false]);
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->caller->id}:is_busy");
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->caller->id}:current_call");
         }
         if ($call->receiver) {
             $call->receiver->update(['online_status' => 'online', 'is_busy' => false]);
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->receiver->id}:is_busy");
+            \Illuminate\Support\Facades\Cache::forget("user:{$call->receiver->id}:current_call");
         }
 
         // Broadcast real-time cancellation event to receiver so incoming ringing stops immediately
         try {
             event(new \App\Events\CallCancelled($call, 'cancelled'));
+            event(new \App\Events\CallEnded($call, (int)$call->caller_id, (int)$call->receiver_id, 0));
+            event(new \App\Events\CallEndedEvent($call, (int)$call->caller_id, (int)$call->receiver_id, 0));
+
+            $cancelPayload = [
+                'event'        => 'call.cancelled',
+                'action'       => 'call_cancelled',
+                'call_id'      => $call->id,
+                'id'           => $call->id,
+                'room_id'      => $call->channel_name,
+                'channel_name' => $call->channel_name,
+                'caller_id'    => $call->caller_id,
+                'receiver_id'  => $call->receiver_id,
+                'status'       => 'cancelled',
+                'call_status'  => 'cancelled',
+                'reason'       => 'cancelled',
+                'timestamp'    => now()->toIso8601String(),
+            ];
+            broadcast(new \App\Events\PrivateCallEndedEvent($call->receiver_id, $cancelPayload))->toOthers();
+
             \App\Models\CallSignal::create([
                 'call_session_id' => $call->id,
                 'channel_name'    => $call->channel_name,
                 'sender_id'       => $call->caller_id,
                 'receiver_id'     => $call->receiver_id,
                 'type'            => 'cancelled',
-                'payload'         => [
-                    'action'  => 'call_cancelled',
-                    'call_id' => $call->id,
-                    'reason'  => 'cancelled',
-                ],
+                'payload'         => $cancelPayload,
+                'is_read'         => false,
+            ]);
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name'    => $call->channel_name,
+                'sender_id'       => $call->caller_id,
+                'receiver_id'     => $call->receiver_id,
+                'type'            => 'bye',
+                'payload'         => $cancelPayload,
                 'is_read'         => false,
             ]);
         } catch (\Throwable $e) {}
@@ -2105,13 +2196,30 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Cache::forget("user:{$call->receiver->id}:current_call");
         }
 
-        // Broadcast real-time CallEnded and CallEndedEvent to both parties so server doesn't re-dial
+        // Broadcast real-time CallEnded, CallEndedEvent, and PrivateCallEndedEvent to both parties so server doesn't re-dial
         try {
             $senderId = $user?->id ?: $call->caller_id;
             $receiverId = ($senderId === $call->caller_id) ? $call->receiver_id : $call->caller_id;
 
             event(new \App\Events\CallEnded($call, (int)$senderId, (int)$receiverId, $durationSeconds));
             event(new \App\Events\CallEndedEvent($call, (int)$senderId, (int)$receiverId, $durationSeconds));
+
+            $endPayload = [
+                'event'            => 'call.ended',
+                'action'           => 'call_ended',
+                'call_id'          => $call->id,
+                'id'               => $call->id,
+                'room_id'          => $call->channel_name,
+                'channel_name'     => $call->channel_name,
+                'caller_id'        => $call->caller_id,
+                'receiver_id'      => $call->receiver_id,
+                'ended_by'         => $senderId,
+                'duration_seconds' => $durationSeconds,
+                'status'           => 'completed',
+                'call_status'      => 'completed',
+                'timestamp'        => now()->toIso8601String(),
+            ];
+            broadcast(new \App\Events\PrivateCallEndedEvent($receiverId, $endPayload))->toOthers();
 
             \App\Models\CallSignal::create([
                 'call_session_id' => $call->id,

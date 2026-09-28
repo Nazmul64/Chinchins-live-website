@@ -664,6 +664,16 @@ class PartyRoomApiController extends Controller
         $room->seats()->update(['status' => 'empty', 'user_id' => null]);
         $room->members()->update(['status' => 'left', 'left_at' => now()]);
 
+        // Reset host online status
+        if ($room->host) {
+            $room->host->update([
+                'online_status' => 'online',
+                'is_busy' => false,
+            ]);
+            \Illuminate\Support\Facades\Cache::forget("user:{$room->host_id}:is_party");
+            \Illuminate\Support\Facades\Cache::forget("user:{$room->host_id}:is_live");
+        }
+
         PartyRoomMessage::create([
             'party_room_id' => $room->id,
             'user_id' => $user->id,
@@ -671,10 +681,34 @@ class PartyRoomApiController extends Controller
             'message' => '🏁 Party room has been ended by the host. Thank you for joining!',
         ]);
 
+        // Broadcast real-time room ended events to all listeners
+        try {
+            $endedSummary = [
+                'room_id'      => (string) $room->id,
+                'party_room_id'=> $room->id,
+                'channel_name' => $room->channel_name,
+                'status'       => 'ended',
+                'action'       => 'room_ended',
+                'host_id'      => $room->host_id,
+                'timestamp'    => now()->toIso8601String(),
+            ];
+
+            event(new \App\Events\StreamStatusChangedEvent($room->id, 'ended', $endedSummary));
+            broadcast(new \App\Events\PartyRoomMessageSent($room->id, [
+                'type'    => 'room_ended',
+                'message' => 'Party room ended by host.',
+                'room_id' => (string) $room->id,
+            ]))->toOthers();
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'success' => true,
             'status' => true,
             'message' => 'Party room ended successfully.',
+            'data' => [
+                'room_id' => (string) $room->id,
+                'status'  => 'ended',
+            ],
         ]);
     }
 
