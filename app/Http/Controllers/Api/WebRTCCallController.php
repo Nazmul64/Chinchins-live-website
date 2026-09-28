@@ -376,11 +376,29 @@ class WebRTCCallController extends Controller
 
         $targetUserId = ($callInstance->caller_id === $user->id) ? $callInstance->receiver_id : $callInstance->caller_id;
 
-        $callInstance->update([
-            'status'   => 'completed',
-            'ended_at' => now(),
-            'ended_by' => $user->id,
-        ]);
+        try {
+            $callInstance->update([
+                'status'   => 'ended',
+                'ended_at' => now(),
+                'ended_by' => $user->id,
+            ]);
+        } catch (\Throwable $e) {
+            try {
+                $callInstance->status = 'ended';
+                $callInstance->ended_at = now();
+                $callInstance->ended_by = $user->id;
+                $callInstance->save();
+            } catch (\Throwable $e2) {}
+        }
+
+        try {
+            \App\Models\CallSession::where('channel_name', $callInstance->room_id)
+                ->orWhere('id', $callInstance->id)
+                ->update([
+                    'status'   => 'ended',
+                    'ended_at' => now(),
+                ]);
+        } catch (\Throwable $e) {}
 
         // Broadcast CallEnded and CallEndedEvent to both parties
         try {
