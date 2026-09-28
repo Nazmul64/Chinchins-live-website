@@ -494,16 +494,16 @@ class CallController extends Controller
         }
 
         // Check balance IF not a free host and not eligible for free trial
-        if (!$isCallerFree && !$isEligibleForFree && $caller->coins < $ratePerMinute) {
+        if (!$isCallerFree && !$isEligibleForFree && $caller->wallet_balance < $ratePerMinute) {
             $modalData = $this->buildRechargeModalData($caller, $receiver, $ratePerMinute, $callType);
             return response()->json([
                 'success'             => false,
                 'status'              => false,
                 'can_call'            => false,
                 'code'                => 'INSUFFICIENT_BALANCE',
-                'message'             => 'Insufficient coins to make this call',
-                'user_balance'        => (int) $caller->coins,
-                'user_gems'           => (int) $caller->coins,
+                'message'             => 'Insufficient balance to start call',
+                'user_balance'        => (int) $caller->wallet_balance,
+                'user_gems'           => (int) $caller->wallet_balance,
                 'wallet_label'        => 'My Gems',
                 'required_coins'      => $ratePerMinute,
                 'rate_per_minute'     => $ratePerMinute,
@@ -694,14 +694,15 @@ class CallController extends Controller
         $isEligibleForFree = $isCallerFree || $caller->isEligibleForFreeCall();
 
         // Check if caller has enough coins (unless free caller or eligible for free trial)
-        if (!$isCallerFree && !$isEligibleForFree && $caller->coins < $requiredCallRate) {
+        if (!$isCallerFree && !$isEligibleForFree && $caller->wallet_balance < $requiredCallRate) {
             return response()->json([
                 'success'        => false,
                 'status'         => false,
                 'code'           => 'INSUFFICIENT_BALANCE',
-                'message'        => 'Insufficient coins to make this call',
+                'message'        => 'Insufficient balance to start call',
                 'required_coins' => $requiredCallRate,
-                'current_coins'  => (int) $caller->coins,
+                'current_coins'  => (int) $caller->wallet_balance,
+                'user_balance'   => (int) $caller->wallet_balance,
                 'redirect_to_deposit' => true,
             ], 402);
         }
@@ -850,14 +851,15 @@ class CallController extends Controller
         $isEligibleForFree = $isCallerFree || $caller->isEligibleForFreeCall();
 
         // Check if caller has enough coins (unless free caller or eligible for free trial)
-        if (!$isCallerFree && !$isEligibleForFree && $caller->coins < $requiredCallRate) {
+        if (!$isCallerFree && !$isEligibleForFree && $caller->wallet_balance < $requiredCallRate) {
             return response()->json([
                 'success'        => false,
                 'status'         => false,
                 'code'           => 'INSUFFICIENT_BALANCE',
-                'message'        => 'Insufficient coins to make this call',
+                'message'        => 'Insufficient balance to start call',
                 'required_coins' => $requiredCallRate,
-                'current_coins'  => (int) $caller->coins,
+                'current_coins'  => (int) $caller->wallet_balance,
+                'user_balance'   => (int) $caller->wallet_balance,
                 'redirect_to_deposit' => true,
             ], 402);
         }
@@ -1304,6 +1306,17 @@ class CallController extends Controller
                 'payload'         => $callPayload,
                 'is_read'         => false,
             ]);
+
+            // 🛑 Auto-broadcast StreamHoldEvent if host is currently live streaming
+            $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$call->receiver_id, $call->caller_id])
+                ->whereIn('status', ['live', 'active'])
+                ->get();
+            foreach ($activeStreams as $stream) {
+                broadcast(new \App\Events\StreamHoldEvent($stream->id, [
+                    'status'  => 'paused',
+                    'message' => 'I will come back soon'
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Call accept broadcast warning: " . $e->getMessage());
         }
@@ -1519,6 +1532,17 @@ class CallController extends Controller
                 'payload'         => $rejectPayload,
                 'is_read'         => false,
             ]);
+
+            // 🟢 Auto-broadcast StreamResumeEvent if host was in a live stream
+            $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$call->receiver_id, $call->caller_id])
+                ->whereIn('status', ['live', 'active'])
+                ->get();
+            foreach ($activeStreams as $stream) {
+                broadcast(new \App\Events\StreamResumeEvent($stream->id, [
+                    'status'  => 'live',
+                    'message' => 'Host is back live'
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -1616,6 +1640,17 @@ class CallController extends Controller
                 'payload'         => $cancelPayload,
                 'is_read'         => false,
             ]);
+
+            // 🟢 Auto-broadcast StreamResumeEvent if host was in a live stream
+            $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$call->receiver_id, $call->caller_id])
+                ->whereIn('status', ['live', 'active'])
+                ->get();
+            foreach ($activeStreams as $stream) {
+                broadcast(new \App\Events\StreamResumeEvent($stream->id, [
+                    'status'  => 'live',
+                    'message' => 'Host is back live'
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -2255,6 +2290,17 @@ class CallController extends Controller
                 'is_free'     => true,
                 'coin_cost'   => 0,
             ]);
+
+            // 🟢 Auto-broadcast StreamResumeEvent if host was in a live stream
+            $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$call->receiver_id, $call->caller_id])
+                ->whereIn('status', ['live', 'active'])
+                ->get();
+            foreach ($activeStreams as $stream) {
+                broadcast(new \App\Events\StreamResumeEvent($stream->id, [
+                    'status'  => 'live',
+                    'message' => 'Host is back live'
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         $partnerUser = ($user?->id === $call->caller_id) ? $call->receiver : $call->caller;

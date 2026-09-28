@@ -301,6 +301,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Accessor for wallet balance (coins/gems).
+     */
+    public function getWalletBalanceAttribute(): int
+    {
+        return (int) ($this->coins ?? $this->gems ?? 0);
+    }
+
+    /**
+     * Accessor for default call rate per minute.
+     */
+    public function getCallRatePerMinuteAttribute(): int
+    {
+        return (int) ($this->video_call_rate ?: 100);
+    }
+
+    /**
      * Helper alias for photos.
      */
     public function getPhotosAttribute(): array

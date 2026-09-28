@@ -128,6 +128,19 @@ class WebRTCCallController extends Controller
             ], 400);
         }
 
+        $receiver = User::find($receiverId);
+        $ratePerMinute = (int) ($receiver?->call_rate_per_minute ?? $receiver?->video_call_rate ?? 100);
+        if ($user->wallet_balance < $ratePerMinute) {
+            return response()->json([
+                'success'        => false,
+                'status'         => false,
+                'code'           => 'INSUFFICIENT_BALANCE',
+                'message'        => 'Insufficient balance to start call',
+                'user_balance'   => (int) $user->wallet_balance,
+                'required_coins' => $ratePerMinute,
+            ], 402);
+        }
+
         $callType = $request->input('call_type', 'video');
         $roomId = $request->input('room_id') ?: ('call_' . Str::uuid()->toString());
 
@@ -232,6 +245,17 @@ class WebRTCCallController extends Controller
         // Broadcast call.accepted to caller's channel (private-user.{caller_id})
         try {
             event(new CallAccepted($callInstance));
+
+            // 🛑 Auto-broadcast StreamHoldEvent if host is currently live streaming
+            $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$callInstance->receiver_id, $callInstance->caller_id])
+                ->whereIn('status', ['live', 'active'])
+                ->get();
+            foreach ($activeStreams as $stream) {
+                broadcast(new \App\Events\StreamHoldEvent($stream->id, [
+                    'status'  => 'paused',
+                    'message' => 'I will come back soon'
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -269,6 +293,17 @@ class WebRTCCallController extends Controller
         // Broadcast call.rejected to caller's channel (private-user.{caller_id})
         try {
             event(new CallRejected($callInstance, $reason));
+
+            // 🟢 Auto-broadcast StreamResumeEvent if host was in a live stream
+            $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$callInstance->receiver_id, $callInstance->caller_id])
+                ->whereIn('status', ['live', 'active'])
+                ->get();
+            foreach ($activeStreams as $stream) {
+                broadcast(new \App\Events\StreamResumeEvent($stream->id, [
+                    'status'  => 'live',
+                    'message' => 'Host is back live'
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -303,6 +338,17 @@ class WebRTCCallController extends Controller
         // Broadcast call.cancelled to receiver's channel (private-user.{receiver_id})
         try {
             event(new CallCancelled($callInstance));
+
+            // 🟢 Auto-broadcast StreamResumeEvent if host was in a live stream
+            $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$callInstance->receiver_id, $callInstance->caller_id])
+                ->whereIn('status', ['live', 'active'])
+                ->get();
+            foreach ($activeStreams as $stream) {
+                broadcast(new \App\Events\StreamResumeEvent($stream->id, [
+                    'status'  => 'live',
+                    'message' => 'Host is back live'
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -340,6 +386,17 @@ class WebRTCCallController extends Controller
         try {
             event(new CallEnded($callInstance, $user->id, $targetUserId));
             event(new \App\Events\CallEndedEvent($callInstance, $user->id, $targetUserId));
+
+            // 🟢 Auto-broadcast StreamResumeEvent if host was in a live stream
+            $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$callInstance->receiver_id, $callInstance->caller_id])
+                ->whereIn('status', ['live', 'active'])
+                ->get();
+            foreach ($activeStreams as $stream) {
+                broadcast(new \App\Events\StreamResumeEvent($stream->id, [
+                    'status'  => 'live',
+                    'message' => 'Host is back live'
+                ]))->toOthers();
+            }
         } catch (\Throwable $e) {}
 
         return response()->json([

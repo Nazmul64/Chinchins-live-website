@@ -1331,6 +1331,24 @@ class LiveStreamApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Live stream is not active.'], 404);
         }
 
+        $existingPending = LiveJoinRequest::where('live_stream_id', $stream->id)
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existingPending) {
+            return response()->json([
+                'status'  => false,
+                'success' => false,
+                'code'    => 'REQUEST_ALREADY_PENDING',
+                'message' => 'Request already pending',
+                'data'    => [
+                    'request_id' => $existingPending->id,
+                    'status'     => 'pending',
+                ],
+            ], 400);
+        }
+
         $joinReq = LiveJoinRequest::updateOrCreate(
             ['live_stream_id' => $stream->id, 'user_id' => $user->id],
             ['status' => 'pending']

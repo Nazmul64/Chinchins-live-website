@@ -281,7 +281,7 @@ class PaymentController extends Controller
             'header_title' => 'Payment options',
             'options_title' => 'Options for you',
             'button_text' => 'Continue',
-            'default_selected' => $activeResellers > 0 ? 'reseller' : ($options[0]['key'] ?? 'bkash'),
+            'default_selected' => $hasReseller ? 'reseller' : ($options[0]['key'] ?? 'bkash'),
             'options' => $options,
             'data' => [
                 'formatted_amount' => $formattedAmount,
