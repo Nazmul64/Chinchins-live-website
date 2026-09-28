@@ -173,6 +173,11 @@ class CallController extends Controller
                 'camera_filters_enabled' => (bool) ($config['camera_filters_enabled'] ?? true),
                 'call_minimize_enabled' => (bool) ($config['call_minimize_enabled'] ?? true),
                 'debug_mode_enabled' => (bool) ($config['debug_mode_enabled'] ?? false),
+                'active_driver' => \App\Models\StreamingSetting::getSettings()->active_driver ?? 'vps_webrtc',
+                'active_engine' => \App\Models\StreamingSetting::getSettings()->active_driver ?? 'vps_webrtc',
+                'is_agora' => (\App\Models\StreamingSetting::getSettings()->active_driver ?? 'vps_webrtc') === 'agora',
+                'is_vps_webrtc' => (\App\Models\StreamingSetting::getSettings()->active_driver ?? 'vps_webrtc') !== 'agora',
+                'agora_app_id' => \App\Models\StreamingSetting::getSettings()->agora_app_id,
                 'video_split' => [
                     'total_rate' => $config['video_call_rate_per_minute'],
                     'host_receives' => $config['video_host_earning_per_min'],

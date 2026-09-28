@@ -172,6 +172,22 @@ class WebRTCCallController extends Controller
         // Load caller details for event payload
         $call->load(['caller', 'receiver']);
 
+        // Check active calling engine (Agora vs VPS WebRTC)
+        $streamingSetting = \App\Models\StreamingSetting::getSettings();
+        $isAgora = $streamingSetting->isAgora();
+        $agoraCallerToken = null;
+        $agoraReceiverToken = null;
+
+        if ($isAgora) {
+            try {
+                $agoraDriver = new \App\Services\Calling\Drivers\AgoraDriver();
+                $callerSession = $agoraDriver->initializeSession($user, $roomId, $callType, 'publisher', ['uid' => $user->id]);
+                $receiverSession = $agoraDriver->initializeSession($receiver, $roomId, $callType, 'publisher', ['uid' => $receiverId]);
+                $agoraCallerToken = $callerSession['token'] ?? null;
+                $agoraReceiverToken = $receiverSession['token'] ?? null;
+            } catch (\Throwable $e) {}
+        }
+
         // Broadcast call.incoming and IncomingCallEvent to receiver's private channel (private-user.{receiverId})
         try {
             event(new CallIncoming($call));
@@ -184,6 +200,11 @@ class WebRTCCallController extends Controller
                 'room_name'    => $roomId,
                 'call_type'    => $callType,
                 'caller_id'    => $user->id,
+                'engine'       => $isAgora ? 'agora' : 'vps_webrtc',
+                'driver'       => $isAgora ? 'agora' : 'vps_webrtc',
+                'is_agora'     => $isAgora,
+                'agora_app_id' => $isAgora ? $streamingSetting->agora_app_id : null,
+                'agora_token'  => $agoraReceiverToken,
                 'caller'       => [
                     'id'           => $user->id,
                     'account_id'   => $user->account_id,
@@ -204,13 +225,19 @@ class WebRTCCallController extends Controller
             'success' => true,
             'message' => 'Call initiated successfully',
             'call'    => [
-                'id'          => $call->id,
-                'caller_id'   => $call->caller_id,
-                'receiver_id' => $call->receiver_id,
-                'call_type'   => $call->call_type,
-                'status'      => $call->status,
-                'room_id'     => $call->room_id,
-                'started_at'  => $call->started_at?->toIso8601String(),
+                'id'           => $call->id,
+                'caller_id'    => $call->caller_id,
+                'receiver_id'  => $call->receiver_id,
+                'call_type'    => $call->call_type,
+                'status'       => $call->status,
+                'room_id'      => $call->room_id,
+                'channel_name' => $call->room_id,
+                'started_at'   => $call->started_at?->toIso8601String(),
+                'engine'       => $isAgora ? 'agora' : 'vps_webrtc',
+                'driver'       => $isAgora ? 'agora' : 'vps_webrtc',
+                'is_agora'     => $isAgora,
+                'agora_app_id' => $isAgora ? $streamingSetting->agora_app_id : null,
+                'agora_token'  => $agoraCallerToken,
             ]
         ], 201);
     }
@@ -242,6 +269,18 @@ class WebRTCCallController extends Controller
 
         $callInstance->load(['caller', 'receiver']);
 
+        // Check active calling engine for receiver token
+        $streamingSetting = \App\Models\StreamingSetting::getSettings();
+        $isAgora = $streamingSetting->isAgora();
+        $agoraReceiverToken = null;
+        if ($isAgora) {
+            try {
+                $agoraDriver = new \App\Services\Calling\Drivers\AgoraDriver();
+                $receiverSession = $agoraDriver->initializeSession($user, $callInstance->room_id, $callInstance->call_type, 'publisher', ['uid' => $user->id]);
+                $agoraReceiverToken = $receiverSession['token'] ?? null;
+            } catch (\Throwable $e) {}
+        }
+
         // Broadcast call.accepted to caller's channel (private-user.{caller_id})
         try {
             event(new CallAccepted($callInstance));
@@ -259,10 +298,16 @@ class WebRTCCallController extends Controller
         } catch (\Throwable $e) {}
 
         return response()->json([
-            'success' => true,
-            'call_id' => $callInstance->id,
-            'room_id' => $callInstance->room_id,
-            'status'  => 'accepted',
+            'success'      => true,
+            'call_id'      => $callInstance->id,
+            'room_id'      => $callInstance->room_id,
+            'channel_name' => $callInstance->room_id,
+            'status'       => 'accepted',
+            'engine'       => $isAgora ? 'agora' : 'vps_webrtc',
+            'driver'       => $isAgora ? 'agora' : 'vps_webrtc',
+            'is_agora'     => $isAgora,
+            'agora_app_id' => $isAgora ? $streamingSetting->agora_app_id : null,
+            'agora_token'  => $agoraReceiverToken,
         ]);
     }
 
