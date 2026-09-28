@@ -68,7 +68,18 @@ class UserFeedController extends Controller
             });
         }
 
-        $users = $query->with(['activeLiveStream:id,host_id,channel_name,title,cover_image,status,viewer_count,likes_count'])
+        $users = $query->with(['activeLiveStream' => function ($q) {
+            $q->select([
+                'live_streams.id',
+                'live_streams.host_id',
+                'live_streams.channel_name',
+                'live_streams.title',
+                'live_streams.cover_image',
+                'live_streams.status',
+                'live_streams.viewer_count',
+                'live_streams.likes_count'
+            ]);
+        }])
             ->orderBy('id', 'desc')
             ->paginate($perPage);
 
@@ -151,7 +162,18 @@ class UserFeedController extends Controller
             $query->where('id', '!=', $currentUserId);
         }
 
-        $users = $query->with(['activeLiveStream:id,host_id,channel_name,title,cover_image,status,viewer_count,likes_count'])
+        $users = $query->with(['activeLiveStream' => function ($q) {
+            $q->select([
+                'live_streams.id',
+                'live_streams.host_id',
+                'live_streams.channel_name',
+                'live_streams.title',
+                'live_streams.cover_image',
+                'live_streams.status',
+                'live_streams.viewer_count',
+                'live_streams.likes_count'
+            ]);
+        }])
             ->orderBy('id', 'desc')
             ->cursorPaginate($perPage);
 
