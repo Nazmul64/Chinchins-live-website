@@ -2308,10 +2308,16 @@ class CallController extends Controller
             }
         } catch (\Throwable $e) {}
 
+        $durationFormatted = sprintf('%02d:%02d', floor($durationSeconds / 60), $durationSeconds % 60);
         $partnerUser = ($user?->id === $call->caller_id) ? $call->receiver : $call->caller;
         if (!$partnerUser) {
             $partnerUser = $call->receiver ?: $call->caller;
         }
+
+        $callTypeLabel = ucfirst($call->call_type ?? 'video');
+        $lastCallMessage = $durationSeconds > 0 
+            ? "📹 {$callTypeLabel} call ended ({$durationFormatted})" 
+            : "📞 Missed {$callTypeLabel} call";
 
         return response()->json([
             'status' => true,
@@ -2322,7 +2328,7 @@ class CallController extends Controller
                 'call_id' => $call->id,
                 'call_type' => $call->call_type,
                 'duration_seconds' => $durationSeconds,
-                'duration_formatted' => sprintf('%02d:%02d', floor($durationSeconds / 60), $durationSeconds % 60),
+                'duration_formatted' => $durationFormatted,
                 'coins_deducted' => (int) $call->coins_deducted,
                 'host_earned_coins' => (int) $call->host_earned_coins,
                 'admin_revenue_coins' => (int) $call->admin_revenue_coins,
@@ -2342,7 +2348,7 @@ class CallController extends Controller
                     'account_id'        => $partnerUser?->account_id,
                     'partner_name'      => $partnerUser?->display_name,
                     'partner_avatar'    => $partnerUser?->avatar_url,
-                    'last_message'      => $durationSeconds > 0 ? "📹 Video call ended ({$durationFormatted})" : "📞 Missed call",
+                    'last_message'      => $lastCallMessage,
                 ],
             ],
         ], 200);
