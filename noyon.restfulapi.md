@@ -1,4 +1,4 @@
-# 📱 ChinChins Live - Roma Complete RESTful API Documentation
+# 📱 ChinChins Live - Noyon Complete RESTful API Documentation
 
 > **Base URL:** `https://chinchins.live/api` or `http://127.0.0.1:8000/api`  
 > **WebSocket / Real-Time Server:** Laravel Reverb (`wss://chinchins.live/app` or `ws://127.0.0.1:8080`)  
@@ -14,8 +14,8 @@
 1. [User Registration & Authentication](#1-user-registration--authentication)
 2. [1-to-1 Audio & Video Calling Lifecycle](#2-1-to-1-audio--video-calling-lifecycle)
 3. [Live Streaming Co-Host & Join Requests](#3-live-streaming-co-host--join-requests)
-4. [Virtual Gifts & Real-time Animations](#4-virtual-gifts--real-time-animations)
-5. [Error & Status Codes](#5-error--status-codes)
+4. [Virtual Gifts & Real-Time Animations](#4-virtual-gifts--real-time-animations)
+5. [Summary of Key Features & Fixes](#5-summary-of-key-features--fixes)
 
 ---
 
@@ -24,7 +24,7 @@
 ### 1.1 Register New User
 - **Method:** `POST`
 - **Endpoint:** `/api/register`
-- **Description:** Creates a new user account with automatic account ID, wallet setup, and token generation.
+- **Description:** Registers a new user with automatic 8-digit Account ID, wallet setup, and token generation. (Fixed `current_level` SQL column error).
 
 #### Request Body
 ```json
@@ -53,6 +53,8 @@
     "user": {
       "id": 3,
       "account_id": "33626512",
+      "first_name": "Miru",
+      "last_name": "shop",
       "name": "Miru shop",
       "display_name": "Miru",
       "phone": "+8801705579299",
@@ -81,7 +83,8 @@
 {
   "phone": "+8801705579299",
   "password": "your_secure_password",
-  "fcm_token": "fcm_token_device_string..."
+  "fcm_token": "fcm_token_device_string...",
+  "device_type": "android"
 }
 ```
 
@@ -92,7 +95,7 @@
 ### 2.1 Call Config & Rates
 - **Method:** `GET`
 - **Endpoint:** `/api/call/config` or `/api/call/settings`
-- **Description:** Returns rates per minute, free preview seconds, ICE servers, and caller eligibility.
+- **Description:** Returns rate per minute, free preview seconds, ICE servers, and user eligibility.
 
 ---
 
@@ -348,7 +351,7 @@
 
 ---
 
-## 4. Virtual Gifts & Real-time Animations
+## 4. Virtual Gifts & Real-Time Animations
 
 ### 4.1 Get Active Gifts Catalog with Animation URLs
 - **Method:** `GET`
@@ -421,11 +424,9 @@
 
 ---
 
-## 5. Summary of Key Fixes
+## 5. Summary of Key Features & Fixes
 
-| Issue | Resolution |
-|---|---|
-| **SQL Column Not Found `current_level`** | Removed `current_level` from `User` `$fillable` & `User::create` in `AuthController.php`. Added computed accessor `$user->current_level`. |
-| **1-to-1 Call Dropping / Not Connecting** | Unified `coins` & `wallet_balance` checks, removed offline blocking on dial, increased ringing timeout to 90s, added LiveKit tokens on `accept`, and wired `/api/call/end`. |
-| **Live Stream Co-Host Accept Stuck** | Filtered `getJoinRequests` for `pending` status so accepted users are removed from request list; enhanced `acceptJoin` to generate `can_publish: true` LiveKit tokens and broadcast `CoHostJoinedEvent`. |
-| **Gift Animations** | Standardized `animation_url`, `animation_asset_url`, `file_url`, and `format` across all gift endpoints and broadcast events. |
+1. **User Registration:** Fixed `Column not found: 1054 Unknown column 'current_level'` by removing `current_level` from `User` `$fillable` and `AuthController.php`. Added computed accessor `getCurrentLevelAttribute()`.
+2. **1-to-1 Calling Stability:** Unified `coins` & `wallet_balance` balance checks, removed offline blocking on dial, increased ringing timeout to 90s, added LiveKit tokens to accept response, and wired `/api/call/end`.
+3. **Live Stream Co-Host Dual Streaming:** Fixed join request management (`getJoinRequests` filters pending requests) and automated dual video streaming token generation upon host accept.
+4. **Gift Animations:** Supported `animation_url`, `animation_asset_url`, `file_url`, and `format` across all gift endpoints and broadcast events.
