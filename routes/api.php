@@ -436,15 +436,19 @@ Route::prefix('call')->group(function () {
     Route::post('/signal/clear', [CallController::class, 'clearSignals']);
     Route::post('/clear-signals', [CallController::class, 'clearSignals']);
 
-    // Call Actions (Receive / Accept / Start / Connect / Reject / Cancel)
-    Route::post('/accept', [CallController::class, 'accept']);
-    Route::post('/answer', [CallController::class, 'accept']);
-    Route::post('/receive', [CallController::class, 'accept']);
-    Route::post('/start', [CallController::class, 'accept']);
-    Route::post('/connect', [CallController::class, 'accept']);
-    Route::post('/reject', [CallController::class, 'reject']);
-    Route::post('/decline', [CallController::class, 'reject']);
-    Route::post('/cancel', [CallController::class, 'cancel']);
+    // Call Actions (Receive / Accept / Start / Connect / Reject / Cancel / End / Hangup)
+    Route::match(['get', 'post'], '/accept', [CallController::class, 'accept']);
+    Route::match(['get', 'post'], '/answer', [CallController::class, 'accept']);
+    Route::match(['get', 'post'], '/receive', [CallController::class, 'accept']);
+    Route::match(['get', 'post'], '/start', [CallController::class, 'accept']);
+    Route::match(['get', 'post'], '/connect', [CallController::class, 'accept']);
+    Route::match(['get', 'post'], '/reject', [CallController::class, 'reject']);
+    Route::match(['get', 'post'], '/decline', [CallController::class, 'reject']);
+    Route::match(['get', 'post'], '/cancel', [CallController::class, 'cancel']);
+    Route::match(['get', 'post'], '/end', [CallController::class, 'end']);
+    Route::match(['get', 'post'], '/hangup', [CallController::class, 'end']);
+    Route::match(['get', 'post'], '/terminate', [CallController::class, 'end']);
+    Route::match(['get', 'post'], '/leave', [CallController::class, 'end']);
 
     // Real-Time In-Call Coin Billing (Pulse Heartbeat & 50/50 Revenue Split)
     Route::post('/deduct-interval', [CallController::class, 'deductInterval']);

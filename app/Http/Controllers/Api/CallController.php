@@ -460,14 +460,14 @@ class CallController extends Controller
             ], 400);
         }
 
-        // 🛑 Check if receiver is offline
-        if (!$receiver->is_online) {
+        // 🛑 Check if receiver is locked or banned
+        if ($receiver->is_locked) {
             return response()->json([
                 'status'    => false,
                 'can_call'  => false,
-                'code'      => 'USER_OFFLINE',
+                'code'      => 'USER_LOCKED',
                 'is_online' => false,
-                'message'   => "{$receiver->display_name} is currently offline.",
+                'message'   => "{$receiver->display_name} is currently unavailable.",
                 'receiver'  => [
                     'id'           => $receiver->id,
                     'account_id'   => $receiver->account_id,
@@ -498,8 +498,10 @@ class CallController extends Controller
             $ratePerMinute = 100;
         }
 
+        $callerBalance = (int) max($caller->coins ?? 0, $caller->wallet_balance ?? 0);
+
         // Check balance IF not a free host and not eligible for free trial
-        if (!$isCallerFree && !$isEligibleForFree && $caller->wallet_balance < $ratePerMinute) {
+        if (!$isCallerFree && !$isEligibleForFree && $callerBalance < $ratePerMinute) {
             $modalData = $this->buildRechargeModalData($caller, $receiver, $ratePerMinute, $callType);
             return response()->json([
                 'success'             => false,
@@ -507,8 +509,8 @@ class CallController extends Controller
                 'can_call'            => false,
                 'code'                => 'INSUFFICIENT_BALANCE',
                 'message'             => 'Insufficient balance to start call',
-                'user_balance'        => (int) $caller->wallet_balance,
-                'user_gems'           => (int) $caller->wallet_balance,
+                'user_balance'        => $callerBalance,
+                'user_gems'           => $callerBalance,
                 'wallet_label'        => 'My Gems',
                 'required_coins'      => $ratePerMinute,
                 'rate_per_minute'     => $ratePerMinute,
@@ -698,16 +700,18 @@ class CallController extends Controller
         $isCallerFree = $caller->isFreeCaller();
         $isEligibleForFree = $isCallerFree || $caller->isEligibleForFreeCall();
 
+        $callerBalance = (int) max($caller->coins ?? 0, $caller->wallet_balance ?? 0);
+
         // Check if caller has enough coins (unless free caller or eligible for free trial)
-        if (!$isCallerFree && !$isEligibleForFree && $caller->wallet_balance < $requiredCallRate) {
+        if (!$isCallerFree && !$isEligibleForFree && $callerBalance < $requiredCallRate) {
             return response()->json([
                 'success'        => false,
                 'status'         => false,
                 'code'           => 'INSUFFICIENT_BALANCE',
                 'message'        => 'Insufficient balance to start call',
                 'required_coins' => $requiredCallRate,
-                'current_coins'  => (int) $caller->wallet_balance,
-                'user_balance'   => (int) $caller->wallet_balance,
+                'current_coins'  => $callerBalance,
+                'user_balance'   => $callerBalance,
                 'redirect_to_deposit' => true,
             ], 402);
         }
@@ -855,16 +859,18 @@ class CallController extends Controller
         $isCallerFree = $caller->isFreeCaller();
         $isEligibleForFree = $isCallerFree || $caller->isEligibleForFreeCall();
 
+        $callerBalance = (int) max($caller->coins ?? 0, $caller->wallet_balance ?? 0);
+
         // Check if caller has enough coins (unless free caller or eligible for free trial)
-        if (!$isCallerFree && !$isEligibleForFree && $caller->wallet_balance < $requiredCallRate) {
+        if (!$isCallerFree && !$isEligibleForFree && $callerBalance < $requiredCallRate) {
             return response()->json([
                 'success'        => false,
                 'status'         => false,
                 'code'           => 'INSUFFICIENT_BALANCE',
                 'message'        => 'Insufficient balance to start call',
                 'required_coins' => $requiredCallRate,
-                'current_coins'  => (int) $caller->wallet_balance,
-                'user_balance'   => (int) $caller->wallet_balance,
+                'current_coins'  => $callerBalance,
+                'user_balance'   => $callerBalance,
                 'redirect_to_deposit' => true,
             ], 402);
         }
@@ -1024,10 +1030,10 @@ class CallController extends Controller
             ], 200);
         }
 
-        // Auto-expire calls that have been ringing > 45 seconds
+        // Auto-expire calls that have been ringing > 90 seconds without answer
         CallSession::where('receiver_id', $targetUser->id)
             ->whereIn('status', ['initiated', 'ringing'])
-            ->where('created_at', '<', now()->subSeconds(45))
+            ->where('created_at', '<', now()->subSeconds(90))
             ->update([
                 'status' => 'missed',
                 'ended_at' => now(),
@@ -1037,7 +1043,7 @@ class CallController extends Controller
         $incoming = CallSession::with(['caller'])
             ->where('receiver_id', $targetUser->id)
             ->whereIn('status', ['initiated', 'ringing'])
-            ->where('created_at', '>=', now()->subSeconds(45))
+            ->where('created_at', '>=', now()->subSeconds(90))
             ->latest()
             ->first();
 
@@ -1117,10 +1123,10 @@ class CallController extends Controller
             ], 200);
         }
 
-        // Auto-expire if ringing for > 45s without answer
+        // Auto-expire if ringing for > 90s without answer
         if (in_array($call->status, ['initiated', 'ringing'])) {
             $ringSeconds = now()->diffInSeconds($call->created_at);
-            if ($ringSeconds > 45) {
+            if ($ringSeconds > 90) {
                 $call->status = 'missed';
                 $call->ended_at = now();
                 $call->save();
@@ -1282,6 +1288,11 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Cache::put("user:{$call->receiver->id}:is_busy", true, now()->addHours(2));
         }
 
+        // Generate LiveKit tokens for receiver & caller
+        $receiverToken = $this->generateFastLivekitToken($call->channel_name, $call->receiver ?? User::find($call->receiver_id));
+        $callerToken = $this->generateFastLivekitToken($call->channel_name, $call->caller ?? User::find($call->caller_id));
+        $livekitUrl = config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit'));
+
         // Broadcast CallAccepted and PrivateCallAcceptedEvent to Caller & Session Channels
         try {
             $callPayload = [
@@ -1290,11 +1301,15 @@ class CallController extends Controller
                 'call_id'       => $call->id,
                 'id'            => $call->id,
                 'room_id'       => $call->channel_name,
+                'room_name'     => $call->channel_name,
                 'channel_name'  => $call->channel_name,
                 'caller_id'     => $call->caller_id,
                 'receiver_id'   => $call->receiver_id,
                 'status'        => 'connected',
                 'call_status'   => 'connected',
+                'token'         => $callerToken,
+                'livekit_token' => $callerToken,
+                'livekit_url'   => $livekitUrl,
                 'started_at'    => $call->started_at ? $call->started_at->toIso8601String() : now()->toIso8601String(),
                 'timestamp'     => now()->toIso8601String(),
             ];
@@ -1327,25 +1342,33 @@ class CallController extends Controller
         }
 
         return response()->json([
-            'status' => true,
+            'status'  => true,
+            'success' => true,
             'message' => 'Call accepted and connected successfully! Start audio/video media stream.',
             'data' => [
-                'call_id' => $call->id,
-                'channel_name' => $call->channel_name,
-                'call_type' => $call->call_type,
-                'status' => 'connected',
-                'started_at' => $call->started_at->toIso8601String(),
-                'rate_per_minute' => (int) $call->rate_per_minute,
-                'is_free_trial' => (bool) $call->is_free_trial,
+                'call_id'               => $call->id,
+                'id'                    => $call->id,
+                'channel_name'          => $call->channel_name,
+                'room_name'             => $call->channel_name,
+                'call_type'             => $call->call_type,
+                'status'                => 'connected',
+                'token'                 => $receiverToken,
+                'receiver_token'        => $receiverToken,
+                'caller_token'          => $callerToken,
+                'livekit_token'         => $receiverToken,
+                'livekit_url'           => $livekitUrl,
+                'started_at'            => $call->started_at->toIso8601String(),
+                'rate_per_minute'       => (int) $call->rate_per_minute,
+                'is_free_trial'         => (bool) $call->is_free_trial,
                 'free_duration_seconds' => (int) $call->free_duration_seconds,
                 'caller' => [
-                    'id' => $call->caller?->id,
-                    'name' => $call->caller?->display_name,
+                    'id'     => $call->caller?->id,
+                    'name'   => $call->caller?->display_name,
                     'avatar' => $call->caller?->avatar_url,
                 ],
                 'receiver' => [
-                    'id' => $call->receiver?->id,
-                    'name' => $call->receiver?->display_name,
+                    'id'     => $call->receiver?->id,
+                    'name'   => $call->receiver?->display_name,
                     'avatar' => $call->receiver?->avatar_url,
                 ],
             ],

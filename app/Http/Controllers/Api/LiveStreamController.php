@@ -287,7 +287,10 @@ class LiveStreamController extends Controller
         }
 
         if (!$joinReq) {
-            $targetUserId = $request->input('user_id') ?? $request->input('guest_user_id');
+            $targetUserId = $request->input('guest_user_id') 
+                         ?? $request->input('target_user_id') 
+                         ?? $request->input('guest_id')
+                         ?? ($host && $request->input('user_id') == $host->id ? null : $request->input('user_id'));
             $roomId = $streamId ?? $request->route('stream_id') ?? $request->input('room_id') ?? $request->input('live_stream_id');
             $joinReqQuery = LiveJoinRequest::with(['liveStream', 'user']);
             if ($targetUserId) {
@@ -299,7 +302,7 @@ class LiveStreamController extends Controller
                       ->orWhereHas('liveStream', fn($sq) => $sq->where('channel_name', $roomId));
                 });
             }
-            $joinReq = $joinReqQuery->latest()->first();
+            $joinReq = (clone $joinReqQuery)->where('status', 'pending')->latest()->first() ?: $joinReqQuery->latest()->first();
         }
 
         if (!$joinReq) {
@@ -519,10 +522,12 @@ class LiveStreamController extends Controller
             ], 200);
         }
 
+        $statusFilter = $request->input('status', 'pending');
         $requests = LiveJoinRequest::with('user')
             ->where('live_stream_id', $stream->id)
-            ->whereIn('status', ['pending', 'accepted'])
-            ->orderByRaw("FIELD(status, 'pending', 'accepted')")
+            ->when($statusFilter !== 'all', function ($q) use ($statusFilter) {
+                $q->where('status', $statusFilter);
+            })
             ->latest()
             ->get()
             ->map(function ($req) {

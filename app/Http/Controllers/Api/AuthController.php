@@ -127,7 +127,6 @@ class AuthController extends Controller
                 'last_active_at'  => now(),
                 'last_seen_at'    => now(),
                 'level'           => 1,
-                'current_level'   => 1,
                 'charm_level'     => 1,
                 'fcm_token'       => $fcmToken ?: null,
                 'device_token'    => $fcmToken ?: null,

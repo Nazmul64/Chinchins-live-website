@@ -39,6 +39,9 @@ class User extends Authenticatable
         'gallery_images',
         'is_verified',
         'is_active',
+        'is_online',
+        'current_status',
+        'last_active_at',
         'last_seen_at',
         'online_status',
         'fcm_token',
@@ -74,8 +77,6 @@ class User extends Authenticatable
         'last_login_at',
         'failed_login_attempts',
         'locked_until',
-        'total_earned_coins',
-        'current_level',
         'avatar_frame',
     ];
 
@@ -1258,8 +1259,10 @@ class User extends Authenticatable
       */
      public function getLevelNumberAttribute(): int
      {
-         return max(1, (int) ($this->attributes['level'] ?? $this->attributes['current_level'] ?? 1));
+         return max(1, (int) ($this->attributes['level'] ?? 1));
      }
+
+
 
 
     /**

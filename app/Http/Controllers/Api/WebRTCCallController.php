@@ -130,13 +130,15 @@ class WebRTCCallController extends Controller
 
         $receiver = User::find($receiverId);
         $ratePerMinute = (int) ($receiver?->call_rate_per_minute ?? $receiver?->video_call_rate ?? 100);
-        if ($user->wallet_balance < $ratePerMinute) {
+        $userCoins = (int) max($user->coins ?? 0, $user->wallet_balance ?? 0);
+        $isFree = $user->isFreeCaller() || $user->isEligibleForFreeCall();
+        if (!$isFree && $userCoins < $ratePerMinute) {
             return response()->json([
                 'success'        => false,
                 'status'         => false,
                 'code'           => 'INSUFFICIENT_BALANCE',
                 'message'        => 'Insufficient balance to start call',
-                'user_balance'   => (int) $user->wallet_balance,
+                'user_balance'   => $userCoins,
                 'required_coins' => $ratePerMinute,
             ], 402);
         }
