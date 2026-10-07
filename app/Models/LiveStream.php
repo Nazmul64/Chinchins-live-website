@@ -76,11 +76,27 @@ class LiveStream extends Model
     }
 
     /**
-     * Join requests sent by viewers to co-host.
+     * Join requests sent by viewers to co-host (live_join_requests table).
      */
     public function joinRequests(): HasMany
     {
         return $this->hasMany(LiveJoinRequest::class, 'live_stream_id');
+    }
+
+    /**
+     * Join requests sent by viewers to co-host (live_stream_requests table).
+     */
+    public function liveStreamRequests(): HasMany
+    {
+        return $this->hasMany(LiveStreamRequest::class, 'live_stream_id');
+    }
+
+    /**
+     * Alias for stream requests.
+     */
+    public function streamRequests(): HasMany
+    {
+        return $this->hasMany(LiveStreamRequest::class, 'live_stream_id');
     }
 
     /**

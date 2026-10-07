@@ -15,6 +15,7 @@ use App\Events\LiveJoinResponded;
 use App\Events\LiveMessageSent;
 use App\Http\Controllers\Controller;
 use App\Models\LiveJoinRequest;
+use App\Models\LiveStreamRequest;
 use App\Models\LiveMessage;
 use App\Models\LiveParticipant;
 use App\Models\LiveStream;
@@ -177,6 +178,10 @@ class LiveStreamController extends Controller
      * 2. Viewer Request to Join as Co-Host
      * POST /api/live/request-join
      */
+    /**
+     * 2. Viewer Request to Join as Co-Host
+     * POST /api/live/request-join
+     */
     public function requestJoin(Request $request, $streamId = null): JsonResponse
     {
         $user = $this->resolveUser($request) ?? auth()->user();
@@ -191,24 +196,38 @@ class LiveStreamController extends Controller
             return response()->json(['status' => false, 'message' => 'Live stream is not active.'], 404);
         }
 
-        $existingPending = LiveJoinRequest::where('live_stream_id', $stream->id)
+        // 3. Duplicate Request Prevention (Idempotency)
+        $alreadyRequested = LiveStreamRequest::where('live_stream_id', $stream->id)
             ->where('user_id', $user->id)
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'accepted'])
             ->first();
 
-        if ($existingPending) {
+        if (!$alreadyRequested) {
+            $alreadyRequested = LiveJoinRequest::where('live_stream_id', $stream->id)
+                ->where('user_id', $user->id)
+                ->whereIn('status', ['pending', 'accepted'])
+                ->first();
+        }
+
+        if ($alreadyRequested) {
             return response()->json([
                 'status'  => false,
                 'success' => false,
                 'code'    => 'REQUEST_ALREADY_PENDING',
-                'message' => 'Request already pending',
+                'message' => 'Request already pending or accepted.',
                 'data'    => [
-                    'request_id' => $existingPending->id,
-                    'status'     => 'pending',
+                    'request_id' => $alreadyRequested->id,
+                    'id'         => $alreadyRequested->id,
+                    'status'     => $alreadyRequested->status,
                 ],
             ], 400);
         }
 
+        // Store into both live_stream_requests and live_join_requests for seamless compatibility
+        $streamReq = LiveStreamRequest::updateOrCreate(
+            ['live_stream_id' => $stream->id, 'user_id' => $user->id],
+            ['status' => 'pending']
+        );
         $joinReq = LiveJoinRequest::updateOrCreate(
             ['live_stream_id' => $stream->id, 'user_id' => $user->id],
             ['status' => 'pending']
@@ -216,38 +235,42 @@ class LiveStreamController extends Controller
 
         $hostId = $request->input('host_id') ?? $stream->host_id;
 
+        // 2. Ensure User Information is NEVER null
+        $userName = $user->display_name ?? $user->name ?? $user->username ?? "User_{$user->id}";
+        $userAvatar = $user->profile_photo_url ?? $user->avatar_url ?? $user->avatar ?? '';
+
         $requestPayload = [
-            'request_id'     => $joinReq->id,
+            'id'             => $streamReq->id,
+            'request_id'     => $streamReq->id,
             'room_id'        => (string) $stream->id,
             'room_name'      => $stream->channel_name ?: (string) $stream->id,
             'live_stream_id' => $stream->id,
             'host_id'        => (int) $hostId,
             'user_id'        => $user->id,
-            'name'           => $user->display_name ?? $user->name,
-            'avatar'         => $user->avatar_url ?? $user->avatar ?? null,
+            'name'           => $userName,
+            'user_name'      => $userName,
+            'display_name'   => $userName,
+            'avatar'         => $userAvatar,
+            'user_avatar'    => $userAvatar,
+            'avatar_url'     => $userAvatar,
+            'status'         => 'pending',
+            'created_at'     => now()->toIso8601String(),
             'user'           => [
                 'id'           => $user->id,
                 'account_id'   => $user->account_id,
-                'display_name' => $user->display_name ?? $user->name,
-                'name'         => $user->display_name ?? $user->name,
-                'avatar_url'   => $user->avatar_url,
-                'avatar'       => $user->avatar_url ?? $user->avatar ?? null,
+                'display_name' => $userName,
+                'name'         => $userName,
+                'user_name'    => $userName,
+                'avatar_url'   => $userAvatar,
+                'avatar'       => $userAvatar,
+                'user_avatar'  => $userAvatar,
                 'gender'       => $user->gender ?: 'female',
                 'level'        => $user->level ?: 'Lv1',
             ],
-            'status'         => 'pending',
-            'created_at'     => now()->toIso8601String(),
         ];
 
         try {
-            broadcast(new CoHostRequestReceived($hostId, [
-                'user_id'    => auth()->id() ?? $user->id,
-                'name'       => $user->display_name ?? $user->name,
-                'avatar'     => $user->avatar_url ?? $user->avatar ?? null,
-                'request_id' => $joinReq->id,
-                'room_id'    => (string) $stream->id,
-                'room_name'  => $stream->channel_name ?: (string) $stream->id,
-            ]))->toOthers();
+            broadcast(new CoHostRequestReceived($hostId, $requestPayload))->toOthers();
             broadcast(new CoHostRequestReceived($hostId, $requestPayload));
             event(new LiveJoinRequested($stream->id, $hostId, $requestPayload));
         } catch (\Throwable $e) {
@@ -284,20 +307,42 @@ class LiveStreamController extends Controller
     public function respondRequest(Request $request, $streamId = null): JsonResponse
     {
         $host = $this->resolveUser($request) ?? auth()->user();
-        $requestId = $request->input('request_id');
+        $requestId = $request->input('request_id') ?? $request->input('id');
         $action = strtolower($request->input('action', 'accept')); // 'accept' or 'reject'
 
-        $joinReq = null;
+        $targetUserId = $request->input('guest_user_id') 
+                     ?? $request->input('target_user_id') 
+                     ?? $request->input('guest_id')
+                     ?? ($host && $request->input('user_id') == $host->id ? null : $request->input('user_id'));
+        $roomId = $streamId ?? $request->route('stream_id') ?? $request->input('room_id') ?? $request->input('live_stream_id');
+
+        $streamReq = null;
         if ($requestId) {
-            $joinReq = LiveJoinRequest::with(['liveStream', 'user'])->find($requestId);
+            $streamReq = LiveStreamRequest::with(['liveStream', 'user'])->find($requestId);
         }
 
-        if (!$joinReq) {
-            $targetUserId = $request->input('guest_user_id') 
-                         ?? $request->input('target_user_id') 
-                         ?? $request->input('guest_id')
-                         ?? ($host && $request->input('user_id') == $host->id ? null : $request->input('user_id'));
-            $roomId = $streamId ?? $request->route('stream_id') ?? $request->input('room_id') ?? $request->input('live_stream_id');
+        if (!$streamReq && $requestId) {
+            $joinReq = LiveJoinRequest::with(['liveStream', 'user'])->find($requestId);
+            if ($joinReq) {
+                $streamReq = $joinReq;
+            }
+        }
+
+        if (!$streamReq) {
+            $streamReqQuery = LiveStreamRequest::with(['liveStream', 'user']);
+            if ($targetUserId) {
+                $streamReqQuery->where('user_id', $targetUserId);
+            }
+            if ($roomId) {
+                $streamReqQuery->where(function($q) use ($roomId) {
+                    $q->where('live_stream_id', $roomId)
+                      ->orWhereHas('liveStream', fn($sq) => $sq->where('channel_name', $roomId));
+                });
+            }
+            $streamReq = (clone $streamReqQuery)->where('status', 'pending')->latest()->first() ?: $streamReqQuery->latest()->first();
+        }
+
+        if (!$streamReq) {
             $joinReqQuery = LiveJoinRequest::with(['liveStream', 'user']);
             if ($targetUserId) {
                 $joinReqQuery->where('user_id', $targetUserId);
@@ -308,25 +353,42 @@ class LiveStreamController extends Controller
                       ->orWhereHas('liveStream', fn($sq) => $sq->where('channel_name', $roomId));
                 });
             }
-            $joinReq = (clone $joinReqQuery)->where('status', 'pending')->latest()->first() ?: $joinReqQuery->latest()->first();
+            $streamReq = (clone $joinReqQuery)->where('status', 'pending')->latest()->first() ?: $joinReqQuery->latest()->first();
         }
 
-        if (!$joinReq) {
+        if (!$streamReq) {
             return response()->json(['status' => false, 'message' => 'Join request not found.'], 404);
         }
 
-        $stream = $joinReq->liveStream;
-        $guestUser = $joinReq->user;
+        $stream = $streamReq->liveStream;
+        $guestUser = $streamReq->user;
+        if (!$guestUser && $streamReq->user_id) {
+            $guestUser = User::find($streamReq->user_id);
+        }
+
         $roomName = $stream ? ($stream->channel_name ?: (string) $stream->id) : 'live_room';
         if (!$host && $stream) {
             $host = $stream->host;
         }
 
         $guestToken = null;
+        $newStatus = ($action === 'accept') ? 'accepted' : 'rejected';
+
+        // 4. Update status in database immediately
+        if ($requestId) {
+            LiveStreamRequest::where('id', $requestId)->update(['status' => $newStatus]);
+            LiveJoinRequest::where('id', $requestId)->update(['status' => $newStatus]);
+        }
+        if ($stream && $guestUser) {
+            LiveStreamRequest::where('live_stream_id', $stream->id)->where('user_id', $guestUser->id)->update(['status' => $newStatus]);
+            LiveJoinRequest::where('live_stream_id', $stream->id)->where('user_id', $guestUser->id)->update(['status' => $newStatus]);
+        }
+        if ($streamReq) {
+            $streamReq->update(['status' => $newStatus]);
+        }
 
         if ($action === 'accept') {
-            $joinReq->update(['status' => 'accepted']);
-            if ($stream) {
+            if ($stream && $guestUser) {
                 // Check if user already has an active participant record to ensure idempotency
                 $existingParticipant = LiveParticipant::where('live_stream_id', $stream->id)
                     ->where('user_id', $guestUser->id)
@@ -350,13 +412,13 @@ class LiveStreamController extends Controller
             $grant = new VideoGrant();
             $grant->setRoomJoin(true)
                   ->setRoomName($roomName)
-                  ->setCanPublish(true)      // কো-হোস্টের জন্য canPublish: true
+                  ->setCanPublish(true)      // Co-Host can publish video & audio
                   ->setCanSubscribe(true)
                   ->setCanPublishData(true);
 
             $tokenOptions = (new AccessTokenOptions())
-                ->setIdentity((string) $guestUser->id)
-                ->setName($guestUser->display_name ?? $guestUser->name ?? "User_{$guestUser->id}")
+                ->setIdentity((string) ($guestUser ? $guestUser->id : $streamReq->user_id))
+                ->setName($guestUser ? ($guestUser->display_name ?? $guestUser->name ?? "User_{$guestUser->id}") : "User_{$streamReq->user_id}")
                 ->setTtl(86400);
 
             $token->init($tokenOptions);
@@ -371,41 +433,51 @@ class LiveStreamController extends Controller
                 'livekit_url'   => $livekitUrl,
             ];
 
+            $guestName = $guestUser ? ($guestUser->display_name ?? $guestUser->name ?? $guestUser->username ?? "User_{$guestUser->id}") : "User_{$streamReq->user_id}";
+            $guestAvatar = $guestUser ? ($guestUser->profile_photo_url ?? $guestUser->avatar_url ?? $guestUser->avatar ?? '') : '';
+
             // Dispatch CoHostRequestAccepted & CoHostAcceptedEvent
             $acceptedPayload = [
                 'room_name'     => $roomName,
                 'room_id'       => (string) ($stream ? $stream->id : ''),
                 'can_publish'   => true,
-                'user_id'       => $guestUser->id,
-                'name'          => $guestUser->display_name ?? $guestUser->name,
-                'avatar'        => $guestUser->avatar_url ?? $guestUser->avatar ?? null,
-                'request_id'    => $joinReq->id,
+                'user_id'       => $guestUser ? $guestUser->id : $streamReq->user_id,
+                'name'          => $guestName,
+                'user_name'     => $guestName,
+                'avatar'        => $guestAvatar,
+                'user_avatar'   => $guestAvatar,
+                'request_id'    => $streamReq->id,
                 'token'         => $guestToken['token'],
                 'livekit_token' => $guestToken['token'],
                 'livekit_url'   => $livekitUrl,
             ];
 
             try {
-                broadcast(new CoHostRequestAccepted($guestUser->id, [
-                    'room_name'   => $roomName,
-                    'room_id'     => (string) ($stream ? $stream->id : ''),
-                    'can_publish' => true,
-                    'token'       => $guestToken['token'],
-                    'livekit_url' => $livekitUrl,
-                ]));
-                broadcast(new CoHostRequestAccepted($guestUser->id, $acceptedPayload))->toOthers();
+                if ($guestUser) {
+                    broadcast(new CoHostRequestAccepted($guestUser->id, [
+                        'room_name'   => $roomName,
+                        'room_id'     => (string) ($stream ? $stream->id : ''),
+                        'can_publish' => true,
+                        'token'       => $guestToken['token'],
+                        'livekit_url' => $livekitUrl,
+                    ]));
+                    broadcast(new CoHostRequestAccepted($guestUser->id, $acceptedPayload))->toOthers();
+                }
+
                 if ($stream) {
-                    event(new CoHostAcceptedEvent($stream->id, $guestUser->id, $acceptedPayload));
-                    broadcast(new CoHostStatusEvent($stream->id, 'accept', $guestUser))->toOthers();
+                    if ($guestUser) {
+                        event(new CoHostAcceptedEvent($stream->id, $guestUser->id, $acceptedPayload));
+                        broadcast(new CoHostStatusEvent($stream->id, 'accept', $guestUser))->toOthers();
+                    }
                     
                     // Broadcast dynamic CoHostJoinedEvent with real host & guest info
                     broadcast(new \App\Events\CoHostJoinedEvent($stream->id, [
                         'host_id'      => $host ? $host->id : $stream->host_id,
                         'host_name'    => $host ? ($host->display_name ?? $host->name) : 'Host',
                         'host_avatar'  => $host ? ($host->avatar_url ?? $host->avatar) : null,
-                        'guest_id'     => $guestUser->id,
-                        'guest_name'   => $guestUser->display_name ?? $guestUser->name,
-                        'guest_avatar' => $guestUser->avatar_url ?? $guestUser->avatar,
+                        'guest_id'     => $guestUser ? $guestUser->id : $streamReq->user_id,
+                        'guest_name'   => $guestName,
+                        'guest_avatar' => $guestAvatar,
                         'can_publish'  => true,
                         'token'        => $guestToken['token'],
                         'livekit_url'  => $livekitUrl,
@@ -415,8 +487,7 @@ class LiveStreamController extends Controller
                 Log::warning('CoHostRequestAccepted broadcast failed: ' . $e->getMessage());
             }
         } else {
-            $joinReq->update(['status' => 'rejected']);
-            if ($stream) {
+            if ($stream && $guestUser) {
                 try {
                     broadcast(new CoHostStatusEvent($stream->id, 'reject', $guestUser))->toOthers();
                 } catch (\Throwable $e) {}
@@ -424,17 +495,19 @@ class LiveStreamController extends Controller
         }
 
         $responsePayload = [
-            'request_id'     => $joinReq->id,
+            'request_id'     => $streamReq->id,
+            'id'             => $streamReq->id,
             'room_id'        => (string) ($stream ? $stream->id : ''),
             'room_name'      => $roomName,
-            'guest_user_id'  => $guestUser->id,
-            'status'         => $joinReq->status,
+            'guest_user_id'  => $guestUser ? $guestUser->id : $streamReq->user_id,
+            'user_id'        => $guestUser ? $guestUser->id : $streamReq->user_id,
+            'status'         => $newStatus,
             'action'         => $action,
             'can_publish'    => ($action === 'accept'),
             'guest_token'    => $guestToken,
         ];
 
-        if ($stream) {
+        if ($stream && $guestUser) {
             try {
                 event(new LiveJoinResponded($stream->id, $guestUser->id, $responsePayload));
             } catch (\Throwable $e) {}
@@ -537,35 +610,64 @@ class LiveStreamController extends Controller
         }
 
         $statusFilter = $request->input('status', 'pending');
-        $requests = LiveJoinRequest::with('user')
+        $requests = LiveStreamRequest::with('user')
             ->where('live_stream_id', $stream->id)
             ->when($statusFilter !== 'all', function ($q) use ($statusFilter) {
                 $q->where('status', $statusFilter);
             })
             ->latest()
-            ->get()
-            ->map(function ($req) {
-                $u = $req->user;
-                return [
-                    'request_id'   => $req->id,
-                    'id'           => $req->id,
-                    'user_id'      => $req->user_id,
-                    'status'       => $req->status, // 'pending' or 'accepted'
-                    'user_name'    => $u?->display_name ?? $u?->name ?? "User_{$req->user_id}",
-                    'display_name' => $u?->display_name ?? $u?->name ?? "User_{$req->user_id}",
-                    'avatar_url'   => $u?->avatar_url ?? 'https://chinchins.live/default-avatar.png',
-                    'level'        => $u?->level ?? 'Lv1',
+            ->get();
+
+        if ($requests->isEmpty()) {
+            $requests = LiveJoinRequest::with('user')
+                ->where('live_stream_id', $stream->id)
+                ->when($statusFilter !== 'all', function ($q) use ($statusFilter) {
+                    $q->where('status', $statusFilter);
+                })
+                ->latest()
+                ->get();
+        }
+
+        $formattedRequests = $requests->map(function ($req) {
+            $u = $req->user;
+            $userName = $u?->display_name ?? $u?->name ?? $u?->username ?? "User_{$req->user_id}";
+            $userAvatar = $u?->profile_photo_url ?? $u?->avatar_url ?? $u?->avatar ?? '';
+
+            return [
+                'request_id'   => $req->id,
+                'id'           => $req->id,
+                'user_id'      => $req->user_id,
+                'status'       => $req->status, // 'pending', 'accepted'
+                'user_name'    => $userName,
+                'display_name' => $userName,
+                'name'         => $userName,
+                'user_avatar'  => $userAvatar,
+                'avatar_url'   => $userAvatar,
+                'avatar'       => $userAvatar,
+                'level'        => $u?->level ?? 'Lv1',
+                'gender'       => $u?->gender ?? 'female',
+                'created_at'   => $req->created_at?->toIso8601String(),
+                'user'         => [
+                    'id'           => $req->user_id,
+                    'account_id'   => $u?->account_id,
+                    'name'         => $userName,
+                    'display_name' => $userName,
+                    'user_name'    => $userName,
+                    'avatar'       => $userAvatar,
+                    'avatar_url'   => $userAvatar,
+                    'user_avatar'  => $userAvatar,
                     'gender'       => $u?->gender ?? 'female',
-                    'created_at'   => $req->created_at?->toIso8601String(),
-                ];
-            });
+                    'level'        => $u?->level ?? 'Lv1',
+                ],
+            ];
+        });
 
         return response()->json([
             'status'   => true,
             'message'  => 'Join requests retrieved successfully',
             'room_id'  => (string) $stream->id,
-            'data'     => $requests,
-            'requests' => $requests,
+            'data'     => $formattedRequests,
+            'requests' => $formattedRequests,
         ], 200);
     }
 
@@ -590,6 +692,10 @@ class LiveStreamController extends Controller
                 ->where('user_id', $guestUserId)
                 ->update(['left_at' => now()]);
 
+            LiveStreamRequest::where('live_stream_id', $stream->id)
+                ->where('user_id', $guestUserId)
+                ->update(['status' => 'ended']);
+
             LiveJoinRequest::where('live_stream_id', $stream->id)
                 ->where('user_id', $guestUserId)
                 ->update(['status' => 'rejected']);
@@ -599,6 +705,7 @@ class LiveStreamController extends Controller
                 broadcast(new CoHostStatusEvent($stream->id, 'reject', $guestUser))->toOthers();
             } catch (\Throwable $e) {}
         } elseif ($requestId) {
+            LiveStreamRequest::where('id', $requestId)->update(['status' => 'ended']);
             $req = LiveJoinRequest::find($requestId);
             if ($req) {
                 $req->update(['status' => 'rejected']);

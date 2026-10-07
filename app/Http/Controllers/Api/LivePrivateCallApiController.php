@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\CallAccepted;
 use App\Events\GlobalTopGiftBannerEvent;
 use App\Events\IncomingPrivateCallEvent;
 use App\Events\PKBattleEndedEvent;
@@ -238,39 +239,61 @@ class LivePrivateCallApiController extends Controller
         }
 
         $call->update([
-            'status'     => 'connected',
-            'started_at' => now(),
+            'status'      => 'connected',
+            'started_at'  => now(),
+            'answered_at' => now(),
         ]);
 
-        // Generate LiveKit token for Host
+        // 5. Generate LiveKit token for Host & Caller with canPublish: true
         $hostToken = $this->generateLiveKitToken($call->channel_name, $host, true);
+        
+        $caller = User::find($call->caller_id);
+        $callerToken = $caller ? $this->generateLiveKitToken($call->channel_name, $caller, true) : $hostToken;
         $livekitWsUrl = config('services.livekit.url', env('LIVEKIT_WS_URL', 'wss://chinchins.live/livekit'));
 
-        // Notify caller that host accepted
+        // Notify caller that host accepted and deliver synchronized LiveKit tokens
+        $acceptBroadcastPayload = [
+            'call_id'         => $call->id,
+            'id'              => $call->id,
+            'room_name'       => $call->channel_name,
+            'channel_name'    => $call->channel_name,
+            'host_id'         => $host->id,
+            'host_name'       => $host->display_name ?? $host->name ?? 'Host',
+            'host_avatar'     => $host->avatar_url ?? $host->avatar ?? '',
+            'caller_id'       => $call->caller_id,
+            'token'           => $callerToken,
+            'livekit_token'   => $callerToken,
+            'caller_token'    => $callerToken,
+            'host_token'      => $hostToken,
+            'livekit_url'     => $livekitWsUrl,
+            'can_publish'     => true,
+            'status'          => 'connected',
+            'call_status'     => 'connected',
+            'connected_at'    => now()->toIso8601String(),
+        ];
+
         try {
-            broadcast(new PrivateCallAcceptedEvent($call->caller_id, [
-                'call_id'         => $call->id,
-                'room_name'       => $call->channel_name,
-                'host_id'         => $host->id,
-                'host_name'       => $host->display_name ?? $host->name,
-                'host_avatar'     => $host->avatar_url,
-                'livekit_url'     => $livekitWsUrl,
-                'status'          => 'connected',
-                'connected_at'    => now()->toIso8601String(),
-            ]));
+            broadcast(new PrivateCallAcceptedEvent($call->caller_id, $acceptBroadcastPayload));
+            broadcast(new CallAccepted($call, $acceptBroadcastPayload));
         } catch (\Throwable $e) {
-            Log::error("PrivateCallAcceptedEvent error: " . $e->getMessage());
+            Log::error("PrivateCallAcceptedEvent broadcast error: " . $e->getMessage());
         }
 
         return response()->json([
             'success'       => true,
             'status'        => true,
-            'message'       => 'Call accepted. Camera stream paused on public live stream.',
+            'message'       => 'Call accepted. LiveKit tokens synchronized.',
             'call_id'       => $call->id,
+            'id'            => $call->id,
             'room_name'     => $call->channel_name,
+            'channel_name'  => $call->channel_name,
             'token'         => $hostToken,
             'livekit_token' => $hostToken,
+            'host_token'    => $hostToken,
+            'caller_token'  => $callerToken,
             'livekit_url'   => $livekitWsUrl,
+            'can_publish'   => true,
+            'status'        => 'connected',
         ], 200);
     }
 
