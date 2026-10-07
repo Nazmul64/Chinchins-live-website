@@ -51,4 +51,20 @@ class CallSignal extends Model
     {
         return $this->belongsTo(User::class, 'receiver_id');
     }
+
+    /**
+     * Accessor for signal_data alias.
+     */
+    public function getSignalDataAttribute()
+    {
+        return $this->payload;
+    }
+
+    /**
+     * Mutator for signal_data alias.
+     */
+    public function setSignalDataAttribute($value)
+    {
+        $this->attributes['payload'] = is_array($value) ? json_encode($value) : $value;
+    }
 }

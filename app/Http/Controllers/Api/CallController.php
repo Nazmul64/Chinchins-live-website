@@ -1347,13 +1347,30 @@ class CallController extends Controller
             event(new \App\Events\CallAccepted($call, $callPayload));
             event(new \App\Events\PrivateCallAcceptedEvent($call->caller_id, $callPayload));
 
+            $acceptSignalPayload = array_merge($callPayload, [
+                'type'   => 'accept',
+                'status' => 'connected',
+            ]);
+
+            // Insert 'call_accepted' signal for Flutter polling loop (/api/call/signal/receive)
             \App\Models\CallSignal::create([
                 'call_session_id' => $call->id,
-                'channel_name'    => $call->channel_name,
+                'channel_name'    => $call->channel_name ?? $call->room_id,
+                'sender_id'       => $call->receiver_id,
+                'receiver_id'     => $call->caller_id,
+                'type'            => 'call_accepted',
+                'payload'         => $acceptSignalPayload,
+                'is_read'         => false,
+            ]);
+
+            // Insert 'accepted' signal for standard WebRTC signaling compatibility
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name'    => $call->channel_name ?? $call->room_id,
                 'sender_id'       => $call->receiver_id,
                 'receiver_id'     => $call->caller_id,
                 'type'            => 'accepted',
-                'payload'         => $callPayload,
+                'payload'         => $acceptSignalPayload,
                 'is_read'         => false,
             ]);
 
@@ -2183,15 +2200,19 @@ class CallController extends Controller
         }
 
         $formatted = $signals->map(function ($s) {
+            $payloadData = is_array($s->payload) ? $s->payload : (json_decode($s->payload, true) ?: ['data' => $s->payload]);
             return [
-                'id' => $s->id,
-                'call_id' => $s->call_session_id,
+                'id'           => $s->id,
+                'call_id'      => $s->call_session_id,
                 'channel_name' => $s->channel_name,
-                'sender_id' => $s->sender_id,
-                'sender_name' => $s->sender?->display_name,
-                'type' => $s->type,
-                'payload' => $s->payload,
-                'created_at' => $s->created_at->toIso8601String(),
+                'sender_id'    => $s->sender_id,
+                'receiver_id'  => $s->receiver_id,
+                'sender_name'  => $s->sender?->display_name ?? $s->sender?->name,
+                'type'         => $s->type,
+                'payload'      => $payloadData,
+                'signal_data'  => $payloadData,
+                'is_read'      => (bool) $s->is_read,
+                'created_at'   => $s->created_at->toIso8601String(),
             ];
         });
 

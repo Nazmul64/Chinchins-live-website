@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\CallAccepted;
+use App\Events\CallAcceptedEvent;
 use App\Events\CallCancelled;
 use App\Events\CallEnded;
 use App\Events\CallIncoming;
@@ -12,6 +13,7 @@ use App\Events\WebRTCICECandidate;
 use App\Events\WebRTCOffer;
 use App\Http\Controllers\Controller;
 use App\Models\Call;
+use App\Models\CallSignal;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -283,9 +285,45 @@ class WebRTCCallController extends Controller
             } catch (\Throwable $e) {}
         }
 
-        // Broadcast call.accepted to caller's channel (private-user.{caller_id})
+        // Broadcast call.accepted to caller's channel and insert CallSignal for polling
         try {
-            event(new CallAccepted($callInstance));
+            $payload = [
+                'type'         => 'accept',
+                'action'       => 'call_accepted',
+                'status'       => 'connected',
+                'call_status'  => 'connected',
+                'call_id'      => $callInstance->id,
+                'room_id'      => $callInstance->room_id,
+                'channel_name' => $callInstance->room_id,
+                'caller_id'    => $callInstance->caller_id,
+                'receiver_id'  => $callInstance->receiver_id,
+                'started_at'   => now()->toIso8601String(),
+                'answered_at'  => now()->toIso8601String(),
+                'timestamp'    => now()->toIso8601String(),
+            ];
+
+            event(new CallAcceptedEvent($callInstance->caller_id, $payload));
+            event(new CallAccepted($callInstance, $payload));
+
+            CallSignal::create([
+                'call_session_id' => $callInstance->id,
+                'channel_name'    => $callInstance->room_id,
+                'sender_id'       => $callInstance->receiver_id,
+                'receiver_id'     => $callInstance->caller_id,
+                'type'            => 'call_accepted',
+                'payload'         => $payload,
+                'is_read'         => false,
+            ]);
+
+            CallSignal::create([
+                'call_session_id' => $callInstance->id,
+                'channel_name'    => $callInstance->room_id,
+                'sender_id'       => $callInstance->receiver_id,
+                'receiver_id'     => $callInstance->caller_id,
+                'type'            => 'accepted',
+                'payload'         => $payload,
+                'is_read'         => false,
+            ]);
 
             // 🛑 Auto-broadcast StreamHoldEvent if host is currently live streaming
             $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$callInstance->receiver_id, $callInstance->caller_id])
