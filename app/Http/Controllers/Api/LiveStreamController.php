@@ -262,10 +262,16 @@ class LiveStreamController extends Controller
     }
 
     /**
-     * Dedicated Accept Join Endpoint
-     * POST /api/live/accept-join
+     * Dedicated Accept Join / Request Endpoint
+     * POST /api/live/accept-join, POST /api/live/accept-request
      */
     public function acceptJoin(Request $request): JsonResponse
+    {
+        $request->merge(['action' => 'accept']);
+        return $this->respondRequest($request);
+    }
+
+    public function acceptRequest(Request $request): JsonResponse
     {
         $request->merge(['action' => 'accept']);
         return $this->respondRequest($request);
@@ -321,10 +327,18 @@ class LiveStreamController extends Controller
         if ($action === 'accept') {
             $joinReq->update(['status' => 'accepted']);
             if ($stream) {
-                LiveParticipant::updateOrCreate(
-                    ['live_stream_id' => $stream->id, 'user_id' => $guestUser->id],
-                    ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
-                );
+                // Check if user already has an active participant record to ensure idempotency
+                $existingParticipant = LiveParticipant::where('live_stream_id', $stream->id)
+                    ->where('user_id', $guestUser->id)
+                    ->whereNull('left_at')
+                    ->first();
+
+                if (!$existingParticipant) {
+                    LiveParticipant::updateOrCreate(
+                        ['live_stream_id' => $stream->id, 'user_id' => $guestUser->id],
+                        ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
+                    );
+                }
             }
 
             // Generate LiveKit token with canPublish = true for co-host

@@ -36,3 +36,6 @@ Artisan::command('admin:restore {email=admin@gmail.com} {password=admin@gmail.co
     $this->info("Email: {$email}");
     $this->info("Password: {$password}");
 })->purpose('Restore or create primary super admin user account');
+
+\Illuminate\Support\Facades\Schedule::command('call:timeout-check')->everyMinute()->runInBackground();
+

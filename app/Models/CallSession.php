@@ -21,6 +21,7 @@ class CallSession extends Model
         'charged_user_id',
         'free_duration_seconds',
         'started_at',
+        'answered_at',
         'ended_at',
         'duration_seconds',
         'coins_deducted',
@@ -43,6 +44,7 @@ class CallSession extends Model
         'charged_user_id' => 'integer',
         'is_random_match' => 'boolean',
         'started_at' => 'datetime',
+        'answered_at' => 'datetime',
         'ended_at' => 'datetime',
     ];
 

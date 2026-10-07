@@ -21,9 +21,12 @@ class CallAccepted implements ShouldBroadcastNow
     public string $roomId;
     public ?string $receiverName;
 
-    public function __construct(mixed $call)
+    public ?array $extraData;
+
+    public function __construct(mixed $call, ?array $extraData = null)
     {
         $this->call = $call;
+        $this->extraData = $extraData;
         $this->callId = (int) (is_object($call) ? ($call->id ?? 0) : (is_array($call) ? ($call['id'] ?? 0) : $call));
         $this->callerId = (int) (is_object($call) ? ($call->caller_id ?? 0) : (is_array($call) ? ($call['caller_id'] ?? 0) : 0));
         $this->receiverId = (int) (is_object($call) ? ($call->receiver_id ?? 0) : (is_array($call) ? ($call['receiver_id'] ?? 0) : 0));
@@ -40,12 +43,14 @@ class CallAccepted implements ShouldBroadcastNow
     }
 
     /**
-     * Broadcast to caller's private channel, public fallback channel, and call session channels.
+     * Broadcast to caller's private channel, call.caller_id, public fallback channel, and call session channels.
      */
     public function broadcastOn(): array
     {
         $channels = [];
         if ($this->callerId > 0) {
+            $channels[] = new PrivateChannel('call.' . $this->callerId);
+            $channels[] = new Channel('call.' . $this->callerId);
             $channels[] = new PrivateChannel('user.' . $this->callerId);
             $channels[] = new Channel('user.' . $this->callerId);
             $channels[] = new Channel('chat.' . $this->callerId);
@@ -64,7 +69,7 @@ class CallAccepted implements ShouldBroadcastNow
     }
 
     /**
-     * Event name for Flutter caller to start WebRTC offer negotiation.
+     * Event name for Flutter caller to start WebRTC offer negotiation / LiveKit connection.
      */
     public function broadcastAs(): string
     {
@@ -76,7 +81,7 @@ class CallAccepted implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        return [
+        $base = [
             'event'         => 'call.accepted',
             'action'        => 'call_accepted',
             'call_id'       => $this->callId,
@@ -86,9 +91,18 @@ class CallAccepted implements ShouldBroadcastNow
             'caller_id'     => $this->callerId,
             'receiver_id'   => $this->receiverId,
             'receiver_name' => $this->receiverName,
-            'status'        => 'accepted',
+            'status'        => 'connected',
+            'call_status'   => 'connected',
+            'started_at'    => now()->toIso8601String(),
             'answered_at'   => now()->toIso8601String(),
+            'timestamp'     => now()->toIso8601String(),
         ];
+
+        if ($this->extraData && is_array($this->extraData)) {
+            $base = array_merge($base, $this->extraData);
+        }
+
+        return $base;
     }
 }
 

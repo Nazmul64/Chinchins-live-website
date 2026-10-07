@@ -1382,6 +1382,12 @@ class LiveStreamApiController extends Controller
         ], 200);
     }
 
+    public function acceptRequest(Request $request): JsonResponse
+    {
+        $request->merge(['action' => 'accept']);
+        return $this->respondJoinRequest($request);
+    }
+
     public function respondJoinRequest(Request $request): JsonResponse
     {
         $host = $this->resolveUser($request);
@@ -1403,10 +1409,18 @@ class LiveStreamApiController extends Controller
 
         if ($action === 'accept') {
             $joinReq->update(['status' => 'accepted']);
-            LiveParticipant::updateOrCreate(
-                ['live_stream_id' => $stream->id, 'user_id' => $guestUser->id],
-                ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
-            );
+
+            $existingParticipant = LiveParticipant::where('live_stream_id', $stream->id)
+                ->where('user_id', $guestUser->id)
+                ->whereNull('left_at')
+                ->first();
+
+            if (!$existingParticipant) {
+                LiveParticipant::updateOrCreate(
+                    ['live_stream_id' => $stream->id, 'user_id' => $guestUser->id],
+                    ['role' => 'guest', 'joined_at' => now(), 'left_at' => null, 'video_enabled' => true]
+                );
+            }
 
             $guestSession = $this->callingManager->initializeSession(
                 $guestUser,
