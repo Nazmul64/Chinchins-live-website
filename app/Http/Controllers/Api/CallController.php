@@ -1343,9 +1343,9 @@ class CallController extends Controller
                 'timestamp'     => $now->toIso8601String(),
             ];
 
+            event(new \App\Events\CallAcceptedEvent($call->caller_id, $callPayload));
             event(new \App\Events\CallAccepted($call, $callPayload));
-            broadcast(new \App\Events\CallAcceptedEvent($call->caller_id, $callPayload))->toOthers();
-            broadcast(new \App\Events\PrivateCallAcceptedEvent($call->caller_id, $callPayload))->toOthers();
+            event(new \App\Events\PrivateCallAcceptedEvent($call->caller_id, $callPayload));
 
             \App\Models\CallSignal::create([
                 'call_session_id' => $call->id,

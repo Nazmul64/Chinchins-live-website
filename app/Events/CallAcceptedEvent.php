@@ -13,22 +13,24 @@ class CallAcceptedEvent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public int|string $callerId;
-    public array $callData;
+    public $callerId;
+    public $data;
+    public $callData;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(int|string $callerId, array $callData)
+    public function __construct($callerId, $data = [])
     {
         $this->callerId = $callerId;
-        $this->callData = $callData;
+        $this->data = $data;
+        $this->callData = $data;
     }
 
     /**
      * Broadcast to caller's private channel (call.caller_id, user.caller_id) and session channels.
      */
-    public function broadcastOn(): array
+    public function broadcastOn()
     {
         $channels = [
             new PrivateChannel('call.' . $this->callerId),
@@ -38,14 +40,14 @@ class CallAcceptedEvent implements ShouldBroadcastNow
             new Channel('chat.' . $this->callerId),
         ];
 
-        $callId = $this->callData['call_id'] ?? $this->callData['id'] ?? null;
+        $callId = $this->data['call_id'] ?? $this->data['id'] ?? null;
         if ($callId) {
             $channels[] = new PrivateChannel('call.' . $callId);
             $channels[] = new Channel('call.' . $callId);
             $channels[] = new Channel('presence-call.' . $callId);
         }
 
-        $roomId = $this->callData['channel_name'] ?? $this->callData['room_id'] ?? null;
+        $roomId = $this->data['channel_name'] ?? $this->data['room_id'] ?? null;
         if ($roomId && $roomId !== (string)$callId) {
             $channels[] = new PrivateChannel('call.' . $roomId);
             $channels[] = new Channel('call.' . $roomId);
@@ -57,10 +59,11 @@ class CallAcceptedEvent implements ShouldBroadcastNow
 
     /**
      * Event name for Flutter / Web clients to instantly switch to Connected.
+     * Matches Flutter's .listen('.CallAccepted', ...) and .listen('CallAccepted', ...)
      */
     public function broadcastAs(): string
     {
-        return 'CallAcceptedEvent';
+        return 'CallAccepted';
     }
 
     /**
@@ -75,6 +78,6 @@ class CallAcceptedEvent implements ShouldBroadcastNow
             'call_status'   => 'connected',
             'answered_at'   => now()->toIso8601String(),
             'timestamp'     => now()->toIso8601String(),
-        ], $this->callData);
+        ], is_array($this->data) ? $this->data : []);
     }
 }
