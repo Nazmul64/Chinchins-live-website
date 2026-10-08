@@ -8,28 +8,73 @@ use App\Models\CoinPackage;
 use App\Models\CoinTransaction;
 use App\Models\User;
 use App\Models\UserVipCardSubscription;
+use App\Models\VipCard;
 use App\Models\VipPrivilegeCard;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class VipCardApiController extends Controller
 {
     /**
-     * Resolve authenticated user from Bearer Token or User ID fallback.
+     * Resolve authenticated user from Bearer Token (Sanctum), Session, or custom identifier.
      */
     protected function resolveUser(Request $request): ?User
     {
-        $user = $request->user();
-        if (!$user) {
-            $userId = $request->input('user_id') ?? $request->header('X-User-ID');
-            if ($userId) {
-                $user = User::find($userId);
+        // 1. Check Authorization Bearer token from header / input first
+        $token = $request->bearerToken() 
+              ?: $request->header('Authorization') 
+              ?: $request->input('token') 
+              ?: $request->input('auth_token');
+
+        if ($token) {
+            $tokenClean = trim(preg_replace('/^Bearer\s+/i', '', $token));
+            if (class_exists('\Laravel\Sanctum\PersonalAccessToken')) {
+                try {
+                    $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($tokenClean);
+                    if ($accessToken && $accessToken->tokenable) {
+                        return $accessToken->tokenable;
+                    }
+                } catch (\Throwable $e) {}
             }
         }
-        return $user;
+
+        // 2. Try Sanctum Bearer token guard & default user guard
+        try {
+            if (Auth::guard('sanctum')->check() && Auth::guard('sanctum')->user()) {
+                return Auth::guard('sanctum')->user();
+            }
+            if ($request->user('sanctum')) {
+                return $request->user('sanctum');
+            }
+            if ($request->user()) {
+                return $request->user();
+            }
+        } catch (\Throwable $e) {}
+
+        // 3. Check custom user identifier headers
+        $headerUserId = $request->header('X-User-Id') 
+                     ?? $request->header('User-Id') 
+                     ?? $request->header('user-id') 
+                     ?? $request->header('userId')
+                     ?? $request->header('X-Account-Id')
+                     ?? $request->header('Account-Id');
+
+        if ($headerUserId) {
+            $u = User::find($headerUserId) ?? User::where('account_id', $headerUserId)->first();
+            if ($u) return $u;
+        }
+
+        // 4. Fallback: user_id, userId, id, account_id in request body / query
+        $idParam = $request->input('user_id') ?? $request->input('userId') ?? $request->input('id') ?? $request->input('account_id');
+        if ($idParam) {
+            return User::find($idParam) ?? User::where('account_id', $idParam)->first();
+        }
+
+        return null;
     }
 
     /**
@@ -138,9 +183,14 @@ class VipCardApiController extends Controller
     {
         $user = $this->resolveUser($request);
 
+        // Fetch cards from vip_privilege_cards table
         $cards = VipPrivilegeCard::where('is_active', true)
             ->orderBy('sort_order', 'asc')
             ->get();
+
+        if ($cards->isEmpty()) {
+            $cards = DB::table('vip_privilege_cards')->where('is_active', 1)->orderBy('sort_order', 'asc')->get();
+        }
 
         $userSubscriptions = [];
         if ($user) {
@@ -161,47 +211,68 @@ class VipCardApiController extends Controller
             $currentDay = $isSubscribed ? $sub->getCurrentDayNumber() : 1;
             $hasClaimedToday = $isSubscribed ? $sub->hasClaimedToday() : false;
 
-            // Rolling promotional offer countdown timer for display (e.g. 7 days / duration timer)
-            $offerDurationSeconds = ((int) $card->duration_days) * 86400 - 60; // e.g. 6 days 23 hrs 59 mins
+            $durationDays = (int) ($card->duration_days ?: 30);
+            $offerDurationSeconds = $durationDays * 86400 - 60;
             $displayCountdownSeconds = $isSubscribed ? $remainingSeconds : $offerDurationSeconds;
             $countdownFormatted = static::formatCountdown($displayCountdownSeconds);
 
-            $formattedSchedule = static::formatDailySchedule($card->daily_schedule ?? []);
-            $formattedRewards = static::formatExtraRewards($card->extra_rewards ?? []);
+            $dailySchedule = is_string($card->daily_schedule) ? json_decode($card->daily_schedule, true) : ($card->daily_schedule ?? []);
+            $extraRewards = is_string($card->extra_rewards) ? json_decode($card->extra_rewards, true) : ($card->extra_rewards ?? []);
 
-            $instantCoins = (int) $card->instant_reward_coins;
-            $dailyCoins = (int) $card->daily_checkin_total_coins;
+            $formattedSchedule = static::formatDailySchedule($dailySchedule);
+            $formattedRewards = static::formatExtraRewards($extraRewards);
+
+            $instantCoins = (int) ($card->diamonds_reward ?? $card->instant_reward_coins ?? 32940);
+            $dailyCoins = (int) ($card->daily_checkin_diamonds ?? $card->daily_checkin_total_coins ?? 26330);
+            $costCoins = (int) ($card->cost_diamonds ?? $card->price_coins ?? (int) ($card->price ?? $card->price_bdt ?? 300));
+            $totalCoins = (int) ($card->total_return_coins ?: ($instantCoins + $dailyCoins));
+
+            $price = (float) ($card->price ?? $card->price_bdt ?? $costCoins);
+            $name = $card->name ?? 'Super Monthly VIP Card';
+            $perks = $card->perks ?? (!empty($formattedRewards) ? count($formattedRewards) . ' Perks' : '3 Perks');
+            $outfits = $card->outfits ?? 'VIP Outfits';
+
             $instantText = $card->instant_reward_text ?: ('Gems in total ' . number_format($instantCoins));
             $dailyText = $card->daily_checkin_text ?: ('Gems in total ' . number_format($dailyCoins));
 
+            $iconFullUrl = $card->icon_full_url ?? (empty($card->icon_url) ? asset('assets/images/vip/vip_card_badge.png') : (str_starts_with($card->icon_url, 'http') ? $card->icon_url : asset(ltrim($card->icon_url, '/'))));
+            $animFullUrl = $card->animation_full_url ?? (empty($card->animation_url) ? null : (str_starts_with($card->animation_url, 'http') ? $card->animation_url : asset(ltrim($card->animation_url, '/'))));
+            $bgFullUrl = $card->bg_image_full_url ?? (empty($card->bg_image_url) ? null : (str_starts_with($card->bg_image_url, 'http') ? $card->bg_image_url : asset(ltrim($card->bg_image_url, '/'))));
+
             return [
                 'id'                            => $card->id,
-                'card_type'                     => $card->card_type,
-                'name'                          => $card->name,
-                'category_name'                 => $card->category_name ?? $card->name,
-                'badge_text'                    => $card->badge_text,
-                'price_bdt'                     => (float) $card->price_bdt,
+                'name'                          => $name,
+                'price'                         => $price,
+                'diamonds_reward'               => $instantCoins,
+                'cost_diamonds'                 => $costCoins,
+                'daily_checkin_diamonds'        => $dailyCoins,
+                'perks'                         => $perks,
+                'outfits'                       => $outfits,
+                'card_type'                     => $card->card_type ?? 'monthly_card',
+                'category_name'                 => $card->category_name ?? $name,
+                'badge_text'                    => $card->badge_text ?? 'VIP PRIVILEGE',
+                'price_bdt'                     => (float) ($card->price_bdt ?? $price),
                 'original_price_bdt'            => $card->original_price_bdt ? (float) $card->original_price_bdt : null,
-                'formatted_price_bdt'           => $card->formatted_price_bdt,
-                'formatted_original_price_bdt'  => $card->formatted_original_price_bdt,
-                'discount_percent'              => $card->discount_percent,
-                'price_coins'                   => (int) $card->price_coins,
-                'duration_days'                 => (int) $card->duration_days,
+                'formatted_price_bdt'           => $card->formatted_price_bdt ?? ('৳ ' . number_format($price, 0)),
+                'formatted_original_price_bdt'  => $card->formatted_original_price_bdt ?? null,
+                'discount_percent'              => $card->discount_percent ?? null,
+                'price_coins'                   => $costCoins,
+                'duration_days'                 => $durationDays,
                 'instant_reward_coins'          => $instantCoins,
                 'instant_reward_text'           => $instantText,
                 'daily_checkin_total_coins'     => $dailyCoins,
                 'daily_checkin_text'            => $dailyText,
-                'total_return_coins'            => (int) $card->total_return_coins,
+                'total_return_coins'            => $totalCoins,
                 'card_color'                    => $card->card_color ?? '#FF4081',
                 'banner_tag'                    => $card->banner_tag ?? 'Spend Less, Get More Gems!',
                 'icon_url'                      => $card->icon_url,
-                'icon_full_url'                 => $card->icon_full_url,
+                'icon_full_url'                 => $iconFullUrl,
                 'animation_url'                 => $card->animation_url,
-                'animation_full_url'            => $card->animation_full_url,
+                'animation_full_url'            => $animFullUrl,
                 'bg_image_url'                  => $card->bg_image_url,
-                'bg_image_full_url'             => $card->bg_image_full_url,
+                'bg_image_full_url'             => $bgFullUrl,
                 'format'                        => $card->format ?? 'lottie',
-                'description'                   => $card->description,
+                'description'                   => $card->description ?? 'VIP Privilege Card Subscription',
                 'countdown_seconds'             => $displayCountdownSeconds,
                 'countdown_timer'               => $countdownFormatted,
                 'daily_schedule'                => $formattedSchedule,
@@ -222,6 +293,14 @@ class VipCardApiController extends Controller
 
         $appConfig = \App\Models\AppSetting::getAppConfig();
 
+        // Support direct list format if requested
+        if ($request->query('mode') === 'flat' || $request->query('format') === 'list') {
+            return response()->json([
+                'status' => true,
+                'data'   => $formattedCards,
+            ]);
+        }
+
         $responsePayload = [
             'status'  => true,
             'message' => 'Premium VIP cards and privileges retrieved successfully.',
@@ -234,6 +313,7 @@ class VipCardApiController extends Controller
                 'floating_banner' => $appConfig['floating_vip_banner'] ?? null,
                 'cards'           => $formattedCards,
             ],
+            'cards'   => $formattedCards,
         ];
 
         $etag = '"' . md5(json_encode($responsePayload)) . '"';
@@ -365,27 +445,17 @@ class VipCardApiController extends Controller
             ], 401);
         }
 
-        $validator = Validator::make($request->all(), [
-            'card_id'        => 'required_without:card_type|nullable|exists:vip_privilege_cards,id',
-            'card_type'      => 'required_without:card_id|nullable|string',
-            'payment_method' => 'nullable|string', // 'coins', 'wallet', 'bkash', 'nagad'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status'  => false,
-                'message' => $validator->errors()->first(),
-            ], 422);
-        }
+        $cardId = $request->input('card_id') ?? $request->input('id');
+        $cardType = $request->input('card_type');
 
         $card = null;
-        if ($request->filled('card_id')) {
-            $card = VipPrivilegeCard::find($request->card_id);
-        } elseif ($request->filled('card_type')) {
-            $card = VipPrivilegeCard::where('card_type', $request->card_type)->first();
+        if ($cardId) {
+            $card = VipPrivilegeCard::find($cardId) ?? DB::table('vip_privilege_cards')->where('id', $cardId)->first();
+        } elseif ($cardType) {
+            $card = VipPrivilegeCard::where('card_type', $cardType)->first() ?? DB::table('vip_privilege_cards')->where('card_type', $cardType)->first();
         }
 
-        if (!$card || !$card->is_active) {
+        if (!$card) {
             return response()->json([
                 'status'  => false,
                 'message' => 'Selected VIP Card package is not available.',
@@ -393,7 +463,7 @@ class VipCardApiController extends Controller
         }
 
         // Check user balance
-        $priceCoins = (int) $card->price_coins;
+        $priceCoins = (int) ($card->cost_diamonds ?? $card->price_coins ?? $card->price ?? $card->price_bdt ?? 300);
         if ((int) $user->coins < $priceCoins) {
             return response()->json([
                 'status'              => false,
@@ -409,7 +479,7 @@ class VipCardApiController extends Controller
             $user->decrement('coins', $priceCoins);
 
             // Credit Instant Reward Coins immediately!
-            $instantReward = (int) $card->instant_reward_coins;
+            $instantReward = (int) ($card->diamonds_reward ?? $card->instant_reward_coins ?? $card->total_return_coins ?? 0);
             if ($instantReward > 0) {
                 $user->increment('coins', $instantReward);
             }
@@ -423,15 +493,16 @@ class VipCardApiController extends Controller
                 'balance_after'    => $user->fresh()->coins,
             ]);
 
+            $durationDays = (int) ($card->duration_days ?: 30);
             $now = Carbon::now();
-            $expiresAt = $now->copy()->addDays($card->duration_days);
+            $expiresAt = $now->copy()->addDays($durationDays);
 
             // Create subscription
             $subscription = UserVipCardSubscription::create([
                 'user_id'         => $user->id,
                 'vip_card_id'     => $card->id,
-                'card_type'       => $card->card_type,
-                'price_paid'      => $card->price_bdt,
+                'card_type'       => $card->card_type ?? 'monthly_card',
+                'price_paid'      => $card->price_bdt ?? $priceCoins,
                 'payment_method'  => $request->input('payment_method', 'coins'),
                 'started_at'      => $now,
                 'expires_at'      => $expiresAt,
@@ -449,7 +520,7 @@ class VipCardApiController extends Controller
                     'instant_reward_coins' => $instantReward,
                     'new_coins_balance'    => (int) $user->fresh()->coins,
                     'expires_at'           => $expiresAt->toIso8601String(),
-                    'duration_days'        => $card->duration_days,
+                    'duration_days'        => $durationDays,
                 ],
             ], 200);
         });
@@ -470,7 +541,7 @@ class VipCardApiController extends Controller
         }
 
         $subscriptionId = $request->input('subscription_id');
-        $cardId = $request->input('card_id');
+        $cardId = $request->input('card_id') ?? $request->input('id');
 
         $subscription = UserVipCardSubscription::with('card')
             ->where('user_id', $user->id)
@@ -500,7 +571,7 @@ class VipCardApiController extends Controller
         }
 
         // Find coins for today from daily_schedule
-        $dailySchedule = $subscription->card->daily_schedule ?? [];
+        $dailySchedule = is_string($subscription->card->daily_schedule) ? json_decode($subscription->card->daily_schedule, true) : ($subscription->card->daily_schedule ?? []);
         $todayCoins = 500; // default fallback
         $extraReward = null;
 
@@ -544,7 +615,6 @@ class VipCardApiController extends Controller
             ], 200);
         });
     }
-
 
     /**
      * Admin: Create or Store New VIP Card Package.
