@@ -266,7 +266,7 @@ class WebRTCCallController extends Controller
             return response()->json([
                 'status'  => false,
                 'success' => false,
-                'message' => 'Invalid action: Caller cannot accept their own call.',
+                'message' => 'Caller cannot accept their own call.',
             ], 403);
         }
 

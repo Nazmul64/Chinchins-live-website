@@ -1343,15 +1343,15 @@ class CallController extends Controller
         }
 
         // কলার নিজে কখনো এক্সেপ্ট করতে পারবে না
-        if ($authUserId && (int) $call->caller_id === (int) $authUserId) {
+        if ($call->caller_id == $authUserId) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Invalid action: Caller cannot accept their own call.',
+                'message' => 'Caller cannot accept their own call.',
             ], 403);
         }
 
         // শুধুমাত্র নির্দিষ্ট রিসিভার এক্সেপ্ট করতে পারবে
-        if ($authUserId && (int) $call->receiver_id !== (int) $authUserId) {
+        if ($call->receiver_id != $authUserId) {
             return response()->json([
                 'status'  => false,
                 'message' => 'Unauthorized receiver.',

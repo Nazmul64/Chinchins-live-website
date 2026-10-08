@@ -23,5 +23,8 @@ class DatabaseSeeder extends Seeder
 
         // 3. Seed Daily 7-Day Rewards
         $this->call(DailyRewardSeeder::class);
+
+        // 4. Seed VIP Privilege Cards
+        $this->call(VipPrivilegeCardSeeder::class);
     }
 }

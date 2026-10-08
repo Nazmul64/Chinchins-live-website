@@ -35,7 +35,7 @@ $authUserId = auth()->id() ?? $user?->id;
 if ($call->caller_id == $authUserId) {
     return response()->json([
         'status'  => false,
-        'message' => 'Invalid action: Caller cannot accept their own call.',
+        'message' => 'Caller cannot accept their own call.',
     ], 403);
 }
 
@@ -349,3 +349,49 @@ Fetch all essential application settings, payment gateways, coin store packages,
   }
 }
 ```
+
+---
+
+## 7. 👑 VIP Privilege Cards & Monthly Card Subscriptions
+
+### 7.1 Get All VIP Privilege Cards
+- **Method:** `GET`
+- **Endpoints:** `/api/vip-cards`, `/api/monthly-cards`
+
+#### Response (`200 OK`):
+```json
+{
+  "status": true,
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Super Monthly VIP Card",
+      "price": 300,
+      "price_bdt": 300,
+      "original_price_bdt": 600,
+      "diamonds_reward": 32940,
+      "cost_diamonds": 300,
+      "daily_checkin_diamonds": 26330,
+      "perks": "3 Perks",
+      "outfits": "VIP Outfits",
+      "validity_days": 30,
+      "duration_days": 30,
+      "total_return_coins": 59270,
+      "is_subscribed": false
+    }
+  ]
+}
+```
+
+### 7.2 Purchase VIP Privilege Card
+- **Method:** `POST`
+- **Endpoint:** `/api/vip-cards/purchase`
+- **Body:**
+```json
+{
+  "vip_card_id": 1,
+  "payment_method": "coins"
+}
+```
+
