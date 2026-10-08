@@ -64,6 +64,7 @@ class CallSetting extends Model
     {
         static::$_staticSettings = null;
         \Illuminate\Support\Facades\Cache::forget(static::CACHE_KEY);
+        \Illuminate\Support\Facades\Cache::forget('app_global_bootstrap_config');
     }
 
     /**
@@ -214,5 +215,66 @@ class CallSetting extends Model
                 'button_text'               => 'Get Coins',
             ],
         ];
+    }
+
+    /**
+     * Get WebRTC ICE Servers (STUN & TURN for 4G/5G mobile data connectivity).
+     */
+    public static function getIceServers(): array
+    {
+        $iceServers = [
+            [
+                'urls' => [
+                    'stun:stun.l.google.com:19302',
+                    'stun:stun1.l.google.com:19302',
+                    'stun:stun2.l.google.com:19302',
+                    'stun:stun3.l.google.com:19302',
+                    'stun:stun4.l.google.com:19302',
+                    'stun:stun.cloudflare.com:3478',
+                    'stun:global.stun.twilio.com:3478',
+                    'stun:stun.services.mozilla.com',
+                ],
+            ],
+            [
+                'urls' => [
+                    'turn:openrelay.metered.ca:80',
+                    'turn:openrelay.metered.ca:443',
+                    'turn:openrelay.metered.ca:443?transport=tcp',
+                    'turn:openrelay.metered.ca:80?transport=tcp',
+                    'turns:openrelay.metered.ca:443?transport=tcp',
+                    'turns:openrelay.metered.ca:5349',
+                ],
+                'username'   => 'openrelay',
+                'credential' => 'openrelay',
+            ],
+        ];
+
+        $turnUrl = env('TURN_SERVER_URL') ?: env('TURN_URL') ?: env('COTURN_URL');
+        $turnUser = env('TURN_SERVER_USERNAME') ?: env('TURN_USERNAME');
+        $turnPass = env('TURN_SERVER_PASSWORD') ?: env('TURN_CREDENTIAL') ?: env('TURN_PASSWORD');
+        $turnSecret = env('TURN_SERVER_SECRET') ?: env('TURN_SECRET') ?: env('COTURN_SECRET');
+
+        if ($turnSecret && $turnUrl) {
+            $ttl = 86400;
+            $timestamp = time() + $ttl;
+            $username = $timestamp . ':chinchins_user';
+            $credential = base64_encode(hash_hmac('sha1', $username, $turnSecret, true));
+
+            $coturnEntry = [
+                'urls'       => is_array($turnUrl) ? $turnUrl : explode(',', $turnUrl),
+                'username'   => $username,
+                'credential' => $credential,
+            ];
+            array_unshift($iceServers, $coturnEntry);
+        } elseif ($turnUrl) {
+            $turnEntry = [
+                'urls' => is_array($turnUrl) ? $turnUrl : explode(',', $turnUrl),
+            ];
+            if ($turnUser) $turnEntry['username'] = $turnUser;
+            if ($turnPass) $turnEntry['credential'] = $turnPass;
+            array_unshift($iceServers, $turnEntry);
+        }
+
+        return $iceServers;
     }
 }

@@ -173,6 +173,7 @@ class BootstrapConfigController extends Controller
                     'incoming_ringtone_url' => $callConfig['incoming_ringtone_url'],
                     'outgoing_ringtone_url' => $callConfig['outgoing_ringtone_url'],
                 ],
+                'ice_servers'         => CallSetting::getIceServers(),
                 'floating_banner'     => $appConfig['floating_vip_banner'] ?? null,
                 'app_settings'        => $appSettings,
                 'withdrawal_settings' => WithdrawalSetting::getAllConfig(),

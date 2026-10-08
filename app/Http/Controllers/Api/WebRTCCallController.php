@@ -262,8 +262,20 @@ class WebRTCCallController extends Controller
             return response()->json(['success' => false, 'message' => 'Call not found'], 404);
         }
 
+        if ((int)$callInstance->caller_id === (int)$user->id) {
+            return response()->json([
+                'status'  => false,
+                'success' => false,
+                'message' => 'Invalid action: Caller cannot accept their own call.',
+            ], 403);
+        }
+
         if ((int)$callInstance->receiver_id !== (int)$user->id) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized to accept this call'], 403);
+            return response()->json([
+                'status'  => false,
+                'success' => false,
+                'message' => 'Unauthorized receiver.',
+            ], 403);
         }
 
         $callInstance->update([

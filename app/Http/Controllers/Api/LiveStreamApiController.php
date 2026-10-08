@@ -1332,7 +1332,23 @@ class LiveStreamApiController extends Controller
             return response()->json(['status' => false, 'message' => 'Live stream is not active.'], 404);
         }
 
-        // 3. Duplicate Request Prevention (Idempotency)
+        // 1. Check if user is already an active co-host / guest in this stream
+        $isAlreadyParticipant = LiveParticipant::where('live_stream_id', $stream->id)
+            ->where('user_id', $user->id)
+            ->where('role', 'guest')
+            ->whereNull('left_at')
+            ->exists();
+
+        if ($isAlreadyParticipant) {
+            return response()->json([
+                'status'  => false,
+                'success' => false,
+                'code'    => 'ALREADY_COHOST',
+                'message' => 'You are already connected as a co-host/guest in this live stream.',
+            ], 400);
+        }
+
+        // 2. Duplicate Request Prevention (Idempotency)
         $alreadyRequested = LiveStreamRequest::where('live_stream_id', $stream->id)
             ->where('user_id', $user->id)
             ->whereIn('status', ['pending', 'accepted'])

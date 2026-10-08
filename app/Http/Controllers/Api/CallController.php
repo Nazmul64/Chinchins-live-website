@@ -633,6 +633,10 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Log::error("Real-time call socket broadcast error: " . $e->getMessage());
         }
 
+        $callerToken = $this->generateFastLivekitToken($channelName, $caller);
+        $receiverToken = $this->generateFastLivekitToken($channelName, $receiver);
+        $livekitUrl = config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit'));
+
         $maxMinutes = $ratePerMinute > 0 ? ($isCallerFree ? 999999 : (int) floor($caller->coins / $ratePerMinute)) : 0;
 
         return response()->json([
@@ -646,8 +650,15 @@ class CallController extends Controller
                 'id' => $callModel->id,
                 'session_id' => $call->id,
                 'channel_name' => $channelName,
+                'room_name' => $channelName,
                 'call_type' => $callType,
                 'status' => 'ringing',
+                'token' => $callerToken,
+                'caller_token' => $callerToken,
+                'receiver_token' => $receiverToken,
+                'livekit_token' => $callerToken,
+                'livekit_url' => $livekitUrl,
+                'ice_servers' => CallSetting::getIceServers(),
                 'rate_per_minute' => $ratePerMinute,
                 'is_free_trial' => $isEligibleForFree,
                 'is_caller_free' => $isCallerFree,
@@ -660,6 +671,7 @@ class CallController extends Controller
                 'max_call_minutes' => $maxMinutes,
                 'max_call_seconds' => $isEligibleForFree ? $freeDuration : ($maxMinutes * 60),
                 'ring_timeout_seconds' => 45,
+                'incoming_ringtone_url' => $config['incoming_ringtone_url'],
                 'outgoing_ringtone_url' => $config['outgoing_ringtone_url'] ?? asset('audio/outgoing_ring.mp3'),
                 'receiver' => [
                     'id' => $receiver->id,
@@ -1323,12 +1335,18 @@ class CallController extends Controller
         }
 
         $authUserId = $user ? $user->id : auth()->id();
+        if (!$authUserId) {
+            $authUserId = $request->input('user_id') 
+                       ?? $request->input('receiver_id') 
+                       ?? $request->header('X-User-Id')
+                       ?? $request->header('User-Id');
+        }
 
-        // কলার নিজে যেন এক্সেপ্ট না করতে পারে
+        // কলার নিজে কখনো এক্সেপ্ট করতে পারবে না
         if ($authUserId && (int) $call->caller_id === (int) $authUserId) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Caller cannot accept their own call.',
+                'message' => 'Invalid action: Caller cannot accept their own call.',
             ], 403);
         }
 
@@ -1336,7 +1354,7 @@ class CallController extends Controller
         if ($authUserId && (int) $call->receiver_id !== (int) $authUserId) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Unauthorized: You are not the receiver of this call.',
+                'message' => 'Unauthorized receiver.',
             ], 403);
         }
 
@@ -1460,6 +1478,7 @@ class CallController extends Controller
                 'rate_per_minute'       => (int) $call->rate_per_minute,
                 'is_free_trial'         => (bool) $call->is_free_trial,
                 'free_duration_seconds' => (int) $call->free_duration_seconds,
+                'ice_servers'           => CallSetting::getIceServers(),
                 'caller' => [
                     'id'     => $call->caller?->id,
                     'name'   => $call->caller?->display_name,
