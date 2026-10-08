@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
+use App\Models\CallSetting;
 use App\Models\CharmLevelSetting;
 use App\Models\CoinPackage;
 use App\Models\Gift;
@@ -19,7 +20,7 @@ class BootstrapConfigController extends Controller
 {
     /**
      * Get All-In-One Global App Bootstrap Configuration from Redis (Zero DB Hits, < 5ms).
-     * Returns payment methods, coin packages, gifts catalog, level badges, VIP frames & app settings.
+     * Returns payment methods, coin packages, gifts catalog, level badges, VIP frames, Call & Ringtone settings & app settings.
      * GET /api/bootstrap-config, GET /api/app-config, GET /api/v1/bootstrap
      */
     public function getAppBootstrapData(Request $request): JsonResponse
@@ -144,15 +145,19 @@ class BootstrapConfigController extends Controller
                     ];
                 });
 
-            // 6. Global App Settings & Live Streaming Drivers
+            // 6. Call & Ringtone Settings
+            $callConfig = CallSetting::getAllConfig();
+
+            // 7. Global App Settings & Live Streaming Drivers
+            $appConfig = AppSetting::getAppConfig();
             $appSettings = [
-                'app_name'                => AppSetting::get('app_name', 'ChinChins Live'),
+                'app_name'                => $appConfig['app_name'] ?? 'ChinChins Live',
                 'active_streaming_engine' => AppSetting::get('active_streaming_engine', 'livekit'),
                 'active_calling_engine'   => AppSetting::get('active_driver', 'livekit'),
                 'livekit_ws_url'          => config('services.livekit.host', env('LIVEKIT_HOST', 'wss://livekit.chinchins.live')),
-                'video_call_rate_default' => (int) AppSetting::get('video_call_rate_per_minute', 100),
-                'audio_call_rate_default' => (int) AppSetting::get('audio_call_rate_per_minute', 60),
-                'free_call_duration'      => (int) AppSetting::get('free_call_duration_seconds', 30),
+                'video_call_rate_default' => (int) ($callConfig['video_call_rate_per_minute'] ?? 100),
+                'audio_call_rate_default' => (int) ($callConfig['audio_call_rate_per_minute'] ?? 100),
+                'free_call_duration'      => (int) ($callConfig['free_call_duration_seconds'] ?? 16),
                 'currency'                => 'BDT',
                 'currency_symbol'         => '৳',
             ];
@@ -163,6 +168,12 @@ class BootstrapConfigController extends Controller
                 'gifts_catalog'       => $giftsCatalog,
                 'level_badges'        => $levelBadges,
                 'vip_frames'          => $vipFrames,
+                'call_settings'       => $callConfig,
+                'ringtone_settings'   => [
+                    'incoming_ringtone_url' => $callConfig['incoming_ringtone_url'],
+                    'outgoing_ringtone_url' => $callConfig['outgoing_ringtone_url'],
+                ],
+                'floating_banner'     => $appConfig['floating_vip_banner'] ?? null,
                 'app_settings'        => $appSettings,
                 'withdrawal_settings' => WithdrawalSetting::getAllConfig(),
             ];

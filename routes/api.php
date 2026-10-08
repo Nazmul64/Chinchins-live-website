@@ -33,6 +33,14 @@ Route::get('/settings', [\App\Http\Controllers\Api\AppUpdateApiController::class
 Route::get('/app/settings', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
 Route::get('/app/remote-config', [\App\Http\Controllers\Api\AppUpdateApiController::class, 'getRemoteConfig']);
 
+// 📞 Live Call & Ringtone Settings RESTful API
+Route::get('/call-settings', [\App\Http\Controllers\Api\CallController::class, 'getCallSettings']);
+Route::get('/call/settings', [\App\Http\Controllers\Api\CallController::class, 'getCallSettings']);
+Route::get('/v1/call-settings', [\App\Http\Controllers\Api\CallController::class, 'getCallSettings']);
+Route::get('/ringtones', [\App\Http\Controllers\Api\CallController::class, 'getRingtoneSettings']);
+Route::get('/ringtone-settings', [\App\Http\Controllers\Api\CallController::class, 'getRingtoneSettings']);
+Route::get('/v1/ringtones', [\App\Http\Controllers\Api\CallController::class, 'getRingtoneSettings']);
+
 // ==========================================
 // ⚡ Dynamic Dual-Engine Streaming & Calling Router (Agora vs VPS WebRTC)
 // ==========================================

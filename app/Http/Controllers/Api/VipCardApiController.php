@@ -332,43 +332,42 @@ class VipCardApiController extends Controller
 
     /**
      * Get Floating Home Screen VIP Widget / Action Icon settings.
-     * GET /api/floating-banner, GET /api/floating-action-icon, GET /api/vip-cards/banner
+     * GET /api/floating-banner, GET /api/floating-action-icon, GET /api/floating-widget, GET /api/vip-cards/banner
      */
     public function getFloatingBanner(Request $request = null): JsonResponse
     {
-        $payload = \Illuminate\Support\Facades\Cache::remember('api_floating_vip_banner_v1', 86400, function () {
-            $isEnabled = (bool) (AppSetting::get('floating_vip_banner_enabled', '1') === '1');
-            $title = AppSetting::get('floating_vip_banner_title', 'Extra Gems');
-            $subtitle = AppSetting::get('floating_vip_banner_tag', 'Monthly Card');
-            $imagePath = AppSetting::get('floating_vip_banner_image', 'uploads/floating_action_icons/default_floating_icon.png');
-            $targetAction = AppSetting::get('floating_vip_banner_action', 'OPEN_PREMIUM_VIP');
-            $imageUrl = !empty($imagePath) ? CoinPackage::resolveAssetUrl($imagePath) : null;
+        $all = AppSetting::getAllCached();
+        $isEnabled = (bool) filter_var($all['floating_vip_banner_enabled'] ?? '1', FILTER_VALIDATE_BOOLEAN);
+        $title = $all['floating_vip_banner_title'] ?? 'Extra Gems';
+        $subtitle = $all['floating_vip_banner_tag'] ?? 'Monthly Card';
+        $targetAction = $all['floating_vip_banner_action'] ?? 'OPEN_PREMIUM_VIP';
+        $imagePath = $all['floating_vip_banner_image'] ?? 'assets/images/vip/vip_privilege_full_motion.svg';
 
-            return [
-                'is_enabled'    => $isEnabled,
-                'title'         => $title,
-                'subtitle'      => $subtitle,
-                'image_url'     => $imageUrl,
-                'target_action' => $targetAction,
-            ];
-        });
-
-        $etag = '"' . md5(json_encode($payload)) . '"';
-        if ($request && $request->header('If-None-Match') === $etag) {
-            return response()->json(null, 304)->withHeaders([
-                'ETag'          => $etag,
-                'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
-            ]);
+        $imageUrl = null;
+        if (!empty($imagePath)) {
+            $imageUrl = (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://'))
+                ? $imagePath
+                : asset(ltrim($imagePath, '/'));
+        } else {
+            $imageUrl = asset('assets/images/vip/vip_privilege_full_motion.svg');
         }
+
+        $payload = [
+            'is_enabled'    => $isEnabled,
+            'title'         => $title,
+            'subtitle'      => $subtitle,
+            'tag'           => $subtitle,
+            'image_url'     => $imageUrl,
+            'target_action' => $targetAction,
+            'action_type'   => $targetAction,
+            'target_screen' => '/premium-vip',
+        ];
 
         return response()->json([
             'success' => true,
             'status'  => true,
             'data'    => $payload,
-        ], 200)->withHeaders([
-            'ETag'          => $etag,
-            'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=3600',
-        ]);
+        ], 200);
     }
 
     /**

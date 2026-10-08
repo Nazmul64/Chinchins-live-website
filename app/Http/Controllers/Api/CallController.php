@@ -96,6 +96,40 @@ class CallController extends Controller
     }
 
     /**
+     * Get Dynamic Call & Ringtone Settings.
+     * GET /api/call-settings, GET /api/call/settings, GET /api/ringtones
+     */
+    public function getCallSettings(Request $request): JsonResponse
+    {
+        $config = CallSetting::getAllConfig();
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'message' => 'Call settings and ringtones retrieved successfully.',
+            'data'    => $config,
+        ], 200);
+    }
+
+    /**
+     * Get Ringtone Audio URLs.
+     * GET /api/ringtone-settings, GET /api/ringtones
+     */
+    public function getRingtoneSettings(Request $request): JsonResponse
+    {
+        $config = CallSetting::getAllConfig();
+
+        return response()->json([
+            'status'  => true,
+            'success' => true,
+            'data'    => [
+                'incoming_ringtone_url' => $config['incoming_ringtone_url'],
+                'outgoing_ringtone_url' => $config['outgoing_ringtone_url'],
+            ],
+        ], 200);
+    }
+
+    /**
      * Resiliently extract request data across all content types (JSON, Form-Data, Query).
      */
     protected function getRequestData(Request $request): array
