@@ -167,6 +167,11 @@ Route::middleware(['auth', 'admin.status'])->prefix('admin')->name('admin.')->gr
     Route::delete('/spend-less-cards/{id}', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'destroy'])->whereNumber('id')->name('spend-less-cards.destroy')->middleware('permission:spend_less.delete|spend_less_cards.delete');
     Route::post('/spend-less-cards/{id}/toggle-status', [\App\Http\Controllers\Admin\SpendLessCardAdminController::class, 'toggleStatus'])->whereNumber('id')->name('spend-less-cards.toggle-status')->middleware('permission:spend_less.edit|spend_less_cards.toggle_status|spend_less_cards.edit');
 
+    // 7-Day Check-in Daily Rewards Management
+    Route::get('/daily-rewards', [\App\Http\Controllers\Admin\DailyRewardAdminController::class, 'index'])->name('daily-rewards.index');
+    Route::match(['PUT', 'POST'], '/daily-rewards/{id}', [\App\Http\Controllers\Admin\DailyRewardAdminController::class, 'update'])->whereNumber('id')->name('daily-rewards.update');
+    Route::post('/daily-rewards/{id}/toggle-status', [\App\Http\Controllers\Admin\DailyRewardAdminController::class, 'toggleStatus'])->whereNumber('id')->name('daily-rewards.toggle-status');
+
     // Profile Bases & Level Badges Management
     Route::get('/profile-bases', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'index'])->name('profile-bases.index')->middleware('permission:badges.view|level_badges.view');
     Route::post('/profile-bases/batch-update', [\App\Http\Controllers\Admin\ProfileBaseAdminController::class, 'batchUpdate'])->name('profile-bases.batch-update')->middleware('permission:badges.edit|level_badges.batch_update|level_badges.edit');

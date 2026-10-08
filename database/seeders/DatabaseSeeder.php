@@ -20,5 +20,8 @@ class DatabaseSeeder extends Seeder
 
         // 2. Primary Super Admin Login Account (admin@gmail.com)
         $this->call(AdminUserSeeder::class);
+
+        // 3. Seed Daily 7-Day Rewards
+        $this->call(DailyRewardSeeder::class);
     }
 }

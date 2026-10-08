@@ -1056,6 +1056,35 @@ Route::match(['get', 'post'], '/auth/verify', [AuthController::class, 'me']);
 Route::match(['get', 'post'], '/me', [AuthController::class, 'me']);
 
 // ==========================================
+// 🎁 7-Day Check-in & Daily Claim Rewards (12-Hour Cooldown)
+// ==========================================
+Route::prefix('daily-rewards')->group(function () {
+    Route::match(['get', 'post'], '/status', [\App\Http\Controllers\Api\DailyRewardController::class, 'getStatus']);
+    Route::get('/', [\App\Http\Controllers\Api\DailyRewardController::class, 'getStatus']);
+    Route::get('/list', [\App\Http\Controllers\Api\DailyRewardController::class, 'getStatus']);
+    Route::post('/claim', [\App\Http\Controllers\Api\DailyRewardController::class, 'claimReward']);
+    Route::post('/claim-reward', [\App\Http\Controllers\Api\DailyRewardController::class, 'claimReward']);
+});
+
+// Mobile Aliases for Daily Check-in & Claim
+Route::prefix('daily-claim')->group(function () {
+    Route::match(['get', 'post'], '/status', [\App\Http\Controllers\Api\DailyRewardController::class, 'getStatus']);
+    Route::post('/claim', [\App\Http\Controllers\Api\DailyRewardController::class, 'claimReward']);
+});
+
+Route::prefix('daily-checkin')->group(function () {
+    Route::match(['get', 'post'], '/status', [\App\Http\Controllers\Api\DailyRewardController::class, 'getStatus']);
+    Route::post('/claim', [\App\Http\Controllers\Api\DailyRewardController::class, 'claimReward']);
+});
+
+// Admin Daily Rewards API CRUD
+Route::prefix('admin/daily-rewards')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Admin\DailyRewardAdminController::class, 'index']);
+    Route::post('/{id}', [\App\Http\Controllers\Admin\DailyRewardAdminController::class, 'update']);
+    Route::post('/{id}/update', [\App\Http\Controllers\Admin\DailyRewardAdminController::class, 'update']);
+});
+
+// ==========================================
 // 💳 Monthly & Weekly Premium VIP Cards & Daily Check-in Rewards
 // ==========================================
 Route::prefix('vip-cards')->group(function () {

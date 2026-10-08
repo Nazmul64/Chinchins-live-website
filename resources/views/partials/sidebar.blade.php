@@ -241,6 +241,15 @@
         </div>
         @endhasPermission
 
+        <!-- 7-Day Check-in & Claim Daily Rewards -->
+        <a href="{{ route('admin.daily-rewards.index') }}" class="menu-item {{ request()->routeIs('admin.daily-rewards.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
+            <div class="menu-item-left">
+                <i class="fa-solid fa-calendar-check" style="color: #10b981;"></i>
+                <span>Daily Claim Rewards</span>
+            </div>
+            <span class="badge bg-success-subtle text-success rounded-pill" style="font-size: 11px; padding: 2px 7px; background: rgba(16,185,129,0.15); color: #10b981;">7 Days</span>
+        </a>
+
         <!-- Level Badges & Profile Avatar Bases -->
         @hasPermission('level_badges.view')
         <a href="{{ route('admin.profile-bases.index') }}" class="menu-item {{ request()->routeIs('admin.profile-bases.*') ? 'active' : '' }}" style="margin-bottom: 4px; justify-content: space-between;">
