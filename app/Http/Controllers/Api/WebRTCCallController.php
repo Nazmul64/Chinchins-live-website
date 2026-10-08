@@ -191,9 +191,24 @@ class WebRTCCallController extends Controller
             } catch (\Throwable $e) {}
         }
 
+        // 📲 Trigger Real-Time High-Priority Push Notification (Direct Send + Queue Backup)
+        try {
+            $callSession = \App\Models\CallSession::where('channel_name', $roomId)->latest()->first() ?: (object)[
+                'id'                    => $call->id,
+                'channel_name'          => $roomId,
+                'call_type'             => $callType,
+                'rate_per_minute'       => 100,
+                'is_free_trial'         => false,
+                'free_duration_seconds' => 0,
+            ];
+            \App\Services\PushNotificationService::sendIncomingCallPush($callSession, $user, $receiver);
+        } catch (\Throwable $e) {}
+        try {
+            dispatch(new \App\Jobs\SendCallNotificationJob($user, $receiverId, $roomId, $callType));
+        } catch (\Throwable $e) {}
+
         // Broadcast call.incoming and IncomingCallEvent to receiver's private channel (private-user.{receiverId})
         try {
-            event(new CallIncoming($call));
             $callData = [
                 'event'        => 'call.incoming',
                 'id'           => $call->id,
@@ -220,8 +235,19 @@ class WebRTCCallController extends Controller
                 'status'       => 'calling',
                 'timestamp'    => now()->toIso8601String(),
             ];
+            broadcast(new CallIncoming($call, $user->id, $receiverId));
             broadcast(new \App\Events\IncomingCallEvent($receiverId, $callData))->toOthers();
             broadcast(new \App\Events\IncomingPrivateCallEvent($receiverId, $callData))->toOthers();
+
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name'    => $roomId,
+                'sender_id'       => $user->id,
+                'receiver_id'     => $receiverId,
+                'type'            => 'incoming_call',
+                'payload'         => $callData,
+                'is_read'         => false,
+            ]);
         } catch (\Throwable $e) {}
 
         return response()->json([
@@ -439,15 +465,77 @@ class WebRTCCallController extends Controller
             return response()->json(['success' => false, 'message' => 'Call not found'], 404);
         }
 
+        $inputReason = $request->input('reason') ?? $request->input('cancel_reason') ?? $request->input('cancellation_reason');
+        $createdAt = $callInstance->created_at ?? $callInstance->started_at ?? now();
+        $elapsedSeconds = $createdAt ? (int) $createdAt->diffInSeconds(now()) : 0;
+
+        $isTimeout = in_array(strtolower((string)$inputReason), ['timeout', 'no_answer', 'missed', 'unanswered', 'ring_timeout']);
+        $isManualCancel = in_array(strtolower((string)$inputReason), ['manual', 'manual_cancel', 'user_cancelled', 'caller_cancelled', 'hangup', 'cancel']) || (!$isTimeout && $elapsedSeconds <= 30);
+
+        if ($isTimeout) {
+            $finalStatus = 'missed';
+            $finalReason = 'timeout';
+            $isMissedCall = true;
+        } else {
+            $finalStatus = 'cancelled';
+            $finalReason = $inputReason ?: ($elapsedSeconds <= 10 ? 'caller_manual_cancel_quick' : 'caller_cancelled');
+            $isMissedCall = false;
+        }
+
+        $now = now();
         $callInstance->update([
-            'status'   => 'cancelled',
-            'ended_at' => now(),
+            'status'   => $finalStatus,
+            'ended_at' => $now,
             'ended_by' => $user->id,
         ]);
 
-        // Broadcast call.cancelled to receiver's channel (private-user.{receiver_id})
         try {
-            event(new CallCancelled($callInstance));
+            \App\Models\CallSession::where('channel_name', $callInstance->room_id)
+                ->orWhere('id', $callInstance->id)
+                ->update([
+                    'status'   => $finalStatus,
+                    'ended_at' => $now,
+                ]);
+        } catch (\Throwable $e) {}
+
+        // Clear busy flags
+        \Illuminate\Support\Facades\Cache::forget("user:{$callInstance->caller_id}:is_busy");
+        \Illuminate\Support\Facades\Cache::forget("user:{$callInstance->receiver_id}:is_busy");
+
+        // Broadcast cancellation / missed call events
+        try {
+            $cancelPayload = [
+                'event'            => 'call.cancelled',
+                'action'           => 'call_cancelled',
+                'call_id'          => $callInstance->id,
+                'id'               => $callInstance->id,
+                'room_id'          => $callInstance->room_id,
+                'channel_name'     => $callInstance->room_id,
+                'caller_id'        => $callInstance->caller_id,
+                'receiver_id'      => $callInstance->receiver_id,
+                'status'           => $finalStatus,
+                'call_status'      => $finalStatus,
+                'reason'           => $finalReason,
+                'is_manual_cancel' => $isManualCancel,
+                'is_missed_call'   => $isMissedCall,
+                'elapsed_seconds'  => $elapsedSeconds,
+                'timestamp'        => $now->toIso8601String(),
+            ];
+
+            broadcast(new CallCancelled($callInstance, $finalReason));
+            broadcast(new \App\Events\PrivateCallEndedEvent($callInstance->receiver_id, $cancelPayload))->toOthers();
+            broadcast(new \App\Events\CallEndedEvent($callInstance, (int)$callInstance->caller_id, (int)$callInstance->receiver_id, 0));
+            broadcast(new \App\Events\CallEnded($callInstance, (int)$callInstance->caller_id, (int)$callInstance->receiver_id, 0));
+
+            \App\Models\CallSignal::create([
+                'call_session_id' => $callInstance->id,
+                'channel_name'    => $callInstance->room_id,
+                'sender_id'       => $callInstance->caller_id,
+                'receiver_id'     => $callInstance->receiver_id,
+                'type'            => 'cancelled',
+                'payload'         => $cancelPayload,
+                'is_read'         => false,
+            ]);
 
             // 🟢 Auto-broadcast StreamResumeEvent if host was in a live stream
             $activeStreams = \App\Models\LiveStream::whereIn('host_id', [$callInstance->receiver_id, $callInstance->caller_id])
@@ -462,9 +550,16 @@ class WebRTCCallController extends Controller
         } catch (\Throwable $e) {}
 
         return response()->json([
-            'success' => true,
-            'call_id' => $callInstance->id,
-            'status'  => 'cancelled',
+            'success'          => true,
+            'status'           => true,
+            'message'          => $isMissedCall ? 'Call marked as missed (timeout).' : 'Call cancelled manually by caller.',
+            'call_id'          => $callInstance->id,
+            'id'               => $callInstance->id,
+            'status'           => $finalStatus,
+            'reason'           => $finalReason,
+            'elapsed_seconds'  => $elapsedSeconds,
+            'is_manual_cancel' => $isManualCancel,
+            'is_missed_call'   => $isMissedCall,
         ]);
     }
 

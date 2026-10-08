@@ -587,12 +587,15 @@ class CallController extends Controller
             'is_random_match'       => filter_var($data['is_random_match'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ]);
 
-        // 📲 Trigger Real-Time IMO/WhatsApp-style High-Priority Push Notification via Background Queue Job (< 20ms response time)
+        // 📲 Trigger Real-Time IMO/WhatsApp-style High-Priority Push Notification (Direct Fast Send + Queue Backup)
+        try {
+            PushNotificationService::sendIncomingCallPush($call, $caller, $receiver);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Direct FCM push call notification warning: " . $e->getMessage());
+        }
         try {
             dispatch(new \App\Jobs\SendCallNotificationJob($call->id, $caller->id, $receiver->id));
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Incoming call push notification dispatch error: " . $e->getMessage());
-        }
+        } catch (\Throwable $e) {}
 
         // 📡 High-Priority VoIP Real-Time Socket Signal to Host/Receiver Private Channel (private-user.{host_id})
         try {
@@ -627,7 +630,18 @@ class CallController extends Controller
             ];
             broadcast(new \App\Events\IncomingCallEvent($receiver->id, $callData))->toOthers();
             broadcast(new \App\Events\IncomingPrivateCallEvent($receiver->id, $callData))->toOthers();
-            event(new \App\Events\CallIncoming($call, $caller->id, $receiver->id));
+            broadcast(new \App\Events\CallIncoming($call, $caller->id, $receiver->id));
+
+            // Instant CallSignal entry for sub-second polling compatibility
+            \App\Models\CallSignal::create([
+                'call_session_id' => $call->id,
+                'channel_name'    => $channelName,
+                'sender_id'       => $caller->id,
+                'receiver_id'     => $receiver->id,
+                'type'            => 'incoming_call',
+                'payload'         => $callData,
+                'is_read'         => false,
+            ]);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("Real-time call socket broadcast error: " . $e->getMessage());
         }
@@ -1771,30 +1785,100 @@ class CallController extends Controller
     public function cancel(Request $request): JsonResponse
     {
         $data = $this->getRequestData($request);
-        $callId = $data['call_id'] ?? $request->input('call_id');
-        $channelName = $data['channel_name'] ?? $request->input('channel_name');
+        $callId = $data['call_id'] ?? $request->input('call_id') ?? $data['id'] ?? $request->input('id') ?? $data['callId'] ?? $request->input('callId');
+        $channelName = $data['channel_name'] ?? $request->input('channel_name') ?? $data['room_id'] ?? $request->input('room_id') ?? $data['roomId'] ?? $request->input('roomId');
+        $inputReason = $data['reason'] ?? $request->input('reason') ?? $data['cancel_reason'] ?? $request->input('cancel_reason') ?? $data['cancellation_reason'] ?? $request->input('cancellation_reason');
 
-        $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
-            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
-            ->first();
+        $call = null;
+
+        if (!empty($callId)) {
+            $call = CallSession::with(['caller', 'receiver'])->find($callId);
+
+            if (!$call) {
+                $callRecord = \App\Models\Call::with(['caller', 'receiver'])->find($callId);
+                if ($callRecord) {
+                    $call = CallSession::with(['caller', 'receiver'])
+                        ->where('channel_name', $callRecord->room_id)
+                        ->orWhere('id', $callRecord->id)
+                        ->first();
+                }
+            }
+        }
+
+        if (!$call && !empty($channelName)) {
+            $call = CallSession::with(['caller', 'receiver'])
+                ->where('channel_name', $channelName)
+                ->latest()
+                ->first();
+
+            if (!$call) {
+                $callRecord = \App\Models\Call::with(['caller', 'receiver'])
+                    ->where('room_id', $channelName)
+                    ->latest()
+                    ->first();
+                if ($callRecord) {
+                    $call = CallSession::with(['caller', 'receiver'])
+                        ->where('channel_name', $callRecord->room_id)
+                        ->orWhere('id', $callRecord->id)
+                        ->first();
+                }
+            }
+        }
+
+        if (!$call) {
+            $user = $this->resolveUser($request);
+            $userId = $user ? $user->id : (auth()->id() ?: 0);
+            if ($userId) {
+                $call = CallSession::with(['caller', 'receiver'])
+                    ->where(function ($q) use ($userId) {
+                        $q->where('caller_id', $userId)->orWhere('receiver_id', $userId);
+                    })
+                    ->whereIn('status', ['ringing', 'initiated', 'calling'])
+                    ->latest()
+                    ->first();
+            }
+        }
 
         if (!$call) {
             return response()->json([
-                'status' => false,
-                'message' => 'Call session not found.',
+                'status'  => false,
+                'success' => false,
+                'message' => 'Call session not found or already closed.',
             ], 200);
         }
 
-        $call->status = 'cancelled';
-        $call->ended_at = now();
+        // 1. Calculate Elapsed Ringing Duration
+        $createdAt = $call->created_at ?? $call->started_at ?? now();
+        $elapsedSeconds = $createdAt ? (int) $createdAt->diffInSeconds(now()) : 0;
+
+        // 2. Validate Manual Hangup (Red Button) vs Missed Call (Ringing Timeout)
+        $isTimeout = in_array(strtolower((string)$inputReason), ['timeout', 'no_answer', 'missed', 'unanswered', 'ring_timeout']);
+        $isManualCancel = in_array(strtolower((string)$inputReason), ['manual', 'manual_cancel', 'user_cancelled', 'caller_cancelled', 'hangup', 'cancel']) || (!$isTimeout && $elapsedSeconds <= 30);
+
+        if ($isTimeout) {
+            $finalStatus = 'missed';
+            $finalReason = 'timeout';
+            $isMissedCall = true;
+        } else {
+            $finalStatus = 'cancelled';
+            $finalReason = $inputReason ?: ($elapsedSeconds <= 10 ? 'caller_manual_cancel_quick' : 'caller_cancelled');
+            $isMissedCall = false;
+        }
+
+        $now = now();
+        $call->status = $finalStatus;
+        $call->ended_at = $now;
         $call->save();
 
         try {
-            \App\Models\Call::where('room_id', $call->channel_name)->orWhere('id', $call->id)->update([
-                'status'   => 'cancelled',
-                'ended_at' => now(),
-                'ended_by' => $call->caller_id,
-            ]);
+            \App\Models\Call::where('room_id', $call->channel_name)
+                ->orWhere('id', $call->id)
+                ->when($callId, fn($q) => $q->orWhere('id', $callId))
+                ->update([
+                    'status'   => $finalStatus,
+                    'ended_at' => $now,
+                    'ended_by' => $call->caller_id,
+                ]);
         } catch (\Throwable $e) {}
 
         // Restore online status and clear busy flag
@@ -1811,25 +1895,28 @@ class CallController extends Controller
 
         // Broadcast real-time cancellation event to receiver so incoming ringing stops immediately
         try {
-            event(new \App\Events\CallCancelled($call, 'cancelled'));
-            event(new \App\Events\CallEnded($call, (int)$call->caller_id, (int)$call->receiver_id, 0));
-            event(new \App\Events\CallEndedEvent($call, (int)$call->caller_id, (int)$call->receiver_id, 0));
-
             $cancelPayload = [
-                'event'        => 'call.cancelled',
-                'action'       => 'call_cancelled',
-                'call_id'      => $call->id,
-                'id'           => $call->id,
-                'room_id'      => $call->channel_name,
-                'channel_name' => $call->channel_name,
-                'caller_id'    => $call->caller_id,
-                'receiver_id'  => $call->receiver_id,
-                'status'       => 'cancelled',
-                'call_status'  => 'cancelled',
-                'reason'       => 'cancelled',
-                'timestamp'    => now()->toIso8601String(),
+                'event'            => 'call.cancelled',
+                'action'           => 'call_cancelled',
+                'call_id'          => $call->id,
+                'id'               => $call->id,
+                'room_id'          => $call->channel_name,
+                'channel_name'     => $call->channel_name,
+                'caller_id'        => $call->caller_id,
+                'receiver_id'      => $call->receiver_id,
+                'status'           => $finalStatus,
+                'call_status'      => $finalStatus,
+                'reason'           => $finalReason,
+                'is_manual_cancel' => $isManualCancel,
+                'is_missed_call'   => $isMissedCall,
+                'elapsed_seconds'  => $elapsedSeconds,
+                'timestamp'        => $now->toIso8601String(),
             ];
+
+            broadcast(new \App\Events\CallCancelled($call, $finalReason));
             broadcast(new \App\Events\PrivateCallEndedEvent($call->receiver_id, $cancelPayload))->toOthers();
+            broadcast(new \App\Events\CallEndedEvent($call, (int)$call->caller_id, (int)$call->receiver_id, 0));
+            broadcast(new \App\Events\CallEnded($call, (int)$call->caller_id, (int)$call->receiver_id, 0));
 
             \App\Models\CallSignal::create([
                 'call_session_id' => $call->id,
@@ -1860,14 +1947,24 @@ class CallController extends Controller
                     'message' => 'Host is back live'
                 ]))->toOthers();
             }
-        } catch (\Throwable $e) {}
+
+            \Illuminate\Support\Facades\Log::info("Call ID {$call->id} {$finalStatus} ({$finalReason}) after {$elapsedSeconds}s. Broadcast sent to receiver {$call->receiver_id}.");
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Call cancel broadcast warning: " . $e->getMessage());
+        }
 
         return response()->json([
-            'status' => true,
-            'message' => 'Call cancelled by caller. Ringing stopped.',
+            'status'  => true,
+            'success' => true,
+            'message' => $isMissedCall ? 'Call marked as missed (timeout).' : 'Call cancelled manually by caller. Ringing stopped.',
             'data' => [
-                'call_id' => $call->id,
-                'status' => 'cancelled',
+                'call_id'          => $call->id,
+                'id'               => $call->id,
+                'status'           => $finalStatus,
+                'reason'           => $finalReason,
+                'elapsed_seconds'  => $elapsedSeconds,
+                'is_manual_cancel' => $isManualCancel,
+                'is_missed_call'   => $isMissedCall,
             ],
         ], 200);
     }

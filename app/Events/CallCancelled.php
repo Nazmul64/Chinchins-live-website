@@ -76,12 +76,12 @@ class CallCancelled implements ShouldBroadcastNow
             'action'       => 'call_cancelled',
             'call_id'      => $this->callId,
             'id'           => $this->callId,
-            'room_id'      => (string) $this->callId,
+            'room_id'      => $this->channelName ?: (string) $this->callId,
             'channel_name' => $this->channelName,
             'caller_id'    => $this->callerId,
             'receiver_id'  => $this->receiverId,
             'status'       => 'cancelled',
-            'reason'       => $this->reason,
+            'reason'       => $this->reason ?: 'cancelled',
             'timestamp'    => now()->toIso8601String(),
         ];
     }
