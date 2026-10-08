@@ -74,9 +74,8 @@ class WebRTCCallController extends Controller
         // 4. Check request body / query parameters
         $idParam = $request->input('user_id') 
                 ?? $request->input('userId') 
-                ?? $request->input('caller_id') 
-                ?? $request->input('sender_id') 
-                ?? $request->input('id');
+                ?? $request->input('auth_user_id') 
+                ?? $request->input('sender_id');
 
         if ($idParam) {
             $u = User::find($idParam);
@@ -278,10 +277,21 @@ class WebRTCCallController extends Controller
             ], 403);
         }
 
+        $now = now();
         $callInstance->update([
             'status'      => 'accepted',
-            'answered_at' => now(),
+            'answered_at' => $now,
         ]);
+
+        // Also sync CallSession answered_at and status
+        try {
+            \App\Models\CallSession::where('channel_name', $callInstance->room_id)
+                ->orWhere('id', $callInstance->id)
+                ->update([
+                    'status'      => 'connected',
+                    'answered_at' => $now,
+                ]);
+        } catch (\Throwable $e) {}
 
         $callInstance->load(['caller', 'receiver']);
 
@@ -300,22 +310,25 @@ class WebRTCCallController extends Controller
         // Broadcast call.accepted to caller's channel and insert CallSignal for polling
         try {
             $payload = [
+                'event'        => 'call.accepted',
                 'type'         => 'accept',
                 'action'       => 'call_accepted',
                 'status'       => 'connected',
                 'call_status'  => 'connected',
                 'call_id'      => $callInstance->id,
+                'id'           => $callInstance->id,
                 'room_id'      => $callInstance->room_id,
                 'channel_name' => $callInstance->room_id,
                 'caller_id'    => $callInstance->caller_id,
                 'receiver_id'  => $callInstance->receiver_id,
-                'started_at'   => now()->toIso8601String(),
-                'answered_at'  => now()->toIso8601String(),
-                'timestamp'    => now()->toIso8601String(),
+                'started_at'   => $callInstance->started_at ? $callInstance->started_at->toIso8601String() : $now->toIso8601String(),
+                'answered_at'  => $now->toIso8601String(),
+                'timestamp'    => $now->toIso8601String(),
             ];
 
-            event(new CallAcceptedEvent($callInstance->caller_id, $payload));
-            event(new CallAccepted($callInstance, $payload));
+            broadcast(new CallAcceptedEvent($callInstance->caller_id, $payload));
+            broadcast(new CallAccepted($callInstance, $payload));
+            broadcast(new \App\Events\PrivateCallAcceptedEvent($callInstance->caller_id, $payload));
 
             CallSignal::create([
                 'call_session_id' => $callInstance->id,

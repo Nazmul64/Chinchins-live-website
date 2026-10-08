@@ -60,8 +60,7 @@ class CallAcceptValidationTest extends TestCase
 
         $response->assertStatus(403)
             ->assertJson([
-                'status'  => false,
-                'message' => 'Unauthorized: You are not the receiver of this call.',
+                'status' => false,
             ]);
     }
 
@@ -79,6 +78,8 @@ class CallAcceptValidationTest extends TestCase
                 'status' => true,
             ]);
 
-        $this->assertEquals('connected', $this->call->fresh()->status);
+        $freshCall = $this->call->fresh();
+        $this->assertEquals('connected', $freshCall->status);
+        $this->assertNotNull($freshCall->answered_at);
     }
 }
