@@ -1288,6 +1288,24 @@ class CallController extends Controller
             ], 200);
         }
 
+        $authUserId = $user ? $user->id : auth()->id();
+
+        // কলার নিজে যেন এক্সেপ্ট না করতে পারে
+        if ($authUserId && (int) $call->caller_id === (int) $authUserId) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Caller cannot accept their own call.',
+            ], 403);
+        }
+
+        // শুধুমাত্র নির্দিষ্ট রিসিভার এক্সেপ্ট করতে পারবে
+        if ($authUserId && (int) $call->receiver_id !== (int) $authUserId) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Unauthorized: You are not the receiver of this call.',
+            ], 403);
+        }
+
         $now = now();
         $call->update([
             'status'      => 'connected',

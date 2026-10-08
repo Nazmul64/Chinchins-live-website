@@ -238,6 +238,14 @@ class LivePrivateCallApiController extends Controller
             return response()->json(['success' => false, 'status' => false, 'message' => 'Call session not found.'], 404);
         }
 
+        if ((int) $call->caller_id === (int) $host->id) {
+            return response()->json(['success' => false, 'status' => false, 'message' => 'Caller cannot accept their own call.'], 403);
+        }
+
+        if ((int) $call->receiver_id !== (int) $host->id) {
+            return response()->json(['success' => false, 'status' => false, 'message' => 'Unauthorized: You are not the receiver of this call.'], 403);
+        }
+
         $call->update([
             'status'      => 'connected',
             'started_at'  => now(),
