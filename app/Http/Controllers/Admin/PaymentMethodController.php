@@ -36,7 +36,7 @@ class PaymentMethodController extends Controller
                 'rate_per_bdt' => 'nullable|numeric|min:0.01',
                 'bonus_coins' => 'nullable|integer|min:0',
                 'offer_tag' => 'nullable|string|max:50',
-                'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
+                'icon' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
                 'is_active' => 'nullable|boolean',
             ]);
 
@@ -106,7 +106,7 @@ class PaymentMethodController extends Controller
                 'rate_per_bdt' => 'nullable|numeric|min:0.01',
                 'bonus_coins' => 'nullable|integer|min:0',
                 'offer_tag' => 'nullable|string|max:50',
-                'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
+                'icon' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
                 'is_active' => 'nullable|boolean',
             ]);
 

@@ -168,7 +168,7 @@ class ProfileBaseAdminController extends Controller
             'level'            => 'required|integer|min:0|unique:profile_bases,level',
             'name'             => 'required|string|max:190',
             'required_coins'   => 'required|integer|min:0',
-            'frame_image'      => 'nullable|file|mimes:svg,png,webp,jpg,jpeg,gif|max:51200',
+            'frame_image'      => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
             'preset_frame'     => 'nullable|string',
             'badge_icon'       => 'nullable|string|max:50',
             'badge_color'      => 'nullable|string|max:50',
@@ -294,7 +294,7 @@ class ProfileBaseAdminController extends Controller
         $base = ProfileBase::findOrFail($id);
 
         $request->validate([
-            'frame_image' => 'required|file|mimes:svg,png,webp,jpg,jpeg,gif|max:51200', // up to 50MB
+            'frame_image' => 'required|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200', // up to 50MB
         ]);
 
         $destinationPath = public_path($this->uploadFolder);

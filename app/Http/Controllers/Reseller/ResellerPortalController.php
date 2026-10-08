@@ -271,7 +271,7 @@ class ResellerPortalController extends Controller
             'payment_method' => 'required|string|max:50',
             'sender_number' => 'required|string|max:50',
             'transaction_id' => 'required|string|max:100',
-            'screenshot' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'screenshot' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
             'notes' => 'nullable|string|max:255',
         ]);
 
@@ -440,7 +440,7 @@ class ResellerPortalController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'message' => 'nullable|string',
-            'image' => 'nullable|image|max:5120',
+            'image' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
         ]);
 
         $userId = $request->user_id;
@@ -562,7 +562,7 @@ class ResellerPortalController extends Controller
 
         $request->validate([
             'message' => 'nullable|string',
-            'image' => 'nullable|image|max:5120',
+            'image' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
         ]);
 
         $mediaUrl = null;

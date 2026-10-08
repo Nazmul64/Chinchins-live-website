@@ -242,7 +242,7 @@ class ChatController extends Controller
         $request->validate([
             'receiver_id' => 'required|exists:users,id',
             'message'     => 'nullable|string',
-            'image'       => 'nullable|file|mimes:jpeg,png,jpg,webp,gif|max:10240', // Max 10MB
+            'image'       => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200', // Max 50MB
         ]);
 
         $senderId = $user->id;

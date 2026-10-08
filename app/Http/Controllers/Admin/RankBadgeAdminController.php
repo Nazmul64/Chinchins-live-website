@@ -66,7 +66,7 @@ class RankBadgeAdminController extends Controller
 
         try {
             $request->validate([
-                'background_image' => 'nullable|file|mimes:png,jpg,jpeg,webp,svg,gif|max:51200',
+                'background_image' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
                 'theme_color'      => 'nullable|string|max:20',
                 'is_enabled'       => 'nullable',
             ]);
@@ -137,8 +137,8 @@ class RankBadgeAdminController extends Controller
             'category'           => 'required|in:rich,charm',
             'rank_position'      => 'required|integer|min:1|max:100',
             'min_required_coins' => 'required|numeric|min:0',
-            'badge_icon'         => 'required|file|mimes:png,webp,gif,jpeg,jpg,svg|max:51200',
-            'avatar_frame'       => 'nullable|file|mimes:png,webp,gif,jpeg,jpg,svg|max:51200',
+            'badge_icon'         => 'required|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
+            'avatar_frame'       => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
         ]);
 
         // Upload badge icon: public/uploads/ranks/badges/
@@ -197,8 +197,8 @@ class RankBadgeAdminController extends Controller
             'category'           => 'required|in:rich,charm',
             'rank_position'      => 'required|integer|min:1|max:100',
             'min_required_coins' => 'required|numeric|min:0',
-            'badge_icon'         => 'nullable|file|mimes:png,webp,gif,jpeg,jpg,svg|max:51200',
-            'avatar_frame'       => 'nullable|file|mimes:png,webp,gif,jpeg,jpg,svg|max:51200',
+            'badge_icon'         => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
+            'avatar_frame'       => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
         ]);
 
         $badge->badge_name = $request->badge_name;

@@ -174,7 +174,7 @@
                                                         <label class="form-label fw-bold text-dark" style="font-size: 13px;">
                                                             <i class="fa-solid fa-image text-primary me-1"></i> Change Badge Icon (Max 50MB)
                                                         </label>
-                                                        <input type="file" name="badge_icon" class="form-control" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" style="border-radius: 8px;" onchange="previewFile(this, 'edit_badge_preview_{{ $badge->id }}')">
+                                                        <input type="file" name="badge_icon" class="form-control" accept="image/*" style="border-radius: 8px;" onchange="previewFile(this, 'edit_badge_preview_{{ $badge->id }}')">
                                                         <small class="text-muted d-block mt-1">Leave empty to keep current icon. (PNG/WEBP/GIF up to 50MB)</small>
                                                         <div class="mt-2 text-center p-2 border rounded" style="background: #f8fafc; height: 95px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
                                                             @if($badge->badge_icon)
@@ -192,7 +192,7 @@
                                                         <label class="form-label fw-bold text-dark" style="font-size: 13px;">
                                                             <i class="fa-solid fa-circle-notch text-warning me-1"></i> Change Avatar Frame (Max 50MB)
                                                         </label>
-                                                        <input type="file" name="avatar_frame" class="form-control" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" style="border-radius: 8px;" onchange="previewFile(this, 'edit_frame_preview_{{ $badge->id }}')">
+                                                        <input type="file" name="avatar_frame" class="form-control" accept="image/*" style="border-radius: 8px;" onchange="previewFile(this, 'edit_frame_preview_{{ $badge->id }}')">
                                                         <small class="text-muted d-block mt-1">Leave empty to keep current frame. (PNG/WEBP/GIF up to 50MB)</small>
                                                         <div class="mt-2 text-center p-2 border rounded" style="background: #f8fafc; height: 95px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
                                                             @if($badge->avatar_frame)

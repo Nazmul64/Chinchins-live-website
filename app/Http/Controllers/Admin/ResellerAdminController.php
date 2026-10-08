@@ -78,7 +78,7 @@ class ResellerAdminController extends Controller
             'discount_tag' => 'nullable|string|max:50',
             'badge_title' => 'nullable|string|max:50',
             'initial_coins' => 'nullable|integer|min:0',
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
+            'avatar' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
             'is_active' => 'nullable|boolean',
             'is_online' => 'nullable|boolean',
         ]);
@@ -140,7 +140,7 @@ class ResellerAdminController extends Controller
             'bio' => 'nullable|string',
             'discount_tag' => 'nullable|string|max:50',
             'badge_title' => 'nullable|string|max:50',
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
+            'avatar' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
             'is_active' => 'nullable|boolean',
             'is_online' => 'nullable|boolean',
         ]);
@@ -531,7 +531,7 @@ class ResellerAdminController extends Controller
         $request->validate([
             'reseller_id' => 'required|exists:resellers,id',
             'message' => 'nullable|string',
-            'image' => 'nullable|image|max:5120',
+            'image' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
         ]);
 
         $resellerId = $request->reseller_id;

@@ -218,7 +218,7 @@
                                             <label class="btn btn-sm btn-light border d-flex align-items-center gap-1 mb-0 py-1 px-2" id="uploadLabel_{{ $base->id }}" style="font-size: 11px; cursor: pointer; border-radius: 6px;">
                                                 <i class="fa-solid fa-upload text-primary" id="uploadIcon_{{ $base->id }}"></i> 
                                                 <span id="uploadText_{{ $base->id }}">Upload Image</span>
-                                                <input type="file" name="frame_files[{{ $base->id }}]" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" class="d-none" onchange="ajaxUploadRowFrame(this, {{ $base->id }}, 'rowPreview_{{ $base->id }}', {{ $base->level }})">
+                                                <input type="file" name="frame_files[{{ $base->id }}]" accept="image/*" class="d-none" onchange="ajaxUploadRowFrame(this, {{ $base->id }}, 'rowPreview_{{ $base->id }}', {{ $base->level }})">
                                             </label>
                                             
                                             <!-- Preset Dropdown with Instant Live Preview -->
@@ -368,7 +368,7 @@
 
                         <div class="col-12">
                             <label class="form-label fw-bold" style="font-size: 13px;">OR Upload Custom Base Frame Image (SVG / PNG / WebP)</label>
-                            <input type="file" name="frame_image" class="form-control" accept=".svg,.png,.webp,.jpg,.jpeg,.gif" style="border-radius: 8px;">
+                            <input type="file" name="frame_image" class="form-control" accept="image/*" style="border-radius: 8px;">
                             <small class="text-muted" style="font-size: 11px;">Image will be uploaded to <code>public/uploads/bases/</code>.</small>
                         </div>
 
@@ -542,7 +542,7 @@
                                             <img src="" alt="Thumbnail" id="editCurrentFrameImg" style="width: 52px; height: 52px; object-fit: contain;">
                                         </div>
                                         <div class="flex-grow-1">
-                                            <input type="file" name="frame_image" id="editFrameFileInput" class="form-control" accept=".png,.svg,.webp,.jpg,.jpeg,.gif" style="border-radius: 8px;" onchange="previewEditModalFile(this)">
+                                            <input type="file" name="frame_image" id="editFrameFileInput" class="form-control" accept="image/*" style="border-radius: 8px;" onchange="previewEditModalFile(this)">
                                             <small class="text-muted d-block mt-1" style="font-size: 11px;">
                                                 <i class="fa-solid fa-cloud-arrow-up text-primary me-1"></i> Uploads directly to <code class="text-primary">public/uploads/bases/</code> with instant preview on avatar.
                                             </small>

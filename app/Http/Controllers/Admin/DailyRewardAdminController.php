@@ -63,7 +63,7 @@ class DailyRewardAdminController extends Controller
         $request->validate([
             'reward_coins' => 'nullable|integer|min:1',
             'is_active'    => 'nullable|boolean',
-            'image'        => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:4096',
+            'image'        => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
         ]);
 
         if ($request->hasFile('image')) {

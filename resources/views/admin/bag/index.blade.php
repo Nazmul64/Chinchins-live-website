@@ -319,7 +319,7 @@
                         <!-- Upload SVG / Image -->
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-bold text-muted small text-uppercase">Upload SVG / PNG Image Asset</label>
-                            <input type="file" name="icon_file" class="form-control rounded-3" accept=".svg,.png,.jpg,.jpeg,.webp,.gif">
+                            <input type="file" name="icon_file" class="form-control rounded-3" accept="image/*">
                             <small class="text-muted" style="font-size: 11px;">Saved to <code>public/uploads/my_bag/</code></small>
                         </div>
                         <div class="col-12 col-md-6">
@@ -423,7 +423,7 @@
 
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-bold text-muted small text-uppercase">Replace SVG / Image File</label>
-                            <input type="file" name="icon_file" class="form-control rounded-3" accept=".svg,.png,.jpg,.jpeg,.webp,.gif">
+                            <input type="file" name="icon_file" class="form-control rounded-3" accept="image/*">
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-bold text-muted small text-uppercase">Or Image Asset URL</label>

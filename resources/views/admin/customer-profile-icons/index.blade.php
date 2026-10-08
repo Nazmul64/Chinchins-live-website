@@ -174,7 +174,7 @@
                                             <!-- Upload File Input -->
                                             <div class="flex-grow-1">
                                                 <label class="form-label text-muted small mb-1 fw-semibold">Upload / Change Picture:</label>
-                                                <input type="file" name="icon_image" class="form-control form-control-sm rounded-3 shadow-none icon-file-input" data-preview="preview_{{ $icon->id }}" accept="image/png, image/jpeg, image/webp, image/svg+xml">
+                                                <input type="file" name="icon_image" class="form-control form-control-sm rounded-3 shadow-none icon-file-input" data-preview="preview_{{ $icon->id }}" accept="image/*">
                                                 <div class="form-text" style="font-size: 11px;">PNG, SVG, WebP, JPG (Max 5MB)</div>
                                             </div>
                                         </div>
@@ -438,7 +438,7 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold small text-dark">Upload Icon / Picture <span class="text-danger">*</span></label>
-                        <input type="file" name="icon_image" class="form-control rounded-3" accept="image/png, image/jpeg, image/webp, image/svg+xml" required>
+                        <input type="file" name="icon_image" class="form-control rounded-3" accept="image/*" required>
                         <div class="form-text" style="font-size: 11px;">Upload PNG, SVG, WebP or JPG (max 5MB).</div>
                     </div>
 

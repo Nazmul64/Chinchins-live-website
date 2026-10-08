@@ -9,6 +9,9 @@ class AppSetting extends Model
 {
     use HasFactory;
 
+    public const IMAGE_MIMES = 'jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm';
+    public const ALL_IMAGE_MIMES = 'jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm';
+
     protected $fillable = [
         'key',
         'value',

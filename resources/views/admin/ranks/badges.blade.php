@@ -123,7 +123,7 @@
                         @csrf
                         <div>
                             <label class="form-label fw-semibold text-dark" style="font-size: 13px;">Upload New Background Image</label>
-                            <input type="file" name="background_image" class="form-control" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="border-radius: 8px; font-size: 13px;">
+                            <input type="file" name="background_image" class="form-control" accept="image/*" style="border-radius: 8px; font-size: 13px;">
                             <small class="text-muted" style="font-size: 11px;">Recommended: 1080x1920 (Portrait) or 1920x1080 Stage Neon Wallpaper. Saved to <code>public/uploads/rank_badges/</code></small>
                         </div>
                         <div class="d-flex align-items-center gap-3">
@@ -296,7 +296,7 @@
                             <label class="form-label fw-bold text-dark" style="font-size: 13px;">
                                 <i class="fa-solid fa-image text-primary me-1"></i> Badge Icon (PNG / WEBP / GIF / SVG) <span class="text-danger">*</span>
                             </label>
-                            <input type="file" name="badge_icon" class="form-control" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" required style="border-radius: 8px;" onchange="previewFile(this, 'badge_preview')">
+                            <input type="file" name="badge_icon" class="form-control" accept="image/*" required style="border-radius: 8px;" onchange="previewFile(this, 'badge_preview')">
                             <small class="text-muted d-block mt-1">Saves to: <code>public/uploads/ranks/badges/</code> (Max 50MB)</small>
                             <div class="mt-2 text-center p-2 border rounded" style="background: #f8fafc; height: 90px; display: flex; align-items: center; justify-content: center;">
                                 <img id="badge_preview" src="" alt="Badge Preview" style="max-height: 75px; max-width: 100%; display: none;">
@@ -309,7 +309,7 @@
                             <label class="form-label fw-bold text-dark" style="font-size: 13px;">
                                 <i class="fa-solid fa-circle-notch text-warning me-1"></i> Avatar Frame (Optional)
                             </label>
-                            <input type="file" name="avatar_frame" class="form-control" accept="image/png,image/webp,image/gif,image/jpeg,image/svg+xml" style="border-radius: 8px;" onchange="previewFile(this, 'frame_preview')">
+                            <input type="file" name="avatar_frame" class="form-control" accept="image/*" style="border-radius: 8px;" onchange="previewFile(this, 'frame_preview')">
                             <small class="text-muted d-block mt-1">Saves to: <code>public/uploads/ranks/frames/</code> (Max 50MB)</small>
                             <div class="mt-2 text-center p-2 border rounded" style="background: #f8fafc; height: 90px; display: flex; align-items: center; justify-content: center;">
                                 <img id="frame_preview" src="" alt="Frame Preview" style="max-height: 75px; max-width: 100%; display: none;">

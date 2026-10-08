@@ -60,8 +60,8 @@ class AppSettingController extends Controller
                 'terms_of_service'    => 'nullable|string',
                 'fcm_server_key'      => 'nullable|string',
                 'fcm_sender_id'       => 'nullable|string',
-                'app_logo_file'       => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
-                'app_icon_file'       => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:5120',
+                'app_logo_file'       => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
+                'app_icon_file'       => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
             ]);
 
             AppSetting::set('app_name', $request->input('app_name'), 'branding', 'Mobile App Name');

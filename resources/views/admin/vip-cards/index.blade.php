@@ -169,7 +169,7 @@
                                     <span class="text-muted small" style="font-size: 11px;">Max: 10MB</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="file" name="floating_banner_file" id="floatingBannerFileInput" class="form-control" accept="image/png,image/webp,image/jpeg,image/svg+xml">
+                                    <input type="file" name="floating_banner_file" id="floatingBannerFileInput" class="form-control" accept="image/*">
                                     <button class="btn btn-outline-secondary d-none" type="button" id="btnResetPreview" title="Reset image preview">
                                         <i class="fa-solid fa-rotate-left"></i>
                                     </button>

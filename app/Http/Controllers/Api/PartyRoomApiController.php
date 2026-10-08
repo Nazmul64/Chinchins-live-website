@@ -306,7 +306,7 @@ class PartyRoomApiController extends Controller
             'room_type' => 'required|in:voice,video',
             'topic_tag' => 'nullable|string|max:64',
             'room_cover' => 'nullable',
-            'room_cover_file' => 'nullable|image|max:10240',
+            'room_cover_file' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
             'max_seats' => 'nullable|integer|min:4|max:16',
             'coin_rate_per_minute' => 'nullable|integer|min:0',
             'announcement' => 'nullable|string|max:500',
@@ -1966,7 +1966,7 @@ class PartyRoomApiController extends Controller
             'message' => 'nullable|string|max:1000',
             'type' => 'nullable|in:text,image',
             'image' => 'nullable',
-            'file' => 'nullable|image|max:15360',
+            'file' => 'nullable|file|mimes:jpeg,png,jpg,webp,avif,gif,svg,bmp,tiff,tif,heic,heif,ico,apng,psd,raw,eps,ai,dds,tga,jp2,jxl,exr,hdr,pic,ppm,pgm,pbm|max:51200',
         ]);
 
         if ($validator->fails()) {
