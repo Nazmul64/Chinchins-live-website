@@ -1004,7 +1004,12 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Log::warning("Instant call socket warning: " . $e->getMessage());
         }
 
-        // 4. Background Push Notification
+        // 4. Instant High-Priority FCM Push Notification (Direct Fast Send + Queue Backup)
+        try {
+            PushNotificationService::sendIncomingCallPush($callSession, $caller, $targetUser);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Direct FCM push call notification warning: " . $e->getMessage());
+        }
         try {
             dispatch(new \App\Jobs\SendCallNotificationJob($caller->id, $targetUser->id, $channelName, $callType))->afterResponse();
         } catch (\Throwable $e) {}

@@ -113,8 +113,31 @@ class AppUpdateApiController extends Controller
 
         $user = $request->user('sanctum');
         if (!$user) {
-            $userId = $request->input('user_id') ?? $request->input('userId');
+            $userId = $request->input('user_id') ?? $request->input('userId') ?? auth()->id();
             $user = $userId ? User::find($userId) : null;
+        }
+
+        $deviceType = strtolower($request->input('device_type', 'android'));
+
+        // If user is authenticated / identified, perform direct updateOrInsert to prevent duplicate tokens
+        if ($user) {
+            \Illuminate\Support\Facades\DB::table('device_registrations')->updateOrInsert(
+                ['user_id' => $user->id],
+                [
+                    'fcm_token'       => $fcmToken,
+                    'device_type'     => $deviceType,
+                    'device_id'       => $request->input('device_id'),
+                    'device_brand'    => $request->input('device_brand') ?? $request->input('brand'),
+                    'device_model'    => $request->input('device_model') ?? $request->input('model'),
+                    'os_version'      => $request->input('os_version') ?? $request->input('os'),
+                    'app_version'     => $request->input('app_version'),
+                    'is_active'       => true,
+                    'last_active_at'  => now(),
+                    'updated_at'      => now(),
+                ]
+            );
+
+            $user->update(['fcm_token' => $fcmToken]);
         }
 
         $device = DeviceRegistration::registerDevice(
@@ -122,7 +145,7 @@ class AppUpdateApiController extends Controller
             fcmToken: $fcmToken,
             deviceMeta: [
                 'device_id'    => $request->input('device_id'),
-                'device_type'  => $request->input('device_type', 'android'),
+                'device_type'  => $deviceType,
                 'device_brand' => $request->input('device_brand') ?? $request->input('brand'),
                 'device_model' => $request->input('device_model') ?? $request->input('model'),
                 'os_version'   => $request->input('os_version') ?? $request->input('os'),
@@ -130,16 +153,13 @@ class AppUpdateApiController extends Controller
             ]
         );
 
-        if ($user) {
-            $user->update(['fcm_token' => $fcmToken]);
-        }
-
         return response()->json([
             'status'  => true,
-            'message' => 'Device registered successfully for high-priority push notifications and incoming calls.',
+            'message' => 'Token updated successfully',
             'data'    => [
                 'device_id'   => $device->id,
                 'user_id'     => $user?->id,
+                'fcm_token'   => $fcmToken,
                 'device_type' => $device->device_type,
                 'is_active'   => $device->is_active,
             ]
