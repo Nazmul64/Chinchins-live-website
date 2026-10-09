@@ -310,6 +310,8 @@ Route::post('/gifts/convert-to-balance', [PaymentController::class, 'convertEarn
 // 🎁 Universal Dynamic Gifts & Real-Time Sync APIs
 // ==========================================
 Route::get('/gifts/active', [\App\Http\Controllers\Api\GiftApiController::class, 'getActiveGifts']);
+Route::get('/gifts/index', [\App\Http\Controllers\Api\GiftApiController::class, 'index']);
+Route::get('/gifts/list', [\App\Http\Controllers\Api\GiftApiController::class, 'index']);
 Route::get('/gifts', [\App\Http\Controllers\Api\GiftApiController::class, 'getActiveGifts']);
 Route::get('/gifts/catalog', [\App\Http\Controllers\Api\GiftApiController::class, 'getCatalog']);
 Route::get('/gifts/received', [\App\Http\Controllers\Api\GiftApiController::class, 'getUserReceivedGifts']);

@@ -67,6 +67,15 @@ class GiftApiController extends Controller
     }
 
     /**
+     * Standard Gift list index endpoint (Full Image URLs & Model attributes).
+     * GET /api/gifts/index or GET /api/gifts or GET /api/gifts/active
+     */
+    public function index(Request $request): JsonResponse
+    {
+        return $this->getActiveGifts();
+    }
+
+    /**
      * Get active gifts cached in memory (Zero DB Hits).
      * GET /api/gifts/active or GET /api/gifts
      */
@@ -74,21 +83,24 @@ class GiftApiController extends Controller
     {
         $gifts = \Illuminate\Support\Facades\Cache::rememberForever('active_app_gifts', function () {
             return Gift::where('is_active', true)
+                ->orderBy('sort_order', 'asc')
                 ->orderBy('coin_price', 'asc')
                 ->orderBy('coins', 'asc')
                 ->get()
                 ->map(function ($g) {
-                    $icon = $g->icon_url ?: ($g->image_url ?: $g->image);
-                    $anim = $g->animation_url ?: ($g->file_url ?: $g->animation_full_url);
+                    $icon = $g->image ?: ($g->image_url ?: ($g->icon_url ?: url('uploads/gifts/diamond_ring_gift.png')));
+                    $anim = $g->animation_full_url ?: ($g->animation_url ?: ($g->file_url ?: $icon));
                     return [
                         'id'                  => $g->id,
                         'name'                => $g->name,
                         'slug'                => $g->slug,
                         'coins'               => (int) ($g->coins ?: $g->coin_price),
                         'coin_price'          => (int) ($g->coin_price ?: $g->coins),
-                        'icon_url'            => $icon,
-                        'image_url'           => $icon,
                         'image'               => $icon,
+                        'image_url'           => $icon,
+                        'icon_url'            => $icon,
+                        'png_url'             => $g->png_url,
+                        'svg_url'             => $g->svg_url,
                         'animation_url'       => $anim,
                         'animation_asset_url' => $anim,
                         'file_url'            => $anim,

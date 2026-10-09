@@ -40,6 +40,7 @@ class Gift extends Model
     ];
 
     protected $appends = [
+        'image',
         'image_url',
         'png_url',
         'svg_url',
@@ -74,13 +75,25 @@ class Gift extends Model
     }
 
     /**
+     * Get the full URL for the gift image (GIF, PNG, SVG, WebP).
+     */
+    public function getImageAttribute(): string
+    {
+        $src = $this->attributes['image'] ?? $this->attributes['icon_url'] ?? null;
+        if (empty($src)) {
+            return CoinPackage::resolveAssetUrl('uploads/gifts/diamond_ring_gift.png');
+        }
+        return CoinPackage::resolveAssetUrl($src);
+    }
+
+    /**
      * Get the full URL for the gift icon / image.
      */
     public function getImageUrlAttribute(): string
     {
-        $src = $this->attributes['icon_url'] ?? $this->attributes['image'] ?? null;
+        $src = $this->attributes['image'] ?? $this->attributes['icon_url'] ?? null;
         if (empty($src)) {
-            return CoinPackage::resolveAssetUrl('uploads/gifts/diamond_ring_gift.svg');
+            return CoinPackage::resolveAssetUrl('uploads/gifts/diamond_ring_gift.png');
         }
         return CoinPackage::resolveAssetUrl($src);
     }
@@ -114,11 +127,15 @@ class Gift extends Model
     }
 
     /**
-     * Alias for icon_url accessor (provides direct vector SVG URL).
+     * Alias for icon_url accessor (returns full URL for icon/image).
      */
     public function getIconUrlAttribute(): string
     {
-        return $this->getSvgUrlAttribute();
+        $src = $this->attributes['icon_url'] ?? $this->attributes['image'] ?? null;
+        if (empty($src)) {
+            return CoinPackage::resolveAssetUrl('uploads/gifts/diamond_ring_gift.png');
+        }
+        return CoinPackage::resolveAssetUrl($src);
     }
 
     /**

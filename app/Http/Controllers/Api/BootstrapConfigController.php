@@ -86,14 +86,19 @@ class BootstrapConfigController extends Controller
                 ->orderBy('coins', 'asc')
                 ->get()
                 ->map(function ($g) {
+                    $icon = $g->image ?: ($g->image_url ?: ($g->icon_url ?: url('uploads/gifts/diamond_ring_gift.png')));
+                    $anim = $g->animation_full_url ?: ($g->animation_url ?: ($g->file_url ?: $icon));
                     return [
                         'id'            => $g->id,
                         'name'          => $g->name,
                         'coins'         => (int) ($g->coins ?: $g->coin_price),
                         'coin_price'    => (int) ($g->coin_price ?: $g->coins),
-                        'icon_url'      => $g->icon_url ?: ($g->image_url ?: $g->image),
-                        'image_url'     => $g->image_url ?: ($g->icon_url ?: $g->image),
-                        'animation_url' => $g->animation_url ?: ($g->file_url ?: $g->animation_full_url),
+                        'image'         => $icon,
+                        'image_url'     => $icon,
+                        'icon_url'      => $icon,
+                        'png_url'       => $g->png_url,
+                        'svg_url'       => $g->svg_url,
+                        'animation_url' => $anim,
                         'format'        => $g->format ?: ($g->animation_type ?: 'svga'),
                         'display_type'  => $g->display_type ?: ($g->is_broadcast ? 'fullscreen' : 'bubble'),
                         'category'      => $g->category ?: 'all',
