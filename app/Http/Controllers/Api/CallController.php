@@ -596,6 +596,7 @@ class CallController extends Controller
         // } catch (\Throwable $e) {}
 
         // 📡 High-Priority VoIP Real-Time Socket Signal to Host/Receiver Private Channel (private-user.{host_id})
+        try {
             $callerCountry = $caller->country ?: 'Bangladesh';
             $callerCity = $caller->city ?: 'Dhaka';
             $callerAge = $caller->age ?: 22;
