@@ -74,27 +74,45 @@ class CallIncoming implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
+        $caller = $this->callerId > 0 ? User::find($this->callerId) : null;
+        $config = \App\Models\CallSetting::getAllConfig();
+        $incomingRingtone = $config['incoming_ringtone_url'] ?? null;
+        $callerCountry = $caller?->country ?: 'Bangladesh';
+        $callerCity = $caller?->city ?: 'Dhaka';
+        $callerAge = $caller?->age ?: 22;
+        $callerGender = $caller?->gender ?: 'male';
+
         return [
-            'event'         => 'call.incoming',
-            'action'        => 'incoming_call',
-            'call_id'       => $this->callId,
-            'id'            => $this->callId,
-            'caller_id'     => $this->callerId,
-            'caller_name'   => $this->callerName,
-            'caller_avatar' => $this->callerAvatar,
-            'caller'        => [
+            'event'                 => 'call.incoming',
+            'action'                => 'incoming_call',
+            'call_id'               => $this->callId,
+            'id'                    => $this->callId,
+            'caller_id'             => $this->callerId,
+            'caller_name'           => $this->callerName,
+            'caller_avatar'         => $this->callerAvatar,
+            'caller_country'        => $callerCountry,
+            'caller_city'           => $callerCity,
+            'caller_age'            => $callerAge,
+            'caller_gender'         => $callerGender,
+            'incoming_ringtone_url' => $incomingRingtone,
+            'caller'                => [
                 'id'           => $this->callerId,
                 'name'         => $this->callerName,
                 'display_name' => $this->callerName,
                 'avatar_url'   => $this->callerAvatar,
+                'avatar'       => $this->callerAvatar,
+                'country'      => $callerCountry,
+                'city'         => $callerCity,
+                'age'          => $callerAge,
+                'gender'       => $callerGender,
             ],
-            'receiver_id'   => $this->receiverId,
-            'call_type'     => $this->callType,
-            'room_id'       => $this->roomId,
-            'channel_name'  => $this->roomId,
-            'status'        => $this->status,
-            'created_at'    => now()->toIso8601String(),
-            'timestamp'     => now()->toIso8601String(),
+            'receiver_id'           => $this->receiverId,
+            'call_type'             => $this->callType,
+            'room_id'               => $this->roomId,
+            'channel_name'          => $this->roomId,
+            'status'                => $this->status,
+            'created_at'            => now()->toIso8601String(),
+            'timestamp'             => now()->toIso8601String(),
         ];
     }
 }

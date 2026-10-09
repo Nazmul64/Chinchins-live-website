@@ -34,6 +34,8 @@ class IncomingCallEvent implements ShouldBroadcastNow
             new PrivateChannel('user.' . $this->targetUserId),
             new Channel('user.' . $this->targetUserId),
             new Channel('call.user.' . $this->targetUserId),
+            new Channel('calls.' . $this->targetUserId),
+            new PrivateChannel('calls.' . $this->targetUserId),
         ];
 
         if (!empty($this->callData['channel'])) {

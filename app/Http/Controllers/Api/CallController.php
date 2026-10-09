@@ -596,9 +596,15 @@ class CallController extends Controller
         // } catch (\Throwable $e) {}
 
         // 📡 High-Priority VoIP Real-Time Socket Signal to Host/Receiver Private Channel (private-user.{host_id})
-        try {
+            $callerCountry = $caller->country ?: 'Bangladesh';
+            $callerCity = $caller->city ?: 'Dhaka';
+            $callerAge = $caller->age ?: 22;
+            $callerGender = $caller->gender ?: 'male';
+            $incomingRingtone = $config['incoming_ringtone_url'] ?? null;
+
             $callData = [
                 'event'                 => 'call.incoming',
+                'action'                => 'incoming_call',
                 'call_id'               => $callModel->id,
                 'id'                    => $callModel->id,
                 'session_id'            => $call->id,
@@ -610,14 +616,23 @@ class CallController extends Controller
                 'caller_account_id'     => $caller->account_id ?: (string) $caller->id,
                 'caller_name'           => $caller->display_name ?: $caller->name,
                 'caller_avatar'         => $caller->avatar_url ?: $caller->profile_image,
+                'caller_country'        => $callerCountry,
+                'caller_city'           => $callerCity,
+                'caller_age'            => $callerAge,
+                'caller_gender'         => $callerGender,
+                'incoming_ringtone_url' => $incomingRingtone,
                 'caller'                => [
                     'id'           => $caller->id,
                     'account_id'   => $caller->account_id,
-                    'display_name' => $caller->display_name,
-                    'name'         => $caller->display_name,
-                    'avatar_url'   => $caller->avatar_url,
+                    'display_name' => $caller->display_name ?: $caller->name,
+                    'name'         => $caller->display_name ?: $caller->name,
+                    'avatar_url'   => $caller->avatar_url ?: $caller->profile_image,
+                    'avatar'       => $caller->avatar_url ?: $caller->profile_image,
                     'level'        => $caller->level ?: 'Lv1',
-                    'gender'       => $caller->gender ?: 'male',
+                    'gender'       => $callerGender,
+                    'age'          => $callerAge,
+                    'country'      => $callerCountry,
+                    'city'         => $callerCity,
                 ],
                 'rate_per_minute'       => $ratePerMinute,
                 'is_free_trial'         => $isEligibleForFree,
@@ -802,27 +817,46 @@ class CallController extends Controller
 
         // 3. Instant Socket Broadcast to Receiver (even if live, do not block)
         $receiverToken = $this->generateFastLivekitToken($roomName, $receiver);
+        $callerCountry = $caller->country ?: 'Bangladesh';
+        $callerCity = $caller->city ?: 'Dhaka';
+        $callerAge = $caller->age ?: 22;
+        $callerGender = $caller->gender ?: 'male';
+        $incomingRingtone = $config['incoming_ringtone_url'] ?? null;
+
         $callData = [
-            'id'           => $callModel->id,
-            'call_id'      => $callModel->id,
-            'session_id'   => $call->id,
-            'channel'      => $roomName,
-            'channel_name' => $roomName,
-            'room_name'    => $roomName,
-            'call_type'    => $callType,
-            'token'        => $receiverToken,
-            'livekit_url'  => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
-            'status'       => 'ringing',
-            'caller'       => [
+            'id'                    => $callModel->id,
+            'call_id'               => $callModel->id,
+            'session_id'            => $call->id,
+            'channel'               => $roomName,
+            'channel_name'          => $roomName,
+            'room_name'             => $roomName,
+            'call_type'             => $callType,
+            'token'                 => $receiverToken,
+            'livekit_url'           => config('services.livekit.url', env('LIVEKIT_URL', 'wss://chinchins.live/livekit')),
+            'status'                => 'ringing',
+            'caller_id'             => $caller->id,
+            'caller_account_id'     => $caller->account_id ?: (string) $caller->id,
+            'caller_name'           => $caller->display_name ?: $caller->name,
+            'caller_avatar'         => $caller->avatar_url ?: $caller->profile_image,
+            'caller_country'        => $callerCountry,
+            'caller_city'           => $callerCity,
+            'caller_age'            => $callerAge,
+            'caller_gender'         => $callerGender,
+            'incoming_ringtone_url' => $incomingRingtone,
+            'caller'                => [
                 'id'           => $caller->id,
                 'account_id'   => $caller->account_id,
-                'display_name' => $caller->display_name,
-                'name'         => $caller->display_name,
-                'avatar_url'   => $caller->avatar_url,
+                'display_name' => $caller->display_name ?: $caller->name,
+                'name'         => $caller->display_name ?: $caller->name,
+                'avatar_url'   => $caller->avatar_url ?: $caller->profile_image,
+                'avatar'       => $caller->avatar_url ?: $caller->profile_image,
                 'level'        => $caller->level ?: 'Lv1',
-                'gender'       => $caller->gender ?: 'male',
+                'gender'       => $callerGender,
+                'age'          => $callerAge,
+                'country'      => $callerCountry,
+                'city'         => $callerCity,
             ],
-            'timestamp'    => now()->toIso8601String(),
+            'timestamp'             => now()->toIso8601String(),
         ];
 
         try {
