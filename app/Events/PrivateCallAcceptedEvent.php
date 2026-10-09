@@ -33,6 +33,10 @@ class PrivateCallAcceptedEvent implements ShouldBroadcastNow
         return [
             new PrivateChannel('user.' . $this->callerId),
             new Channel('user.' . $this->callerId),
+            new PrivateChannel('call.' . $this->callerId),
+            new Channel('call.' . $this->callerId),
+            new PrivateChannel('calls.' . $this->callerId),
+            new Channel('calls.' . $this->callerId),
         ];
     }
 

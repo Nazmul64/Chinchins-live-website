@@ -49,20 +49,28 @@ class CallAccepted implements ShouldBroadcastNow
     {
         $channels = [];
         if ($this->callerId > 0) {
-            $channels[] = new PrivateChannel('call.' . $this->callerId);
-            $channels[] = new Channel('call.' . $this->callerId);
             $channels[] = new PrivateChannel('user.' . $this->callerId);
             $channels[] = new Channel('user.' . $this->callerId);
+            $channels[] = new PrivateChannel('call.' . $this->callerId);
+            $channels[] = new Channel('call.' . $this->callerId);
+            $channels[] = new PrivateChannel('calls.' . $this->callerId);
+            $channels[] = new Channel('calls.' . $this->callerId);
+            $channels[] = new PrivateChannel('user-calls.' . $this->callerId);
+            $channels[] = new Channel('user-calls.' . $this->callerId);
             $channels[] = new Channel('chat.' . $this->callerId);
         }
         if (!empty($this->roomId)) {
             $channels[] = new PrivateChannel('call.' . $this->roomId);
             $channels[] = new Channel('call.' . $this->roomId);
+            $channels[] = new PrivateChannel('calls.' . $this->roomId);
+            $channels[] = new Channel('calls.' . $this->roomId);
             $channels[] = new Channel('presence-call.' . $this->roomId);
         }
         if ($this->callId > 0) {
             $channels[] = new PrivateChannel('call.' . $this->callId);
             $channels[] = new Channel('call.' . $this->callId);
+            $channels[] = new PrivateChannel('calls.' . $this->callId);
+            $channels[] = new Channel('calls.' . $this->callId);
             $channels[] = new Channel('presence-call.' . $this->callId);
         }
         return $channels;
