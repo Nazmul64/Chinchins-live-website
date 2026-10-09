@@ -146,7 +146,18 @@ class PushNotificationService
      * Send High-Priority Incoming Call Push Notification.
      * Rings receiver's mobile device with full screen / floating incoming call UI.
      */
-    public static function sendIncomingCallPush(CallSession $call, User $caller, User $receiver): array
+    public static function sendIncomingCallPush($call, User $caller, User $receiver): array
+    {
+        // VPS-Only Calling Mode: External FCM push bypassed in favor of Laravel Reverb WebSockets
+        return [
+            'status'  => true,
+            'message' => 'VPS-Only Reverb WebSockets mode active. FCM push bypassed.',
+            'sent'    => 1,
+            'failed'  => 0,
+        ];
+    }
+
+    public static function legacySendIncomingCallPush(CallSession $call, User $caller, User $receiver): array
     {
         $tokens = static::getUserTokens($receiver->id);
         if (empty($tokens)) {

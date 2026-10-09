@@ -192,20 +192,13 @@ class WebRTCCallController extends Controller
         }
 
         // 📲 Trigger Real-Time High-Priority Push Notification (Direct Send + Queue Backup)
-        try {
-            $callSession = \App\Models\CallSession::where('channel_name', $roomId)->latest()->first() ?: (object)[
-                'id'                    => $call->id,
-                'channel_name'          => $roomId,
-                'call_type'             => $callType,
-                'rate_per_minute'       => 100,
-                'is_free_trial'         => false,
-                'free_duration_seconds' => 0,
-            ];
-            \App\Services\PushNotificationService::sendIncomingCallPush($callSession, $user, $receiver);
-        } catch (\Throwable $e) {}
-        try {
-            dispatch(new \App\Jobs\SendCallNotificationJob($user, $receiverId, $roomId, $callType));
-        } catch (\Throwable $e) {}
+        // 1-to-1 WebRTC Call Push Notification (VPS-Only: Bypassed for Laravel Reverb WebSockets)
+        // try {
+        //     \App\Services\PushNotificationService::sendIncomingCallPush($callSession, $user, $receiver);
+        // } catch (\Throwable $e) {}
+        // try {
+        //     dispatch(new \App\Jobs\SendCallNotificationJob($user, $receiverId, $roomId, $callType));
+        // } catch (\Throwable $e) {}
 
         // Broadcast call.incoming and IncomingCallEvent to receiver's private channel (private-user.{receiverId})
         try {

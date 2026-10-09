@@ -31,9 +31,9 @@ class IncomingCallEvent implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         $channels = [
+            new PrivateChannel('user.' . $this->targetUserId),
             new Channel('user.' . $this->targetUserId),
             new Channel('call.user.' . $this->targetUserId),
-            new PrivateChannel('user.' . $this->targetUserId),
         ];
 
         if (!empty($this->callData['channel'])) {
@@ -51,7 +51,7 @@ class IncomingCallEvent implements ShouldBroadcastNow
      */
     public function broadcastAs(): string
     {
-        return 'incoming_call';
+        return 'incoming-call';
     }
 
     /**
@@ -60,8 +60,13 @@ class IncomingCallEvent implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return array_merge([
-            'event'     => 'incoming_call',
-            'timestamp' => now()->toIso8601String(),
+            'event'        => 'incoming-call',
+            'action'       => 'incoming-call',
+            'caller_id'    => $this->callData['caller_id'] ?? null,
+            'call_id'      => $this->callData['call_id'] ?? $this->callData['id'] ?? null,
+            'channel_name' => $this->callData['channel_name'] ?? $this->callData['room_name'] ?? $this->callData['channel'] ?? null,
+            'call_type'    => $this->callData['call_type'] ?? 'video',
+            'timestamp'    => now()->toIso8601String(),
         ], $this->callData);
     }
 }

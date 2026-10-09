@@ -587,15 +587,13 @@ class CallController extends Controller
             'is_random_match'       => filter_var($data['is_random_match'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ]);
 
-        // 📲 Trigger Real-Time IMO/WhatsApp-style High-Priority Push Notification (Direct Fast Send + Queue Backup)
-        try {
-            PushNotificationService::sendIncomingCallPush($call, $caller, $receiver);
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("Direct FCM push call notification warning: " . $e->getMessage());
-        }
-        try {
-            dispatch(new \App\Jobs\SendCallNotificationJob($call->id, $caller->id, $receiver->id));
-        } catch (\Throwable $e) {}
+        // 📲 VPS-ONLY CALLING: External Firebase FCM bypassed in favor of Laravel Reverb WebSockets
+        // try {
+        //     PushNotificationService::sendIncomingCallPush($call, $caller, $receiver);
+        // } catch (\Throwable $e) {}
+        // try {
+        //     dispatch(new \App\Jobs\SendCallNotificationJob($call->id, $caller->id, $receiver->id));
+        // } catch (\Throwable $e) {}
 
         // 📡 High-Priority VoIP Real-Time Socket Signal to Host/Receiver Private Channel (private-user.{host_id})
         try {
@@ -835,16 +833,14 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Log::warning("makeCall socket warning: " . $e->getMessage());
         }
 
-        // 4. Background Queued Push Notification (dispatched after response to avoid UI block)
-        try {
-            dispatch(new \App\Jobs\SendCallNotificationJob(
-                $call->id,
-                $caller->id,
-                $receiver->id
-            ))->afterResponse();
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("makeCall push notification dispatch error: " . $e->getMessage());
-        }
+        // 4. VPS-ONLY CALLING: External Firebase FCM bypassed in favor of Laravel Reverb WebSockets
+        // try {
+        //     dispatch(new \App\Jobs\SendCallNotificationJob(
+        //         $call->id,
+        //         $caller->id,
+        //         $receiver->id
+        //     ))->afterResponse();
+        // } catch (\Throwable $e) {}
 
         return response()->json([
             'success'       => true,
@@ -1004,15 +1000,13 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Log::warning("Instant call socket warning: " . $e->getMessage());
         }
 
-        // 4. Instant High-Priority FCM Push Notification (Direct Fast Send + Queue Backup)
-        try {
-            PushNotificationService::sendIncomingCallPush($callSession, $caller, $targetUser);
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("Direct FCM push call notification warning: " . $e->getMessage());
-        }
-        try {
-            dispatch(new \App\Jobs\SendCallNotificationJob($caller->id, $targetUser->id, $channelName, $callType))->afterResponse();
-        } catch (\Throwable $e) {}
+        // 4. VPS-ONLY CALLING: External Firebase FCM bypassed in favor of Laravel Reverb WebSockets
+        // try {
+        //     PushNotificationService::sendIncomingCallPush($callSession, $caller, $targetUser);
+        // } catch (\Throwable $e) {}
+        // try {
+        //     dispatch(new \App\Jobs\SendCallNotificationJob($caller->id, $targetUser->id, $channelName, $callType))->afterResponse();
+        // } catch (\Throwable $e) {}
 
         return response()->json([
             'success'        => true,
