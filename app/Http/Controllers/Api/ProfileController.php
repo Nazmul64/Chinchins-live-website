@@ -426,13 +426,26 @@ class ProfileController extends Controller
             ], 404);
         }
 
-        // Fetch received gifts grouped by gift
-        $giftSummaries = UserGift::where('user_id', $user->id)
+        // Fetch received gifts grouped by gift from UserGift and GiftTransaction
+        $giftSummaries = UserGift::where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->orWhere('receiver_id', $user->id);
+            })
             ->with('gift')
-            ->select('gift_id', DB::raw('SUM(quantity) as total_quantity'), DB::raw('SUM(total_coins) as total_coins_sum'), DB::raw('MAX(coins_per_unit) as unit_coins'))
+            ->select('gift_id', DB::raw('SUM(COALESCE(quantity, 1)) as total_quantity'), DB::raw('SUM(COALESCE(total_coins, coin_amount, 0)) as total_coins_sum'), DB::raw('MAX(COALESCE(coins_per_unit, coin_amount, 0)) as unit_coins'))
             ->groupBy('gift_id')
             ->orderBy('total_coins_sum', 'desc')
             ->get();
+
+        if ($giftSummaries->isEmpty()) {
+            $giftTxSummaries = \App\Models\GiftTransaction::where('receiver_id', $user->id)
+                ->with('gift')
+                ->select('gift_id', DB::raw('SUM(COALESCE(quantity, 1)) as total_quantity'), DB::raw('SUM(COALESCE(coins_spent, total_coins, 0)) as total_coins_sum'))
+                ->groupBy('gift_id')
+                ->orderBy('total_coins_sum', 'desc')
+                ->get();
+            $giftSummaries = $giftTxSummaries;
+        }
 
         $formattedGifts = [];
         $totalItemsCount = 0;
