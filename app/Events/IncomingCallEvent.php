@@ -30,22 +30,13 @@ class IncomingCallEvent implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
-        $channels = [
+        return [
             new PrivateChannel('user.' . $this->targetUserId),
             new Channel('user.' . $this->targetUserId),
             new Channel('call.user.' . $this->targetUserId),
             new Channel('calls.' . $this->targetUserId),
             new PrivateChannel('calls.' . $this->targetUserId),
         ];
-
-        if (!empty($this->callData['channel'])) {
-            $channels[] = new Channel($this->callData['channel']);
-        }
-        if (!empty($this->callData['channel_name'])) {
-            $channels[] = new Channel($this->callData['channel_name']);
-        }
-
-        return $channels;
     }
 
     /**

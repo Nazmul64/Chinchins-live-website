@@ -587,13 +587,13 @@ class CallController extends Controller
             'is_random_match'       => filter_var($data['is_random_match'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ]);
 
-        // 📲 VPS-ONLY CALLING: External Firebase FCM bypassed in favor of Laravel Reverb WebSockets
-        // try {
-        //     PushNotificationService::sendIncomingCallPush($call, $caller, $receiver);
-        // } catch (\Throwable $e) {}
-        // try {
-        //     dispatch(new \App\Jobs\SendCallNotificationJob($call->id, $caller->id, $receiver->id));
-        // } catch (\Throwable $e) {}
+        // 📲 High-Priority FCM VoIP Push Notification to Receiver's device (wakes up receiver in background)
+        try {
+            PushNotificationService::sendIncomingCallPush($call, $caller, $receiver);
+        } catch (\Throwable $e) {}
+        try {
+            dispatch(new \App\Jobs\SendCallNotificationJob($call->id, $caller->id, $receiver->id));
+        } catch (\Throwable $e) {}
 
         // 📡 High-Priority VoIP Real-Time Socket Signal to Host/Receiver Private Channel (private-user.{host_id})
         try {
@@ -1035,13 +1035,13 @@ class CallController extends Controller
             \Illuminate\Support\Facades\Log::warning("Instant call socket warning: " . $e->getMessage());
         }
 
-        // 4. VPS-ONLY CALLING: External Firebase FCM bypassed in favor of Laravel Reverb WebSockets
-        // try {
-        //     PushNotificationService::sendIncomingCallPush($callSession, $caller, $targetUser);
-        // } catch (\Throwable $e) {}
-        // try {
-        //     dispatch(new \App\Jobs\SendCallNotificationJob($caller->id, $targetUser->id, $channelName, $callType))->afterResponse();
-        // } catch (\Throwable $e) {}
+        // 4. High-Priority FCM VoIP Push Notification
+        try {
+            PushNotificationService::sendIncomingCallPush($callSession, $caller, $targetUser);
+        } catch (\Throwable $e) {}
+        try {
+            dispatch(new \App\Jobs\SendCallNotificationJob($caller->id, $targetUser->id, $channelName, $callType))->afterResponse();
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'success'        => true,
