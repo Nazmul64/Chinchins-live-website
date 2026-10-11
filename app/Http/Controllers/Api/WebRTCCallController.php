@@ -305,7 +305,7 @@ class WebRTCCallController extends Controller
         // Also sync CallSession answered_at and status
         try {
             \App\Models\CallSession::where('channel_name', $callInstance->room_id)
-                ->orWhere('id', $callInstance->id)
+                ->whereIn('status', ['ringing', 'initiated', 'calling', 'connected'])
                 ->update([
                     'status'      => 'connected',
                     'answered_at' => $now,
@@ -458,6 +458,14 @@ class WebRTCCallController extends Controller
             return response()->json(['success' => false, 'message' => 'Call not found'], 404);
         }
 
+        if (in_array($callInstance->status, ['accepted', 'connected', 'ended', 'completed'], true)) {
+            return response()->json([
+                'success' => true,
+                'status'  => $callInstance->status,
+                'message' => 'Call already connected. Ring-timeout/cancel ignored so the live call is not cut.',
+            ], 200);
+        }
+
         $inputReason = $request->input('reason') ?? $request->input('cancel_reason') ?? $request->input('cancellation_reason');
         $createdAt = $callInstance->created_at ?? $callInstance->started_at ?? now();
         $elapsedSeconds = $createdAt ? (int) $createdAt->diffInSeconds(now()) : 0;
@@ -484,7 +492,7 @@ class WebRTCCallController extends Controller
 
         try {
             \App\Models\CallSession::where('channel_name', $callInstance->room_id)
-                ->orWhere('id', $callInstance->id)
+                ->whereIn('status', ['ringing', 'initiated', 'calling'])
                 ->update([
                     'status'   => $finalStatus,
                     'ended_at' => $now,

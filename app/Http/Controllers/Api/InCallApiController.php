@@ -352,8 +352,15 @@ class InCallApiController extends Controller
                     'call_session_id' => $request->call_session_id,
                     'quantity'        => 1,
                     'total_coins'     => $giftCost,
+                    'coins_spent'     => $giftCost,
                     'status'          => 'completed',
                 ]);
+
+                $totalCoinsReceived = (int) UserGift::where('user_id', $receiver->id)->orWhere('receiver_id', $receiver->id)->sum('total_coins');
+                $newCharm = \App\Models\CharmLevelSetting::calculateLevel($totalCoinsReceived);
+                if ($newCharm && isset($newCharm['level'])) {
+                    $receiver->update(['charm_level' => $newCharm['level']]);
+                }
             } catch (\Throwable $e) {}
 
             $animationUrl = $gift->animation_full_url 
@@ -475,14 +482,14 @@ class InCallApiController extends Controller
      */
     public function getReceivedGifts(Request $request): JsonResponse
     {
-        $user = $this->resolveUser($request) ?? auth()->user();
-        if (!$user) {
-            $userIdParam = $request->input('user_id') ?? $request->input('id');
-            if ($userIdParam) {
-                $user = User::find($userIdParam) ?? User::where('account_id', $userIdParam)->first();
-            }
+        $targetId = $request->input('user_id') ?? $request->input('id');
+        $user = null;
+        if ($targetId) {
+            $user = User::find($targetId) ?? User::where('account_id', $targetId)->first();
         }
-
+        if (!$user) {
+            $user = $this->resolveUser($request) ?? auth()->user();
+        }
         if (!$user) {
             $user = User::first();
         }
@@ -492,49 +499,151 @@ class InCallApiController extends Controller
                 'status'               => true,
                 'total_received_coins' => 0,
                 'gifts'                => [],
+                'data'                 => [
+                    'charm_level'           => ['level' => 1, 'level_tag' => 'Lv.1', 'progress' => 0],
+                    'top_fan'               => null,
+                    'summary'               => ['total_unique_gifts' => 0, 'total_items_count' => 0, 'total_coins' => 0, 'formatted_coins' => '0'],
+                    'profile_preview_gifts' => [],
+                    'gifts_received'        => [],
+                ],
             ], 200);
         }
 
-        // Aggregate user gifts grouped by gift_id
-        $groupedGifts = UserGift::where(function ($q) use ($user) {
+        // Aggregate user gifts grouped by gift_id from UserGift and GiftTransaction
+        $giftSummaries = UserGift::where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
                   ->orWhere('receiver_id', $user->id);
             })
             ->with('gift')
-            ->select('gift_id', DB::raw('SUM(COALESCE(quantity, 1)) as total_quantity'), DB::raw('SUM(COALESCE(coin_amount, total_coins, 0)) as total_coins_sum'))
+            ->select('gift_id', DB::raw('SUM(COALESCE(quantity, 1)) as total_quantity'), DB::raw('SUM(COALESCE(total_coins, coin_amount, 0)) as total_coins_sum'), DB::raw('MAX(COALESCE(coins_per_unit, coin_amount, 0)) as unit_coins'))
             ->groupBy('gift_id')
-            ->orderByDesc('total_coins_sum')
+            ->orderBy('total_coins_sum', 'desc')
             ->get();
 
-        $totalCoinsReceived = (int) UserGift::where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)
-                  ->orWhere('receiver_id', $user->id);
-            })->sum(DB::raw('COALESCE(coin_amount, total_coins, 0)'));
+        if ($giftSummaries->isEmpty()) {
+            $giftTxSummaries = \App\Models\GiftTransaction::where('receiver_id', $user->id)
+                ->with('gift')
+                ->select('gift_id', DB::raw('SUM(COALESCE(quantity, 1)) as total_quantity'), DB::raw('SUM(COALESCE(total_coins, coins_spent, 0)) as total_coins_sum'))
+                ->groupBy('gift_id')
+                ->orderBy('total_coins_sum', 'desc')
+                ->get();
+            $giftSummaries = $giftTxSummaries;
+        }
+
+        $formattedGifts = [];
+        $totalItemsCount = 0;
+        $totalCoinsReceived = 0;
+
+        foreach ($giftSummaries as $item) {
+            $gift = $item->gift;
+            if (!$gift) continue;
+
+            $qty = (int) $item->total_quantity;
+            $coinsPerUnit = (int) ($item->unit_coins ?: $gift->coins);
+            $totalCoins = (int) ($item->total_coins_sum ?: ($coinsPerUnit * $qty));
+
+            $totalItemsCount += $qty;
+            $totalCoinsReceived += $totalCoins;
+
+            $formattedGifts[] = [
+                'id'                   => (string) $gift->id,
+                'gift_id'              => $gift->id,
+                'name'                 => $gift->name,
+                'gift_name'            => $gift->name,
+                'category'             => $gift->category,
+                'image'                => $gift->image,
+                'image_url'            => $gift->image_url,
+                'icon_url'             => $gift->icon_url ?: $gift->image_url,
+                'png_url'              => $gift->png_url,
+                'svg_url'              => $gift->svg_url,
+                'animation_url'        => $gift->animation_full_url ?: $gift->animation_url,
+                'animation_type'       => $gift->animation_type,
+                'coins'                => $coinsPerUnit,
+                'coin_price'           => $coinsPerUnit,
+                'formatted_coins'      => Gift::formatCoins($coinsPerUnit),
+                'count'                => $qty,
+                'quantity'             => $qty,
+                'count_label'          => 'x' . $qty,
+                'total_coins'          => $totalCoins,
+                'formatted_total'      => Gift::formatCoins($totalCoins),
+                'badge'                => $gift->badge,
+            ];
+        }
 
         if ($totalCoinsReceived === 0 && !empty($user->received_coins)) {
             $totalCoinsReceived = (int) $user->received_coins;
         }
 
-        $giftsList = [];
-        foreach ($groupedGifts as $item) {
-            $gift = $item->gift;
-            if (!$gift) continue;
+        // Top Fan calculation
+        $topFanRecord = UserGift::where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->orWhere('receiver_id', $user->id);
+            })
+            ->whereNotNull('sender_id')
+            ->where('sender_id', '!=', $user->id)
+            ->select('sender_id', DB::raw('SUM(COALESCE(total_coins, coin_amount, 0)) as fan_coins'), DB::raw('SUM(COALESCE(quantity, 1)) as gifts_count'))
+            ->groupBy('sender_id')
+            ->orderBy('fan_coins', 'desc')
+            ->with('sender')
+            ->first();
 
-            $giftsList[] = [
-                'gift_id'        => $gift->id,
-                'gift_name'      => $gift->name,
-                'icon_url'       => $gift->image_url ?: $gift->image ?: url('/images/default-gift.png'),
-                'count'          => (int) $item->total_quantity,
-                'coins_per_unit' => (int) $gift->coins,
-                'total_coins'    => (int) $item->total_coins_sum,
-                'animation_url'  => $gift->animation_full_url ?: $gift->animation_url,
+        if (!$topFanRecord) {
+            $topFanRecord = \App\Models\GiftTransaction::where('receiver_id', $user->id)
+                ->whereNotNull('sender_id')
+                ->where('sender_id', '!=', $user->id)
+                ->select('sender_id', DB::raw('SUM(COALESCE(total_coins, coins_spent, 0)) as fan_coins'), DB::raw('SUM(COALESCE(quantity, 1)) as gifts_count'))
+                ->groupBy('sender_id')
+                ->orderBy('fan_coins', 'desc')
+                ->with('sender')
+                ->first();
+        }
+
+        $topFan = null;
+        if ($topFanRecord && $topFanRecord->sender) {
+            $topFan = [
+                'id'           => $topFanRecord->sender->id,
+                'account_id'   => $topFanRecord->sender->account_id,
+                'name'         => $topFanRecord->sender->display_name,
+                'avatar_url'   => $topFanRecord->sender->avatar_url,
+                'fan_coins'    => (int) $topFanRecord->fan_coins,
+                'formatted'    => Gift::formatCoins($topFanRecord->fan_coins),
+                'crown'        => 'gold',
+                'badge_icon'   => 'crown',
             ];
         }
 
+        $charmLevel = \App\Models\CharmLevelSetting::calculateLevel($totalCoinsReceived);
+        $totalLikes = (int) \App\Models\UserLike::where('user_id', $user->id)->sum('likes_count');
+
         return response()->json([
             'status'               => true,
+            'message'              => 'User received gifts loaded successfully.',
             'total_received_coins' => $totalCoinsReceived,
-            'gifts'                => $giftsList,
+            'gifts'                => $formattedGifts,
+            'data'                 => [
+                'user' => [
+                    'id'             => $user->id,
+                    'account_id'     => $user->account_id,
+                    'display_name'   => $user->display_name,
+                    'avatar_url'     => $user->avatar_url,
+                    'coins'          => (int) ($user->coins ?? 0),
+                    'received_coins' => $totalCoinsReceived,
+                ],
+                'charm_level'          => $charmLevel,
+                'top_fan'              => $topFan,
+                'likes'                => [
+                    'total_likes'     => $totalLikes,
+                    'formatted_likes' => Gift::formatCoins($totalLikes),
+                ],
+                'summary'              => [
+                    'total_unique_gifts' => count($formattedGifts),
+                    'total_items_count'  => $totalItemsCount,
+                    'total_coins'        => $totalCoinsReceived,
+                    'formatted_coins'    => Gift::formatCoins($totalCoinsReceived),
+                ],
+                'profile_preview_gifts' => array_slice($formattedGifts, 0, 8),
+                'gifts_received'        => $formattedGifts,
+            ],
         ], 200);
     }
 }

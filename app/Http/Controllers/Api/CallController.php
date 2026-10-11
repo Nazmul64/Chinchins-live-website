@@ -715,10 +715,11 @@ class CallController extends Controller
     /**
      * Generate Fast In-Memory LiveKit Access Token (< 2ms).
      */
-    public function generateFastLivekitToken(string $roomName, User $user, bool $canPublish = true): string
+    public function generateFastLivekitToken(string $roomName, ?User $user = null, bool $canPublish = true): string
     {
         $apiKey = config('services.livekit.api_key', env('LIVEKIT_API_KEY', 'APIVbeXzKatSo3u'));
         $apiSecret = config('services.livekit.api_secret', env('LIVEKIT_API_SECRET', 'thzlQ2sYGQQIxBPQMkjO9Rres6xuuMsqweZdT61XNsK'));
+        $userId = $user?->id ?: 'guest';
 
         if (class_exists('\Agence104\LiveKit\AccessToken')) {
             try {
@@ -731,8 +732,8 @@ class CallController extends Controller
                       ->setCanPublishData(true);
 
                 $tokenOptions = (new \Agence104\LiveKit\AccessTokenOptions())
-                    ->setIdentity((string) $user->id)
-                    ->setName($user->display_name ?? $user->name ?? "User_{$user->id}")
+                    ->setIdentity((string) $userId)
+                    ->setName($user?->display_name ?? $user?->name ?? "User_{$userId}")
                     ->setTtl(86400);
 
                 $token->init($tokenOptions);
@@ -741,7 +742,66 @@ class CallController extends Controller
             } catch (\Throwable $e) {}
         }
 
-        return base64_encode(json_encode(['room' => $roomName, 'user' => $user->id, 'time' => time()]));
+        return base64_encode(json_encode(['room' => $roomName, 'user' => $userId, 'time' => time()]));
+    }
+
+    /**
+     * Resolve the active CallSession from Call table id, session id, or LiveKit room name.
+     * Never creates a duplicate session — duplicate ringing rows caused auto hangup after timeout.
+     */
+    protected function resolveCallSession($callId = null, $channelName = null, $participantId = null): ?CallSession
+    {
+        $open = ['ringing', 'initiated', 'calling', 'connected', 'accepted'];
+
+        if (!empty($channelName)) {
+            $found = CallSession::with(['caller', 'receiver'])
+                ->where('channel_name', $channelName)
+                ->whereIn('status', $open)
+                ->latest('id')
+                ->first();
+            if ($found) {
+                return $found;
+            }
+        }
+
+        if (!empty($callId)) {
+            $found = CallSession::with(['caller', 'receiver'])->find($callId);
+            if ($found && in_array($found->status, $open, true)) {
+                return $found;
+            }
+
+            $callRecord = \App\Models\Call::find($callId);
+            if ($callRecord && !empty($callRecord->room_id)) {
+                $found = CallSession::with(['caller', 'receiver'])
+                    ->where('channel_name', $callRecord->room_id)
+                    ->whereIn('status', $open)
+                    ->latest('id')
+                    ->first();
+                if ($found) {
+                    return $found;
+                }
+            }
+        }
+
+        if (!empty($participantId)) {
+            return CallSession::with(['caller', 'receiver'])
+                ->where(function ($q) use ($participantId) {
+                    $q->where('receiver_id', $participantId)
+                      ->orWhere('caller_id', $participantId);
+                })
+                ->whereIn('status', $open)
+                ->latest('id')
+                ->first();
+        }
+
+        return null;
+    }
+
+    protected function syncCallRecordByRoom(CallSession $session, array $attrs): void
+    {
+        try {
+            \App\Models\Call::where('room_id', $session->channel_name)->update($attrs);
+        } catch (\Throwable $e) {}
     }
 
     /**
@@ -1293,9 +1353,7 @@ class CallController extends Controller
         $callId = $data['call_id'] ?? $request->input('call_id');
         $channelName = $data['channel_name'] ?? $request->input('channel_name');
 
-        $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
-            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
-            ->first();
+        $call = $this->resolveCallSession($callId, $channelName);
 
         if (!$call) {
             return response()->json([
@@ -1332,90 +1390,7 @@ class CallController extends Controller
         $callId = $data['call_id'] ?? $request->input('call_id') ?? $data['id'] ?? $request->input('id') ?? $data['callId'] ?? $request->input('callId');
         $channelName = $data['channel_name'] ?? $request->input('channel_name') ?? $data['room_id'] ?? $request->input('room_id') ?? $data['roomId'] ?? $request->input('roomId') ?? $data['room_name'] ?? $request->input('room_name');
 
-        $call = null;
-
-        // 1. If call_id or channel_name provided, search for matching call in CallSession
-        if (!empty($callId)) {
-            $call = CallSession::with(['caller', 'receiver'])->find($callId);
-
-            // If not found in CallSession directly, search in Call table and sync
-            if (!$call) {
-                $callRecord = \App\Models\Call::with(['caller', 'receiver'])->find($callId);
-                if ($callRecord) {
-                    $call = CallSession::with(['caller', 'receiver'])
-                        ->where('channel_name', $callRecord->room_id)
-                        ->orWhere('id', $callRecord->id)
-                        ->first();
-
-                    if (!$call) {
-                        $call = CallSession::create([
-                            'id'                    => $callRecord->id,
-                            'caller_id'             => $callRecord->caller_id,
-                            'receiver_id'           => $callRecord->receiver_id,
-                            'channel_name'          => $callRecord->room_id,
-                            'call_type'             => $callRecord->call_type ?? 'video',
-                            'status'                => 'ringing',
-                            'rate_per_minute'       => 100,
-                            'is_free_trial'         => false,
-                            'charged_user_id'       => $callRecord->caller_id,
-                            'free_duration_seconds' => 0,
-                        ]);
-                        $call->load(['caller', 'receiver']);
-                    }
-                }
-            }
-
-            // If found call was already ended/declined/cancelled/missed, allow fallback
-            if ($call && in_array($call->status, ['rejected', 'declined', 'cancelled', 'ended', 'missed'])) {
-                $call = null;
-            }
-        }
-
-        if (!$call && !empty($channelName)) {
-            $call = CallSession::with(['caller', 'receiver'])
-                ->where('channel_name', $channelName)
-                ->latest()
-                ->first();
-
-            if (!$call) {
-                $callRecord = \App\Models\Call::with(['caller', 'receiver'])
-                    ->where('room_id', $channelName)
-                    ->latest()
-                    ->first();
-                if ($callRecord) {
-                    $call = CallSession::create([
-                        'caller_id'             => $callRecord->caller_id,
-                        'receiver_id'           => $callRecord->receiver_id,
-                        'channel_name'          => $callRecord->room_id,
-                        'call_type'             => $callRecord->call_type ?? 'video',
-                        'status'                => 'ringing',
-                        'rate_per_minute'       => 100,
-                        'is_free_trial'         => false,
-                        'charged_user_id'       => $callRecord->caller_id,
-                        'free_duration_seconds' => 0,
-                    ]);
-                    $call->load(['caller', 'receiver']);
-                }
-            }
-        }
-
-        // 2. Fallback logic: If call_id is missing or cancelled, find the latest pending call between the authenticated receiver and caller with status = 'ringing'
-        if (!$call) {
-            $call = CallSession::with(['caller', 'receiver'])
-                ->where(function ($q) use ($callId, $receiverId) {
-                    if ($callId) {
-                        $q->where('id', $callId);
-                    }
-                    if ($receiverId) {
-                        $q->orWhere(function ($sq) use ($receiverId) {
-                            $sq->where('receiver_id', $receiverId)
-                               ->whereIn('status', ['ringing', 'initiated', 'calling']);
-                        });
-                    }
-                })
-                ->latest()
-                ->first();
-        }
+        $call = $this->resolveCallSession($callId, $channelName, $receiverId ?: null);
 
         if (!$call) {
             return response()->json([
@@ -1472,16 +1447,11 @@ class CallController extends Controller
             'answered_at' => $now,
         ]);
 
-        // 2. Sync the calls table record (answered_at & status)
-        try {
-            \App\Models\Call::where('id', $call->id)
-                ->orWhere('room_id', $call->channel_name)
-                ->when($callId, fn($q) => $q->orWhere('id', $callId))
-                ->update([
-                    'status'      => 'accepted',
-                    'answered_at' => $now,
-                ]);
-        } catch (\Throwable $e) {}
+        // 2. Sync the matching calls table row by room only (never by mismatched numeric id)
+        $this->syncCallRecordByRoom($call, [
+            'status'      => 'accepted',
+            'answered_at' => $now,
+        ]);
 
         // 3. Update online status of caller & receiver to in_call and mark busy
         if ($call->caller) {
@@ -1516,6 +1486,10 @@ class CallController extends Controller
                 'caller_token'  => $callerToken,
                 'livekit_token' => $callerToken,
                 'livekit_url'   => $livekitUrl,
+                'can_publish'   => true,
+                'auto_publish'  => true,
+                'start_video'   => true,
+                'start_audio'   => true,
                 'started_at'    => $call->started_at ? $call->started_at->toIso8601String() : $now->toIso8601String(),
                 'answered_at'   => $now->toIso8601String(),
                 'timestamp'     => $now->toIso8601String(),
@@ -1584,6 +1558,10 @@ class CallController extends Controller
                 'caller_token'          => $callerToken,
                 'livekit_token'         => $receiverToken,
                 'livekit_url'           => $livekitUrl,
+                'can_publish'           => true,
+                'auto_publish'          => true,
+                'start_video'           => true,
+                'start_audio'           => true,
                 'started_at'            => $call->started_at ? $call->started_at->toIso8601String() : $now->toIso8601String(),
                 'answered_at'           => $now->toIso8601String(),
                 'rate_per_minute'       => (int) $call->rate_per_minute,
@@ -1714,9 +1692,7 @@ class CallController extends Controller
         $callId = $data['call_id'] ?? $request->input('call_id');
         $channelName = $data['channel_name'] ?? $request->input('channel_name');
 
-        $call = CallSession::when($callId, fn($q) => $q->where('id', $callId))
-            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
-            ->first();
+        $call = $this->resolveCallSession($callId, $channelName);
 
         if (!$call) {
             return response()->json([
@@ -1725,12 +1701,21 @@ class CallController extends Controller
             ], 200);
         }
 
+        if (in_array($call->status, ['connected', 'accepted', 'completed'])) {
+            return response()->json([
+                'status'  => true,
+                'success' => true,
+                'message' => 'Call already connected. Reject ignored.',
+                'data'    => ['call_id' => $call->id, 'status' => $call->status],
+            ], 200);
+        }
+
         $call->status = 'rejected';
         $call->ended_at = now();
         $call->save();
 
         try {
-            \App\Models\Call::where('room_id', $call->channel_name)->orWhere('id', $call->id)->update([
+            $this->syncCallRecordByRoom($call, [
                 'status'   => 'rejected',
                 'ended_at' => now(),
                 'ended_by' => $call->receiver_id,
@@ -1823,61 +1808,25 @@ class CallController extends Controller
         $channelName = $data['channel_name'] ?? $request->input('channel_name') ?? $data['room_id'] ?? $request->input('room_id') ?? $data['roomId'] ?? $request->input('roomId');
         $inputReason = $data['reason'] ?? $request->input('reason') ?? $data['cancel_reason'] ?? $request->input('cancel_reason') ?? $data['cancellation_reason'] ?? $request->input('cancellation_reason');
 
-        $call = null;
-
-        if (!empty($callId)) {
-            $call = CallSession::with(['caller', 'receiver'])->find($callId);
-
-            if (!$call) {
-                $callRecord = \App\Models\Call::with(['caller', 'receiver'])->find($callId);
-                if ($callRecord) {
-                    $call = CallSession::with(['caller', 'receiver'])
-                        ->where('channel_name', $callRecord->room_id)
-                        ->orWhere('id', $callRecord->id)
-                        ->first();
-                }
-            }
-        }
-
-        if (!$call && !empty($channelName)) {
-            $call = CallSession::with(['caller', 'receiver'])
-                ->where('channel_name', $channelName)
-                ->latest()
-                ->first();
-
-            if (!$call) {
-                $callRecord = \App\Models\Call::with(['caller', 'receiver'])
-                    ->where('room_id', $channelName)
-                    ->latest()
-                    ->first();
-                if ($callRecord) {
-                    $call = CallSession::with(['caller', 'receiver'])
-                        ->where('channel_name', $callRecord->room_id)
-                        ->orWhere('id', $callRecord->id)
-                        ->first();
-                }
-            }
-        }
-
-        if (!$call) {
-            $user = $this->resolveUser($request);
-            $userId = $user ? $user->id : (auth()->id() ?: 0);
-            if ($userId) {
-                $call = CallSession::with(['caller', 'receiver'])
-                    ->where(function ($q) use ($userId) {
-                        $q->where('caller_id', $userId)->orWhere('receiver_id', $userId);
-                    })
-                    ->whereIn('status', ['ringing', 'initiated', 'calling'])
-                    ->latest()
-                    ->first();
-            }
-        }
+        $user = $this->resolveUser($request);
+        $userId = $user ? $user->id : (auth()->id() ?: 0);
+        $call = $this->resolveCallSession($callId, $channelName, $userId ?: null);
 
         if (!$call) {
             return response()->json([
                 'status'  => false,
                 'success' => false,
                 'message' => 'Call session not found or already closed.',
+            ], 200);
+        }
+
+        if (in_array($call->status, ['connected', 'accepted', 'completed'])) {
+            return response()->json([
+                'status'      => true,
+                'success'     => true,
+                'message'     => 'Call already connected. Ring-timeout/cancel ignored so the live call is not cut.',
+                'call_status' => $call->status,
+                'data'        => ['call_id' => $call->id, 'status' => $call->status],
             ], 200);
         }
 
@@ -1905,14 +1854,11 @@ class CallController extends Controller
         $call->save();
 
         try {
-            \App\Models\Call::where('room_id', $call->channel_name)
-                ->orWhere('id', $call->id)
-                ->when($callId, fn($q) => $q->orWhere('id', $callId))
-                ->update([
-                    'status'   => $finalStatus,
-                    'ended_at' => $now,
-                    'ended_by' => $call->caller_id,
-                ]);
+            $this->syncCallRecordByRoom($call, [
+                'status'   => $finalStatus,
+                'ended_at' => $now,
+                'ended_by' => $call->caller_id,
+            ]);
         } catch (\Throwable $e) {}
 
         // Restore online status and clear busy flag
@@ -2534,10 +2480,7 @@ class CallController extends Controller
         $callId = $data['call_id'] ?? $request->input('call_id');
         $channelName = $data['channel_name'] ?? $request->input('channel_name');
 
-        $call = CallSession::with(['caller', 'receiver'])
-            ->when($callId, fn($q) => $q->where('id', $callId))
-            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
-            ->first();
+        $call = $this->resolveCallSession($callId, $channelName, $user?->id);
 
         if (!$call) {
             return response()->json([
@@ -2556,7 +2499,7 @@ class CallController extends Controller
         $call->save();
 
         try {
-            \App\Models\Call::where('room_id', $call->channel_name)->orWhere('id', $call->id)->update([
+            $this->syncCallRecordByRoom($call, [
                 'status'   => 'ended',
                 'ended_at' => $endedAt,
                 'ended_by' => $user?->id ?: $call->caller_id,

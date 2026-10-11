@@ -64,48 +64,65 @@ class ProcessGiftHistoryJob implements ShouldQueue
                 return;
             }
 
-            // 1. Record in Gift Transactions table
-            $giftTx = GiftTransaction::create([
-                'stream_id'   => $this->streamId,
-                'sender_id'   => $this->senderId,
-                'receiver_id' => $this->receiverId,
-                'gift_id'     => $this->giftId,
-                'coins_spent' => $this->totalCoins,
-            ]);
+            // Check if already recorded synchronously (prevents duplicate ledger entries)
+            $existingUserGift = UserGift::where('user_id', $this->receiverId)
+                ->where('sender_id', $this->senderId)
+                ->where('gift_id', $this->giftId)
+                ->where('total_coins', $this->totalCoins)
+                ->where('created_at', '>=', now()->subSeconds(30))
+                ->latest()
+                ->first();
 
-            // 2. Record in User Gifts collection ledger
-            UserGift::create([
-                'user_id'        => $this->receiverId,
-                'sender_id'      => $this->senderId,
-                'gift_id'        => $this->giftId,
-                'quantity'       => $this->giftCount,
-                'coins_per_unit' => (int) ($this->totalCoins / $this->giftCount),
-                'total_coins'    => $this->totalCoins,
-                'context'        => $this->context,
-            ]);
+            $giftTx = null;
+            if (!$existingUserGift) {
+                // 1. Record in Gift Transactions table
+                $giftTx = GiftTransaction::create([
+                    'stream_id'   => $this->streamId,
+                    'sender_id'   => $this->senderId,
+                    'receiver_id' => $this->receiverId,
+                    'gift_id'     => $this->giftId,
+                    'quantity'    => $this->giftCount,
+                    'total_coins' => $this->totalCoins,
+                    'coins_spent' => $this->totalCoins,
+                    'status'      => 'completed',
+                ]);
 
-            // 3. Sync Wallets in background
-            $senderWallet = Wallet::firstOrCreate(['user_id' => $this->senderId]);
-            $receiverWallet = Wallet::firstOrCreate(['user_id' => $this->receiverId]);
+                // 2. Record in User Gifts collection ledger
+                UserGift::create([
+                    'user_id'        => $this->receiverId,
+                    'receiver_id'    => $this->receiverId,
+                    'sender_id'      => $this->senderId,
+                    'gift_id'        => $this->giftId,
+                    'quantity'       => $this->giftCount,
+                    'coins_per_unit' => (int) ($this->totalCoins / $this->giftCount),
+                    'total_coins'    => $this->totalCoins,
+                    'coin_amount'    => $this->totalCoins,
+                    'context'        => $this->context,
+                ]);
 
-            // 4. Coin Transactions Ledger
-            CoinTransaction::create([
-                'user_id'       => $this->senderId,
-                'type'          => 'gift_sent',
-                'amount'        => -$this->totalCoins,
-                'balance_after' => (int) $sender->coins,
-                'description'   => "Sent {$this->giftCount}x {$gift->name} to {$receiver->display_name}",
-                'reference_id'  => $giftTx->id,
-            ]);
+                // 3. Sync Wallets in background
+                $senderWallet = Wallet::firstOrCreate(['user_id' => $this->senderId]);
+                $receiverWallet = Wallet::firstOrCreate(['user_id' => $this->receiverId]);
 
-            CoinTransaction::create([
-                'user_id'       => $this->receiverId,
-                'type'          => 'gift_received',
-                'amount'        => $this->totalCoins,
-                'balance_after' => (int) $receiverWallet->earnings,
-                'description'   => "Received {$this->giftCount}x {$gift->name} from {$sender->display_name} (+{$this->totalCoins} earnings)",
-                'reference_id'  => $giftTx->id,
-            ]);
+                // 4. Coin Transactions Ledger
+                CoinTransaction::create([
+                    'user_id'       => $this->senderId,
+                    'type'          => 'gift_sent',
+                    'amount'        => -$this->totalCoins,
+                    'balance_after' => (int) $sender->coins,
+                    'description'   => "Sent {$this->giftCount}x {$gift->name} to {$receiver->display_name}",
+                    'reference_id'  => $giftTx->id,
+                ]);
+
+                CoinTransaction::create([
+                    'user_id'       => $this->receiverId,
+                    'type'          => 'gift_received',
+                    'amount'        => $this->totalCoins,
+                    'balance_after' => (int) $receiverWallet->earnings,
+                    'description'   => "Received {$this->giftCount}x {$gift->name} from {$sender->display_name} (+{$this->totalCoins} earnings)",
+                    'reference_id'  => $giftTx->id,
+                ]);
+            }
 
             // 5. In-App Notification
             Notification::createNotification(

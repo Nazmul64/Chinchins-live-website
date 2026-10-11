@@ -20,6 +20,7 @@ use App\Models\PartyRoomSeatInvitation;
 use App\Models\PartyRoomSetting;
 use App\Models\StreamingSetting;
 use App\Models\User;
+use App\Models\UserGift;
 use App\Models\UserLike;
 use App\Services\Calling\CallingManager;
 use App\Services\PushNotificationService;
@@ -2156,6 +2157,7 @@ class PartyRoomApiController extends Controller
 
             // Credit recipient (e.g. 100% or standard charm increase)
             $receiver->increment('coins', $totalCost);
+            $receiver->increment('received_coins', $totalCost);
 
             // Update room total earnings
             $room->increment('total_earned_coins', $totalCost);
@@ -2177,14 +2179,37 @@ class PartyRoomApiController extends Controller
                 'description' => "Received {$count}x {$gift->name} from " . ($user->display_name ?? $user->name) . " in Party Room {$room->room_id}",
             ]);
 
+            // Create UserGift record for receiver profile showcase
+            UserGift::create([
+                'user_id'         => $receiver->id,
+                'receiver_id'     => $receiver->id,
+                'sender_id'       => $user->id,
+                'gift_id'         => $gift->id,
+                'quantity'        => $count,
+                'coins_per_unit'  => (int) ($gift->coin_price ?: $gift->coins ?: 10),
+                'total_coins'     => $totalCost,
+                'coin_amount'     => $totalCost,
+                'context'         => 'party_room',
+            ]);
+
             // Create Gift Transaction
             GiftTransaction::create([
-                'sender_id' => $user->id,
+                'stream_id'   => $room->channel_name ?: $room->room_id,
+                'sender_id'   => $user->id,
                 'receiver_id' => $receiver->id,
-                'gift_id' => $gift->id,
-                'gift_count' => $count,
+                'gift_id'     => $gift->id,
+                'quantity'    => $count,
                 'total_coins' => $totalCost,
+                'coins_spent' => $totalCost,
+                'status'      => 'completed',
             ]);
+
+            // Recalculate charm level for receiver
+            $totalCoinsReceived = (int) UserGift::where('user_id', $receiver->id)->orWhere('receiver_id', $receiver->id)->sum('total_coins');
+            $newCharm = \App\Models\CharmLevelSetting::calculateLevel($totalCoinsReceived);
+            if ($newCharm && isset($newCharm['level'])) {
+                $receiver->update(['charm_level' => $newCharm['level']]);
+            }
 
             // Broadcast In-Room Gift Message
             $msg = PartyRoomMessage::create([

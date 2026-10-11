@@ -411,12 +411,13 @@ class ProfileController extends Controller
      */
     public function show(Request $request, ?string $id = null): JsonResponse
     {
-        if ($id === null || $id === 'me') {
-            $user = $this->resolveUser($request);
-        } else {
-            $user = User::where('id', $id)
-                ->orWhere('account_id', $id)
+        $targetId = ($id !== null && $id !== 'me') ? $id : ($request->input('user_id') ?? $request->input('id'));
+        if ($targetId) {
+            $user = User::where('id', $targetId)
+                ->orWhere('account_id', $targetId)
                 ->first();
+        } else {
+            $user = $this->resolveUser($request);
         }
 
         if (!$user) {
@@ -664,6 +665,13 @@ class ProfileController extends Controller
                 'gifts_count'           => $totalItemsCount,
                 'gifts_total_coins'     => $totalCoinsReceived,
                 'formatted_gifts_coins' => Gift::formatCoins($totalCoinsReceived),
+                'summary'               => [
+                    'total_unique_gifts' => count($formattedGifts),
+                    'total_items_count'  => $totalItemsCount,
+                    'total_coins'        => $totalCoinsReceived,
+                    'formatted_coins'    => Gift::formatCoins($totalCoinsReceived),
+                ],
+                'profile_preview_gifts' => array_slice($formattedGifts, 0, 8),
                 'gifts_received'        => array_slice($formattedGifts, 0, 8),
                 'all_gifts_received'    => $formattedGifts,
             ],

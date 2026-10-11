@@ -224,10 +224,11 @@ class GiftApiController extends Controller
      */
     public function getUserReceivedGifts(Request $request, ?string $id = null): JsonResponse
     {
-        if ($id === null || $id === 'me') {
+        $targetId = $id ?: ($request->input('user_id') ?? $request->input('id'));
+        if ($targetId === null || $targetId === 'me') {
             $user = $this->resolveUser($request) ?? User::first();
         } else {
-            $user = User::where('id', $id)->orWhere('account_id', $id)->first();
+            $user = User::where('id', $targetId)->orWhere('account_id', $targetId)->first();
         }
 
         if (!$user) {
@@ -274,17 +275,22 @@ class GiftApiController extends Controller
             $totalCoinsReceived += $totalCoins;
 
             $formattedGifts[] = [
+                'id'                   => (string) $gift->id,
                 'gift_id'              => $gift->id,
                 'name'                 => $gift->name,
+                'gift_name'            => $gift->name,
                 'category'             => $gift->category,
                 'image'                => $gift->image,
                 'image_url'            => $gift->image_url,
+                'icon_url'             => $gift->icon_url ?: $gift->image_url,
                 'png_url'              => $gift->png_url,
                 'svg_url'              => $gift->svg_url,
                 'animation_url'        => $gift->animation_full_url,
                 'animation_type'       => $gift->animation_type,
                 'coins'                => $coinsPerUnit,
+                'coin_price'           => $coinsPerUnit,
                 'formatted_coins'      => Gift::formatCoins($coinsPerUnit),
+                'count'                => $qty,
                 'quantity'             => $qty,
                 'count_label'          => 'x' . $qty,
                 'total_coins'          => $totalCoins,
@@ -363,9 +369,11 @@ class GiftApiController extends Controller
         $totalLikes = (int) UserLike::where('user_id', $user->id)->sum('likes_count');
 
         return response()->json([
-            'status'  => true,
-            'message' => 'User gifts loaded successfully.',
-            'data'    => [
+            'status'               => true,
+            'message'              => 'User gifts loaded successfully.',
+            'total_received_coins' => $totalCoinsReceived,
+            'gifts'                => $formattedGifts,
+            'data'                 => [
                 'user' => [
                     'id'           => $user->id,
                     'account_id'   => $user->account_id,

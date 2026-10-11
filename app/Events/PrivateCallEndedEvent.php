@@ -19,9 +19,16 @@ class PrivateCallEndedEvent implements ShouldBroadcastNow
 
     /**
      * Create a new event instance.
+     * Accepts (callerId, hostId, payload) or legacy (userId, payload).
      */
-    public function __construct(int|string $callerId, int|string $hostId, array $callData)
+    public function __construct(int|string $callerId, int|string|array $hostId, array $callData = [])
     {
+        if (is_array($hostId)) {
+            $callData = $hostId;
+            $hostId = $callData['receiver_id'] ?? $callData['host_id'] ?? $callData['caller_id'] ?? $callerId;
+            $callerId = $callData['caller_id'] ?? $callerId;
+        }
+
         $this->callerId = $callerId;
         $this->hostId = $hostId;
         $this->callData = $callData;

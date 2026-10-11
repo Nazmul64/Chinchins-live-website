@@ -6,7 +6,9 @@ use App\Events\LiveGiftSentEvent;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessGiftHistoryJob;
 use App\Models\Gift;
+use App\Models\GiftTransaction;
 use App\Models\User;
+use App\Models\UserGift;
 use App\Models\Wallet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -124,6 +126,7 @@ class GiftTransactionController extends Controller
 
         // 3. প্রাপকের অ্যাকাউন্টে কয়েন ও ওয়ালেট আপডেট (Atomic Increment)
         DB::table('users')->where('id', $receiverId)->increment('coins', (int) floor($totalCoins * 0.50));
+        DB::table('users')->where('id', $receiverId)->increment('received_coins', $totalCoins);
 
         $senderWallet = Wallet::firstOrCreate(['user_id' => $sender->id], ['balance' => (int) $sender->coins]);
         $senderWallet->decrement('balance', $totalCoins);
@@ -133,7 +136,44 @@ class GiftTransactionController extends Controller
 
         $remainingCoins = (int) (DB::table('users')->where('id', $sender->id)->value('coins') ?? 0);
 
-        // 4. রিয়েল-টাইম স্ক্রিন অ্যানিমেশন ইভেন্ট (WebSockets / Reverb / LiveKit Data Channel)
+        // 4. Synchronously record UserGift & GiftTransaction ledger (< 1ms) so receiver profile updates instantly
+        try {
+            UserGift::create([
+                'user_id'         => $receiverId,
+                'receiver_id'     => $receiverId,
+                'sender_id'       => $sender->id,
+                'gift_id'         => $gift->id,
+                'quantity'        => $giftCount,
+                'coins_per_unit'  => $coinPrice,
+                'total_coins'     => $totalCoins,
+                'coin_amount'     => $totalCoins,
+                'call_session_id' => $request->input('call_session_id') ?? $request->input('call_id'),
+                'context'         => $request->input('context', 'live_stream'),
+            ]);
+
+            GiftTransaction::create([
+                'stream_id'   => $roomName,
+                'sender_id'   => $sender->id,
+                'receiver_id' => $receiverId,
+                'gift_id'     => $gift->id,
+                'quantity'    => $giftCount,
+                'total_coins' => $totalCoins,
+                'coins_spent' => $totalCoins,
+                'status'      => 'completed',
+            ]);
+
+            $totalReceiverCoins = (int) UserGift::where(function ($q) use ($receiverId) {
+                $q->where('user_id', $receiverId)->orWhere('receiver_id', $receiverId);
+            })->sum('total_coins');
+            $newCharm = \App\Models\CharmLevelSetting::calculateLevel($totalReceiverCoins);
+            if ($newCharm && isset($newCharm['level'])) {
+                DB::table('users')->where('id', $receiverId)->update(['charm_level' => $newCharm['level']]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('UserGift sync creation warning: ' . $e->getMessage());
+        }
+
+        // 5. রিয়েল-টাইম স্ক্রিন অ্যানিমেশন ইভেন্ট (WebSockets / Reverb / LiveKit Data Channel)
         $animationUrl = $gift->animation_url ?: ($gift->file_url ?: $gift->animation_full_url);
         $iconUrl = $gift->icon_url ?: ($gift->image_url ?: $gift->image);
 
@@ -162,16 +202,20 @@ class GiftTransactionController extends Controller
             Log::warning('Gift broadcast error: ' . $e->getMessage());
         }
 
-        // 5. ট্রানজ্যাকশন হিস্ট্রি ও নোটিফিকেশন ব্যাকগ্রাউন্ড কিউতে হস্তান্তর (UI ব্লকিং হবে না)
-        dispatch(new ProcessGiftHistoryJob(
-            $sender->id,
-            $receiverId,
-            $gift->id,
-            $giftCount,
-            $totalCoins,
-            $roomName,
-            'live_stream'
-        ));
+        // 6. নোটিফিকেশন ও পুশ ব্যাকগ্রাউন্ডে হস্তান্তর
+        try {
+            dispatch(new ProcessGiftHistoryJob(
+                $sender->id,
+                $receiverId,
+                $gift->id,
+                $giftCount,
+                $totalCoins,
+                $roomName,
+                'live_stream'
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('ProcessGiftHistoryJob dispatch warning: ' . $e->getMessage());
+        }
 
         return response()->json([
             'success'           => true,

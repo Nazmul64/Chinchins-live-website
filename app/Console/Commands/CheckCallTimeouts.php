@@ -43,6 +43,15 @@ class CheckCallTimeouts extends Command
         $count = 0;
 
         foreach ($staleSessions as $session) {
+            $alreadyConnected = CallSession::where('channel_name', $session->channel_name)
+                ->whereIn('status', ['connected', 'accepted'])
+                ->whereNotNull('answered_at')
+                ->exists();
+            if ($alreadyConnected) {
+                $session->update(['status' => 'missed', 'ended_at' => now()]);
+                continue;
+            }
+
             $session->update([
                 'status'   => 'missed',
                 'ended_at' => now(),
@@ -58,10 +67,10 @@ class CheckCallTimeouts extends Command
                 User::where('id', $session->receiver_id)->where('online_status', 'in_call')->update(['online_status' => 'online', 'is_busy' => false]);
             }
 
-            // Sync calls table
-            Call::where('id', $session->id)
-                ->orWhere('room_id', $session->channel_name)
+            // Sync matching calls table row only (never by mismatched numeric id)
+            Call::where('room_id', $session->channel_name)
                 ->whereIn('status', ['calling', 'ringing'])
+                ->whereNull('answered_at')
                 ->update([
                     'status'   => 'missed',
                     'ended_at' => now(),

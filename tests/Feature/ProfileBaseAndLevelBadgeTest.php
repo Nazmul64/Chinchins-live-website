@@ -11,6 +11,21 @@ class ProfileBaseAndLevelBadgeTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        for ($i = 1; $i <= 10; $i++) {
+            ProfileBase::create([
+                'level'          => $i,
+                'name'           => "Level {$i}",
+                'required_coins' => $i * 1000,
+                'badge_icon'     => 'star',
+                'badge_color'    => '#f59e0b',
+                'is_active'      => true,
+            ]);
+        }
+    }
+
     public function test_profile_bases_api_returns_levels_and_frames()
     {
         $response = $this->getJson('/api/profile-bases');

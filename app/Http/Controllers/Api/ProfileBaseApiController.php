@@ -123,10 +123,16 @@ class ProfileBaseApiController extends Controller
             $user = User::where('account_id', $request->account_id)->first();
         }
 
-        $earnedCoins = $user ? $user->total_earned_coins : 0;
-        $explicitLevel = $user ? ($user->level ?: 0) : 0;
+        $earnedCoins = $user ? (int) $user->total_earned_coins : 0;
+        $explicitLevelInt = null;
+        if ($user && !empty($user->level)) {
+            $parsed = (int) preg_replace('/[^0-9]/', '', (string) $user->level);
+            if ($parsed > 0) {
+                $explicitLevelInt = $parsed;
+            }
+        }
 
-        $progress = ProfileBase::calculateLevelProgress($earnedCoins, $explicitLevel > 0 ? $explicitLevel : null);
+        $progress = ProfileBase::calculateLevelProgress($earnedCoins, $explicitLevelInt);
         $allBases = ProfileBase::where('is_active', true)->orderBy('level', 'asc')->get();
 
         return response()->json([

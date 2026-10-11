@@ -280,9 +280,15 @@ class LivePrivateCallApiController extends Controller
             'connected_at'    => now()->toIso8601String(),
         ];
 
+        $acceptBroadcastPayload['can_publish'] = true;
+        $acceptBroadcastPayload['auto_publish'] = true;
+        $acceptBroadcastPayload['start_video'] = true;
+        $acceptBroadcastPayload['start_audio'] = true;
+
         try {
             broadcast(new PrivateCallAcceptedEvent($call->caller_id, $acceptBroadcastPayload));
             broadcast(new CallAccepted($call, $acceptBroadcastPayload));
+            broadcast(new \App\Events\CallAcceptedEvent($call->caller_id, $acceptBroadcastPayload));
         } catch (\Throwable $e) {
             Log::error("PrivateCallAcceptedEvent broadcast error: " . $e->getMessage());
         }

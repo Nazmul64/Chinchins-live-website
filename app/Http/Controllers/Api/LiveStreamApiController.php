@@ -26,6 +26,7 @@ use App\Models\LiveParticipant;
 use App\Models\LiveStream;
 use App\Models\StreamingSetting;
 use App\Models\User;
+use App\Models\UserGift;
 use App\Services\Calling\CallingManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -1199,6 +1200,7 @@ class LiveStreamApiController extends Controller
             $sender->deductCoins($totalCost, 'live_gift_spent', "Sent {$quantity}x {$gift->name} in Live Broadcast");
             if ($host) {
                 $host->addCoins($hostEarned, 'live_gift_earned', "Received {$quantity}x {$gift->name} from {$sender->display_name} in Live Broadcast");
+                $host->increment('received_coins', $totalCost);
             }
             $stream->increment('total_diamonds_earned', $totalCost);
 
@@ -1219,13 +1221,38 @@ class LiveStreamApiController extends Controller
                 ],
             ]);
 
+            // Synchronously record UserGift for host profile
+            UserGift::create([
+                'user_id'         => $stream->host_id,
+                'receiver_id'     => $stream->host_id,
+                'sender_id'       => $sender->id,
+                'gift_id'         => $gift->id,
+                'quantity'        => $quantity,
+                'coins_per_unit'  => $price,
+                'total_coins'     => $totalCost,
+                'coin_amount'     => $totalCost,
+                'context'         => 'live_stream',
+            ]);
+
             $transaction = GiftTransaction::create([
-                'stream_id'   => $stream->id,
+                'stream_id'   => (string) $stream->id,
                 'sender_id'   => $sender->id,
                 'receiver_id' => $stream->host_id,
                 'gift_id'     => $gift->id,
+                'quantity'    => $quantity,
+                'total_coins' => $totalCost,
                 'coins_spent' => $totalCost,
+                'status'      => 'completed',
             ]);
+
+            // Update charm level for host
+            if ($host) {
+                $totalCoinsReceived = (int) UserGift::where('user_id', $stream->host_id)->orWhere('receiver_id', $stream->host_id)->sum('total_coins');
+                $charmLevel = \App\Models\CharmLevelSetting::calculateLevel($totalCoinsReceived);
+                if ($charmLevel && isset($charmLevel['level'])) {
+                    $host->update(['charm_level' => $charmLevel['level']]);
+                }
+            }
 
             DB::commit();
 
