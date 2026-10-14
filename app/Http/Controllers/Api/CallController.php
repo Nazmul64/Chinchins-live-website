@@ -1072,9 +1072,10 @@ class CallController extends Controller
         ]);
 
         $callData = [
-            'id'           => $callModel->id,
-            'call_id'      => $callModel->id,
+            'id'           => $callSession->id,
+            'call_id'      => $callSession->id,
             'session_id'   => $callSession->id,
+            'call_model_id'=> $callModel->id,
             'caller'       => $callerPayload,
             'channel'      => $channelName,
             'channel_name' => $channelName,
@@ -1106,9 +1107,10 @@ class CallController extends Controller
         return response()->json([
             'success'        => true,
             'status'         => 'dialing',
-            'call_id'        => $callModel->id,
-            'id'             => $callModel->id,
+            'call_id'        => $callSession->id,
+            'id'             => $callSession->id,
             'session_id'     => $callSession->id,
+            'call_model_id'  => $callModel->id,
             'channel'        => $channelName,
             'channel_name'   => $channelName,
             'room_name'      => $channelName,
@@ -1264,10 +1266,16 @@ class CallController extends Controller
         $callId = $id ?? ($data['call_id'] ?? $request->input('call_id'));
         $channelName = $data['channel_name'] ?? $request->input('channel_name');
 
-        $call = CallSession::with(['caller', 'receiver'])
-            ->when($callId, fn($q) => $q->where('id', $callId))
-            ->when($channelName, fn($q) => $q->where('channel_name', $channelName))
-            ->first();
+        $call = null;
+        if (!empty($channelName)) {
+            $call = CallSession::with(['caller', 'receiver'])
+                ->where('channel_name', $channelName)
+                ->latest('id')
+                ->first();
+        }
+        if (!$call && !empty($callId)) {
+            $call = CallSession::with(['caller', 'receiver'])->find($callId);
+        }
 
         if (!$call) {
             return response()->json([
