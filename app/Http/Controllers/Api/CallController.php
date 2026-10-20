@@ -2001,7 +2001,7 @@ class CallController extends Controller
         }
 
         // If call is NOT connected (e.g. still ringing, cancelled, ended, rejected), DO NOT DEDUCT
-        if ($call->status !== 'connected') {
+        if (!in_array($call->status, ['connected', 'accepted'])) {
             return response()->json([
                 'status' => false,
                 'message' => "Call is not connected yet (current status: {$call->status}). Billing pulse runs only when call is actively connected.",
